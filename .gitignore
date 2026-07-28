@@ -10,9 +10,12 @@ coverage/
 .env.local
 .env.*.local
 
-data/
-storage/
-tmp/
+# Nur im Wurzelverzeichnis, nicht irgendwo im Baum: Ohne den führenden
+# Schrägstrich hätte `storage/` auch apps/api/src/storage/ verschluckt – und
+# genau das ist einmal passiert.
+/data/
+/storage/
+/tmp/
 
 .DS_Store
 Thumbs.db
