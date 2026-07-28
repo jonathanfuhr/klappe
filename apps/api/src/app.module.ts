@@ -6,7 +6,9 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { CommentsModule } from './comments/comments.module';
 import { AppConfigModule } from './config/config.module';
+import { RateLimitGuard } from './common/rate-limit.guard';
 import { DbModule } from './db/db.module';
+import { GuestsModule } from './guests/guests.module';
 import { HealthController } from './health/health.controller';
 import { MailModule } from './mail/mail.module';
 import { MediaModule } from './media/media.module';
@@ -16,6 +18,7 @@ import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
 import { SharesModule } from './shares/shares.module';
 import { StorageModule } from './storage/storage.module';
+import { TagsModule } from './tags/tags.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
 import { VersionsModule } from './versions/versions.module';
@@ -44,13 +47,18 @@ import { VideosModule } from './videos/videos.module';
     MediaModule,
     CommentsModule,
     SharesModule,
+    GuestsModule,
     ProjectFilesModule,
     SettingsModule,
+    TagsModule,
   ],
   controllers: [HealthController],
   providers: [
     // Angemeldet sein ist die Voreinstellung; Ausnahmen tragen `@Public()`.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Die Bremse greift nur, wo eine Route sie mit `@RateLimit` anfordert.
+    RateLimitGuard,
+    { provide: APP_GUARD, useExisting: RateLimitGuard },
   ],
 })
 export class AppModule {}

@@ -22,6 +22,34 @@
       "when": 1785255980870,
       "tag": "0002_nachtraege",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785260040057,
+      "tag": "0003_branding",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785260477359,
+      "tag": "0004_anmeldung",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785261280362,
+      "tag": "0005_schlagworte",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785261950399,
+      "tag": "0006_hls",
+      "breakpoints": true
     }
   ]
 }

@@ -43,12 +43,31 @@ export interface ProjectDto {
   fileCount: number;
   /** Darf der anfragende Benutzer hier Material hochladen? */
   canUploadFiles: boolean;
+  /** Schlagworte des Projekts (Phase 12). */
+  tags: TagRefDto[];
+}
+
+/** Schlagwort, wie es am Projekt hängt – ohne Zählwerk. */
+export interface TagRefDto {
+  id: string;
+  name: string;
+  color: string;
 }
 
 export interface UserSummaryDto {
   id: string;
   name: string;
   email: string;
+}
+
+/** Schlagwort für Projekte (Phase 12). */
+export interface TagDto {
+  id: string;
+  name: string;
+  color: string;
+  /** Wie viele Projekte dieses Schlagwort tragen. */
+  projectCount: number;
+  createdAt: string;
 }
 
 export interface VideoDto {
@@ -119,6 +138,12 @@ export interface VersionDto {
   fileDate: string | null;
   /** Name, unter dem das Original heruntergeladen wird. */
   downloadFilename: string;
+  /**
+   * Stufen der adaptiven Wiedergabe, falls eine Leiter erzeugt wurde
+   * (Phase 13) – etwa `['2160p','1080p','720p']`. Leer heißt: nur der
+   * progressive Proxy.
+   */
+  hlsVariants: string[];
 }
 
 export interface CommentDto {
@@ -196,6 +221,53 @@ export interface ShareGuestDto {
   revokedAt: string | null;
 }
 
+/** Ein Zugang eines Gastes, aufgeschlüsselt nach dem Link, über den er kommt. */
+export interface GuestAccessLinkDto {
+  shareLinkId: string;
+  label: string | null;
+  scope: ShareScope;
+  targetName: string;
+  allowComments: boolean;
+  allowDownload: boolean;
+  allowUpload: boolean;
+  /** Der Link selbst gilt noch (nicht zurückgezogen, nicht abgelaufen). */
+  linkActive: boolean;
+  /** Gesetzt, wenn diesem Gast der Zugriff über diesen Link entzogen wurde. */
+  revokedAt: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+/**
+ * Ein Gast mit allem, was er hier darf – zusammengefasst über alle Links,
+ * über die er hereinkommt.
+ */
+export interface GuestAccessDto {
+  user: UserSummaryDto;
+  /** Gesperrte Konten kommen unabhängig von den Links nicht mehr herein. */
+  isActive: boolean;
+  links: GuestAccessLinkDto[];
+  /** Was am Ende übrig bleibt: Summe der Rechte aus allen gültigen Links. */
+  canView: boolean;
+  canComment: boolean;
+  canDownload: boolean;
+  canUpload: boolean;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+/** Zeile der workspace-weiten Gästeübersicht. */
+export interface GuestOverviewDto {
+  user: UserSummaryDto;
+  isActive: boolean;
+  /** Projekte, die dieser Gast erreichen kann. */
+  projects: { id: string; name: string; linkCount: number }[];
+  linkCount: number;
+  activeLinkCount: number;
+  createdAt: string;
+  lastSeenAt: string | null;
+}
+
 /** Was ein Gast über eine Freigabe erfährt, bevor er sich anmeldet. */
 export interface SharePreviewDto {
   scope: ShareScope;
@@ -243,6 +315,29 @@ export interface SmtpProviderPresetDto {
   port: number;
   secure: boolean;
   hint: string;
+}
+
+/** Anmeldeeinstellungen des Workspace (Phase 11), nur für Admins. */
+export interface AuthSettingsDto {
+  localLoginEnabled: boolean;
+  oidcEnabled: boolean;
+  tenantId: string | null;
+  clientId: string | null;
+  /** Das Secret verlässt den Server nie; hier steht nur, ob eines da ist. */
+  hasClientSecret: boolean;
+  autoProvision: boolean;
+  allowedDomains: string[];
+  buttonLabel: string;
+  /** Diese Adresse muss in der App-Registrierung eingetragen sein. */
+  redirectUri: string;
+  updatedAt: string;
+}
+
+/** Was die Anmeldeseite ohne Anmeldung wissen muss. */
+export interface LoginMethodsDto {
+  local: boolean;
+  microsoft: boolean;
+  microsoftLabel: string;
 }
 
 export interface LoginResponseDto {

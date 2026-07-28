@@ -16,6 +16,7 @@ import { IsString, MaxLength } from 'class-validator';
 import { CurrentUser, Public, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
 import { AppConfig, CONFIG } from '../config/configuration';
+import { RateLimit } from '../common/rate-limit.guard';
 import { readUnsubscribeToken } from '../mail/unsubscribe-token';
 import { CreateUserDto, UpdateMeDto, UpdateUserDto } from './users.dto';
 import { UsersService } from './users.service';
@@ -74,6 +75,7 @@ export class UsersController {
    * soll sich dafür nicht erst einloggen müssen.
    */
   @Public()
+  @RateLimit({ name: 'unsubscribe', limit: 20, windowMs: 60 * 60 * 1000 })
   @Post('unsubscribe')
   @HttpCode(200)
   async unsubscribe(@Body() dto: UnsubscribeDto): Promise<{ ok: boolean }> {

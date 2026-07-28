@@ -7,6 +7,7 @@ import { TRANSCODE_QUEUE, type TranscodeJobData } from '../queue/queue.constants
 import { StorageService } from '../storage/storage.service';
 import { VersionsService, type TranscodeOutputs } from '../versions/versions.service';
 import { FfmpegService } from './ffmpeg.service';
+import { SEGMENT_SECONDS, planLadder } from './hls-plan';
 import { type PlaybackDecision, decidePlayback, planPosterTime, planProxyScale, planSprite } from './media-plan';
 import { readTopLevelBoxes } from './mp4-faststart';
 
@@ -53,6 +54,7 @@ export class TranscodeProcessor extends WorkerHost {
     const proxyKey = this.storage.keyForProxy(versionId);
     const posterKey = this.storage.keyForPoster(versionId);
     const spriteKey = this.storage.keyForSprite(versionId);
+    const hlsKey = this.storage.keyForHlsDir(versionId);
 
     this.logger.log(`Verarbeitung gestartet: ${version.originalFilename} (${versionId})`);
 
@@ -109,6 +111,8 @@ export class TranscodeProcessor extends WorkerHost {
         proxySizeBytes: await this.storage.size(playback.key),
         posterKey: null,
         sprite: null,
+        hlsKey: null,
+        hlsVariants: null,
       };
 
       // Poster und Sprite entstehen aus der Abspielfassung statt aus dem
@@ -154,6 +158,38 @@ export class TranscodeProcessor extends WorkerHost {
         }
       }
 
+      // Die HLS-Leiter ist die Ausbaustufe aus dem Konzept: ein weiterer
+      // Durchlauf, deshalb nur auf ausdrücklichen Wunsch. Der progressive
+      // Proxy bleibt in jedem Fall die Grundlage fürs frame-genaue Arbeiten.
+      if (this.config.transcode.hlsEnabled) {
+        const rungs = planLadder(probe.width ?? 0, probe.height ?? 0);
+        if (rungs.length > 0) {
+          try {
+            await this.storage.ensureDirForKey(`${hlsKey}/master.m3u8`);
+            for (const rung of rungs) {
+              await this.storage.ensureDirForKey(`${hlsKey}/${rung.name}/index.m3u8`);
+            }
+
+            await this.ffmpeg.createHlsLadder({
+              inputPath: originalPath,
+              outputDir: this.storage.resolveKey(hlsKey),
+              rungs,
+              frameRate: probe.frameRate,
+              durationSeconds: probe.durationSeconds,
+              segmentSeconds: this.config.transcode.hlsSegmentSeconds || SEGMENT_SECONDS,
+            });
+
+            outputs.hlsKey = hlsKey;
+            outputs.hlsVariants = rungs.map((rung) => rung.name).join(',');
+            this.logger.log(`HLS-Leiter erzeugt (${versionId}): ${outputs.hlsVariants}`);
+          } catch (error) {
+            // Wie Poster und Sprite: ein Nebenweg, der scheitern darf.
+            this.logger.warn(`HLS-Leiter fehlgeschlagen (${versionId}): ${String(error)}`);
+            await this.storage.remove(hlsKey);
+          }
+        }
+      }
+
       await this.versionsService.markReady(versionId, outputs);
       this.logger.log(`Verarbeitung fertig: ${version.originalFilename} (${versionId})`);
     } catch (error) {
@@ -164,6 +200,7 @@ export class TranscodeProcessor extends WorkerHost {
       await this.storage.remove(proxyKey);
       await this.storage.remove(posterKey);
       await this.storage.remove(spriteKey);
+      await this.storage.remove(hlsKey);
 
       await this.versionsService.markFailed(versionId, message);
       throw error;

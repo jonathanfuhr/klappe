@@ -213,6 +213,55 @@ verschlüsselt in `app_settings`; der Schlüssel wird aus `JWT_SECRET`
 abgeleitet. Die API gibt es nie wieder heraus, sie meldet nur, *ob* eines
 gesetzt ist.
 
+### Rechte werden gezeigt, nicht nur durchgesetzt
+
+Die Freigabeverwaltung beantwortet „welche Links gibt es". Die Gästeübersicht
+(Phase 9) dreht die Frage um und zeigt Personen: über welche Links jemand
+hereinkommt, was am Ende dabei herauskommt und wann er zuletzt da war.
+Zusammengefasst wird in `guests/guest-summary.ts` – reine Rechnerei, ohne
+Datenbank.
+
+Entzogen wird pro **Person und Projekt**, nicht pro Link: Ein Link ist oft an
+mehrere Leute gegangen, und einen davon auszuladen soll die anderen nicht
+treffen. Der Vermerk „zuletzt gesehen" entsteht nebenher beim Laden der
+Rechte, höchstens alle fünf Minuten je Gast – für die Frage „hat der Kunde
+schon reingeschaut?" genügt diese Auflösung, und eine Schreiboperation pro
+Anfrage wäre Verschwendung.
+
+### Eine Farbe genügt
+
+Beim White-Label (Phase 10) wählt der Admin **eine** Akzentfarbe. Hover-Ton
+und lesbare Schriftfarbe darauf werden berechnet (`packages/shared/branding.ts`,
+Relativhelligkeit nach WCAG). Wer drei Farben aufeinander abstimmen müsste,
+säße am Ende vor weißer Schrift auf gelbem Grund.
+
+Die Farben liegen ohnehin als CSS-Variablen vor; das Branding überschreibt
+genau drei davon, keine Komponente wird angefasst. Das Logo wird als roher
+Datenstrom hochgeladen statt als Formular – für eine einzelne kleine Datei ist
+das schlichter, und der Server kommt ohne Formularbibliothek aus. Ein
+SVG-Logo wird nur über `<img>` eingebunden, wo Skripte darin nicht laufen;
+beim direkten Aufruf verhindert eine strenge CSP dasselbe.
+
+### Anmeldung: zwei Wege, kein Weg in die Falle
+
+Microsoft 365 (Phase 11) läuft als Authorization-Code-Fluss mit PKCE. Das
+ID-Token wird gegen die JWKS des Tenants geprüft, obwohl es aus einer direkten
+TLS-Verbindung stammt – der Aufwand ist gering, und bei einem Anmeldeweg will
+man sich nicht auf „kommt schon vom Richtigen" verlassen. Geprüft werden
+Signatur, Aussteller, Zielgruppe, Laufzeit und `nonce`.
+
+Der Zustand zwischen Hin- und Rückweg liegt in einem signierten, kurzlebigen
+Keks statt in der Datenbank: Ein angefangener Anmeldevorgang soll keinen
+Neustart überleben, und es bleibt nichts liegen, das aufgeräumt werden müsste.
+
+Zwei Vorkehrungen gegen Fußschüsse:
+
+* **Unbekannte Adressen kommen nicht automatisch herein.** In einem großen
+  Tenant bekäme sonst jeder Beschäftigte Zugriff auf alle Projekte.
+* **Die lokale Anmeldung lässt sich nur abschalten, wenn M365 vollständig
+  eingerichtet ist** – und lebt automatisch wieder auf, falls die Einrichtung
+  später zerfällt. Sonst stünde man vor einer Anmeldeseite ohne Anmeldung.
+
 ### HTTPS ohne Zertifikatsgefummel
 
 Zwei Wege, beide ohne Handarbeit an Zertifikaten:
@@ -230,6 +279,31 @@ unverschlüsselt und setzte das Sitzungs-Cookie ohne `Secure`. Der Caddy-Block
 reicht `X-Forwarded-Proto` weiter, gibt Antworten ungepuffert durch
 (`flush_interval -1`, sonst stockt das Video) und setzt keine eigene Grenze
 für die Anfragegröße – die kommt aus `UPLOAD_MAX_BYTES`.
+
+### Kurzlebige Medien-Links statt eines zweiten Schlüssels
+
+Die signierten Links aus Phase 13 (`media/media-token.ts`) sind kein
+Ersatz für die Rechteprüfung, sondern ein anderer Ausweis: Sie sagen „diese
+Person hat vor wenigen Minuten diesen Link angefordert". Ob sie die Datei
+dann noch sehen darf, entscheidet nach wie vor der `AccessService` – ein
+entzogener Zugang macht damit auch einen schon vergebenen Link wertlos.
+
+Der Token ist an Fassung **und** Art gebunden, und eine Route nimmt ihn nur
+an, wenn sie mit `@AllowMediaToken('proxy')` ausdrücklich dafür markiert ist.
+Ohne diese Bindung wäre ein Link fürs Vorschaubild ein Ausweis für alles
+Übrige.
+
+### Bremsen im Prozessspeicher
+
+Die Anfragebremse (`common/rate-limit.ts`) zählt in einem gleitenden Fenster
+und liegt im Prozessspeicher – der Container betreibt genau eine API-Instanz,
+ein Zähler in Redis wäre dieselbe Rechnung mit einem Netzwerkweg dazwischen.
+Wird das später mehrinstanzig, ist genau diese Klasse die Stelle zum
+Austauschen.
+
+Ein Detail, das leicht falsch läuft: **Abgelehnte Versuche zählen nicht mit.**
+Sonst könnte sich jemand durch stures Weiterklopfen selbst dauerhaft
+aussperren – und ein Angreifer damit fremde Konten.
 
 ## Was der Worker tut
 
@@ -267,6 +341,10 @@ erneut ein.
 - **E-Mail geht raus oder gar nicht.** Fehlgeschlagene Zustellungen werden von
   BullMQ wiederholt und danach protokolliert; eine Anzeige in der Oberfläche,
   welche Mail nicht ankam, gibt es noch nicht.
+- **Die Anfragebremse ist prozessweit.** Mit mehreren API-Instanzen zählte
+  jede für sich. Bei einem Container pro Workspace ist das genau richtig.
+- **HLS ist die Ausbaustufe, nicht der Normalfall.** Frame-genaues Arbeiten
+  läuft über den progressiven Proxy; die Leiter kommt nur dazu.
 - **Dateien werden verzögert gelöscht.** Beim Löschen eines Videos werden die
   Blobs direkt entfernt; bleibt dabei etwas liegen (etwa weil das Dateisystem
   klemmt), räumt es derzeit niemand nach. Ein Aufräum-Job dafür gehört in

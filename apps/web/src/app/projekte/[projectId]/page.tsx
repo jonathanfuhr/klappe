@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { GuestAccess } from '@/components/GuestAccess';
 import { ProjectFiles } from '@/components/ProjectFiles';
+import { ProjectTags } from '@/components/ProjectTags';
 import { ShareManager } from '@/components/ShareManager';
 import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
@@ -83,6 +85,10 @@ export default function ProjectPage() {
 
         {error ? <div className="notice">{error}</div> : null}
 
+        {isTeam && project ? (
+          <ProjectTags projectId={projectId} assigned={project.tags} onChanged={load} />
+        ) : null}
+
         {isTeam ? <Uploader projectId={projectId} videos={videos} /> : null}
 
         <h2 style={{ fontSize: 16, margin: '26px 0 12px' }}>
@@ -139,6 +145,13 @@ export default function ProjectPage() {
             currentUser={user}
             reloadToken={completedCount}
           />
+        ) : null}
+
+        {isTeam ? (
+          <>
+            <h2 style={{ fontSize: 16, margin: '26px 0 12px' }}>Wer hat Zugriff</h2>
+            <GuestAccess projectId={projectId} />
+          </>
         ) : null}
       </div>
 

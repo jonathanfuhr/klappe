@@ -6,7 +6,7 @@
  * Kommentare hängen an einer Version, nicht am Video – ein Kommentar auf
  * Frame 812 meint immer eine bestimmte Fassung.
  */
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -161,6 +161,11 @@ export const videoVersions = pgTable(
     spriteTileHeight: integer('sprite_tile_height'),
     spriteTileCount: integer('sprite_tile_count'),
     spriteIntervalSeconds: doublePrecision('sprite_interval_seconds'),
+
+    /** Verzeichnis der HLS-Stufenleiter (Phase 13); `null`, wenn keine da ist. */
+    hlsKey: text('hls_key'),
+    /** Namen der Stufen, z. B. `2160p,1080p,720p` – für die Anzeige. */
+    hlsVariants: text('hls_variants'),
 
     ...timestamps,
   },
@@ -353,6 +358,44 @@ export const projectFiles = pgTable(
 );
 
 /**
+ * Frei definierbare Schlagworte für Projekte (Phase 12).
+ *
+ * Bewusst workspace-weit und nicht pro Projekt: Der Sinn eines Tags ist ja
+ * gerade, mehrere Projekte zusammenzufassen – etwa alle eines Kunden.
+ */
+export const tags = pgTable(
+  'tags',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    /** Hex-Farbe wie `#4c8dff`; ohne Angabe wird eine aus dem Namen abgeleitet. */
+    color: text('color'),
+    createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  // Zwei Tags mit gleichem Namen wären in der Filterleiste nicht zu
+  // unterscheiden; verglichen wird ohne Rücksicht auf Groß- und Kleinschreibung.
+  (table) => [uniqueIndex('tags_name_unique').on(sql`lower(${table.name})`)],
+);
+
+export const projectTags = pgTable(
+  'project_tags',
+  {
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    tagId: uuid('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.projectId, table.tagId] }),
+    index('project_tags_tag_idx').on(table.tagId),
+  ],
+);
+
+/**
  * Einstellungen des Workspace. Genau eine Zeile (`id = 1`) – der Container
  * betreibt laut Konzept genau einen Workspace.
  */
@@ -369,6 +412,33 @@ export const appSettings = pgTable('app_settings', {
   smtpPasswordEncrypted: text('smtp_password_encrypted'),
   smtpFromName: text('smtp_from_name'),
   smtpFromEmail: text('smtp_from_email'),
+
+  // ---------- White-Label (Phase 10) ----------
+  /** Titel im Kopf, im Browser-Tab und in jeder E-Mail. */
+  brandTitle: text('brand_title'),
+  /** Eine Farbe; heller Hover-Ton und lesbare Schriftfarbe leiten sich ab. */
+  brandAccent: text('brand_accent'),
+  brandLogoKey: text('brand_logo_key'),
+  brandLogoMime: text('brand_logo_mime'),
+  /** Wechselt bei jedem neuen Logo und bricht damit den Browser-Cache auf. */
+  brandLogoUpdatedAt: timestamp('brand_logo_updated_at', { withTimezone: true }),
+
+  // ---------- Anmeldung (Phase 11) ----------
+  /** Lokale Konten mit Passwort. Abschaltbar, sobald M365 nachweislich läuft. */
+  localLoginEnabled: boolean('local_login_enabled').notNull().default(true),
+  oidcEnabled: boolean('oidc_enabled').notNull().default(false),
+  /** Tenant-Kennung oder Domäne, z. B. `contoso.onmicrosoft.com`. */
+  oidcTenantId: text('oidc_tenant_id'),
+  oidcClientId: text('oidc_client_id'),
+  /** Verschlüsselt abgelegt, siehe `common/secret-box.ts`. */
+  oidcClientSecretEncrypted: text('oidc_client_secret_encrypted'),
+  /** Legt eine unbekannte, aber zugelassene Adresse ein Team-Konto an? */
+  oidcAutoProvision: boolean('oidc_auto_provision').notNull().default(false),
+  /** Kommaliste erlaubter Mail-Domänen; leer heißt: keine Einschränkung. */
+  oidcAllowedDomains: text('oidc_allowed_domains'),
+  /** Beschriftung der Schaltfläche auf der Anmeldeseite. */
+  oidcButtonLabel: text('oidc_button_label'),
+
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -438,3 +508,4 @@ export type ShareLinkGrantRow = typeof shareLinkGrants.$inferSelect;
 export type LoginCodeRow = typeof loginCodes.$inferSelect;
 export type ProjectFileRow = typeof projectFiles.$inferSelect;
 export type AppSettingsRow = typeof appSettings.$inferSelect;
+export type TagRow = typeof tags.$inferSelect;

@@ -4,6 +4,7 @@ import type { FrameRate } from '@klappe/shared';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { type FfprobeOutput, parseProbeOutput } from './ffprobe-parse';
 import type { ProbeResult } from '../versions/versions.service';
+import type { LadderRung } from './hls-plan';
 import type { SpritePlan } from './media-plan';
 
 export class FfmpegError extends Error {
@@ -154,6 +155,99 @@ export class FfmpegService {
       ],
       {},
     );
+  }
+
+  /**
+   * HLS-Stufenleiter in einem Durchlauf (Phase 13).
+   *
+   * Ein einziger ffmpeg-Aufruf für alle Stufen: Die Quelle wird nur einmal
+   * dekodiert und über `split` an die Skalierer verteilt. Getrennte Läufe
+   * würden ein 4K-Original mehrfach durchkauen.
+   */
+  async createHlsLadder(input: {
+    inputPath: string;
+    /** Verzeichnis, in dem `master.m3u8` und die Stufen-Ordner entstehen. */
+    outputDir: string;
+    rungs: LadderRung[];
+    frameRate: FrameRate | null;
+    durationSeconds: number | null;
+    segmentSeconds: number;
+    onProgress?: (fraction: number) => void;
+  }): Promise<void> {
+    const { rungs } = input;
+    if (rungs.length === 0) throw new FfmpegError('Leere HLS-Leiter.', 0, '');
+
+    // filter_complex: einmal dekodieren, dann je Stufe einmal skalieren.
+    const split = `[0:v]split=${rungs.length}${rungs.map((_, index) => `[v${index}]`).join('')}`;
+    const scales = rungs.map(
+      (rung, index) => `[v${index}]scale=${rung.width}:${rung.height}[v${index}out]`,
+    );
+
+    const args = [
+      '-hide_banner',
+      '-nostdin',
+      '-y',
+      '-i',
+      input.inputPath,
+      '-filter_complex',
+      [split, ...scales].join(';'),
+    ];
+
+    rungs.forEach((rung, index) => {
+      args.push(
+        '-map',
+        `[v${index}out]`,
+        `-c:v:${index}`,
+        'libx264',
+        `-b:v:${index}`,
+        String(rung.bitrateBps),
+        `-maxrate:v:${index}`,
+        String(rung.maxrateBps),
+        `-bufsize:v:${index}`,
+        String(rung.maxrateBps * 2),
+        `-preset:v:${index}`,
+        this.config.transcode.proxyPreset,
+      );
+      // Ton optional – stummes Material soll nicht abbrechen.
+      args.push('-map', '0:a:0?', `-c:a:${index}`, 'aac', `-b:a:${index}`, '128k', '-ac', '2');
+    });
+
+    args.push('-pix_fmt', 'yuv420p', '-fps_mode', 'cfr');
+    if (input.frameRate) {
+      args.push('-r', `${input.frameRate.num}/${input.frameRate.den}`);
+    }
+
+    // Schlüsselbilder genau am Segmentanfang – sonst kann der Player nicht
+    // sauber zwischen den Stufen wechseln.
+    const fps = input.frameRate ? input.frameRate.num / input.frameRate.den : 25;
+    const gop = Math.max(1, Math.round(fps * input.segmentSeconds));
+    args.push('-g', String(gop), '-keyint_min', String(gop), '-sc_threshold', '0');
+
+    args.push(
+      '-f',
+      'hls',
+      '-hls_time',
+      String(input.segmentSeconds),
+      '-hls_playlist_type',
+      'vod',
+      '-hls_flags',
+      'independent_segments',
+      '-hls_segment_filename',
+      `${input.outputDir}/%v/segment-%04d.ts`,
+      '-master_pl_name',
+      'master.m3u8',
+      '-var_stream_map',
+      rungs.map((rung, index) => `v:${index},a:${index},name:${rung.name}`).join(' '),
+      '-progress',
+      'pipe:1',
+      '-nostats',
+      `${input.outputDir}/%v/index.m3u8`,
+    );
+
+    await this.run(this.config.transcode.ffmpegPath, args, {
+      totalSeconds: input.durationSeconds ?? undefined,
+      onProgress: input.onProgress,
+    });
   }
 
   /** Einzelbild als Vorschau. */

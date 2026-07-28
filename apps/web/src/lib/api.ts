@@ -1,7 +1,12 @@
 import type {
   Annotation,
+  AuthSettingsDto,
+  BrandingDto,
   CommentDto,
+  GuestAccessDto,
   GuestLoginResponseDto,
+  GuestOverviewDto,
+  LoginMethodsDto,
   LoginResponseDto,
   ProjectDto,
   ProjectFileDto,
@@ -11,6 +16,7 @@ import type {
   ShareScope,
   SmtpProviderPresetDto,
   SmtpSettingsDto,
+  TagDto,
   UploadSessionDto,
   UserDto,
   UserRole,
@@ -95,7 +101,14 @@ export const api = {
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
 
-  listProjects: () => request<ProjectDto[]>('/v1/projects'),
+  listProjects: (options: { tagIds?: string[]; tagMatch?: 'any' | 'all'; sort?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (options.tagIds?.length) query.set('tags', options.tagIds.join(','));
+    if (options.tagMatch) query.set('tagMatch', options.tagMatch);
+    if (options.sort) query.set('sort', options.sort);
+    const suffix = query.toString();
+    return request<ProjectDto[]>(`/v1/projects${suffix ? `?${suffix}` : ''}`);
+  },
   getProject: (id: string) => request<ProjectDto>(`/v1/projects/${id}`),
   createProject: (input: { name: string; customer?: string; description?: string }) =>
     request<ProjectDto>('/v1/projects', { method: 'POST', body: JSON.stringify(input) }),
@@ -218,6 +231,21 @@ export const api = {
   setShareGuestRevoked: (id: string, userId: string, revoked: boolean) =>
     request<void>(`/v1/shares/${id}/guests/${userId}`, { method: revoked ? 'DELETE' : 'POST' }),
 
+  // ---------- Gäste- und Rechteübersicht (Phase 9) ----------
+  listProjectGuests: (projectId: string) =>
+    request<GuestAccessDto[]>(`/v1/projects/${projectId}/guests`),
+  listVideoGuests: (videoId: string) => request<GuestAccessDto[]>(`/v1/videos/${videoId}/guests`),
+  listAllGuests: () => request<GuestOverviewDto[]>('/v1/guests'),
+  setProjectGuestRevoked: (projectId: string, userId: string, revoked: boolean) =>
+    request<GuestAccessDto[]>(`/v1/projects/${projectId}/guests/${userId}`, {
+      method: revoked ? 'DELETE' : 'POST',
+    }),
+  setGuestActive: (userId: string, isActive: boolean) =>
+    request<GuestOverviewDto[]>(`/v1/guests/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    }),
+
   // ---------- Gastzugang ----------
   sharePreview: (token: string) => request<SharePreviewDto>(`/v1/share/${token}`),
   requestGuestCode: (token: string, input: { name: string; email: string }) =>
@@ -247,6 +275,53 @@ export const api = {
     fromEmail?: string;
   }) => request<SmtpSettingsDto>('/v1/settings/smtp', { method: 'PUT', body: JSON.stringify(input) }),
   smtpPresets: () => request<SmtpProviderPresetDto[]>('/v1/settings/smtp/presets'),
+
+  // ---------- Schlagworte (Phase 12) ----------
+  listTags: () => request<TagDto[]>('/v1/tags'),
+  createTag: (input: { name: string; color?: string }) =>
+    request<TagDto>('/v1/tags', { method: 'POST', body: JSON.stringify(input) }),
+  updateTag: (id: string, input: { name?: string; color?: string }) =>
+    request<TagDto>(`/v1/tags/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  deleteTag: (id: string) => request<void>(`/v1/tags/${id}`, { method: 'DELETE' }),
+  setProjectTags: (projectId: string, tagIds: string[]) =>
+    request<void>(`/v1/projects/${projectId}/tags`, {
+      method: 'PUT',
+      body: JSON.stringify({ tagIds }),
+    }),
+
+  // ---------- Anmeldewege (Phase 11) ----------
+  loginMethods: () => request<LoginMethodsDto>('/v1/auth/methods'),
+  getAuthSettings: () => request<AuthSettingsDto>('/v1/settings/auth'),
+  updateAuthSettings: (input: {
+    localLoginEnabled?: boolean;
+    oidcEnabled?: boolean;
+    tenantId?: string;
+    clientId?: string;
+    clientSecret?: string;
+    autoProvision?: boolean;
+    allowedDomains?: string;
+    buttonLabel?: string;
+  }) => request<AuthSettingsDto>('/v1/settings/auth', { method: 'PUT', body: JSON.stringify(input) }),
+
+  // ---------- Erscheinungsbild (Phase 10) ----------
+  getBranding: () => request<BrandingDto>('/v1/branding'),
+  updateBranding: (input: { title?: string; accent?: string }) =>
+    request<BrandingDto>('/v1/settings/branding', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  /**
+   * Rohe Bytes; das Format steht im Content-Type der Datei selbst. Die
+   * Schreibweise des Kopfzeilennamens muss zur Voreinstellung in `request`
+   * passen, sonst stehen am Ende zwei Content-Type-Angaben in der Anfrage.
+   */
+  uploadLogo: (file: File) =>
+    request<BrandingDto>('/v1/settings/branding/logo', {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }),
+  removeLogo: () => request<BrandingDto>('/v1/settings/branding/logo', { method: 'DELETE' }),
   sendTestMail: (to?: string) =>
     request<void>('/v1/settings/smtp/test', {
       method: 'POST',
@@ -260,4 +335,6 @@ export const mediaUrl = {
   sprite: (versionId: string) => `${API_BASE}/v1/versions/${versionId}/sprite`,
   original: (versionId: string) => `${API_BASE}/v1/versions/${versionId}/original`,
   projectFile: (fileId: string) => `${API_BASE}/v1/project-files/${fileId}/download`,
+  /** Master-Playlist der adaptiven Wiedergabe (Phase 13). */
+  hls: (versionId: string) => `${API_BASE}/v1/versions/${versionId}/hls/master.m3u8`,
 };

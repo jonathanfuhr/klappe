@@ -1,9 +1,10 @@
 import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { deriveBrandColors, normalizeBrandTitle } from '@klappe/shared';
 import { createTransport, type Transporter } from 'nodemailer';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { SettingsService, type SmtpCredentials } from '../settings/settings.service';
 import { createUnsubscribeToken } from './unsubscribe-token';
-import { type RenderedMail, renderTestMail } from './templates';
+import { DEFAULT_MAIL_BRAND, type MailBrand, type RenderedMail, renderTestMail } from './templates';
 
 /**
  * Versand über generisches SMTP (Nodemailer), wie im Konzept entschieden.
@@ -58,7 +59,33 @@ export class MailService {
         'Bitte zuerst Host, Port und Absenderadresse speichern und den Versand aktivieren.',
       );
     }
-    await this.send(to, renderTestMail({ host: credentials.host, fromEmail: credentials.fromEmail }));
+    await this.send(
+      to,
+      renderTestMail({
+        host: credentials.host,
+        fromEmail: credentials.fromEmail,
+        brand: await this.brand(),
+      }),
+    );
+  }
+
+  /**
+   * Erscheinungsbild für die Vorlagen (Phase 10). Scheitert das Laden, bleibt
+   * es beim Standard – eine Mail soll nicht wegen einer Farbe ausfallen.
+   */
+  async brand(): Promise<MailBrand> {
+    try {
+      const row = await this.settingsService.getRow();
+      const colors = deriveBrandColors(row.brandAccent);
+      return {
+        title: normalizeBrandTitle(row.brandTitle),
+        accent: colors.accent,
+        accentContrast: colors.accentContrast,
+      };
+    } catch (error) {
+      this.logger.warn(`Erscheinungsbild nicht ladbar, nehme den Standard: ${String(error)}`);
+      return DEFAULT_MAIL_BRAND;
+    }
   }
 
   /** Vollständiger Abmelde-Link für die Fußzeile einer Benachrichtigung. */

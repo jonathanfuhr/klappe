@@ -3,6 +3,7 @@ import type { GuestLoginResponseDto, SharePreviewDto } from '@klappe/shared';
 import type { Response } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { Public } from '../auth/auth.decorators';
+import { RateLimit } from '../common/rate-limit.guard';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { UsersService } from '../users/users.service';
 import { RequestGuestCodeDto, VerifyGuestCodeDto } from './shares.dto';
@@ -28,6 +29,10 @@ export class GuestAccessController {
     return this.sharesService.preview(token);
   }
 
+  // Der Dienst deckelt schon fünf Codes je Adresse und Stunde; diese Bremse
+  // greift eine Ebene davor und schützt auch gegen wechselnde Adressen von
+  // derselben Herkunft.
+  @RateLimit({ name: 'guest-code', limit: 12, windowMs: 60 * 60 * 1000 })
   @Post('code')
   @HttpCode(204)
   async requestCode(
@@ -37,6 +42,7 @@ export class GuestAccessController {
     await this.sharesService.requestCode(token, { name: dto.name, email: dto.email });
   }
 
+  @RateLimit({ name: 'guest-verify', limit: 20, windowMs: 60 * 60 * 1000, identityField: 'email' })
   @Post('verify')
   @HttpCode(200)
   async verify(

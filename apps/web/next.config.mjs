@@ -14,6 +14,11 @@ const apiUrl = process.env.API_INTERNAL_URL ?? 'http://localhost:3001';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Klappe benutzt den Bildoptimierer von Next nicht: Vorschaubilder liegen
+  // hinter der Authentifizierung der API und werden als schlichtes <img>
+  // eingebunden. Ausdrücklich abgeschaltet, damit der Weg über `sharp`
+  // (und dessen libvips) gar nicht erst erreichbar ist.
+  images: { unoptimized: true },
   // Für das schlanke Laufzeit-Image im Container.
   output: 'standalone',
   // Im Monorepo muss Next wissen, wo die Wurzel liegt, sonst fehlen im

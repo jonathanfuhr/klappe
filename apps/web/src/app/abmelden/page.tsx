@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { BrandMark } from '@/components/BrandMark';
 import { api } from '@/lib/api';
 
 /** Ziel des Abmelde-Links aus jeder Benachrichtigungs-Mail (Phase 8). */
@@ -27,12 +28,7 @@ function Unsubscribe() {
 
   return (
     <div className="card gate__card">
-      <div className="login__brand">
-        <span className="shell__brand-mark" aria-hidden>
-          ◗
-        </span>
-        Klappe
-      </div>
+      <BrandMark />
 
       {state === 'läuft' ? <p className="muted">Einen Moment …</p> : null}
 

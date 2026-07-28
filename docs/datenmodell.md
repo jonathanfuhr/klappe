@@ -9,9 +9,10 @@ users
                  │                              └── uploads
                  ├── share_links ── share_link_grants
                  │        └── login_codes
-                 └── project_files
+                 ├── project_files
+                 └── project_tags ── tags
 
-app_settings   (SMTP, workspace-weit)
+app_settings   (Mailversand, Erscheinungsbild, Anmeldung – workspace-weit)
 ```
 
 ## users
@@ -76,6 +77,9 @@ Inhaltliche Gruppen:
 - **Abspielweg** – `playback_mode` (`ORIGINAL` \| `REMUX` \| `TRANSCODE`) und
   `playback_reason`. Bei `ORIGINAL` zeigt `proxy_key` auf dieselbe Datei wie
   `original_key`; es liegt keine zweite Kopie herum.
+- **Adaptive Wiedergabe** (Phase 13) – `hls_key` zeigt aufs Verzeichnis der
+  Stufenleiter, `hls_variants` nennt die Stufen (`1080p,720p,480p`). Beide
+  `null`, solange `HLS_ENABLED` aus ist.
 - **Verarbeitung** – `progress` (0–100), `processing_error`, Zeitstempel.
 - **Ablage** – `download_enabled` (dritter Schalter für Gäste) und `file_date`
   (`JJJJ-MM-TT`), das Datum im Download-Dateinamen. Es kommt vom Upload und
@@ -138,15 +142,19 @@ landen in der Tabelle. Sie entscheidet auch, wer benachrichtigt wird.
 
 ## share_links
 
-Ein Freigabe-Link auf ein Projekt.
+Ein Freigabe-Link auf ein Projekt oder auf ein einzelnes Video.
 
 | Spalte | Anmerkung |
 | --- | --- |
 | `token` | 24 Zeichen ohne `0`, `o`, `1`, `l`; eindeutig, am Telefon vorlesbar |
-| `allow_comment` / `allow_download` / `allow_upload` | Rechte des Links |
-| `video_ids` | leere Liste = alle Videos des Projekts, sonst genau diese |
+| `scope` | `PROJECT` (alle Videos, auch spätere) oder `VIDEO` (genau eines) |
+| `project_id` / `video_id` | je nach `scope` gesetzt |
+| `allow_comments` / `allow_download` / `allow_upload` | Rechte des Links |
 | `expires_at` | optionales Ablaufdatum |
 | `revoked_at` | Entzug; wirkt sofort, weil die Rechte pro Anfrage geladen werden |
+
+Hochladen gibt es nur bei `PROJECT`: Der Kunden-Ordner hängt am Projekt, ein
+einzelnes Video hat keinen.
 
 Der Link allein reicht nicht: Er führt zum Zugangsgatter, nicht zum Video.
 
@@ -177,9 +185,32 @@ Name, Größe, Typ und Schlüssel steht hier, wer die Datei hochgeladen hat und
 über welchen Link. Gäste sehen nur ihre eigenen Dateien, das Team sieht alle;
 löschen darf nur das Team.
 
+## tags und project_tags
+
+Schlagworte für Projekte (Phase 12), workspace-weit statt pro Projekt – der
+Sinn eines Tags ist ja gerade, mehrere Projekte zusammenzufassen.
+
+| Spalte | Anmerkung |
+| --- | --- |
+| `name` | eindeutig ohne Rücksicht auf Groß- und Kleinschreibung (Index über `lower(name)`) |
+| `color` | Hex-Farbe; `null` heißt: aus dem Namen ableiten |
+
+`project_tags` ist die Zuordnung, Primärschlüssel über beide Spalten. Löschen
+eines Schlagworts entfernt es per Kaskade auch an allen Projekten.
+
 ## app_settings
 
-Workspace-weite Einstellungen als Schlüssel/Wert – derzeit der SMTP-Zugang.
-Das Passwort liegt mit AES-256-GCM verschlüsselt darin (`v1.<nonce>.<ct>.<tag>`),
-der Schlüssel wird aus `JWT_SECRET` abgeleitet. Die API gibt es nie heraus,
-sie meldet nur, ob eines gesetzt ist.
+Workspace-weite Einstellungen – genau eine Zeile. Drei Gruppen:
+
+- **Mailversand** (Phase 8): Host, Port, TLS, Benutzer, Absender. Das Passwort
+  liegt mit AES-256-GCM verschlüsselt darin (`v1.<nonce>.<ct>.<tag>`), der
+  Schlüssel wird aus `JWT_SECRET` abgeleitet. Die API gibt es nie heraus, sie
+  meldet nur, ob eines gesetzt ist.
+- **Erscheinungsbild** (Phase 10): `brand_title`, `brand_accent` und die
+  Angaben zum Logo. Aus der einen Farbe werden Hover-Ton und Schriftfarbe
+  berechnet, nicht gespeichert. `brand_logo_updated_at` wandert in die
+  Bild-Adresse und bricht damit den Browser-Cache auf.
+- **Anmeldung** (Phase 11): `local_login_enabled`, `oidc_*`. Das
+  Client-Secret liegt wie das SMTP-Passwort verschlüsselt darin.
+  `oidc_auto_provision` steht standardmäßig auf `false` – ohne diesen Schalter
+  kommt über M365 nur herein, wer hier schon ein Konto hat.

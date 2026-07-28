@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Inject,
   Head,
   Headers,
   NotFoundException,
@@ -11,11 +12,14 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { AccessService } from '../access/access.service';
-import { CurrentUser } from '../auth/auth.decorators';
+import { AllowMediaToken, CurrentUser } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
 import { contentDisposition } from '../common/normalize';
+import { AppConfig, CONFIG } from '../config/configuration';
 import { StorageService } from '../storage/storage.service';
 import { VersionsService } from '../versions/versions.service';
+import { isSafeHlsFilename } from '../transcode/hls-plan';
+import { type MediaKind, createMediaToken } from './media-token';
 import { contentTypeFor } from './range';
 import { sendFile } from './send-file';
 
@@ -33,8 +37,42 @@ export class MediaController {
     private readonly versionsService: VersionsService,
     private readonly accessService: AccessService,
     private readonly storage: StorageService,
+    @Inject(CONFIG) private readonly config: AppConfig,
   ) {}
 
+  /**
+   * Kurzlebige Links zu den Mediendateien (Phase 13).
+   *
+   * Nützlich überall dort, wo kein Sitzungs-Keks mitgeht: die Datei in VLC
+   * öffnen, die Adresse in ein anderes Werkzeug kopieren. Die Rechte werden
+   * beim Abruf trotzdem geprüft – ein entzogener Zugang macht auch einen
+   * schon vergebenen Link wertlos.
+   */
+  @Get('media-links')
+  async mediaLinks(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<Record<string, string | null>> {
+    const scope = await this.accessService.loadScope(user);
+    const access = await this.accessService.requireVersion(scope, id);
+    const darfLaden = this.accessService.canDownload(scope, access);
+
+    const link = (kind: MediaKind) => {
+      const token = createMediaToken({ versionId: id, kind, userId: user.id }, this.config.jwt.secret);
+      return `${this.config.publicUrl.replace(/\/+$/, '')}/v1/versions/${id}/${kind}?t=${token}`;
+    };
+
+    return {
+      proxy: link('proxy'),
+      poster: link('poster'),
+      sprite: link('sprite'),
+      // Ohne Download-Recht gibt es auch keinen Link – ein Token, der beim
+      // Abruf ohnehin abgewiesen würde, wäre nur irreführend.
+      original: darfLaden ? link('original') : null,
+    };
+  }
+
+  @AllowMediaToken('proxy')
   @Get('proxy')
   @Head('proxy')
   async proxy(
@@ -63,6 +101,7 @@ export class MediaController {
     });
   }
 
+  @AllowMediaToken('original')
   @Get('original')
   @Head('original')
   async original(
@@ -98,6 +137,7 @@ export class MediaController {
     );
   }
 
+  @AllowMediaToken('poster')
   @Get('poster')
   async poster(
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -114,6 +154,7 @@ export class MediaController {
     await this.deliver(response, version.posterKey, 'image/jpeg', undefined, { immutable: true });
   }
 
+  @AllowMediaToken('sprite')
   @Get('sprite')
   async sprite(
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -128,6 +169,52 @@ export class MediaController {
 
     response.setHeader('Content-Disposition', contentDisposition('sprite.jpg', true));
     await this.deliver(response, version.spriteKey, 'image/jpeg', undefined, { immutable: true });
+  }
+
+  /**
+   * HLS-Auslieferung (Phase 13).
+   *
+   * Die Master-Playlist verweist auf `<stufe>/index.m3u8`, die Stufen auf
+   * ihre Segmente – beides relativ, deshalb genügt hier eine Route mit
+   * Unterpfad. Der Dateiname wird streng geprüft: Über einen Pfad in einer
+   * Playlist ließe sich sonst aus dem Verzeichnis ausbrechen.
+   */
+  @AllowMediaToken('hls')
+  @Get('hls/*path')
+  async hls(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('path') path: string | string[],
+    @CurrentUser() user: RequestUser,
+    @Res() response: Response,
+  ): Promise<void> {
+    const scope = await this.accessService.loadScope(user);
+    await this.accessService.requireVersion(scope, id);
+
+    const version = await this.versionsService.getRowOrFail(id);
+    if (!version.hlsKey) {
+      throw new NotFoundException('Für diese Fassung gibt es keine adaptive Wiedergabe.');
+    }
+
+    const teile = (Array.isArray(path) ? path : path.split('/')).filter(Boolean);
+    if (teile.length === 0 || teile.length > 2) throw new NotFoundException('Unbekannter Pfad.');
+
+    const datei = teile[teile.length - 1];
+    const stufe = teile.length === 2 ? teile[0] : null;
+    const stufen = version.hlsVariants?.split(',').filter(Boolean) ?? [];
+
+    if (!isSafeHlsFilename(datei)) throw new NotFoundException('Unbekannter Pfad.');
+    if (stufe !== null && !stufen.includes(stufe)) throw new NotFoundException('Unbekannte Stufe.');
+
+    const key = stufe ? `${version.hlsKey}/${stufe}/${datei}` : `${version.hlsKey}/${datei}`;
+    const typ = datei.endsWith('.m3u8')
+      ? 'application/vnd.apple.mpegurl'
+      : datei.endsWith('.ts')
+        ? 'video/mp2t'
+        : 'video/mp4';
+
+    // Playlists dürfen nicht dauerhaft im Cache liegen, Segmente schon –
+    // deren Name ändert sich mit jeder neuen Fassung.
+    await this.deliver(response, key, typ, undefined, { immutable: !datei.endsWith('.m3u8') });
   }
 
   private async deliver(

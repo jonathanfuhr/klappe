@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
@@ -28,12 +28,25 @@ export type { AccessScope };
  * sorgt dafür, dass ein zurückgezogener Link sofort wirkt und nicht erst,
  * wenn das Sitzungs-Token abläuft.
  */
+/**
+ * So oft wird höchstens vermerkt, dass ein Gast da war. Jede Anfrage zu
+ * schreiben wäre Verschwendung – für die Frage „hat der Kunde reingeschaut?“
+ * genügt eine Auflösung von Minuten.
+ */
+const TOUCH_INTERVAL_MS = 5 * 60 * 1000;
+
 @Injectable()
 export class AccessService {
+  private readonly logger = new Logger(AccessService.name);
+  /** Wann zuletzt für einen Gast geschrieben wurde. */
+  private readonly lastTouch = new Map<string, number>();
+
   constructor(@Inject(DB) private readonly db: Database) {}
 
   async loadScope(user: RequestUser): Promise<AccessScope> {
     if (user.role !== 'GUEST') return teamScope(user.role);
+
+    this.noteVisit(user);
 
     const now = new Date();
     const rows = await this.db
@@ -79,7 +92,27 @@ export class AccessService {
     return guestScope(shares);
   }
 
-  /** Merkt sich, wann ein Gast zuletzt da war (für die Gästeübersicht). */
+  /**
+   * Merkt sich, wann ein Gast zuletzt da war – Grundlage für die Spalte
+   * „zuletzt gesehen“ in der Gästeübersicht.
+   *
+   * Bewusst nebenher und ohne `await`: Der Vermerk ist eine Bequemlichkeit für
+   * die Übersicht, kein Teil der Antwort. Klemmt die Datenbank dabei, soll der
+   * Gast trotzdem sein Video sehen.
+   */
+  private noteVisit(user: RequestUser): void {
+    const now = Date.now();
+    const last = this.lastTouch.get(user.id) ?? 0;
+    if (now - last < TOUCH_INTERVAL_MS) return;
+    this.lastTouch.set(user.id, now);
+
+    void this.touchGrants(user).catch((error: unknown) => {
+      this.logger.warn(
+        `Letzter Zugriff für ${user.id} konnte nicht vermerkt werden: ${String(error)}`,
+      );
+    });
+  }
+
   async touchGrants(user: RequestUser): Promise<void> {
     if (user.role !== 'GUEST') return;
     await this.db

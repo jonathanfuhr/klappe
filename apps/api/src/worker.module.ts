@@ -3,6 +3,7 @@ import { AccessModule } from './access/access.module';
 import { AppConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
 import { MailModule } from './mail/mail.module';
+import { MaintenanceModule } from './maintenance/maintenance.module';
 import { MailProcessor } from './mail/mail.processor';
 import { NotificationsService } from './mail/notifications.service';
 import { QueueModule } from './queue/queue.module';
@@ -24,6 +25,9 @@ import { VersionsModule } from './versions/versions.module';
     VersionsModule,
     TranscodeModule,
     MailModule,
+    // Das Aufräumen gehört in den Worker: Es liest das ganze Volume ab und
+    // hat in einem Prozess nichts verloren, der Anfragen beantworten soll.
+    MaintenanceModule,
   ],
   providers: [NotificationsService, MailProcessor],
 })

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post, Put } from '@nestjs/common';
-import type { SmtpProviderPresetDto, SmtpSettingsDto } from '@klappe/shared';
+import type { AuthSettingsDto, SmtpProviderPresetDto, SmtpSettingsDto } from '@klappe/shared';
 import {
   IsBoolean,
   IsEmail,
@@ -13,6 +13,7 @@ import {
 import { CurrentUser, Public, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
 import { MailService } from '../mail/mail.service';
+import { AuthSettingsService } from './auth-settings.service';
 import { SettingsService } from './settings.service';
 import { SMTP_PRESETS } from './smtp-presets';
 
@@ -70,11 +71,52 @@ class TestMailDto {
   to?: string;
 }
 
+class UpdateAuthDto {
+  @IsOptional()
+  @IsBoolean()
+  localLoginEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  oidcEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  tenantId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  clientId?: string;
+
+  /** Leer lassen heißt „unverändert“; ein leerer String löscht das Secret. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  clientSecret?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  autoProvision?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  allowedDomains?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  buttonLabel?: string;
+}
+
 @Controller('v1/settings')
 export class SettingsController {
   constructor(
     private readonly settingsService: SettingsService,
     private readonly mailService: MailService,
+    private readonly authSettings: AuthSettingsService,
   ) {}
 
   @Roles('ADMIN')
@@ -122,5 +164,29 @@ export class SettingsController {
   @Get('mail-status')
   async mailStatus(): Promise<{ ready: boolean }> {
     return { ready: await this.settingsService.isMailReady() };
+  }
+
+  // ---------- Anmeldung (Phase 11) ----------
+
+  @Roles('ADMIN')
+  @Get('auth')
+  getAuth(): Promise<AuthSettingsDto> {
+    return this.authSettings.get();
+  }
+
+  @Roles('ADMIN')
+  @Put('auth')
+  updateAuth(@Body() dto: UpdateAuthDto): Promise<AuthSettingsDto> {
+    return this.authSettings.update({
+      localLoginEnabled: dto.localLoginEnabled,
+      oidcEnabled: dto.oidcEnabled,
+      tenantId: dto.tenantId,
+      clientId: dto.clientId,
+      // Ein weggelassenes Feld lässt das gespeicherte Secret in Ruhe.
+      clientSecret: dto.clientSecret === undefined ? undefined : dto.clientSecret || null,
+      autoProvision: dto.autoProvision,
+      allowedDomains: dto.allowedDomains,
+      buttonLabel: dto.buttonLabel,
+    });
   }
 }

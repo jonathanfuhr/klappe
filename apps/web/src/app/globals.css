@@ -1299,3 +1299,247 @@ button {
   font-size: 11px;
   text-align: center;
 }
+
+/* ---------- Gäste- und Rechteübersicht (Phase 9) ---------- */
+
+.guests {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.guest {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--klappe-border);
+  border-radius: var(--klappe-radius-sm);
+  background: var(--klappe-bg);
+}
+
+.guest[data-blocked='true'] {
+  opacity: 0.62;
+}
+
+.guest__rights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.guest__links {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--klappe-text-muted);
+  line-height: 1.7;
+}
+
+/* Ein Projekt-Badge in der Gästeliste führt ins Projekt. */
+a.badge:hover {
+  border-color: var(--klappe-accent);
+  color: var(--klappe-text);
+}
+
+/* ---------- Erscheinungsbild (Phase 10) ---------- */
+
+.shell__brand-logo {
+  height: 22px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--klappe-border);
+}
+
+.tabs__tab {
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--klappe-text-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.tabs__tab[data-active='true'] {
+  color: var(--klappe-text);
+  border-bottom-color: var(--klappe-accent);
+}
+
+.colorinput {
+  width: 48px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid var(--klappe-border);
+  border-radius: var(--klappe-radius-sm);
+  background: var(--klappe-surface-raised);
+  cursor: pointer;
+}
+
+.brandpreview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--klappe-border);
+  border-radius: var(--klappe-radius-sm);
+  background: var(--klappe-bg);
+}
+
+.brandpreview__mark {
+  font-weight: 600;
+  color: var(--klappe-accent);
+}
+
+.brandpreview__logo {
+  height: 30px;
+  width: auto;
+  max-width: 180px;
+  object-fit: contain;
+}
+
+/* ---------- Anmeldewege (Phase 11) ---------- */
+
+.login__or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 6px;
+  font-size: 12px;
+  color: var(--klappe-text-faint);
+}
+
+.login__or::before,
+.login__or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--klappe-border);
+}
+
+/* ---------- Schlagworte und Filter (Phase 12) ---------- */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--tag-color) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tag-color) 14%, transparent);
+  color: var(--klappe-text);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.tag[data-small='true'] {
+  padding: 1px 8px;
+  font-size: 11px;
+}
+
+.tag--button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tag--button:hover {
+  border-color: var(--tag-color);
+}
+
+.tag--button[data-active='true'] {
+  background: var(--tag-color);
+  border-color: var(--tag-color);
+  color: #0e1013;
+  font-weight: 600;
+}
+
+.tag__count {
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.filterbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 0 16px;
+  border-bottom: 1px solid var(--klappe-border);
+  margin-bottom: 18px;
+}
+
+.filterbar__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.tile__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.projecttags {
+  margin: 4px 0 18px;
+}
+
+.projecttags__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.projecttags__picker {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--klappe-border);
+  border-radius: var(--klappe-radius-sm);
+  background: var(--klappe-surface);
+}
+
+.tagrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.tagrow__colors {
+  display: flex;
+  gap: 3px;
+}
+
+.tagrow__color {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--klappe-text-muted);
+}
+
+.tagrow__color[data-active='true'] {
+  border-color: var(--klappe-text);
+}
+
+.tagrow__color--auto {
+  background: var(--klappe-surface-raised);
+  border-color: var(--klappe-border);
+}

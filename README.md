@@ -4,7 +4,7 @@ Selbst gehostetes Review- und Freigabe-Werkzeug für Videoproduktionen – die
 eigene Alternative zu Frame.io. Läuft vollständig im Docker-Container auf
 eigener Infrastruktur.
 
-**Stand: Phasen 0 bis 8 der Umsetzungsreihenfolge sind gebaut.**
+**Stand: alle 14 Phasen der Umsetzungsreihenfolge sind gebaut.**
 
 | Phase | Inhalt | Stand |
 | --- | --- | --- |
@@ -17,7 +17,11 @@ eigener Infrastruktur.
 | 6 | Freigaben & Gäste: Links, Zugang per E-Mail-Code, Download-Rechte | fertig |
 | 7 | Kunden-Uploads: Ablage je Projekt, auch für Gäste | fertig |
 | 8 | E-Mail: SMTP-Einrichtung in der Oberfläche, Benachrichtigungen, Abmeldelink | fertig |
-| 9–13 | Verwaltung, Branding, Microsoft 365, Tags, Feinschliff | offen |
+| 9 | Verwaltung: Gäste- und Rechteübersicht je Projekt und Video, Zugriff entziehen | fertig |
+| 10 | Branding: Logo, Titel und Akzentfarbe pro Workspace | fertig |
+| 11 | Microsoft 365: Anmeldung über Entra ID, wählbare Anmeldemethoden | fertig |
+| 12 | Tags und Filter der Projektliste | fertig |
+| 13 | Feinschliff: HLS-Ladder, signierte Medien-Links, Rate-Limits, Aufräum-Jobs | fertig |
 
 ## Was heute funktioniert
 
@@ -57,9 +61,20 @@ eigener Infrastruktur.
   Abmeldelink.
 - **Downloads liefern immer das Original**, nie den Proxy – benannt nach dem
   Schema `JJMMTT_Kunde_Projekt_Video_v2_1080p25.mov`.
-
-Noch nicht enthalten (spätere Phasen): Verwaltungsoberfläche für Speicher und
-Aufbewahrung, White-Label, Anmeldung über Microsoft 365, Tags und Filter.
+- **Wer hat Zugriff**: eine Übersicht je Projekt und je Video, wer über welchen
+  Link hereinkommt, was er darf und wann er zuletzt da war. Der Zugang lässt
+  sich einzelnen Personen entziehen, ohne den Link für alle anderen zu killen;
+  unter *Gäste* stehen alle Gastkonten des Workspace.
+- **Eigenes Erscheinungsbild**: Titel, Logo und Akzentfarbe gelten überall,
+  auch auf der Anmeldeseite, im Gastzugang und in jeder E-Mail.
+- **Anmeldung über Microsoft 365** (Entra ID) neben oder statt der lokalen
+  Anmeldung – einstellbar in der Oberfläche, inklusive Schutz davor, sich
+  selbst auszusperren.
+- **Schlagworte und Filter** für die Projektliste, workspace-weit, mit
+  Sortierung nach zuletzt bearbeitet, angelegt oder Name.
+- **Adaptive Wiedergabe** über HLS (optional), kurzlebige Medien-Links für
+  Werkzeuge ohne Sitzung, Bremsen an den empfindlichen Routen und ein
+  täglicher Aufräumer für verwaiste Dateien.
 
 ## Schnellstart mit Docker
 
@@ -163,6 +178,47 @@ Auflösung nennt die kurze Kante samt Bildrate (`2160p25`, `1080p50`,
 `1080p2997`). Fehlende Teile – etwa ein Projekt ohne Kunden – fallen weg,
 statt Lücken zu hinterlassen.
 
+## Anmeldung über Microsoft 365
+
+Einzurichten unter *Einstellungen → Anmeldung*, nicht in der `.env`.
+
+1. Im Entra Admin Center eine App-Registrierung anlegen.
+2. Unter *Authentifizierung* die Redirect-URI als **Web**-Plattform eintragen.
+   Sie steht kopierfertig in den Einstellungen und endet auf
+   `/v1/auth/microsoft/callback`.
+3. Unter *Zertifikate & Geheimnisse* einen geheimen Clientschlüssel erzeugen.
+4. Verzeichnis-ID, Anwendungs-ID und den Schlüssel in Klappe eintragen und
+   den Schalter setzen.
+
+Umgesetzt ist der Authorization-Code-Fluss mit PKCE; das ID-Token wird gegen
+die öffentlichen Schlüssel des Tenants geprüft. Angefordert werden nur
+`openid profile email` – Klappe braucht Name und Adresse, sonst nichts.
+
+**Unbekannte Adressen kommen standardmäßig nicht herein.** Wer sich über M365
+anmeldet, braucht hier bereits ein Konto. Das ist Absicht: In einem großen
+Tenant bekäme sonst jeder Beschäftigte Zugriff auf alle Projekte. Wer das
+anders will, schaltet das automatische Anlegen ein und schränkt es auf die
+eigenen Domänen ein.
+
+Die lokale Anmeldung lässt sich abschalten, sobald M365 vollständig
+eingerichtet ist – vorher weist die API es ab, damit sich niemand aussperrt.
+Fällt M365 später aus (Secret abgelaufen, Einstellungen gelöscht), lebt die
+lokale Anmeldung automatisch wieder auf.
+
+Gäste sind davon nie betroffen: Sie kommen immer über ihren Freigabe-Link mit
+E-Mail-Code herein.
+
+## Adaptive Wiedergabe (optional)
+
+Mit `HLS_ENABLED=1` erzeugt die Pipeline zusätzlich eine HLS-Stufenleiter
+(2160p / 1080p / 720p / 480p, je nachdem, was die Quelle hergibt). Der Player
+nimmt sie automatisch, wo der Browser sie abspielt – Safari von Haus aus,
+Chrome und Firefox über `hls.js`, das erst bei Bedarf nachgeladen wird.
+
+Das kostet einen weiteren Durchlauf pro Datei und ist deshalb aus. Der
+progressive Proxy bleibt in jedem Fall die Grundlage fürs frame-genaue
+Arbeiten: eine Datei, sofort springbar, ohne Zwischenschicht.
+
 ## Entwicklung ohne Container
 
 Voraussetzungen: Node 22, Docker (für Postgres und Redis), `ffmpeg` und
@@ -192,7 +248,7 @@ Prüfen:
 
 ```bash
 npm run typecheck    # alle Workspaces
-npm test             # 240 Tests
+npm test             # 344 Tests
 npm run build        # shared + API + Web
 ```
 
@@ -206,7 +262,8 @@ npm run db:generate  # erzeugt eine neue SQL-Migration in apps/api/drizzle/
 
 ```
 packages/shared      Typen der Schnittstelle, Timecode-Mathematik, Mention-Format,
-                     Zeichnungsformat, Dateinamen, Erkennung im Dateinamen
+                     Zeichnungsformat, Dateinamen, Erkennung im Dateinamen,
+                     Schlagworte, Farbableitung fürs Branding
 apps/api             NestJS: HTTP-API (main.ts) und Transcoding-Worker (worker.ts)
 apps/api/drizzle     SQL-Migrationen
 apps/web             Next.js: Oberfläche, Player, Kommentare, Upload-Fenster
@@ -246,3 +303,18 @@ docker compose exec postgres pg_dump -U klappe klappe > klappe-$(date +%F).sql
 ```
 
 Redis enthält nur die Warteschlange und muss nicht gesichert werden.
+
+Der Worker räumt einmal täglich auf: verwaiste Dateien im Volume (mit einem
+Tag Karenz, damit gerade entstehende Dateien in Ruhe bleiben), abgelaufene
+Anmeldecodes und abgebrochene Upload-Sitzungen. Was er entfernt, steht im
+Protokoll.
+
+## Bekannte Hinweise
+
+`npm audit` meldet eine Schwachstelle in `libvips` über `sharp`. Das Paket
+ist eine **optionale** Abhängigkeit von Next.js und wird nur vom
+Bildoptimierer benutzt – den schaltet `next.config.mjs` ausdrücklich ab, weil
+Klappe alle Vorschaubilder als schlichtes `<img>` hinter der
+API-Authentifizierung einbindet. Der betroffene Weg ist damit nicht
+erreichbar. Ein `npm audit fix --force` würde Next auf Version 9 zurückstufen
+und ist keine Lösung.

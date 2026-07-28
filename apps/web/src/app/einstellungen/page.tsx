@@ -1,65 +1,26 @@
 'use client';
 
-import type { SmtpProviderPresetDto, SmtpSettingsDto } from '@klappe/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
-import { api } from '@/lib/api';
-import { formatDateTime } from '@/lib/format';
+import { AuthPanel } from '@/components/settings/AuthPanel';
+import { BrandingPanel } from '@/components/settings/BrandingPanel';
+import { SmtpPanel } from '@/components/settings/SmtpPanel';
 import { useSession } from '@/lib/session';
 
-/**
- * SMTP-Einstellungen (Phase 8).
- *
- * Bewusst generisches SMTP: Die Anbieter-Vorlagen füllen nur Host, Port und
- * TLS vor. Dadurch lässt sich der Dienst wechseln, ohne dass am Code etwas
- * passiert.
- */
+const TABS = [
+  { id: 'branding', label: 'Erscheinungsbild' },
+  { id: 'auth', label: 'Anmeldung' },
+  { id: 'mail', label: 'E-Mail-Versand' },
+] as const;
+
+type TabId = (typeof TABS)[number]['id'];
+
+/** Einstellungen des Workspace – alles, was nur Administratoren angeht. */
 export default function SettingsPage() {
-  const { user, loading: sessionLoading } = useSession();
+  const { user, loading } = useSession();
+  const [tab, setTab] = useState<TabId>('branding');
 
-  const [settings, setSettings] = useState<SmtpSettingsDto | null>(null);
-  const [presets, setPresets] = useState<SmtpProviderPresetDto[]>([]);
-  const [form, setForm] = useState({
-    enabled: false,
-    provider: 'brevo',
-    host: '',
-    port: 587,
-    secure: false,
-    user: '',
-    password: '',
-    fromName: 'Klappe',
-    fromEmail: '',
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      const [current, presetList] = await Promise.all([api.getSmtpSettings(), api.smtpPresets()]);
-      setSettings(current);
-      setPresets(presetList);
-      setForm({
-        enabled: current.enabled,
-        provider: current.provider ?? 'brevo',
-        host: current.host ?? '',
-        port: current.port ?? 587,
-        secure: current.secure,
-        user: current.user ?? '',
-        password: '',
-        fromName: current.fromName ?? 'Klappe',
-        fromEmail: current.fromEmail ?? '',
-      });
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  if (!sessionLoading && user && user.role !== 'ADMIN') {
+  if (!loading && user && user.role !== 'ADMIN') {
     return (
       <AppShell>
         <div className="page">
@@ -69,236 +30,32 @@ export default function SettingsPage() {
     );
   }
 
-  const applyPreset = (id: string) => {
-    const preset = presets.find((entry) => entry.id === id);
-    setForm((current) => ({
-      ...current,
-      provider: id,
-      host: preset && preset.host ? preset.host : current.host,
-      port: preset ? preset.port : current.port,
-      secure: preset ? preset.secure : current.secure,
-    }));
-  };
-
-  const save = async () => {
-    setBusy(true);
-    setError(null);
-    setInfo(null);
-    try {
-      const saved = await api.updateSmtpSettings({
-        enabled: form.enabled,
-        provider: form.provider,
-        host: form.host,
-        port: form.port,
-        secure: form.secure,
-        user: form.user,
-        // Leeres Feld heißt „unverändert“ – sonst würde ein Speichern das
-        // hinterlegte Passwort löschen, nur weil es nicht angezeigt wird.
-        ...(form.password ? { password: form.password } : {}),
-        fromName: form.fromName,
-        fromEmail: form.fromEmail,
-      });
-      setSettings(saved);
-      setForm((current) => ({ ...current, password: '' }));
-      setInfo('Gespeichert.');
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const sendTest = async () => {
-    setBusy(true);
-    setError(null);
-    setInfo(null);
-    try {
-      await api.sendTestMail();
-      setInfo(`Testmail an ${user?.email} verschickt.`);
-    } catch (testError) {
-      setError(testError instanceof Error ? testError.message : 'Der Versand hat nicht geklappt.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const preset = presets.find((entry) => entry.id === form.provider);
-
   return (
     <AppShell>
       <div className="page" style={{ maxWidth: 760 }}>
         <div className="page__header">
           <div>
-            <h1 className="page__title">E-Mail-Versand</h1>
-            <p className="page__subtitle">
-              Nötig für Anmeldecodes der Gäste und für Benachrichtigungen zu Kommentaren,
-              Erwähnungen und Kunden-Uploads.
-            </p>
+            <h1 className="page__title">Einstellungen</h1>
           </div>
         </div>
 
-        {error ? <div className="notice">{error}</div> : null}
-        {info ? (
-          <div className="card" style={{ padding: '10px 12px', marginBottom: 14 }}>
-            {info}
-          </div>
-        ) : null}
-
-        <form
-          className="card"
-          style={{ padding: 20 }}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void save();
-          }}
-        >
-          <label className="switch" style={{ marginBottom: 16 }}>
-            <input
-              type="checkbox"
-              checked={form.enabled}
-              onChange={(event) => setForm({ ...form, enabled: event.target.checked })}
-            />
-            Versand aktiv
-          </label>
-
-          <div className="field">
-            <label className="field__label" htmlFor="provider">
-              Anbieter-Vorlage
-            </label>
-            <select
-              id="provider"
-              className="select"
-              value={form.provider}
-              onChange={(event) => applyPreset(event.target.value)}
-            >
-              {presets.map((entry) => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.name}
-                </option>
-              ))}
-            </select>
-            {preset ? <p className="hint">{preset.hint}</p> : null}
-          </div>
-
-          <div className="grid-two">
-            <div className="field">
-              <label className="field__label" htmlFor="host">
-                Server
-              </label>
-              <input
-                id="host"
-                className="input"
-                value={form.host}
-                onChange={(event) => setForm({ ...form, host: event.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="port">
-                Port
-              </label>
-              <input
-                id="port"
-                className="input"
-                type="number"
-                min={1}
-                max={65535}
-                value={form.port}
-                onChange={(event) => setForm({ ...form, port: Number(event.target.value) })}
-              />
-            </div>
-          </div>
-
-          <label className="switch" style={{ marginBottom: 16 }}>
-            <input
-              type="checkbox"
-              checked={form.secure}
-              onChange={(event) => setForm({ ...form, secure: event.target.checked })}
-            />
-            Implizites TLS (Port 465). Bei 587 aus lassen – dort greift STARTTLS.
-          </label>
-
-          <div className="grid-two">
-            <div className="field">
-              <label className="field__label" htmlFor="smtp-user">
-                Benutzername
-              </label>
-              <input
-                id="smtp-user"
-                className="input"
-                autoComplete="off"
-                value={form.user}
-                onChange={(event) => setForm({ ...form, user: event.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="smtp-password">
-                Passwort
-              </label>
-              <input
-                id="smtp-password"
-                className="input"
-                type="password"
-                autoComplete="new-password"
-                placeholder={settings?.hasPassword ? '•••••••• (gespeichert)' : ''}
-                value={form.password}
-                onChange={(event) => setForm({ ...form, password: event.target.value })}
-              />
-              <p className="hint">Leer lassen behält das gespeicherte Passwort.</p>
-            </div>
-          </div>
-
-          <div className="grid-two">
-            <div className="field">
-              <label className="field__label" htmlFor="from-name">
-                Absender-Name
-              </label>
-              <input
-                id="from-name"
-                className="input"
-                value={form.fromName}
-                onChange={(event) => setForm({ ...form, fromName: event.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="from-email">
-                Absender-Adresse
-              </label>
-              <input
-                id="from-email"
-                className="input"
-                type="email"
-                value={form.fromEmail}
-                onChange={(event) => setForm({ ...form, fromEmail: event.target.value })}
-              />
-            </div>
-          </div>
-
-          <p className="hint">
-            Damit Codes und Benachrichtigungen nicht im Spam landen, sollte die Absender-Domain SPF
-            und DKIM gesetzt haben.
-          </p>
-
-          <div className="toolbar" style={{ marginTop: 18 }}>
-            {settings ? (
-              <span className="faint" style={{ fontSize: 12 }}>
-                zuletzt geändert {formatDateTime(settings.updatedAt)}
-              </span>
-            ) : null}
-            <div className="shell__spacer" />
+        <div className="tabs">
+          {TABS.map((entry) => (
             <button
+              key={entry.id}
               type="button"
-              className="button"
-              disabled={busy || !settings?.enabled}
-              onClick={() => void sendTest()}
-              title={settings?.enabled ? undefined : 'Erst speichern und aktivieren'}
+              className="tabs__tab"
+              data-active={tab === entry.id}
+              onClick={() => setTab(entry.id)}
             >
-              Testmail senden
+              {entry.label}
             </button>
-            <button type="submit" className="button button--primary" disabled={busy}>
-              Speichern
-            </button>
-          </div>
-        </form>
+          ))}
+        </div>
+
+        {tab === 'branding' ? <BrandingPanel /> : null}
+        {tab === 'auth' ? <AuthPanel /> : null}
+        {tab === 'mail' ? <SmtpPanel /> : null}
       </div>
     </AppShell>
   );

@@ -35,7 +35,7 @@ Passwörter: mindestens 10 Zeichen, Buchstaben und Ziffern.
 
 | Route | Zweck |
 | --- | --- |
-| `GET /v1/projects` | Liste, zuletzt bearbeitete zuerst |
+| `GET /v1/projects` | Liste; Filter `?tags=<id,id>&tagMatch=any\|all`, Sortierung `?sort=updated\|created\|name` |
 | `POST /v1/projects` | `{ name, customer?, description? }` |
 | `GET/PATCH/DELETE /v1/projects/:id` | einzeln |
 | `GET /v1/projects/:id/videos` | Videos mit jeweils neuester Version |
@@ -222,6 +222,109 @@ Jede Mail trägt in der Fußzeile einen Abmeldelink auf `/abmelden?token=…` mi
 einem HMAC-signierten Token. Die Seite ruft `POST /v1/unsubscribe`
 (`{ token }`, ohne Anmeldung) auf – wer keine Mails mehr will, soll sich dafür
 nicht erst einloggen müssen.
+
+## Gäste- und Rechteübersicht (Phase 9)
+
+Alles hier ist dem Team vorbehalten – ein Gast soll nicht sehen, wer sonst
+noch am Projekt sitzt.
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/projects/:projectId/guests` | wer das Projekt erreicht, über welche Links, mit welchen Rechten |
+| `GET /v1/videos/:videoId/guests` | dasselbe fürs Video – auch die über die Projektfreigabe |
+| `GET /v1/guests` | alle Gastkonten des Workspace mit ihren Projekten |
+| `DELETE /v1/projects/:projectId/guests/:userId` | diesem Gast das ganze Projekt entziehen |
+| `POST /v1/projects/:projectId/guests/:userId` | Entzug zurücknehmen |
+| `PATCH /v1/guests/:userId` | Admin – `{ isActive }`, sperrt das Konto workspace-weit |
+
+Der Entzug gilt für **diese eine Person** an allen Links ins Projekt; der Link
+selbst bleibt für die anderen bestehen. `canView` / `canComment` /
+`canDownload` / `canUpload` in der Antwort sind die Summe über alle gültigen
+Links – ein Link zählt nur mit, wenn er selbst gilt, dem Gast nicht entzogen
+wurde und das Konto nicht gesperrt ist.
+
+## Erscheinungsbild (Phase 10)
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/branding` | ohne Anmeldung – Titel, Farben, Logo-Adresse |
+| `GET /v1/branding/logo` | ohne Anmeldung – die Logodatei |
+| `PUT /v1/settings/branding` | Admin – `{ title?, accent? }` |
+| `PUT /v1/settings/branding/logo` | Admin – rohe Bytes, Format im `Content-Type` |
+| `DELETE /v1/settings/branding/logo` | Admin |
+
+Gesetzt wird **eine** Farbe; `accentHover` und `accentContrast` werden daraus
+berechnet. Als Logo gehen PNG, JPEG, WebP und SVG bis 512 KB. Die Logo-Adresse
+trägt einen Zeitstempel, damit ein Wechsel sofort sichtbar wird.
+
+## Anmeldung (Phase 11)
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/auth/methods` | ohne Anmeldung – `{ local, microsoft, microsoftLabel }` |
+| `GET /v1/auth/microsoft/start` | ohne Anmeldung – Weiterleitung zu Entra ID; `?redirect=` bleibt auf eigene Pfade beschränkt |
+| `GET /v1/auth/microsoft/callback` | ohne Anmeldung – Rückkehr, setzt das Sitzungs-Cookie |
+| `GET /v1/settings/auth` | Admin – Einstellungen ohne Secret, dafür `hasClientSecret` und die einzutragende `redirectUri` |
+| `PUT /v1/settings/auth` | Admin – `{ localLoginEnabled?, oidcEnabled?, tenantId?, clientId?, clientSecret?, autoProvision?, allowedDomains?, buttonLabel? }` |
+
+Beide M365-Routen sind Weiterleitungen im Browser, keine JSON-Schnittstelle.
+Geht etwas schief, landet der Benutzer auf `/login?fehler=<Begründung>` –
+inklusive der Meldung, die Microsoft geliefert hat.
+
+`PUT /v1/settings/auth` weist mit `400` ab, wenn die lokale Anmeldung
+abgeschaltet werden soll, ohne dass Microsoft 365 aktiv und vollständig
+eingerichtet ist. Ist beides ausgeschaltet, weil die M365-Einrichtung später
+zerfallen ist, lebt die lokale Anmeldung automatisch wieder auf.
+
+## Schlagworte (Phase 12)
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/tags` | alle Schlagworte mit Projektzahl |
+| `POST /v1/tags` | `{ name, color? }` – ohne Farbe wird eine aus dem Namen abgeleitet |
+| `PATCH /v1/tags/:id` | `{ name?, color? }`; leere Farbe heißt „wieder ableiten" |
+| `DELETE /v1/tags/:id` | verschwindet auch an allen Projekten |
+| `PUT /v1/projects/:projectId/tags` | `{ tagIds }` – setzt genau diese Liste |
+| `POST/DELETE /v1/projects/:projectId/tags/:tagId` | einzeln an- und abhängen |
+
+Namen sind eindeutig ohne Rücksicht auf die Schreibweise; ein Duplikat ergibt
+`409`.
+
+## Adaptive Wiedergabe und Medien-Links (Phase 13)
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/versions/:id/hls/master.m3u8` | Master-Playlist, falls eine Leiter erzeugt wurde |
+| `GET /v1/versions/:id/hls/:variant/:file` | Stufen-Playlist und Segmente |
+| `GET /v1/versions/:id/media-links` | kurzlebige Adressen für Proxy, Poster, Streifen und (mit Recht) Original |
+
+Die HLS-Leiter entsteht nur mit `HLS_ENABLED=1`; `hlsVariants` an der Fassung
+nennt die vorhandenen Stufen. Dateinamen unterhalb von `hls/` werden streng
+geprüft, Stufen müssen in `hlsVariants` stehen.
+
+Die Links aus `media-links` tragen einen signierten Token in `?t=`, der an
+Fassung, Art und Person gebunden ist und nach sechs Stunden verfällt. Er
+**ersetzt die Rechteprüfung nicht** – ein entzogener Zugang macht auch einen
+schon vergebenen Link wertlos. Ein Token für den Proxy schaltet das Original
+nicht frei.
+
+## Anfragebremsen
+
+An den empfindlichen Routen zählt eine Bremse in einem gleitenden Fenster.
+Wird sie ausgelöst, kommt `429` mit `Retry-After`; `X-RateLimit-Limit` und
+`X-RateLimit-Remaining` stehen an jeder Antwort.
+
+| Route | Grenze |
+| --- | --- |
+| `POST /v1/auth/login` | 10 je Adresse und Minute |
+| `POST /v1/auth/password` | 10 je Minute |
+| `POST /v1/share/:token/code` | 12 je Stunde (zusätzlich zu 5 je Adresse im Dienst) |
+| `POST /v1/share/:token/verify` | 20 je Adresse und Stunde |
+| `POST /v1/unsubscribe` | 20 je Stunde |
+| `GET /v1/auth/microsoft/start` | 30 je Stunde |
+
+Abgelehnte Versuche zählen nicht mit – sonst könnte sich jemand durch stures
+Weiterklopfen selbst dauerhaft aussperren.
 
 ## Sonstiges
 

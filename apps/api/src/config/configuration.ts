@@ -33,6 +33,13 @@ export interface AppConfig {
     password: string | null;
     name: string;
   };
+  oidc: {
+    /**
+     * Basis der Entra-Adressen. Weltweit `login.microsoftonline.com`; für
+     * die abgeschotteten Clouds (US Government, China) eine andere.
+     */
+    authority: string;
+  };
   transcode: {
     ffmpegPath: string;
     ffprobePath: string;
@@ -50,6 +57,12 @@ export interface AppConfig {
     spriteColumns: number;
     spriteMaxTiles: number;
     concurrency: number;
+    /**
+     * Zusätzlich zur progressiven Abspielfassung eine HLS-Stufenleiter
+     * erzeugen. Kostet einen weiteren Durchlauf und ist deshalb aus.
+     */
+    hlsEnabled: boolean;
+    hlsSegmentSeconds: number;
   };
 }
 
@@ -117,6 +130,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       password: env.ADMIN_PASSWORD ?? null,
       name: env.ADMIN_NAME?.trim() || 'Administrator',
     },
+    oidc: {
+      authority:
+        env.OIDC_AUTHORITY?.trim().replace(/\/+$/, '') || 'https://login.microsoftonline.com',
+    },
     transcode: {
       ffmpegPath: env.FFMPEG_PATH?.trim() || 'ffmpeg',
       ffprobePath: env.FFPROBE_PATH?.trim() || 'ffprobe',
@@ -134,6 +151,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       spriteColumns: readInt(env, 'SPRITE_COLUMNS', 10),
       spriteMaxTiles: readInt(env, 'SPRITE_MAX_TILES', 100),
       concurrency: readInt(env, 'WORKER_CONCURRENCY', 1),
+      hlsEnabled: readBool(env, 'HLS_ENABLED', false),
+      hlsSegmentSeconds: readInt(env, 'HLS_SEGMENT_SECONDS', 4),
     },
   };
 }

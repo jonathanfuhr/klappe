@@ -23,6 +23,7 @@ import {
   useState,
 } from 'react';
 import { mediaUrl } from '@/lib/api';
+import { useHlsSource } from './useHlsSource';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { Timeline } from './Timeline';
 import { useFrameClock } from './useFrameClock';
@@ -353,6 +354,9 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   const durationSeconds = version.media.durationSeconds ?? 0;
   const hasProxy = version.hasProxy && version.status === 'READY';
 
+  // Adaptive Wiedergabe, wenn für diese Fassung eine Leiter erzeugt wurde.
+  const playbackSource = useHlsSource(videoRef, version, hasProxy);
+
   const onProgress = useCallback(() => {
     const video = videoRef.current;
     if (!video || video.buffered.length === 0 || !video.duration) return;
@@ -365,7 +369,9 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         {hasProxy ? (
           <video
             ref={videoRef}
-            src={mediaUrl.proxy(version.id)}
+            // Bei HLS setzt der Haken oben die Quelle selbst; hier bleibt sie
+            // dann leer, sonst lüde der Browser beides.
+            src={playbackSource === 'hls' ? undefined : mediaUrl.proxy(version.id)}
             poster={version.hasPoster ? mediaUrl.poster(version.id) : undefined}
             preload="auto"
             playsInline

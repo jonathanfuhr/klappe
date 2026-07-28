@@ -11,11 +11,13 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { GuestAccess } from '@/components/GuestAccess';
 import { ShareManager } from '@/components/ShareManager';
 import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
 import { CommentPanel } from '@/components/comments/CommentPanel';
 import { type CommentMarker, type PlayerHandle, VideoPlayer } from '@/components/player/VideoPlayer';
+import { Dialog } from '@/components/ui/Dialog';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -44,6 +46,7 @@ export default function ReviewPage() {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [showUploader, setShowUploader] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [showingGuests, setShowingGuests] = useState(false);
   const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
 
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
@@ -226,6 +229,9 @@ export default function ReviewPage() {
                 <button type="button" className="button" onClick={() => setSharing(true)}>
                   Freigeben
                 </button>
+                <button type="button" className="button" onClick={() => setShowingGuests(true)}>
+                  Zugriff
+                </button>
               </>
             ) : null}
 
@@ -352,6 +358,22 @@ export default function ReviewPage() {
           targetLabel={video.name}
           onClose={() => setSharing(false)}
         />
+      ) : null}
+
+      {showingGuests && video ? (
+        <Dialog title={`Zugriff auf ${video.name}`} onClose={() => setShowingGuests(false)}>
+          <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+            Auch Gäste, die über eine Projektfreigabe hereinkommen – das ist der häufigere Weg.
+          </p>
+          <div style={{ maxHeight: 460, overflowY: 'auto' }}>
+            <GuestAccess videoId={video.id} />
+          </div>
+          <div className="dialog__actions">
+            <button type="button" className="button" onClick={() => setShowingGuests(false)}>
+              Schließen
+            </button>
+          </div>
+        </Dialog>
       ) : null}
     </AppShell>
   );

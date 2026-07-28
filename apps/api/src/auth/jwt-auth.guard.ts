@@ -14,7 +14,8 @@ import type { Request } from 'express';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import { users } from '../db/schema';
-import { IS_PUBLIC_KEY, ROLES_KEY } from './auth.decorators';
+import { type MediaKind, readMediaToken } from '../media/media-token';
+import { IS_PUBLIC_KEY, MEDIA_TOKEN_KEY, ROLES_KEY } from './auth.decorators';
 import type { AuthenticatedRequest, JwtPayload } from './auth.types';
 
 /**
@@ -42,19 +43,8 @@ export class JwtAuthGuard implements CanActivate {
     if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const token = extractToken(request, this.config.jwt.cookieName);
-    if (!token) {
-      throw new UnauthorizedException('Nicht angemeldet.');
-    }
 
-    let payload: JwtPayload;
-    try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: this.config.jwt.secret,
-      });
-    } catch {
-      throw new UnauthorizedException('Sitzung abgelaufen oder ungültig.');
-    }
+    const userId = await this.identify(context, request);
 
     const [user] = await this.db
       .select({
@@ -65,7 +55,7 @@ export class JwtAuthGuard implements CanActivate {
         isActive: users.isActive,
       })
       .from(users)
-      .where(eq(users.id, payload.sub))
+      .where(eq(users.id, userId))
       .limit(1);
 
     if (!user || !user.isActive) {
@@ -83,6 +73,50 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  /**
+   * Wer stellt die Anfrage? Normalfall ist die Sitzung. Auf ausdrücklich
+   * dafür markierten Medien-Routen gilt ersatzweise ein kurzlebiger Token in
+   * `?t=` – gebunden an genau diese Fassung und genau diese Art von Datei.
+   */
+  private async identify(
+    context: ExecutionContext,
+    request: AuthenticatedRequest,
+  ): Promise<string> {
+    const sessionToken = extractToken(request, this.config.jwt.cookieName);
+    if (sessionToken) {
+      try {
+        const payload = await this.jwtService.verifyAsync<JwtPayload>(sessionToken, {
+          secret: this.config.jwt.secret,
+        });
+        return payload.sub;
+      } catch {
+        throw new UnauthorizedException('Sitzung abgelaufen oder ungültig.');
+      }
+    }
+
+    const erlaubteArt = this.reflector.getAllAndOverride<MediaKind | undefined>(MEDIA_TOKEN_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (erlaubteArt) {
+      const media = readMediaToken(
+        (request.query as Record<string, string | undefined>)?.t,
+        this.config.jwt.secret,
+      );
+      // Ohne die Bindung an Fassung und Art wäre ein Link fürs Vorschaubild
+      // ein Ausweis für alles Übrige.
+      if (
+        media &&
+        media.kind === erlaubteArt &&
+        media.versionId === (request.params as Record<string, string>)?.id
+      ) {
+        return media.userId;
+      }
+    }
+
+    throw new UnauthorizedException('Nicht angemeldet.');
   }
 }
 

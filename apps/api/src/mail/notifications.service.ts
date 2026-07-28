@@ -94,9 +94,11 @@ export class NotificationsService {
       ? `v${row.versionNumber} – ${row.versionLabel}`
       : `v${row.versionNumber}`;
 
+    const brand = await this.mailService.brand();
     let sent = 0;
     for (const recipient of recipients) {
       const mail = renderCommentMail({
+        brand,
         recipientName: recipient.name,
         authorName: row.authorName,
         projectName: row.projectName,
@@ -154,10 +156,12 @@ export class NotificationsService {
     if (recipients.length === 0) return 0;
 
     const url = `${this.config.publicUrl}/projekte/${row.file.projectId}`;
+    const brand = await this.mailService.brand();
     let sent = 0;
 
     for (const recipient of recipients) {
       const mail = renderProjectFileMail({
+        brand,
         recipientName: recipient.name,
         uploaderName: row.uploaderName ?? 'Ein Gast',
         projectName: row.projectName,

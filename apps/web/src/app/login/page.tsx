@@ -1,8 +1,10 @@
 'use client';
 
+import type { LoginMethodsDto } from '@klappe/shared';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
-import { api } from '@/lib/api';
+import { Suspense, useEffect, useState } from 'react';
+import { BrandMark } from '@/components/BrandMark';
+import { API_BASE, api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 
 function LoginForm() {
@@ -12,10 +14,26 @@ function LoginForm() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // Ein gescheiterter M365-Versuch kommt als Weiterleitung mit Begründung
+  // zurück – die soll man lesen können, statt auf einer leeren Seite zu sitzen.
+  const [error, setError] = useState<string | null>(searchParams.get('fehler'));
   const [busy, setBusy] = useState(false);
+  const [methods, setMethods] = useState<LoginMethodsDto>({
+    local: true,
+    microsoft: false,
+    microsoftLabel: 'Mit Microsoft 365 anmelden',
+  });
 
   const target = searchParams.get('weiter') ?? '/projekte';
+
+  useEffect(() => {
+    void api
+      .loginMethods()
+      .then(setMethods)
+      // Ohne Antwort bleibt die lokale Anmeldung stehen – besser eine
+      // Möglichkeit zu viel als eine Seite ohne jede.
+      .catch(() => undefined);
+  }, []);
 
   return (
     <form
@@ -36,56 +54,76 @@ function LoginForm() {
         }
       }}
     >
-      <div className="login__brand">
-        <span className="shell__brand-mark" aria-hidden>
-          ◗
-        </span>
-        Klappe
-      </div>
+      <BrandMark />
       <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>
         Review und Freigabe für Videoproduktionen
       </p>
 
-      <div className="field">
-        <label className="field__label" htmlFor="email">
-          E-Mail-Adresse
-        </label>
-        <input
-          id="email"
-          className="input"
-          type="email"
-          autoComplete="username"
-          required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-      </div>
-
-      <div className="field">
-        <label className="field__label" htmlFor="password">
-          Passwort
-        </label>
-        <input
-          id="password"
-          className="input"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-      </div>
-
       {error ? <div className="notice">{error}</div> : null}
 
-      <button
-        type="submit"
-        className="button button--primary"
-        style={{ width: '100%', marginTop: 12 }}
-        disabled={busy}
-      >
-        {busy ? 'Wird angemeldet …' : 'Anmelden'}
-      </button>
+      {methods.microsoft ? (
+        <a
+          className="button button--primary"
+          style={{ width: '100%', justifyContent: 'center', marginBottom: 4 }}
+          // Bewusst ein echter Link und kein fetch: Die Anmeldung bei
+          // Microsoft ist eine Reise durch mehrere Seiten, die der Browser
+          // selbst antreten muss.
+          href={`${API_BASE}/v1/auth/microsoft/start?redirect=${encodeURIComponent(
+            target.startsWith('/') ? target : '/projekte',
+          )}`}
+        >
+          {methods.microsoftLabel}
+        </a>
+      ) : null}
+
+      {methods.microsoft && methods.local ? <div className="login__or">oder</div> : null}
+
+      {methods.local ? (
+        <>
+          <div className="field">
+            <label className="field__label" htmlFor="email">
+              E-Mail-Adresse
+            </label>
+            <input
+              id="email"
+              className="input"
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label className="field__label" htmlFor="password">
+              Passwort
+            </label>
+            <input
+              id="password"
+              className="input"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </div>
+
+          <button
+            type="submit"
+            className={methods.microsoft ? 'button' : 'button button--primary'}
+            style={{ width: '100%', marginTop: 12 }}
+            disabled={busy}
+          >
+            {busy ? 'Wird angemeldet …' : 'Anmelden'}
+          </button>
+        </>
+      ) : (
+        <p className="hint" style={{ textAlign: 'center' }}>
+          Für Team-Konten ist in diesem Workspace nur die Anmeldung über Microsoft 365 vorgesehen.
+        </p>
+      )}
     </form>
   );
 }

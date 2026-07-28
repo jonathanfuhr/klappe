@@ -57,6 +57,9 @@ export interface TranscodeOutputs {
     tileCount: number;
     intervalSeconds: number;
   } | null;
+  /** Verzeichnis der HLS-Leiter (Phase 13); `null`, wenn keine erzeugt wurde. */
+  hlsKey: string | null;
+  hlsVariants: string | null;
 }
 
 export type VersionQueryRow = {
@@ -264,6 +267,8 @@ export class VersionsService {
         spriteTileHeight: outputs.sprite?.tileHeight ?? null,
         spriteTileCount: outputs.sprite?.tileCount ?? null,
         spriteIntervalSeconds: outputs.sprite?.intervalSeconds ?? null,
+        hlsKey: outputs.hlsKey,
+        hlsVariants: outputs.hlsVariants,
         updatedAt: new Date(),
       })
       .where(eq(videoVersions.id, versionId));
@@ -394,6 +399,7 @@ export class VersionsService {
       playbackMode: version.playbackMode,
       playbackReason: version.playbackReason,
       fileDate: fileDateFromIso(version.fileDate),
+      hlsVariants: version.hlsVariants ? version.hlsVariants.split(',').filter(Boolean) : [],
       downloadFilename: buildDownloadFilename({
         date: fileDateFromIso(version.fileDate),
         customer: row.projectCustomer ?? null,

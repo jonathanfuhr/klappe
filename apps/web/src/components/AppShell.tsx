@@ -3,27 +3,41 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { useBranding } from '@/lib/branding';
 import { initialsOf } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useSession();
+  const { branding } = useBranding();
   const pathname = usePathname();
 
   return (
     <div className="shell">
       <header className="shell__header">
         <Link href={user?.role === 'GUEST' ? '#' : '/projekte'} className="shell__brand">
-          <span className="shell__brand-mark" aria-hidden>
-            ◗
-          </span>
-          Klappe
+          {branding.logoUrl ? (
+            // Bewusst als <img>: Ein hochgeladenes SVG kann Skripte enthalten,
+            // die hier nicht ausgeführt werden.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="shell__brand-logo" src={branding.logoUrl} alt={branding.title} />
+          ) : (
+            <span className="shell__brand-mark" aria-hidden>
+              ◗
+            </span>
+          )}
+          {branding.title}
         </Link>
 
         <nav className="shell__nav">
           <Link href="/projekte" data-active={pathname.startsWith('/projekte')}>
             Projekte
           </Link>
+          {user?.role === 'ADMIN' || user?.role === 'MEMBER' ? (
+            <Link href="/gaeste" data-active={pathname.startsWith('/gaeste')}>
+              Gäste
+            </Link>
+          ) : null}
           {user?.role === 'ADMIN' ? (
             <>
               <Link href="/benutzer" data-active={pathname.startsWith('/benutzer')}>

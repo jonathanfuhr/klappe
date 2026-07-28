@@ -13,6 +13,23 @@ export interface RenderedMail {
   html: string;
 }
 
+/**
+ * Erscheinungsbild des Workspace in der Mail (Phase 10). Ohne Angabe bleibt
+ * es beim Standard – eine Mail soll nicht daran scheitern, dass gerade keine
+ * Einstellungen geladen werden konnten.
+ */
+export interface MailBrand {
+  title: string;
+  accent: string;
+  accentContrast: string;
+}
+
+export const DEFAULT_MAIL_BRAND: MailBrand = {
+  title: 'Klappe',
+  accent: '#4c8dff',
+  accentContrast: '#04070d',
+};
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -30,10 +47,13 @@ function layout(input: {
   buttonUrl?: string;
   footerNote?: string;
   unsubscribeUrl?: string;
+  brand?: MailBrand;
 }): string {
+  const brand = input.brand ?? DEFAULT_MAIL_BRAND;
+
   const button =
     input.buttonLabel && input.buttonUrl
-      ? `<p style="margin:26px 0"><a href="${escapeHtml(input.buttonUrl)}" style="display:inline-block;background:#4c8dff;color:#04070d;font-weight:600;text-decoration:none;padding:11px 20px;border-radius:6px">${escapeHtml(input.buttonLabel)}</a></p>`
+      ? `<p style="margin:26px 0"><a href="${escapeHtml(input.buttonUrl)}" style="display:inline-block;background:${escapeHtml(brand.accent)};color:${escapeHtml(brand.accentContrast)};font-weight:600;text-decoration:none;padding:11px 20px;border-radius:6px">${escapeHtml(input.buttonLabel)}</a></p>`
       : '';
 
   const footerParts: string[] = [];
@@ -48,7 +68,7 @@ function layout(input: {
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
 <body style="margin:0;padding:24px;background:#f4f5f7;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#16191f">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:10px;padding:28px">
-    <div style="font-weight:650;font-size:17px;margin-bottom:18px">Klappe</div>
+    <div style="font-weight:650;font-size:17px;margin-bottom:18px">${escapeHtml(brand.title)}</div>
     <h1 style="font-size:19px;margin:0 0 14px">${escapeHtml(input.title)}</h1>
     ${input.body}
     ${button}
@@ -79,7 +99,9 @@ export function renderGuestCodeMail(input: {
   code: string;
   targetName: string;
   minutesValid: number;
+  brand?: MailBrand;
 }): RenderedMail {
+  const brand = input.brand ?? DEFAULT_MAIL_BRAND;
   const text = [
     `Dein Anmeldecode für „${input.targetName}“ lautet: ${input.code}`,
     '',
@@ -90,9 +112,10 @@ export function renderGuestCodeMail(input: {
   return {
     // Der Code steht bewusst im Betreff: Auf dem Handy ist er dann schon in
     // der Vorschau lesbar, ohne die Mail zu öffnen.
-    subject: `${input.code} ist dein Anmeldecode für Klappe`,
+    subject: `${input.code} ist dein Anmeldecode für ${brand.title}`,
     text,
     html: layout({
+      brand,
       title: 'Dein Anmeldecode',
       body: [
         paragraph(`Für den Zugang zu „${input.targetName}“ brauchst du diesen Code:`),
@@ -120,6 +143,7 @@ export interface CommentMailInput {
   isReply: boolean;
   url: string;
   unsubscribeUrl: string;
+  brand?: MailBrand;
 }
 
 export function renderCommentMail(input: CommentMailInput): RenderedMail {
@@ -153,6 +177,7 @@ export function renderCommentMail(input: CommentMailInput): RenderedMail {
     subject,
     text,
     html: layout({
+      brand: input.brand,
       title: intro,
       body: [
         paragraph(`Projekt: ${input.projectName} · Fassung: ${input.versionLabel}`),
@@ -175,6 +200,7 @@ export function renderProjectFileMail(input: {
   sizeLabel: string;
   url: string;
   unsubscribeUrl: string;
+  brand?: MailBrand;
 }): RenderedMail {
   const intro = `${input.uploaderName} hat Material in „${input.projectName}“ hochgeladen.`;
 
@@ -191,6 +217,7 @@ export function renderProjectFileMail(input: {
       `Keine solchen Mails mehr: ${input.unsubscribeUrl}`,
     ].join('\n'),
     html: layout({
+      brand: input.brand,
       title: intro,
       body: paragraph(`Datei: ${input.filename} (${input.sizeLabel})`),
       buttonLabel: 'Zum Projekt',
@@ -202,11 +229,16 @@ export function renderProjectFileMail(input: {
 
 // ---------- Testmail ----------
 
-export function renderTestMail(input: { host: string; fromEmail: string }): RenderedMail {
+export function renderTestMail(input: {
+  host: string;
+  fromEmail: string;
+  brand?: MailBrand;
+}): RenderedMail {
+  const brand = input.brand ?? DEFAULT_MAIL_BRAND;
   return {
-    subject: 'Klappe: SMTP-Einstellungen funktionieren',
+    subject: `${brand.title}: SMTP-Einstellungen funktionieren`,
     text: [
-      'Diese Testnachricht bestätigt, dass Klappe über deinen Mailserver versenden kann.',
+      `Diese Testnachricht bestätigt, dass ${brand.title} über deinen Mailserver versenden kann.`,
       '',
       `Server: ${input.host}`,
       `Absender: ${input.fromEmail}`,
@@ -215,9 +247,12 @@ export function renderTestMail(input: { host: string; fromEmail: string }): Rend
       'Absender-Domain SPF und DKIM gesetzt haben.',
     ].join('\n'),
     html: layout({
+      brand,
       title: 'SMTP-Einstellungen funktionieren',
       body: [
-        paragraph('Diese Testnachricht bestätigt, dass Klappe über deinen Mailserver versenden kann.'),
+        paragraph(
+          `Diese Testnachricht bestätigt, dass ${brand.title} über deinen Mailserver versenden kann.`,
+        ),
         paragraph(`Server: ${input.host}`),
         paragraph(`Absender: ${input.fromEmail}`),
         paragraph(

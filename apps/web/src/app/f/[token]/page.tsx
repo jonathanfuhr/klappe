@@ -3,6 +3,7 @@
 import type { SharePreviewDto } from '@klappe/shared';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { BrandMark } from '@/components/BrandMark';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 
@@ -84,12 +85,7 @@ export default function ShareGatePage() {
     return (
       <div className="gate">
         <div className="card gate__card">
-          <div className="login__brand">
-            <span className="shell__brand-mark" aria-hidden>
-              ◗
-            </span>
-            Klappe
-          </div>
+          <BrandMark />
           <div className="notice">{error ?? 'Diese Freigabe gibt es nicht.'}</div>
         </div>
       </div>
@@ -99,12 +95,7 @@ export default function ShareGatePage() {
   return (
     <div className="gate">
       <div className="card gate__card">
-        <div className="login__brand">
-          <span className="shell__brand-mark" aria-hidden>
-            ◗
-          </span>
-          Klappe
-        </div>
+        <BrandMark />
         <p className="gate__target">
           {share.scope === 'PROJECT' ? 'Projekt' : 'Video'} <strong>{share.targetName}</strong>
           {share.scope === 'VIDEO' ? ` · Projekt ${share.projectName}` : ''}

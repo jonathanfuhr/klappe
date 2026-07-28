@@ -1,10 +1,11 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { ProjectDto } from '@klappe/shared';
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import type { ProjectDto, TagRefDto } from '@klappe/shared';
+import { colorForTagName } from '@klappe/shared';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
-import { projectFiles, projects, users, videos } from '../db/schema';
+import { projectFiles, projectTags, projects, tags, users, videos } from '../db/schema';
 import type { CreateProjectDto, UpdateProjectDto } from './projects.dto';
 
 type ProjectQueryRow = {
@@ -14,7 +15,16 @@ type ProjectQueryRow = {
   creatorEmail: string | null;
   videoCount: number;
   fileCount: number;
+  tags: { id: string; name: string; color: string | null }[] | null;
 };
+
+/** Wie die Projektliste gefiltert und sortiert werden soll (Phase 12). */
+export interface ProjectListOptions {
+  tagIds?: string[];
+  /** `all` verlangt sämtliche gewählten Tags, `any` genügt eines. */
+  tagMatch?: 'any' | 'all';
+  sort?: 'updated' | 'created' | 'name';
+}
 
 @Injectable()
 export class ProjectsService {
@@ -32,6 +42,14 @@ export class ProjectsService {
         creatorEmail: users.email,
         videoCount: sql<number>`(select count(*)::int from ${videos} where ${videos.projectId} = ${projects.id})`,
         fileCount: sql<number>`(select count(*)::int from ${projectFiles} where ${projectFiles.projectId} = ${projects.id})`,
+        // Die Schlagworte kommen als JSON aus derselben Abfrage; sonst
+        // bräuchte die Projektliste eine zweite Runde pro Zeile.
+        tags: sql<{ id: string; name: string; color: string | null }[] | null>`(
+          select json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) order by lower(t.name))
+          from ${projectTags} pt
+          join ${tags} t on t.id = pt.tag_id
+          where pt.project_id = ${projects.id}
+        )`,
       })
       .from(projects)
       .leftJoin(users, eq(projects.createdById, users.id));
@@ -42,17 +60,37 @@ export class ProjectsService {
    * sehen ausschließlich das, wofür es eine Freigabe gibt – die Liste wird
    * deshalb schon in der Abfrage eingeschränkt und nicht erst danach.
    */
-  async list(scope: AccessScope): Promise<ProjectDto[]> {
+  async list(scope: AccessScope, options: ProjectListOptions = {}): Promise<ProjectDto[]> {
+    const bedingungen = [];
+
     if (!scope.unrestricted) {
       const allowed = this.accessService.visibleProjects(scope);
       if (allowed.length === 0) return [];
-      const rows = await this.baseQuery()
-        .where(inArray(projects.id, allowed))
-        .orderBy(desc(projects.updatedAt));
-      return rows.map((row) => this.toDto(row, scope));
+      bedingungen.push(inArray(projects.id, allowed));
     }
 
-    const rows = await this.baseQuery().orderBy(desc(projects.updatedAt));
+    const tagIds = options.tagIds ?? [];
+    if (tagIds.length > 0) {
+      // `all`: Das Projekt muss jedes gewählte Schlagwort tragen – gezählt
+      // wird, wie viele der gewählten es hat. `any`: eines genügt.
+      bedingungen.push(
+        options.tagMatch === 'all'
+          ? sql`(select count(*) from ${projectTags} pt where pt.project_id = ${projects.id} and pt.tag_id in ${tagIds}) = ${tagIds.length}`
+          : sql`exists (select 1 from ${projectTags} pt where pt.project_id = ${projects.id} and pt.tag_id in ${tagIds})`,
+      );
+    }
+
+    const query = this.baseQuery();
+    const gefiltert = bedingungen.length > 0 ? query.where(and(...bedingungen)) : query;
+
+    const sortiert =
+      options.sort === 'name'
+        ? gefiltert.orderBy(sql`lower(${projects.name})`)
+        : options.sort === 'created'
+          ? gefiltert.orderBy(desc(projects.createdAt))
+          : gefiltert.orderBy(desc(projects.updatedAt));
+
+    const rows = await sortiert;
     return rows.map((row) => this.toDto(row, scope));
   }
 
@@ -130,6 +168,12 @@ export class ProjectsService {
       videoCount: row.videoCount,
       fileCount: row.fileCount,
       canUploadFiles: this.accessService.canUpload(scope, row.project.id),
+      tags: (row.tags ?? []).map(toTagRef),
     };
   }
+}
+
+/** Ohne gespeicherte Farbe wird sie aus dem Namen abgeleitet. */
+export function toTagRef(tag: { id: string; name: string; color: string | null }): TagRefDto {
+  return { id: tag.id, name: tag.name, color: tag.color ?? colorForTagName(tag.name) };
 }

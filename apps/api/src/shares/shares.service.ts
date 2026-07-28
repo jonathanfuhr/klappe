@@ -260,6 +260,7 @@ export class SharesService {
     await this.mailService.send(
       email,
       renderGuestCodeMail({
+        brand: await this.mailService.brand(),
         code,
         targetName: target.targetName,
         minutesValid: CODE_TTL_MINUTES,
