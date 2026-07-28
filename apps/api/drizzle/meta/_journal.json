@@ -57,6 +57,13 @@
       "when": 1785262010399,
       "tag": "0007_versionsnummern",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785262070399,
+      "tag": "0008_einbetten",
+      "breakpoints": true
     }
   ]
 }

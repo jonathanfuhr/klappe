@@ -40,6 +40,11 @@ export class CreateShareLinkDto {
   @IsBoolean()
   allowComments?: boolean;
 
+  /** Einbetten auf fremden Seiten – ohne Anmeldung, ohne Code, ohne Cookie. */
+  @IsOptional()
+  @IsBoolean()
+  embedEnabled?: boolean;
+
   @IsOptional()
   @IsISO8601()
   expiresAt?: string;
@@ -62,6 +67,10 @@ export class UpdateShareLinkDto {
   @IsOptional()
   @IsBoolean()
   allowComments?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  embedEnabled?: boolean;
 
   @IsOptional()
   @IsISO8601()

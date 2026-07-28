@@ -224,6 +224,7 @@ export const api = {
       allowDownload?: boolean;
       allowUpload?: boolean;
       allowComments?: boolean;
+      embedEnabled?: boolean;
       revoked?: boolean;
     },
   ) => request<ShareLinkDto>(`/v1/shares/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),

@@ -1652,3 +1652,76 @@ a.badge:hover {
   background: var(--klappe-surface-raised);
   border-color: var(--klappe-border);
 }
+
+/*
+ * Eingebetteter Player (`/einbetten/<token>`).
+ *
+ * Er füllt den `iframe` vollständig aus – Höhe und Breite gibt die fremde
+ * Seite vor, nicht wir. Deshalb keine festen Maße, sondern 100 %.
+ */
+.embed {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+
+.embed__video {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  background: #000;
+  /* Wie im großen Player: Balken statt Beschnitt. */
+  object-fit: contain;
+}
+
+.embed__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #e8e9ec;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.embed__title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.embed__version {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  font-variant-numeric: tabular-nums;
+}
+
+.embed__spacer {
+  flex: 1 1 auto;
+}
+
+.embed__brand {
+  opacity: 0.55;
+}
+
+.embed--leer {
+  align-items: center;
+  justify-content: center;
+  color: #9aa0a8;
+  font-size: 14px;
+  text-align: center;
+  padding: 16px;
+}
+
+.share__embed {
+  padding: 8px 10px;
+  border-radius: var(--klappe-radius-sm);
+  border: 1px solid var(--klappe-border);
+  background: var(--klappe-bg);
+}

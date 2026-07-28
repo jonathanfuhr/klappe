@@ -285,6 +285,14 @@ export const shareLinks = pgTable(
     allowUpload: boolean('allow_upload').notNull().default(false),
     /** Erlaubt dem Gast das Kommentieren. */
     allowComments: boolean('allow_comments').notNull().default(true),
+    /**
+     * Einbetten auf fremden Seiten. Bewusst getrennt von allem anderen und
+     * standardmäßig aus: Ein eingebetteter Player kommt ohne Code-Abfrage und
+     * ohne Anmeldung aus – wer die Adresse hat, sieht das Video. Das ist eine
+     * eigene Entscheidung und darf nicht als Nebenwirkung einer Freigabe
+     * passieren.
+     */
+    embedEnabled: boolean('embed_enabled').notNull().default(false),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),

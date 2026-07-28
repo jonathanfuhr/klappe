@@ -31,7 +31,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Auf diesen Seiten gibt es noch keine Sitzung – die Abfrage würde nur eine
   // 401 in der Browser-Konsole erzeugen.
   const onLoginPage =
-    pathname === '/login' || pathname === '/abmelden' || pathname.startsWith('/f/');
+    pathname === '/login' ||
+    pathname === '/abmelden' ||
+    pathname.startsWith('/f/') ||
+    // Ohne diese Zeile liefe im eingebetteten Player eine 401 auf, und der
+    // Griff nach `/login` würde die fremde Seite mit unserer Anmeldemaske
+    // füllen.
+    pathname.startsWith('/einbetten/');
 
   const refresh = useCallback(async () => {
     try {

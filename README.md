@@ -216,6 +216,27 @@ lokale Anmeldung automatisch wieder auf.
 Gäste sind davon nie betroffen: Sie kommen immer über ihren Freigabe-Link mit
 E-Mail-Code herein.
 
+## Eingebetteter Player
+
+Ein Freigabe-Link lässt sich zusätzlich zum Einbetten freischalten
+(**Freigeben → Einbetten erlauben**). Daneben steht dann ein fertiger
+`iframe`-Schnipsel zum Kopieren.
+
+Das ist bewusst ein eigener Schalter und standardmäßig aus. Ein eingebetteter
+Player fragt **weder nach Anmeldecode noch nach Passwort** – anders geht es in
+einem fremden `iframe` nicht, weil Browser dort keine Cookies von
+Drittanbietern zulassen. Die Adresse allein ist damit der Schlüssel:
+
+- Wer sie hat, sieht das Video. Wer sie nicht hat, bekommt eine 404 – gleich,
+  ob der Link nie existierte, nicht freigeschaltet ist oder zurückgezogen wurde.
+- Ausgeliefert wird nur die **Abspielfassung**, nie das Original. Über diesen
+  Weg lässt sich nichts herunterladen.
+- Kommentare, Gästeliste und Projektstruktur bleiben außen vor.
+- Zurückziehen wirkt sofort, auch für die Medien dahinter.
+
+Bei einer Projektfreigabe zeigt der Player das zuletzt bearbeitete Video des
+Projekts, bei einer Videofreigabe dessen neueste fertige Fassung.
+
 ## Adaptive Wiedergabe (optional)
 
 Mit `HLS_ENABLED=1` erzeugt die Pipeline zusätzlich eine HLS-Stufenleiter

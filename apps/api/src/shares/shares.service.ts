@@ -89,6 +89,7 @@ export class SharesService {
         allowDownload: dto.allowDownload ?? false,
         allowUpload,
         allowComments: dto.allowComments ?? true,
+        embedEnabled: dto.embedEnabled ?? false,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
         createdById: user.id,
       })
@@ -112,6 +113,7 @@ export class SharesService {
               ? dto.allowUpload
               : false,
         allowComments: dto.allowComments,
+        embedEnabled: dto.embedEnabled,
         expiresAt: dto.expiresAt === undefined ? undefined : dto.expiresAt ? new Date(dto.expiresAt) : null,
         revokedAt: dto.revoked === undefined ? undefined : dto.revoked ? new Date() : null,
         updatedAt: new Date(),
@@ -389,10 +391,14 @@ export class SharesService {
       allowDownload: link.allowDownload,
       allowUpload: link.allowUpload,
       allowComments: link.allowComments,
+      embedEnabled: link.embedEnabled,
       expiresAt: link.expiresAt?.toISOString() ?? null,
       revokedAt: link.revokedAt?.toISOString() ?? null,
       isActive: isLinkActive(link),
       url: `${this.config.publicUrl}/f/${link.token}`,
+      // Nur, wenn der Schalter steht: Sonst führte die Adresse ins Leere und
+      // sähe trotzdem nach einer benutzbaren Einbettung aus.
+      embedUrl: link.embedEnabled ? `${this.config.publicUrl}/einbetten/${link.token}` : null,
       createdAt: link.createdAt.toISOString(),
       createdBy: creator ? { id: creator.id, name: creator.name, email: creator.email } : null,
       guestCount: guests,

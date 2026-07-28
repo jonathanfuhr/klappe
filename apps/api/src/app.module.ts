@@ -16,6 +16,7 @@ import { ProjectFilesModule } from './project-files/project-files.module';
 import { ProjectsModule } from './projects/projects.module';
 import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
+import { EmbedModule } from './embed/embed.module';
 import { SharesModule } from './shares/shares.module';
 import { StorageModule } from './storage/storage.module';
 import { TagsModule } from './tags/tags.module';
@@ -47,6 +48,7 @@ import { VideosModule } from './videos/videos.module';
     MediaModule,
     CommentsModule,
     SharesModule,
+    EmbedModule,
     GuestsModule,
     ProjectFilesModule,
     SettingsModule,

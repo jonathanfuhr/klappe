@@ -204,11 +204,15 @@ export interface ShareLinkDto {
   allowDownload: boolean;
   allowUpload: boolean;
   allowComments: boolean;
+  /** Einbetten auf fremden Seiten – ohne Anmeldung, ohne Code, ohne Cookie. */
+  embedEnabled: boolean;
   expiresAt: string | null;
   revokedAt: string | null;
   isActive: boolean;
   /** Vollständige Adresse zum Weitergeben. */
   url: string;
+  /** Adresse für das `src` eines `iframe`; `null`, solange Einbetten aus ist. */
+  embedUrl: string | null;
   createdAt: string;
   createdBy: UserSummaryDto | null;
   guestCount: number;
@@ -359,4 +363,22 @@ export interface ApiErrorDto {
   statusCode: number;
   message: string | string[];
   error?: string;
+}
+
+/**
+ * Was ein eingebetteter Player über sich wissen muss. Bewusst wenig: kein
+ * Projekt, keine Kommentare, keine Gäste – nur das, was zum Abspielen nötig
+ * ist.
+ */
+export interface EmbedDto {
+  title: string;
+  versionId: string;
+  /** `v2` oder `v2.5`, für die dezente Beschriftung. */
+  versionLabel: string;
+  width: number | null;
+  height: number | null;
+  durationSeconds: number | null;
+  hasPoster: boolean;
+  /** Titel des Workspace – erscheint klein in der Ecke. */
+  brandTitle: string;
 }

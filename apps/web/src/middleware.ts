@@ -12,7 +12,14 @@ const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'klappe_session';
  * und der Abmelde-Link aus den Benachrichtigungen.
  */
 function isPublicPath(pathname: string): boolean {
-  return pathname === '/login' || pathname === '/abmelden' || pathname.startsWith('/f/');
+  return (
+    pathname === '/login' ||
+    pathname === '/abmelden' ||
+    pathname.startsWith('/f/') ||
+    // Eingebettete Player laufen ohne Sitzung – eine Weiterleitung aufs Login
+    // erschiene sonst mitten in der fremden Seite.
+    pathname.startsWith('/einbetten/')
+  );
 }
 
 export function middleware(request: NextRequest) {

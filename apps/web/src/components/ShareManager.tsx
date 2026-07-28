@@ -110,6 +110,7 @@ export function ShareManager({
 
 function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Promise<void> }) {
   const [copied, setCopied] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
   const [guests, setGuests] = useState<ShareGuestDto[] | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -120,6 +121,16 @@ function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Pr
       await onChanged();
     } finally {
       setBusy(false);
+    }
+  };
+
+  const copyEmbed = async () => {
+    try {
+      await navigator.clipboard.writeText(einbettSchnipsel(link.embedUrl));
+      setEmbedCopied(true);
+      setTimeout(() => setEmbedCopied(false), 2000);
+    } catch {
+      setEmbedCopied(false);
     }
   };
 
@@ -187,7 +198,38 @@ function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Pr
             Kunden-Upload erlaubt
           </label>
         ) : null}
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={link.embedEnabled}
+            disabled={busy}
+            onChange={(event) => void patch({ embedEnabled: event.target.checked })}
+          />
+          Einbetten erlauben
+        </label>
       </div>
+
+      {link.embedEnabled ? (
+        <div className="share__embed">
+          <p className="hint" style={{ marginTop: 0 }}>
+            Der eingebettete Player fragt <strong>weder nach Code noch nach Anmeldung</strong> –
+            anders geht es in einem fremden <code>iframe</code> nicht, weil Browser dort keine
+            Cookies zulassen. Wer die Adresse hat, sieht das Video. Heruntergeladen werden kann
+            über diesen Weg nichts.
+          </p>
+          <div className="share__url">
+            <input
+              className="input mono"
+              readOnly
+              value={einbettSchnipsel(link.embedUrl)}
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <button type="button" className="button" onClick={() => void copyEmbed()}>
+              {embedCopied ? 'Kopiert' : 'Kopieren'}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="toolbar">
         <button
@@ -258,4 +300,14 @@ function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Pr
       ) : null}
     </div>
   );
+}
+
+/**
+ * Fertig zum Einfügen. 16:9 über `aspect-ratio`, damit der Rahmen auf jeder
+ * Seite die richtige Höhe bekommt – eine feste Höhe in Pixeln wäre auf einem
+ * Telefon zu hoch und auf einer breiten Seite zu niedrig.
+ */
+function einbettSchnipsel(embedUrl: string | null): string {
+  if (!embedUrl) return '';
+  return `<iframe src="${embedUrl}" style="width:100%;aspect-ratio:16/9;border:0" allowfullscreen></iframe>`;
 }
