@@ -55,7 +55,9 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET muss gesetzt sein}
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-klappe_session}
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-1}
+      # Ohne Angabe entscheidet die API anhand von PUBLIC_URL. Eine feste 1
+      # hier hätte jeden Test über http:// unmöglich gemacht.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-}
       SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-604800}
       STORAGE_DIR: /data
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}

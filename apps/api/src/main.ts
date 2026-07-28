@@ -44,6 +44,17 @@ async function bootstrap(): Promise<void> {
 
   await app.get(AuthService).ensureBootstrapAdmin();
 
+  // Diese Kombination kann nicht funktionieren, scheitert aber lautlos: Der
+  // Browser nimmt das Cookie gar nicht erst an, die Anmeldung bleibt ohne
+  // Fehlermeldung stehen. Lieber einmal zu viel im Log als eine Stunde Suche.
+  if (config.jwt.cookieSecure && !config.publicUrl.startsWith('https://')) {
+    logger.warn(
+      `SESSION_COOKIE_SECURE ist an, PUBLIC_URL ist aber ${config.publicUrl} – ` +
+        'ohne HTTPS verwirft der Browser das Sitzungs-Cookie und die Anmeldung ' +
+        'bleibt stehen. Zum Testen ohne TLS: SESSION_COOKIE_SECURE=0 setzen.',
+    );
+  }
+
   await app.listen(config.port, '0.0.0.0');
   logger.log(`Klappe-API läuft auf Port ${config.port} (${config.nodeEnv}).`);
 }

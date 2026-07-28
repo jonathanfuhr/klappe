@@ -89,8 +89,11 @@ Danach läuft die Oberfläche auf <http://localhost:3000>. Beim ersten Start
 wird aus `ADMIN_EMAIL` / `ADMIN_PASSWORD` ein Administrator angelegt; existiert
 das Konto bereits, bleibt das Passwort unangetastet.
 
-Für einen Test ohne HTTPS in `.env` zusätzlich `SESSION_COOKIE_SECURE=0`
-setzen, sonst schickt der Browser das Sitzungs-Cookie nicht mit.
+Ein Test ohne HTTPS braucht nichts Zusätzliches: Ob das Sitzungs-Cookie als
+`Secure` markiert wird, richtet sich nach `PUBLIC_URL`. Steht dort `http://`,
+bleibt die Markierung weg, sonst nähme der Browser das Cookie gar nicht erst an
+und die Anmeldung bliebe wortlos stehen. Wer die Automatik übergehen will,
+setzt `SESSION_COOKIE_SECURE` von Hand.
 
 **`PUBLIC_URL` muss stimmen, sobald der Mailversand läuft.** Die Adresse steht
 in jedem Freigabe-Link und in jeder Benachrichtigung; bleibt sie auf
@@ -241,7 +244,6 @@ export DATABASE_URL=postgres://klappe:klappe@localhost:5432/klappe
 export REDIS_URL=redis://localhost:6379
 export STORAGE_DIR=$PWD/data
 export ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=start-klappe-2026
-export SESSION_COOKIE_SECURE=0
 
 npm run migrate      # Schema einspielen
 npm run dev:api      # API auf Port 3001

@@ -44,7 +44,17 @@ function LoginForm() {
         setError(null);
         try {
           await api.login(email, password);
-          await refresh();
+          // Das Passwort hat gestimmt – trotzdem kann die Sitzung fehlen, wenn
+          // der Browser das Cookie verworfen hat (`Secure` über http://). Ohne
+          // diese Prüfung landet man wortlos wieder auf dieser Seite.
+          if (!(await refresh())) {
+            setError(
+              'Passwort richtig, aber der Browser hat das Sitzungs-Cookie verworfen. ' +
+                'Das passiert, wenn SESSION_COOKIE_SECURE=1 gesetzt ist, die Seite aber ' +
+                'über http:// statt https:// aufgerufen wird.',
+            );
+            return;
+          }
           // `replace`, damit der Zurück-Knopf nicht wieder aufs Login führt.
           router.replace(target.startsWith('/') ? target : '/projekte');
         } catch (loginError) {

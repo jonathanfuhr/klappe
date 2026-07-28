@@ -103,11 +103,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     ? requireEnv(env, 'JWT_SECRET')
     : (env.JWT_SECRET?.trim() || randomBytes(32).toString('hex'));
 
+  const publicUrl = env.PUBLIC_URL?.trim() || 'http://localhost:3000';
+
   return {
     nodeEnv,
     isProduction,
     port: readInt(env, 'PORT', 3001),
-    publicUrl: env.PUBLIC_URL?.trim() || 'http://localhost:3000',
+    publicUrl,
     databaseUrl: isProduction
       ? requireEnv(env, 'DATABASE_URL')
       : (env.DATABASE_URL?.trim() || 'postgres://klappe:klappe@localhost:5432/klappe'),
@@ -116,7 +118,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       secret: jwtSecret,
       ttlSeconds: readInt(env, 'SESSION_TTL_SECONDS', 60 * 60 * 24 * 7),
       cookieName: env.SESSION_COOKIE_NAME?.trim() || 'klappe_session',
-      cookieSecure: readBool(env, 'SESSION_COOKIE_SECURE', isProduction),
+      // Richtet sich nach der öffentlichen Adresse, nicht nach NODE_ENV: Ein
+      // `Secure`-Cookie wirft der Browser über http:// kommentarlos weg. Die
+      // Anmeldung wirkt dann wie ein Klick ins Leere – die API antwortet mit
+      // 200, aber die nächste Anfrage kommt ohne Sitzung an.
+      cookieSecure: readBool(env, 'SESSION_COOKIE_SECURE', publicUrl.startsWith('https://')),
     },
     storage: {
       root: env.STORAGE_DIR?.trim() || '/data',

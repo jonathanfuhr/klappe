@@ -64,7 +64,16 @@ export default function ShareGatePage() {
     setError(null);
     try {
       const result = await api.verifyGuestCode(token, { email, code });
-      await refresh();
+      // Wie beim Team-Login: Ein verworfenes Cookie ist kein Fehler der API –
+      // ohne diese Prüfung stünde der Gast wortlos wieder vor der Code-Abfrage.
+      if (!(await refresh())) {
+        setError(
+          'Der Code stimmt, aber der Browser hat das Sitzungs-Cookie verworfen. ' +
+            'Das passiert, wenn SESSION_COOKIE_SECURE=1 gesetzt ist, die Seite aber ' +
+            'über http:// statt https:// aufgerufen wird.',
+        );
+        return;
+      }
       router.replace(result.redirectPath);
     } catch (verifyError) {
       setError(verifyError instanceof Error ? verifyError.message : 'Der Code stimmt nicht.');

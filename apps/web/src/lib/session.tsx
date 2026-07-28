@@ -16,7 +16,8 @@ import { ApiError, api } from './api';
 interface SessionState {
   user: UserDto | null;
   loading: boolean;
-  refresh: () => Promise<void>;
+  /** Liefert das geladene Konto zurück – oder null, wenn keine Sitzung steht. */
+  refresh: () => Promise<UserDto | null>;
   logout: () => Promise<void>;
 }
 
@@ -34,13 +35,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      setUser(await api.me());
+      const geladen = await api.me();
+      setUser(geladen);
+      return geladen;
     } catch (error) {
       setUser(null);
       // Abgelaufene Sitzung: zurück zum Login, statt leere Seiten zu zeigen.
       if (error instanceof ApiError && error.isUnauthorized) {
         router.replace('/login');
       }
+      return null;
     } finally {
       setLoading(false);
     }
