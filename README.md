@@ -92,6 +92,11 @@ das Konto bereits, bleibt das Passwort unangetastet.
 Für einen Test ohne HTTPS in `.env` zusätzlich `SESSION_COOKIE_SECURE=0`
 setzen, sonst schickt der Browser das Sitzungs-Cookie nicht mit.
 
+**`PUBLIC_URL` muss stimmen, sobald der Mailversand läuft.** Die Adresse steht
+in jedem Freigabe-Link und in jeder Benachrichtigung; bleibt sie auf
+`localhost`, bekommt der Kunde eine Mail mit einem Link, der bei ihm ins
+Leere führt.
+
 Nach außen wird nur der Dienst `web` veröffentlicht. Die API erreicht der
 Browser über die Weiterleitung `/v1/*` in Next.js – Oberfläche und API laufen
 so unter derselben Herkunft, was das Sitzungs-Cookie und den Betrieb hinter

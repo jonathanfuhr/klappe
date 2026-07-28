@@ -63,6 +63,9 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+      # Nur nötig, wer nicht die weltweite Entra-Cloud benutzt. Microsoft 365
+      # selbst wird in der Oberfläche eingerichtet, nicht hier.
+      OIDC_AUTHORITY: ${OIDC_AUTHORITY:-https://login.microsoftonline.com}
     volumes:
       - media:/data
     depends_on:
@@ -92,14 +95,24 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER:-klappe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-klappe}
       REDIS_URL: redis://redis:6379
+      # Auch der Worker braucht das Secret: Er entschlüsselt damit das
+      # SMTP-Passwort und signiert die Abmelde-Links in den Benachrichtigungen.
       JWT_SECRET: ${JWT_SECRET}
       STORAGE_DIR: /data
+      # Die Benachrichtigungen entstehen im Worker. Ohne diese Adresse zeigen
+      # alle Links in den Mails auf localhost.
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
       # Wie viele Transcodings gleichzeitig laufen. Mehr als 1 lohnt nur mit
       # entsprechend vielen Kernen – ffmpeg lastet allein schon gut aus.
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
-      PROXY_HEIGHT: ${PROXY_HEIGHT:-1080}
+      # Zielgröße der **kurzen** Kante; PROXY_HEIGHT bleibt als alter Name gültig.
+      PROXY_SHORT_EDGE: ${PROXY_SHORT_EDGE:-${PROXY_HEIGHT:-1080}}
+      PLAYBACK_MAX_BITRATE_BPS: ${PLAYBACK_MAX_BITRATE_BPS:-20000000}
       PROXY_VIDEO_BITRATE: ${PROXY_VIDEO_BITRATE:-10M}
       PROXY_PRESET: ${PROXY_PRESET:-veryfast}
+      # Adaptive Wiedergabe – kostet einen weiteren Durchlauf, daher aus.
+      HLS_ENABLED: ${HLS_ENABLED:-0}
+      HLS_SEGMENT_SECONDS: ${HLS_SEGMENT_SECONDS:-4}
     volumes:
       - media:/data
     depends_on:
