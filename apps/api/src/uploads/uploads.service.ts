@@ -58,33 +58,44 @@ export class UploadsService {
     mimeType: string | null;
     label: string | null;
     fileDate: string | null;
+    versionNumber: number | null;
     user: RequestUser;
   }): Promise<UploadSessionDto> {
     this.assertSize(input.sizeBytes);
     await this.videosService.assertExists(input.videoId);
 
-    const version = await this.versionsService.createNextVersion({
-      videoId: input.videoId,
-      filename: input.filename,
-      sizeBytes: input.sizeBytes,
-      mimeType: input.mimeType,
-      label: input.label,
-      fileDate: input.fileDate,
-      user: input.user,
-    });
+    // Die Nummer wird schon hier geprüft, obwohl die Fassung erst beim
+    // Abschluss entsteht: Eine Absage nach 90 GB Übertragung wäre eine
+    // Zumutung.
+    if (input.versionNumber !== null) {
+      await this.versionsService.assertNumberFree(input.videoId, input.versionNumber);
+    }
 
+    // Die Fassung entsteht bewusst **nicht** hier, sondern erst, wenn die Datei
+    // vollständig angekommen ist. Sonst hinterlässt jeder abgebrochene Upload
+    // eine Versionsnummer ohne Video – und die nächste echte Fassung bekäme
+    // eine Nummer zu viel.
     const [row] = await this.db
       .insert(uploads)
       .values({
         kind: 'VERSION',
         videoId: input.videoId,
-        versionId: version.id,
+        versionId: null,
         createdById: input.user.id,
         filename: input.filename,
         sizeBytes: input.sizeBytes,
         storageKey: '',
         expiresAt: new Date(Date.now() + this.config.uploads.ttlSeconds * 1000),
-        metadata: input.mimeType ? { filetype: input.mimeType } : null,
+        // Was die Fassung später ausmacht, wartet hier: Beim Abschluss steht
+        // die Upload-Sitzung als Einzige noch zur Verfügung.
+        // Die Spalte nimmt nur Zeichenketten – die Nummer wird beim Abschluss
+        // zurückgewandelt.
+        metadata: {
+          ...(input.mimeType ? { filetype: input.mimeType } : {}),
+          ...(input.label ? { label: input.label } : {}),
+          ...(input.fileDate ? { fileDate: input.fileDate } : {}),
+          ...(input.versionNumber !== null ? { versionNumber: String(input.versionNumber) } : {}),
+        },
       })
       .returning();
 
@@ -274,7 +285,11 @@ export class UploadsService {
 
     if (offset >= row.sizeBytes) {
       await this.finalize(row);
-      return { offset, completed: true, row };
+      // Die Fassung entsteht erst im Abschluss – ohne dieses Nachlesen stünde
+      // in der Antwort noch die leere Version von vorhin, und die Oberfläche
+      // wüsste nicht, wohin sie verweisen soll.
+      const [frisch] = await this.db.select().from(uploads).where(eq(uploads.id, row.id)).limit(1);
+      return { offset, completed: true, row: frisch ?? row };
     }
 
     return { offset, completed: false, row };
@@ -294,23 +309,34 @@ export class UploadsService {
    * setzen und die Pipeline anstoßen.
    */
   private async finalizeVersion(row: UploadRow): Promise<void> {
-    if (!row.versionId) {
-      throw new BadRequestException('Zu dieser Upload-Sitzung fehlt die Version.');
+    if (!row.videoId) {
+      throw new BadRequestException('Zu dieser Upload-Sitzung fehlt das Video.');
     }
-    const targetKey = this.storage.keyForOriginal(row.versionId, sanitizeFilename(row.filename));
+
+    // Erst jetzt bekommt die Fassung ihre Nummer – die Datei ist vollständig da.
+    const roh = (row.metadata ?? {}) as Record<string, string | undefined>;
+    const details = {
+      filetype: roh.filetype,
+      label: roh.label,
+      fileDate: roh.fileDate,
+      versionNumber: roh.versionNumber === undefined ? undefined : Number(roh.versionNumber),
+    };
+    const versionId = row.versionId ?? (await this.createVersionFor(row, details)).id;
+
+    const targetKey = this.storage.keyForOriginal(versionId, sanitizeFilename(row.filename));
     await this.storage.move(row.storageKey, targetKey);
 
     await this.db
       .update(uploads)
-      .set({ status: 'COMPLETED', storageKey: targetKey, updatedAt: new Date() })
+      .set({ status: 'COMPLETED', storageKey: targetKey, versionId, updatedAt: new Date() })
       .where(eq(uploads.id, row.id));
 
-    await this.versionsService.markUploadComplete(row.versionId, targetKey);
+    await this.versionsService.markUploadComplete(versionId, targetKey);
 
     const [version] = await this.db
       .select({ videoId: videoVersions.videoId })
       .from(videoVersions)
-      .where(eq(videoVersions.id, row.versionId))
+      .where(eq(videoVersions.id, versionId))
       .limit(1);
     if (version) {
       const [video] = await this.db
@@ -321,8 +347,44 @@ export class UploadsService {
       if (video) await this.projectsService.touch(video.projectId);
     }
 
-    await this.queue.enqueue(row.versionId);
+    await this.queue.enqueue(versionId);
     this.logger.log(`Upload abgeschlossen: ${row.filename} (${row.sizeBytes} Byte)`);
+  }
+
+  /**
+   * Die Fassung zum abgeschlossenen Upload. Ist die gewünschte Nummer
+   * inzwischen von jemand anderem vergeben worden, zählt Klappe selbst weiter,
+   * statt eine fertig übertragene Datei wegzuwerfen.
+   */
+  private async createVersionFor(
+    row: UploadRow,
+    details: { filetype?: string; label?: string; fileDate?: string; versionNumber?: number },
+  ): Promise<{ id: string }> {
+    const gemeinsam = {
+      videoId: row.videoId as string,
+      filename: row.filename,
+      sizeBytes: row.sizeBytes,
+      mimeType: details.filetype ?? null,
+      label: details.label ?? null,
+      fileDate: details.fileDate ?? null,
+      user: { id: row.createdById } as RequestUser,
+    };
+
+    if (details.versionNumber === undefined) {
+      return this.versionsService.createNextVersion(gemeinsam);
+    }
+    try {
+      return await this.versionsService.createNextVersion({
+        ...gemeinsam,
+        versionNumber: details.versionNumber,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Wunschnummer ${details.versionNumber} für Upload ${row.id} nicht mehr frei ` +
+          `(${error instanceof Error ? error.message : String(error)}) – es wird weitergezählt.`,
+      );
+      return this.versionsService.createNextVersion(gemeinsam);
+    }
   }
 
   /** Kundenmaterial ablegen und das Team benachrichtigen. */

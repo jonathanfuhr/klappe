@@ -9,6 +9,8 @@
  * ersatzlos weg, statt Lücken wie `__` zu hinterlassen.
  */
 
+import { versionForFilename } from './versions';
+
 export interface DownloadNameInput {
   /** Datum der Fassung im Format `JJMMTT`. */
   date: string | null;
@@ -59,7 +61,11 @@ export function buildDownloadFilename(input: DownloadNameInput): string {
     input.customer ? sanitizeNamePart(input.customer) : null,
     sanitizeNamePart(input.projectName),
     sanitizeNamePart(input.videoName),
-    `v${Math.max(1, Math.round(input.versionNumber))}`,
+    // Nachkommastellen bleiben erhalten (v2.5 → `v2-5`); unbrauchbare Werte
+    // fallen auf v1 zurück, damit nie `v0` oder `vNaN` im Dateinamen steht.
+    versionForFilename(
+      Number.isFinite(input.versionNumber) && input.versionNumber > 0 ? input.versionNumber : 1,
+    ),
     input.resolution ? sanitizeNamePart(input.resolution) : null,
   ].filter((part): part is string => Boolean(part));
 

@@ -146,6 +146,7 @@ export const api = {
       mimeType?: string;
       label?: string;
       fileDate?: string;
+      versionNumber?: number;
     },
   ) =>
     request<UploadSessionDto>(`/v1/videos/${videoId}/uploads`, {

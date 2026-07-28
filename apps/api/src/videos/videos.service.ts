@@ -14,6 +14,8 @@ type VideoRow = {
   creatorId: string | null;
   creatorName: string | null;
   creatorEmail: string | null;
+  projectName?: string | null;
+  projectCustomer?: string | null;
 };
 
 @Injectable()
@@ -40,9 +42,12 @@ export class VideosService {
         creatorId: users.id,
         creatorName: users.name,
         creatorEmail: users.email,
+        projectName: projects.name,
+        projectCustomer: projects.customer,
       })
       .from(videos)
       .leftJoin(users, eq(videos.createdById, users.id))
+      .leftJoin(projects, eq(videos.projectId, projects.id))
       .where(
         allowedVideoIds === null
           ? eq(videos.projectId, projectId)
@@ -67,9 +72,13 @@ export class VideosService {
         creatorId: users.id,
         creatorName: users.name,
         creatorEmail: users.email,
+        // Für die Brotkrumen: Ohne den Namen stünde dort nur „Projekt".
+        projectName: projects.name,
+        projectCustomer: projects.customer,
       })
       .from(videos)
       .leftJoin(users, eq(videos.createdById, users.id))
+      .leftJoin(projects, eq(videos.projectId, projects.id))
       .where(eq(videos.id, id))
       .limit(1);
     if (!row) throw new NotFoundException('Video nicht gefunden.');
@@ -161,6 +170,8 @@ export class VideosService {
         row.creatorId && row.creatorName && row.creatorEmail
           ? { id: row.creatorId, name: row.creatorName, email: row.creatorEmail }
           : null,
+      projectName: row.projectName ?? null,
+      projectCustomer: row.projectCustomer ?? null,
       versionCount: latestByVideo.get(row.video.id)?.count ?? 0,
       latestVersion: latestByVideo.get(row.video.id)?.latest ?? null,
       downloadsEnabled: row.video.downloadsEnabled,

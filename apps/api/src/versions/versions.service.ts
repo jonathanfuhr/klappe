@@ -4,9 +4,11 @@ import {
   type VersionDto,
   type VersionStatus,
   buildDownloadFilename,
+  checkVersionNumber,
   extensionOf,
   fileDateFromIso,
   framesToTimecode,
+  nextVersionNumber,
 } from '@klappe/shared';
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
@@ -146,9 +148,31 @@ export class VersionsService {
     return row;
   }
 
+  /** Alle vergebenen Nummern eines Videos – Grundlage jeder Prüfung. */
+  async takenNumbers(videoId: string): Promise<number[]> {
+    const rows = await this.db
+      .select({ number: videoVersions.versionNumber })
+      .from(videoVersions)
+      .where(eq(videoVersions.videoId, videoId));
+    return rows.map((row) => Number(row.number));
+  }
+
   /**
-   * Legt die nächste Version eines Videos an. Die Nummer wird aus der
-   * höchsten vorhandenen abgeleitet; der eindeutige Index auf
+   * Prüft eine gewünschte Nummer gegen den Bestand und wirft eine lesbare
+   * Meldung, wenn sie nicht geht. Wird zweimal aufgerufen: beim Anlegen der
+   * Upload-Sitzung, damit der Fehler *vor* der Übertragung auffällt, und beim
+   * Abschluss, weil in der Zwischenzeit jemand anderes dieselbe Nummer
+   * vergeben haben kann.
+   */
+  async assertNumberFree(videoId: string, wunsch: number): Promise<number> {
+    const ergebnis = checkVersionNumber(wunsch, await this.takenNumbers(videoId));
+    if (!ergebnis.ok) throw new BadRequestException(ergebnis.message);
+    return ergebnis.value;
+  }
+
+  /**
+   * Legt die nächste Version eines Videos an. Ohne Wunschnummer wird die
+   * nächste ganze Zahl über der höchsten genommen; der eindeutige Index auf
    * (video_id, version_number) fängt ein Rennen zweier paralleler Uploads ab.
    */
   async createNextVersion(input: {
@@ -159,6 +183,8 @@ export class VersionsService {
     label: string | null;
     /** `JJJJ-MM-TT`; ohne Angabe das heutige Datum. */
     fileDate: string | null;
+    /** Frei gewählte Nummer, etwa 2.5. Ohne Angabe zählt Klappe selbst weiter. */
+    versionNumber?: number | null;
     user: RequestUser;
   }): Promise<VideoVersionRow> {
     const [video] = await this.db
@@ -168,16 +194,17 @@ export class VersionsService {
       .limit(1);
     if (!video) throw new NotFoundException('Video nicht gefunden.');
 
-    const [{ maxNumber }] = await this.db
-      .select({ maxNumber: sql<number>`coalesce(max(${videoVersions.versionNumber}), 0)::int` })
-      .from(videoVersions)
-      .where(eq(videoVersions.videoId, input.videoId));
+    const vergeben = await this.takenNumbers(input.videoId);
+    const nummer =
+      input.versionNumber === undefined || input.versionNumber === null
+        ? nextVersionNumber(vergeben)
+        : await this.assertNumberFree(input.videoId, input.versionNumber);
 
     const [row] = await this.db
       .insert(videoVersions)
       .values({
         videoId: input.videoId,
-        versionNumber: maxNumber + 1,
+        versionNumber: nummer.toFixed(3),
         label: input.label,
         status: 'UPLOADING',
         uploadedById: input.user.id,
@@ -345,7 +372,7 @@ export class VersionsService {
     return {
       id: version.id,
       videoId: version.videoId,
-      versionNumber: version.versionNumber,
+      versionNumber: Number(version.versionNumber),
       label: version.label,
       status: version.status,
       progress: version.progress,
@@ -405,7 +432,7 @@ export class VersionsService {
         customer: row.projectCustomer ?? null,
         projectName: row.projectName ?? 'Projekt',
         videoName: row.videoName ?? 'Video',
-        versionNumber: version.versionNumber,
+        versionNumber: Number(version.versionNumber),
         resolution: resolutionLabel(version.width, version.height, frameRate),
         extension: extensionOf(version.originalFilename),
       }),

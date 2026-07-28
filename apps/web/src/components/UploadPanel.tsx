@@ -1,6 +1,6 @@
 'use client';
 
-import type { ProjectDto, VideoDto } from '@klappe/shared';
+import { type ProjectDto, type VideoDto, versionLabel } from '@klappe/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatBytes } from '@/lib/format';
@@ -155,12 +155,14 @@ function JobRow({
   const uploadFraction = job.file.size > 0 ? job.uploadedBytes / job.file.size : 0;
   const isVideo = job.target === 'video';
 
-  // Die Fassungsnummer vergibt der Server fortlaufend – sie lässt sich nicht
-  // frei wählen, ohne Lücken zu reißen. Angezeigt wird sie trotzdem, und wenn
-  // der Dateiname etwas anderes sagt, wird darauf hingewiesen.
+  // Ohne Eingabe zählt die API weiter; wer will, trägt eine eigene Nummer ein –
+  // auch eine Zwischenfassung wie 2.5. Ob sie zulässig ist, entscheidet die API
+  // beim Anlegen der Sitzung, also *vor* der Übertragung.
   const selectedVideo = videos.find((video) => video.id === job.videoId) ?? null;
   const nextVersion = selectedVideo ? selectedVideo.versionCount + 1 : 1;
-  const versionMismatch = job.detectedVersion !== null && job.detectedVersion !== nextVersion;
+  const gewaehlt = job.versionNumber.trim() ? Number(job.versionNumber.replace(',', '.')) : null;
+  const versionMismatch =
+    gewaehlt === null && job.detectedVersion !== null && job.detectedVersion !== nextVersion;
 
   return (
     <div className="uploadjob" data-state={job.state}>
@@ -233,10 +235,23 @@ function JobRow({
 
           <label className="field" style={{ margin: 0 }}>
             <span className="field__label">Fassung</span>
-            <input className="input" value={`v${nextVersion}`} readOnly data-version={nextVersion} />
-            {versionMismatch ? (
+            <input
+              className="input"
+              type="number"
+              min="0.001"
+              step="0.5"
+              inputMode="decimal"
+              placeholder={`automatisch (v${nextVersion})`}
+              value={job.versionNumber}
+              onChange={(event) => onChange({ versionNumber: event.target.value })}
+              data-version={nextVersion}
+            />
+            {gewaehlt !== null && Number.isFinite(gewaehlt) ? (
+              <p className="hint">Wird als {versionLabel(gewaehlt)} angelegt.</p>
+            ) : versionMismatch ? (
               <p className="hint">
-                Im Dateinamen steht v{job.detectedVersion} – hochgeladen wird v{nextVersion}.
+                Im Dateinamen steht v{job.detectedVersion} – ohne Eingabe wird v{nextVersion}
+                {' '}daraus.
               </p>
             ) : null}
           </label>

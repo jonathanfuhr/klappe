@@ -73,6 +73,9 @@ export interface TagDto {
 export interface VideoDto {
   id: string;
   projectId: string;
+  /** Für die Brotkrumen, damit dort der Projektname steht und nicht „Projekt". */
+  projectName: string | null;
+  projectCustomer: string | null;
   name: string;
   description: string | null;
   createdAt: string;

@@ -6,6 +6,7 @@ import {
   type VersionDto,
   type VideoDto,
   frameToDisplayTimecode,
+  versionLabel,
 } from '@klappe/shared';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -47,6 +48,8 @@ export default function ReviewPage() {
   const [showUploader, setShowUploader] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [showingGuests, setShowingGuests] = useState(false);
+  /** Nachfrage vor dem Löschen – eine Fassung ist samt Kommentaren weg. */
+  const [versionToDelete, setVersionToDelete] = useState<VersionDto | null>(null);
   const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
 
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
@@ -183,7 +186,14 @@ export default function ReviewPage() {
           <div className="breadcrumb">
             <Link href="/projekte">Projekte</Link>
             <span>/</span>
-            {video ? <Link href={`/projekte/${video.projectId}`}>Projekt</Link> : <span>…</span>}
+            {video ? (
+              <Link href={`/projekte/${video.projectId}`}>
+                {video.projectCustomer ? `${video.projectCustomer} · ` : ''}
+                {video.projectName ?? 'Projekt'}
+              </Link>
+            ) : (
+              <span>…</span>
+            )}
             <span>/</span>
             <span>{video?.name ?? '…'}</span>
           </div>
@@ -210,7 +220,7 @@ export default function ReviewPage() {
               >
                 {versions.map((version) => (
                   <option key={version.id} value={version.id}>
-                    v{version.versionNumber}
+                    {versionLabel(version.versionNumber)}
                     {version.label ? ` – ${version.label}` : ''} ({version.commentCount} Komm.)
                   </option>
                 ))}
@@ -245,6 +255,17 @@ export default function ReviewPage() {
                 Original laden
               </a>
             ) : null}
+
+            {isTeam && selectedVersion ? (
+              <button
+                type="button"
+                className="button button--danger"
+                onClick={() => setVersionToDelete(selectedVersion)}
+                title="Diese Fassung mit allen Dateien und Kommentaren entfernen"
+              >
+                Fassung löschen
+              </button>
+            ) : null}
           </div>
 
           {isTeam && video && selectedVersion ? (
@@ -274,7 +295,7 @@ export default function ReviewPage() {
                       .then(loadVideo);
                   }}
                 />
-                v{selectedVersion.versionNumber}
+                {versionLabel(selectedVersion.versionNumber)}
               </label>
               <span className="hint" style={{ marginTop: 0 }}>
                 Wirkt nur zusammen mit dem Download-Recht am Freigabe-Link.
@@ -371,6 +392,49 @@ export default function ReviewPage() {
           <div className="dialog__actions">
             <button type="button" className="button" onClick={() => setShowingGuests(false)}>
               Schließen
+            </button>
+          </div>
+        </Dialog>
+      ) : null}
+
+      {versionToDelete ? (
+        <Dialog
+          title={`${versionLabel(versionToDelete.versionNumber)} löschen?`}
+          onClose={() => setVersionToDelete(null)}
+        >
+          <p style={{ marginTop: 0 }}>
+            Das Original, die Abspielfassung und alle {versionToDelete.commentCount} Kommentare
+            dieser Fassung werden entfernt. Andere Fassungen des Videos bleiben unberührt.
+          </p>
+          <p className="muted" style={{ fontSize: 13 }}>
+            {versionToDelete.originalFilename}
+          </p>
+          <div className="dialog__actions">
+            <button type="button" className="button" onClick={() => setVersionToDelete(null)}>
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              className="button button--danger"
+              onClick={async () => {
+                const entfernt = versionToDelete;
+                setVersionToDelete(null);
+                try {
+                  await api.deleteVersion(entfernt.id);
+                  // Auf eine andere Fassung springen, sonst zeigt der Player ins Leere.
+                  setSelectedVersionId(
+                    versions.find((eintrag) => eintrag.id !== entfernt.id)?.id ?? null,
+                  );
+                  setActiveCommentId(null);
+                  await loadVideo();
+                } catch (deleteError) {
+                  setError(
+                    deleteError instanceof Error ? deleteError.message : 'Löschen fehlgeschlagen.',
+                  );
+                }
+              }}
+            >
+              Endgültig löschen
             </button>
           </div>
         </Dialog>

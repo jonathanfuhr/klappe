@@ -37,6 +37,8 @@ export function uploadVideoFile(input: {
   label?: string;
   /** Datum im Download-Dateinamen, `JJJJ-MM-TT`. */
   fileDate?: string;
+  /** Frei gewählte Nummer (auch 2.5); ohne Angabe zählt die API weiter. */
+  versionNumber?: number;
   chunkSize?: number;
   onProgress?: (progress: UploadProgress) => void;
 }): UploadHandle {
@@ -47,6 +49,7 @@ export function uploadVideoFile(input: {
       mimeType: input.file.type || undefined,
       label: input.label,
       fileDate: input.fileDate,
+      versionNumber: input.versionNumber,
     }),
   );
 }
@@ -83,6 +86,7 @@ function runUpload(
     let offset = session.offsetBytes;
     let attempt = 0;
     let letzteMeldung = 0;
+    let entstandeneVersion: string | null = session.versionId;
 
     report(input.onProgress, offset, input.file.size);
 
@@ -91,7 +95,7 @@ function runUpload(
 
       const end = Math.min(offset + chunkSize, input.file.size);
       try {
-        offset = await sendChunk({
+        const ergebnis = await sendChunk({
           location: session.location,
           blob: input.file.slice(offset, end),
           offset,
@@ -107,6 +111,10 @@ function runUpload(
             report(input.onProgress, hochgeladen, input.file.size);
           },
         });
+        offset = ergebnis.offset;
+        // Die Fassung entsteht erst, wenn die Datei vollständig da ist – die
+        // API hängt ihre Kennung deshalb an die Antwort des letzten Blocks.
+        if (ergebnis.versionId) entstandeneVersion = ergebnis.versionId;
         attempt = 0;
         report(input.onProgress, offset, input.file.size);
       } catch (error) {
@@ -131,7 +139,7 @@ function runUpload(
       }
     }
 
-    return { versionId: session.versionId };
+    return { versionId: entstandeneVersion };
   })();
 
   return {
@@ -159,8 +167,8 @@ function sendChunk(input: {
   offset: number;
   signal: AbortSignal;
   onPartial?: (uploadedBytes: number) => void;
-}): Promise<number> {
-  return new Promise<number>((resolve, reject) => {
+}): Promise<{ offset: number; versionId: string | null }> {
+  return new Promise<{ offset: number; versionId: string | null }>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let letztesLebenszeichen = Date.now();
     let erledigt = false;
@@ -239,7 +247,7 @@ function sendChunk(input: {
         reject(new Error('Der Server hat keinen gültigen Upload-Offset zurückgegeben.'));
         return;
       }
-      resolve(neuerOffset);
+      resolve({ offset: neuerOffset, versionId: xhr.getResponseHeader('Klappe-Version-Id') });
     };
 
     xhr.send(input.blob);

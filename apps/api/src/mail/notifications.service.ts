@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { framesToTimecode } from '@klappe/shared';
+import { framesToTimecode, versionLabel as versionNumberLabel } from '@klappe/shared';
 import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
@@ -90,9 +90,8 @@ export class NotificationsService {
         : null;
 
     const url = `${this.config.publicUrl}/videos/${row.videoId}`;
-    const versionLabel = row.versionLabel
-      ? `v${row.versionNumber} – ${row.versionLabel}`
-      : `v${row.versionNumber}`;
+    const nummer = versionNumberLabel(Number(row.versionNumber));
+    const versionLabel = row.versionLabel ? `${nummer} – ${row.versionLabel}` : nummer;
 
     const brand = await this.mailService.brand();
     let sent = 0;

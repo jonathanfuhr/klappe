@@ -16,6 +16,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   primaryKey,
@@ -104,7 +105,10 @@ export const videoVersions = pgTable(
       .notNull()
       .references(() => videos.id, { onDelete: 'cascade' }),
     /** Fortlaufend ab 1, pro Video eindeutig. */
-    versionNumber: integer('version_number').notNull(),
+    // Nachkommastellen, damit zwischen v2 und v3 noch eine v2.5 passt. Drizzle
+    // liefert `numeric` als Zeichenkette – die Umwandlung passiert in
+    // `versions.service.ts`, damit die Rundung an einer Stelle steht.
+    versionNumber: numeric('version_number', { precision: 8, scale: 3 }).notNull(),
     label: text('label'),
     status: versionStatusEnum('status').notNull().default('UPLOADING'),
     /** Fortschritt des Transcodings in Prozent (0–100). */

@@ -33,8 +33,13 @@ export interface UploadJob {
   videoId: string;
   /** Name für ein neu anzulegendes Video. */
   newVideoName: string;
-  /** Erkannte Versionsnummer; dient nur der Anzeige, vergeben wird sie serverseitig. */
+  /** Erkannte Versionsnummer aus dem Dateinamen – Vorschlag fürs Feld. */
   detectedVersion: number | null;
+  /**
+   * Gewünschte Nummer als Eingabetext, damit „2." beim Tippen nicht wegspringt.
+   * Leer heißt: Klappe zählt selbst weiter.
+   */
+  versionNumber: string;
   /** Datum im Dateinamen, `JJJJ-MM-TT`. */
   fileDate: string;
   /** Woher die Vorauswahl kommt – die Oberfläche bittet dann ums Prüfen. */
@@ -128,6 +133,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         videoId,
         newVideoName: suggestVideoName(file.name),
         detectedVersion: version,
+        versionNumber: '',
         fileDate: heute,
         hint: hints.length > 0 ? `${hints.join(' · ')} – bitte prüfen` : null,
         state: 'wartet',
@@ -172,10 +178,14 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
                     name: job.newVideoName.trim() || job.file.name,
                   })
                 ).id;
+              const wunschnummer = job.versionNumber.trim()
+                ? Number(job.versionNumber.replace(',', '.'))
+                : undefined;
               handle = uploadVideoFile({
                 videoId,
                 file: job.file,
                 fileDate: job.fileDate,
+                versionNumber: Number.isFinite(wunschnummer) ? wunschnummer : undefined,
                 onProgress,
               });
               update(job.id, { videoId });

@@ -15,8 +15,12 @@ import {
   Res,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
-import type { UploadSessionDto } from '@klappe/shared';
-import { IsInt, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
+import {
+  VERSION_NUMBER_DECIMALS,
+  VERSION_NUMBER_MAX,
+  type UploadSessionDto,
+} from '@klappe/shared';
+import { IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import type { Request, Response } from 'express';
 import { AccessService } from '../access/access.service';
 import { CurrentUser, Public, Roles } from '../auth/auth.decorators';
@@ -57,6 +61,16 @@ class CreateUploadDto {
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Das Datum muss im Format JJJJ-MM-TT stehen.' })
   fileDate?: string;
+
+  /**
+   * Frei gewählte Versionsnummer, auch mit Nachkommastelle (2.5). Ohne Angabe
+   * zählt Klappe von der höchsten vorhandenen aus weiter.
+   */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: VERSION_NUMBER_DECIMALS })
+  @Min(0.001)
+  @Max(VERSION_NUMBER_MAX)
+  versionNumber?: number;
 }
 
 /**
@@ -109,6 +123,7 @@ export class UploadsController {
       mimeType: details.mimeType,
       label: dto.label?.trim() || null,
       fileDate: dto.fileDate ?? null,
+      versionNumber: dto.versionNumber ?? null,
       user,
     });
 

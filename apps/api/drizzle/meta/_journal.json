@@ -50,6 +50,13 @@
       "when": 1785261950399,
       "tag": "0006_hls",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785262010399,
+      "tag": "0007_versionsnummern",
+      "breakpoints": true
     }
   ]
 }
