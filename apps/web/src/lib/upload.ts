@@ -10,6 +10,14 @@ import { API_BASE, api } from './api';
  */
 const DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024;
 const MAX_RETRIES = 5;
+/**
+ * So lange darf eine Übertragung ohne jedes Lebenszeichen dastehen, bevor wir
+ * sie abbrechen und neu ansetzen. Ein hängender Block ist schlimmer als ein
+ * gescheiterter: Ein Fehler wird gemeldet und wiederholt, ein Hänger sieht für
+ * immer nach „lädt“ aus. Auch eine langsame Leitung meldet mehrmals pro Sekunde
+ * Fortschritt – eine ganze Minute Stille bedeutet, dass nichts mehr kommt.
+ */
+const STALL_TIMEOUT_MS = 60_000;
 
 export interface UploadProgress {
   uploadedBytes: number;
@@ -74,6 +82,7 @@ function runUpload(
 
     let offset = session.offsetBytes;
     let attempt = 0;
+    let letzteMeldung = 0;
 
     report(input.onProgress, offset, input.file.size);
 
@@ -87,6 +96,16 @@ function runUpload(
           blob: input.file.slice(offset, end),
           offset,
           signal: controller.signal,
+          // Der Balken soll sich innerhalb eines Blocks bewegen, nicht in
+          // 8-MB-Sprüngen: Bei großen Dateien sieht ein stehender Balken sonst
+          // aus wie ein Hänger, obwohl gerade übertragen wird. Gedrosselt,
+          // weil sonst jeder Fortschrittsschritt die Oberfläche neu zeichnet.
+          onPartial: (hochgeladen) => {
+            const jetzt = Date.now();
+            if (jetzt - letzteMeldung < 150) return;
+            letzteMeldung = jetzt;
+            report(input.onProgress, hochgeladen, input.file.size);
+          },
         });
         attempt = 0;
         report(input.onProgress, offset, input.file.size);
@@ -121,47 +140,110 @@ function runUpload(
   };
 }
 
-async function sendChunk(input: {
+/**
+ * Bewusst `XMLHttpRequest` statt `fetch`.
+ *
+ * Safari bleibt bei `fetch` mit Datei-Body reproduzierbar stehen: Die Anfrage
+ * geht raus, es kommt weder Antwort noch Fehler, und das Versprechen löst sich
+ * nie auf. In Chrome läuft dieselbe Datei durch. Aus demselben Grund setzen
+ * auch `tus-js-client` und Uppy hier auf XHR.
+ *
+ * Der zweite Gewinn: `upload.onprogress` meldet den Fortschritt *innerhalb*
+ * eines Blocks – `fetch` kennt das nicht. Damit sehen wir auch, ob überhaupt
+ * noch etwas fließt, und können einen Hänger von einer langsamen Leitung
+ * unterscheiden.
+ */
+function sendChunk(input: {
   location: string;
   blob: Blob;
   offset: number;
   signal: AbortSignal;
+  onPartial?: (uploadedBytes: number) => void;
 }): Promise<number> {
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}${input.location}`, {
-      method: 'PATCH',
-      credentials: 'include',
-      signal: input.signal,
-      headers: {
-        'Content-Type': 'application/offset+octet-stream',
-        'Upload-Offset': String(input.offset),
-        'Tus-Resumable': '1.0.0',
-      },
-      body: input.blob,
-    });
-  } catch (error) {
-    if (input.signal.aborted) throw error;
-    // Hier ist gar keine Antwort angekommen: Verbindung weg, Zeitüberschreitung
-    // oder ein Zwischenstück (Reverse Proxy, Tunnel), das den Block wegwirft.
-    throw new Error(
-      `Die Verbindung brach während der Übertragung ab (${
-        error instanceof Error ? error.message : 'unbekannter Grund'
-      }).`,
-    );
-  }
+  return new Promise<number>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let letztesLebenszeichen = Date.now();
+    let erledigt = false;
 
-  if (!response.ok) {
-    // Ohne den Text des Servers steht in der Oberfläche nur eine Zahl, mit der
-    // niemand etwas anfangen kann.
-    throw new Error(`Der Block wurde abgelehnt (HTTP ${response.status}${await grund(response)}).`);
-  }
+    const aufraeumen = () => {
+      erledigt = true;
+      clearInterval(wache);
+      input.signal.removeEventListener('abort', beiAbbruch);
+    };
+    const scheitern = (fehler: Error) => {
+      if (erledigt) return;
+      aufraeumen();
+      reject(fehler);
+    };
+    const beiAbbruch = () => {
+      if (erledigt) return;
+      aufraeumen();
+      xhr.abort();
+      reject(new DOMException('Abgebrochen', 'AbortError'));
+    };
 
-  const newOffset = Number(response.headers.get('Upload-Offset'));
-  if (!Number.isFinite(newOffset)) {
-    throw new Error('Der Server hat keinen gültigen Upload-Offset zurückgegeben.');
-  }
-  return newOffset;
+    const wache = setInterval(() => {
+      if (Date.now() - letztesLebenszeichen < STALL_TIMEOUT_MS) return;
+      xhr.abort();
+      scheitern(
+        new Error(
+          `Die Übertragung stand ${Math.round(STALL_TIMEOUT_MS / 1000)} Sekunden still ` +
+            'und wurde abgebrochen.',
+        ),
+      );
+    }, 2000);
+
+    input.signal.addEventListener('abort', beiAbbruch);
+
+    xhr.open('PATCH', `${API_BASE}${input.location}`, true);
+    // Gleiche Herkunft, aber ohne diese Zeile schickt XHR das Sitzungs-Cookie
+    // nicht mit, sobald API und Oberfläche getrennt veröffentlicht sind.
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
+    xhr.setRequestHeader('Upload-Offset', String(input.offset));
+    xhr.setRequestHeader('Tus-Resumable', '1.0.0');
+
+    xhr.upload.onprogress = (event) => {
+      letztesLebenszeichen = Date.now();
+      input.onPartial?.(input.offset + event.loaded);
+    };
+    // Der Body ist draußen, jetzt schreibt der Server. Auch das ist ein
+    // Lebenszeichen, sonst schlüge der Wachhund bei langsamen Platten zu.
+    xhr.upload.onload = () => {
+      letztesLebenszeichen = Date.now();
+    };
+
+    xhr.onerror = () =>
+      scheitern(
+        new Error(
+          'Die Verbindung brach während der Übertragung ab (kein Kontakt zum Server).',
+        ),
+      );
+    xhr.ontimeout = () => scheitern(new Error('Zeitüberschreitung bei der Übertragung.'));
+    xhr.onabort = () => {
+      if (!input.signal.aborted) return;
+      scheitern(new DOMException('Abgebrochen', 'AbortError'));
+    };
+
+    xhr.onload = () => {
+      if (erledigt) return;
+      aufraeumen();
+      if (xhr.status < 200 || xhr.status >= 300) {
+        // Ohne den Text des Servers steht in der Oberfläche nur eine Zahl, mit
+        // der niemand etwas anfangen kann.
+        reject(new Error(`Der Block wurde abgelehnt (HTTP ${xhr.status}${grund(xhr.responseText)}).`));
+        return;
+      }
+      const neuerOffset = Number(xhr.getResponseHeader('Upload-Offset'));
+      if (!Number.isFinite(neuerOffset)) {
+        reject(new Error('Der Server hat keinen gültigen Upload-Offset zurückgegeben.'));
+        return;
+      }
+      resolve(neuerOffset);
+    };
+
+    xhr.send(input.blob);
+  });
 }
 
 async function fetchOffset(location: string, signal: AbortSignal): Promise<number> {
@@ -185,10 +267,10 @@ async function fetchOffset(location: string, signal: AbortSignal): Promise<numbe
  * wie ein Reverse Proxy antwortet oft mit HTML statt JSON – dann bleibt es beim
  * blanken Statuscode, statt eine Seite voll Markup in die Meldung zu kippen.
  */
-async function grund(response: Response): Promise<string> {
+function grund(rohtext: string): string {
   try {
-    const text = (await response.text()).slice(0, 500);
-    const nachricht = text.trim().startsWith('{') ? JSON.parse(text).message : null;
+    const text = (rohtext ?? '').slice(0, 500).trim();
+    const nachricht = text.startsWith('{') ? JSON.parse(text).message : null;
     const lesbar = typeof nachricht === 'string' ? nachricht.trim().replace(/\.$/, '') : null;
     return lesbar ? ` – ${lesbar}` : '';
   } catch {
