@@ -95,6 +95,9 @@ export function UploadPanel() {
         <span className="uploadpanel__title">Uploads</span>
         <span className="badge">{summary}</span>
         <span className="shell__spacer" />
+        <span className="faint" style={{ fontSize: 12 }}>
+          {open ? 'Minimieren' : 'Öffnen'}
+        </span>
         <span aria-hidden>{open ? '▾' : '▴'}</span>
       </button>
 
@@ -118,12 +121,19 @@ export function UploadPanel() {
               Erledigte ausblenden
             </button>
             <div className="shell__spacer" />
+            {/* Alles mit Projekt läuft von selbst los. Der Knopf bleibt für
+                die Dateien, denen noch ein Ziel fehlt. */}
             {pending.length > 0 ? (
               <button
                 type="button"
                 className="button button--primary"
                 onClick={start}
-                disabled={pending.some((job) => !job.projectId)}
+                disabled={pending.every((job) => !job.projectId)}
+                title={
+                  pending.some((job) => !job.projectId)
+                    ? 'Erst ein Projekt wählen, dann geht es los'
+                    : undefined
+                }
               >
                 {pending.length === 1 ? 'Upload starten' : `${pending.length} Uploads starten`}
               </button>

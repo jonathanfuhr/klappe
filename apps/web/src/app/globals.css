@@ -1251,6 +1251,13 @@ button {
 
 /* ---------- Upload-Fenster ---------- */
 
+/*
+ * Zwei Gestalten für dasselbe Fenster.
+ *
+ * Zugeklappt bleibt es eine schmale Leiste unten rechts – gerade genug, um zu
+ * sehen, was im Hintergrund läuft. Aufgeklappt rückt es in die Mitte und wird
+ * groß: Wer zwanzig Dateien zuordnet, will das nicht in einer Ecke tun.
+ */
 .uploadpanel {
   position: fixed;
   right: 20px;
@@ -1265,6 +1272,40 @@ button {
   display: flex;
   flex-direction: column;
   max-height: min(70vh, 620px);
+}
+
+.uploadpanel[data-open='true'] {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(900px, calc(100vw - 48px));
+  max-height: min(82vh, 860px);
+  border: 1px solid var(--klappe-border);
+  border-radius: var(--klappe-radius);
+}
+
+/* Abdunkeln, damit klar ist, dass das Fenster jetzt vorn steht. Bewusst nur
+   ein Schleier ohne Klickfang: Die Seite dahinter bleibt bedienbar, ein Upload
+   soll niemanden am Weiterarbeiten hindern. */
+.uploadpanel[data-open='true']::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.uploadpanel[data-open='true'] .uploadpanel__bar {
+  border-radius: var(--klappe-radius) var(--klappe-radius) 0 0;
+}
+
+@media (max-width: 700px) {
+  .uploadpanel[data-open='true'] {
+    width: calc(100vw - 16px);
+    max-height: 88vh;
+  }
 }
 
 .uploadpanel__bar {

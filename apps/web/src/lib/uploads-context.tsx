@@ -14,6 +14,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -93,6 +94,11 @@ function todayIso(): string {
  */
 export function UploadsProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<UploadJob[]>([]);
+  /**
+   * `start` entsteht weiter unten, der Auto-Start braucht es aber schon hier.
+   * Über die Box bleibt die Reihenfolge der Deklarationen sauber.
+   */
+  const startRef = useRef<(() => void) | null>(null);
   const [open, setOpen] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
   /** Läuft die Abarbeitung gerade? Verhindert zwei Schleifen nebeneinander. */
@@ -148,6 +154,17 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
+   * Losschicken, sobald etwas da ist – und nicht erst, wenn alles eingestellt
+   * ist. Die Übertragung ist der langsame Teil; sie im Hintergrund laufen zu
+   * lassen, während man Namen und Datum prüft, spart bei großen Dateien
+   * Minuten. Wer kein Projekt vorgegeben hat, bleibt liegen, bis er eines
+   * wählt: Ohne Ziel gibt es keine Sitzung.
+   */
+  useEffect(() => {
+    if (jobs.some((job) => job.state === 'wartet' && job.projectId)) startRef.current?.();
+  }, [jobs]);
+
+  /**
    * Arbeitet die Warteschlange der Reihe nach ab. Nacheinander statt parallel:
    * Bei großen Dateien teilen sich gleichzeitige Uploads nur die Leitung und
    * jeder einzelne dauert länger.
@@ -159,7 +176,9 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         for (;;) {
-          const job = jobsRef.current.find((entry) => entry.state === 'wartet');
+          // Nur, was ein Ziel hat: Ohne Projekt gäbe es nichts, wohin die
+          // Datei gehört – die bleibt liegen, bis jemand es einträgt.
+          const job = jobsRef.current.find((entry) => entry.state === 'wartet' && entry.projectId);
           if (!job) break;
 
           update(job.id, { state: 'lädt', message: undefined });
@@ -216,6 +235,8 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
       }
     })();
   }, [update]);
+
+  startRef.current = start;
 
   const cancel = useCallback((id: string) => {
     const job = jobsRef.current.find((entry) => entry.id === id);
