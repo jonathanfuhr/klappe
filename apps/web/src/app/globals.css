@@ -214,6 +214,20 @@ button {
   font-size: 14px;
 }
 
+/* Dieselbe Form für gute Nachrichten – rot umrandet wäre eine Falschmeldung. */
+.notice--ok {
+  border-color: color-mix(in srgb, var(--klappe-success) 45%, transparent);
+  background: color-mix(in srgb, var(--klappe-success) 12%, transparent);
+  color: #a9e6bd;
+}
+
+.notice code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--klappe-text) 12%, transparent);
+  font-size: 13px;
+}
+
 .muted {
   color: var(--klappe-text-muted);
 }
@@ -491,20 +505,74 @@ button {
   /* Ohne dies staucht der Flex-Container der Review-Spalte den Player, und
      Timeline und Bedienleiste rutschen unter die Karte darunter. */
   flex: 0 0 auto;
+  /* Die Höhe wird **hier** begrenzt, nicht an der Bühne. Vorher hatte die
+     Bühne eine eigene Obergrenze, die von Zeitleiste und Bedienleiste nichts
+     wusste – bei flachen Fenstern lief das Bild deshalb unter beide.
+     Abgezogen wird, was über dem Player steht: Kopfzeile, Brotkrumen, die
+     Werkzeugleiste und die Download-Karte. Bei hohen Fenstern greift die
+     Grenze gar nicht, dort bestimmt weiter das Seitenverhältnis. */
+  max-height: calc(100vh - 230px);
 }
 
 .player__stage {
   position: relative;
   background: #000;
   aspect-ratio: 16 / 9;
-  /* Bei flachen Fenstern hat das Seitenverhältnis Vorrang vor der Breite:
-     Der Rahmen wird niedriger, das Bild bleibt vollständig sichtbar. */
-  max-height: calc(100vh - 320px);
   display: grid;
   place-items: center;
+  /* Beides zusammen erlaubt der Bühne zu schrumpfen, wenn der Rahmen an seine
+     Grenze stößt. `object-fit: contain` am Video macht daraus dann Balken
+     statt Beschnitt. Ohne `min-height: 0` weigert sich ein Flex-Kind zu
+     schrumpfen und schiebt die Leisten hinaus. */
+  flex: 0 1 auto;
+  min-height: 0;
+  /* Sicherheitsnetz: Was doch einmal größer wird, ragt nicht in die Leisten. */
+  overflow: hidden;
+}
+
+/* Zeitleiste und Bedienleiste behalten ihre Höhe – sie sind der Grund, warum
+   die Bühne überhaupt nachgeben muss. */
+.player > .timeline,
+.player__controls {
+  flex: 0 0 auto;
+}
+
+/*
+ * Vollbild.
+ *
+ * Vorher gab es dafür keine einzige Regel: Der Browser machte den Rahmen
+ * bildschirmfüllend, die Bühne behielt aber ihr 16:9 und ihre eigene
+ * Höhengrenze – das Bild ragte unter die Leisten und war oben und unten
+ * abgeschnitten. Jetzt bestimmt im Vollbild der freie Platz die Bildgröße,
+ * und die Leisten stehen darunter statt darüber.
+ */
+.player:fullscreen {
+  max-height: none;
+  width: 100vw;
+  height: 100vh;
+  border: 0;
+  border-radius: 0;
+}
+
+.player:fullscreen .player__stage {
+  /* Kein festes Seitenverhältnis mehr: Die Bühne nimmt, was Zeitleiste und
+     Bedienleiste übrig lassen. Seitliche Balken sind der gewollte Preis
+     dafür, dass nichts abgeschnitten wird. */
+  aspect-ratio: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .player__stage video {
+  /* Absolut im Rahmen der Bühne, nicht als Grid-Kind mit `height: 100%`.
+     Der Unterschied ist der ganze Fehler gewesen: Schrumpfte die Bühne, blieb
+     das Grid-Kind auf seiner ursprünglichen Höhe stehen und ragte nach unten
+     heraus – unter Zeitleiste und Bedienleiste, die danach gezeichnet werden
+     und deshalb über dem Bild zu schweben schienen. `inset: 0` bindet das
+     Video an den tatsächlichen Rahmen, `contain` macht daraus Balken statt
+     Beschnitt. */
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
