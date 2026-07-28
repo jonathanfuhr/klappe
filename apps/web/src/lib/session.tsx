@@ -1,0 +1,76 @@
+'use client';
+
+import type { UserDto } from '@klappe/shared';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  type ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { ApiError, api } from './api';
+
+interface SessionState {
+  user: UserDto | null;
+  loading: boolean;
+  refresh: () => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const SessionContext = createContext<SessionState | null>(null);
+
+export function SessionProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<UserDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
+  const onLoginPage = pathname === '/login';
+
+  const refresh = useCallback(async () => {
+    try {
+      setUser(await api.me());
+    } catch (error) {
+      setUser(null);
+      // Abgelaufene Sitzung: zurück zum Login, statt leere Seiten zu zeigen.
+      if (error instanceof ApiError && error.isUnauthorized) {
+        router.replace('/login');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    // Auf der Anmeldeseite gibt es noch keine Sitzung – die Abfrage würde nur
+    // eine 401 in der Browser-Konsole erzeugen.
+    if (onLoginPage) {
+      setLoading(false);
+      return;
+    }
+    void refresh();
+  }, [refresh, onLoginPage]);
+
+  const logout = useCallback(async () => {
+    await api.logout().catch(() => undefined);
+    setUser(null);
+    router.replace('/login');
+  }, [router]);
+
+  const value = useMemo(
+    () => ({ user, loading, refresh, logout }),
+    [user, loading, refresh, logout],
+  );
+
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+}
+
+export function useSession(): SessionState {
+  const context = useContext(SessionContext);
+  if (!context) {
+    throw new Error('useSession muss innerhalb von <SessionProvider> benutzt werden.');
+  }
+  return context;
+}

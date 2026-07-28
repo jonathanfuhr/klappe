@@ -1,0 +1,46 @@
+import 'reflect-metadata';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
+import express from 'express';
+import { AppModule } from './app.module';
+import { AuthService } from './auth/auth.service';
+import { CONFIG, type AppConfig } from './config/configuration';
+
+async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    // Der Body wird gleich selbst verdrahtet: Upload-Chunks dürfen nicht
+    // durch den JSON-Parser laufen, sonst landet die Videodatei im Speicher.
+    bodyParser: false,
+  });
+
+  const config = app.get<AppConfig>(CONFIG);
+  const logger = new Logger('Bootstrap');
+
+  const json = express.json({ limit: '1mb' });
+  app.use((request: express.Request, response: express.Response, next: express.NextFunction) => {
+    if (request.path.startsWith('/v1/uploads/')) return next();
+    return json(request, response, next);
+  });
+  app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+  app.use(cookieParser());
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: false },
+    }),
+  );
+
+  app.enableShutdownHooks();
+
+  await app.get(AuthService).ensureBootstrapAdmin();
+
+  await app.listen(config.port, '0.0.0.0');
+  logger.log(`Klappe-API läuft auf Port ${config.port} (${config.nodeEnv}).`);
+}
+
+void bootstrap();

@@ -1,0 +1,138 @@
+# Klappe – vollständiger Stack.
+#
+#   cp .env.example .env   # Werte anpassen, insbesondere die Geheimnisse
+#   docker compose up -d --build
+#
+# Nach außen wird nur `web` veröffentlicht; die API erreicht der Browser über
+# die Weiterleitung `/v1/*` in Next.js. Das Deployment-Ziel (Synology +
+# Cloudflared) ist bewusst nicht Teil dieser Datei – hier steht ein
+# allgemeiner Stack, der auf jedem Docker-Host läuft.
+
+name: klappe
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-klappe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss gesetzt sein}
+      POSTGRES_DB: ${POSTGRES_DB:-klappe}
+      # Ohne diese Vorgabe legt das Image die Datenbank mit der Sortierung des
+      # Hosts an, was den Import einer Sicherung auf einem anderen Host bricht.
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-klappe} -d ${POSTGRES_DB:-klappe}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: klappe/api:latest
+    restart: unless-stopped
+    command: ['api']
+    environment:
+      NODE_ENV: production
+      PORT: '3001'
+      DATABASE_URL: postgres://${POSTGRES_USER:-klappe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-klappe}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET muss gesetzt sein}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-klappe_session}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-1}
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-604800}
+      STORAGE_DIR: /data
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-214748364800}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+    volumes:
+      - media:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: klappe/api:latest
+    restart: unless-stopped
+    command: ['worker']
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-klappe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-klappe}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      STORAGE_DIR: /data
+      # Wie viele Transcodings gleichzeitig laufen. Mehr als 1 lohnt nur mit
+      # entsprechend vielen Kernen – ffmpeg lastet allein schon gut aus.
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+      PROXY_HEIGHT: ${PROXY_HEIGHT:-1080}
+      PROXY_VIDEO_BITRATE: ${PROXY_VIDEO_BITRATE:-10M}
+      PROXY_PRESET: ${PROXY_PRESET:-veryfast}
+    volumes:
+      - media:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Muss zum Bauzeitpunkt feststehen: Next schreibt das Ziel der
+        # `/v1`-Weiterleitung fest ins Routen-Manifest.
+        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3001}
+    image: klappe/web:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-klappe_session}
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  redis-data:
+  # Originale, Proxys, Posterframes und Sprite-Streifen. Hier liegen die
+  # Nutzdaten – dieses Volume gehört in die Sicherung.
+  media:

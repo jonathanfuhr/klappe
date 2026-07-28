@@ -1,0 +1,329 @@
+'use client';
+
+import {
+  type CommentDto,
+  type VersionDto,
+  type VideoDto,
+  frameToDisplayTimecode,
+} from '@klappe/shared';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppShell } from '@/components/AppShell';
+import { Uploader } from '@/components/Uploader';
+import { VersionStatusBadge } from '@/components/VersionStatusBadge';
+import { CommentPanel } from '@/components/comments/CommentPanel';
+import { type CommentMarker, type PlayerHandle, VideoPlayer } from '@/components/player/VideoPlayer';
+import { api, mediaUrl } from '@/lib/api';
+import { formatBytes, formatFrameRate } from '@/lib/format';
+import { useSession } from '@/lib/session';
+
+export default function ReviewPage() {
+  const params = useParams<{ videoId: string }>();
+  const videoId = params.videoId;
+  const { user } = useSession();
+
+  const playerRef = useRef<PlayerHandle>(null);
+
+  const [video, setVideo] = useState<VideoDto | null>(null);
+  const [versions, setVersions] = useState<VersionDto[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [comments, setComments] = useState<CommentDto[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [currentFrame, setCurrentFrame] = useState(0);
+  /** Beim Kommentieren festgehaltener Frame, damit er nicht weiterläuft. */
+  const [draftFrame, setDraftFrame] = useState<number | null>(null);
+  const [pinned, setPinned] = useState(true);
+  const [focusToken, setFocusToken] = useState(0);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [showUploader, setShowUploader] = useState(false);
+
+  const selectedVersion = useMemo(
+    () => versions.find((version) => version.id === selectedVersionId) ?? null,
+    [versions, selectedVersionId],
+  );
+
+  const loadVideo = useCallback(async () => {
+    try {
+      const [videoData, versionData] = await Promise.all([
+        api.getVideo(videoId),
+        api.listVersions(videoId),
+      ]);
+      setVideo(videoData);
+      setVersions(versionData);
+      setSelectedVersionId((current) => current ?? versionData[0]?.id ?? null);
+      setError(null);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+    } finally {
+      setLoading(false);
+    }
+  }, [videoId]);
+
+  const loadComments = useCallback(async () => {
+    if (!selectedVersionId) {
+      setComments([]);
+      return;
+    }
+    try {
+      setComments(await api.listComments(selectedVersionId));
+    } catch {
+      setComments([]);
+    }
+  }, [selectedVersionId]);
+
+  useEffect(() => {
+    void loadVideo();
+  }, [loadVideo]);
+
+  useEffect(() => {
+    void loadComments();
+  }, [loadComments]);
+
+  // Während der Verarbeitung den Fortschritt nachladen.
+  const processing =
+    selectedVersion?.status === 'PROCESSING' || selectedVersion?.status === 'UPLOADING';
+  useEffect(() => {
+    if (!processing) return;
+    const timer = setInterval(() => void loadVideo(), 3000);
+    return () => clearInterval(timer);
+  }, [processing, loadVideo]);
+
+  const timecodeContext = useMemo(
+    () => ({
+      fps: selectedVersion?.media.frameRate ?? { num: 25, den: 1 },
+      dropFrame: selectedVersion?.media.dropFrame ?? false,
+      startFrames: selectedVersion?.media.startTimecodeFrames ?? 0,
+    }),
+    [selectedVersion],
+  );
+
+  const composerFrame = draftFrame ?? currentFrame;
+  const composerTimecode = selectedVersion?.media.frameRate
+    ? frameToDisplayTimecode(composerFrame, timecodeContext)
+    : null;
+
+  const markers: CommentMarker[] = useMemo(
+    () =>
+      comments
+        .filter((comment): comment is CommentDto & { frame: number } => comment.frame !== null)
+        .map((comment) => ({
+          id: comment.id,
+          frame: comment.frame,
+          resolved: Boolean(comment.resolvedAt),
+          label: `${comment.author.name}: ${comment.body.slice(0, 60)}`,
+        })),
+    [comments],
+  );
+
+  const selectComment = useCallback((comment: CommentDto) => {
+    setActiveCommentId(comment.id);
+    if (comment.frame !== null) {
+      playerRef.current?.seekToFrame(comment.frame);
+    }
+  }, []);
+
+  const createComment = useCallback(
+    async (body: string, options: { frame: number | null; parentId?: string }) => {
+      if (!selectedVersionId) return;
+      await api.createComment(selectedVersionId, {
+        body,
+        frame: options.frame,
+        parentId: options.parentId,
+      });
+      setDraftFrame(null);
+      await loadComments();
+      await loadVideo();
+    },
+    [selectedVersionId, loadComments, loadVideo],
+  );
+
+  return (
+    <AppShell>
+      <div className="review">
+        <div className="review__main">
+          <div className="breadcrumb">
+            <Link href="/projekte">Projekte</Link>
+            <span>/</span>
+            {video ? <Link href={`/projekte/${video.projectId}`}>Projekt</Link> : <span>…</span>}
+            <span>/</span>
+            <span>{video?.name ?? '…'}</span>
+          </div>
+
+          <div className="toolbar">
+            <h1 className="page__title" style={{ fontSize: 19 }}>
+              {video?.name ?? 'Video'}
+            </h1>
+            {selectedVersion ? <VersionStatusBadge version={selectedVersion} /> : null}
+
+            <div className="shell__spacer" />
+
+            {versions.length > 0 ? (
+              <select
+                className="select"
+                style={{ width: 'auto' }}
+                value={selectedVersionId ?? ''}
+                onChange={(event) => {
+                  setSelectedVersionId(event.target.value);
+                  setActiveCommentId(null);
+                  setDraftFrame(null);
+                }}
+                aria-label="Version"
+              >
+                {versions.map((version) => (
+                  <option key={version.id} value={version.id}>
+                    v{version.versionNumber}
+                    {version.label ? ` – ${version.label}` : ''} ({version.commentCount} Komm.)
+                  </option>
+                ))}
+              </select>
+            ) : null}
+
+            <button type="button" className="button" onClick={() => setShowUploader((show) => !show)}>
+              Neue Version
+            </button>
+
+            {selectedVersion?.status === 'READY' ? (
+              <a
+                className="button"
+                href={mediaUrl.original(selectedVersion.id)}
+                download
+                title="Lädt immer die Originaldatei, nicht den Proxy"
+              >
+                Original laden
+              </a>
+            ) : null}
+          </div>
+
+          {error ? <div className="notice">{error}</div> : null}
+          {loading ? <p className="muted">Wird geladen …</p> : null}
+
+          {showUploader && video ? (
+            <Uploader
+              projectId={video.projectId}
+              videoId={video.id}
+              onDone={async () => {
+                setShowUploader(false);
+                await loadVideo();
+              }}
+            />
+          ) : null}
+
+          {selectedVersion ? (
+            <>
+              <VideoPlayer
+                ref={playerRef}
+                version={selectedVersion}
+                markers={markers}
+                activeCommentId={activeCommentId}
+                onFrameChange={setCurrentFrame}
+                onMarkerClick={(commentId) => {
+                  const comment = comments.find((entry) => entry.id === commentId);
+                  if (comment) selectComment(comment);
+                }}
+                onRequestComment={(frame) => {
+                  setDraftFrame(frame);
+                  setPinned(true);
+                  setFocusToken((token) => token + 1);
+                }}
+              />
+
+              <VersionDetails version={selectedVersion} />
+              <ShortcutHelp />
+            </>
+          ) : (
+            !loading && (
+              <div className="empty">
+                Für dieses Video wurde noch keine Datei hochgeladen.
+                <div style={{ marginTop: 12 }}>
+                  {video ? (
+                    <Uploader projectId={video.projectId} videoId={video.id} onDone={loadVideo} />
+                  ) : null}
+                </div>
+              </div>
+            )
+          )}
+        </div>
+
+        <aside className="review__side">
+          <CommentPanel
+            comments={comments}
+            currentUser={user}
+            activeCommentId={activeCommentId}
+            composerFrame={composerFrame}
+            composerTimecode={composerTimecode}
+            pinned={pinned}
+            onPinnedChange={setPinned}
+            focusToken={focusToken}
+            onSelect={selectComment}
+            onChanged={async () => {
+              await loadComments();
+            }}
+            onCreate={createComment}
+          />
+        </aside>
+      </div>
+    </AppShell>
+  );
+}
+
+function VersionDetails({ version }: { version: VersionDto }) {
+  const media = version.media;
+  const entries: Array<[string, string]> = [
+    ['Datei', version.originalFilename],
+    ['Größe', formatBytes(version.originalSizeBytes)],
+    ['Auflösung', media.width && media.height ? `${media.width} × ${media.height}` : '–'],
+    ['Framerate', formatFrameRate(media.frameRate)],
+    ['Zählweise', media.frameRate ? (media.dropFrame ? 'Drop-Frame' : 'Non-Drop') : '–'],
+    ['Start-Timecode', media.startTimecode ?? '–'],
+    ['Frames', media.frameCount ? String(media.frameCount) : '–'],
+    ['Codec', media.videoCodec ?? '–'],
+    ['Hochgeladen von', version.uploadedBy?.name ?? '–'],
+  ];
+
+  return (
+    <div className="card" style={{ padding: '12px 16px' }}>
+      <div className="shortcuts">
+        {entries.map(([label, value]) => (
+          <div key={label}>
+            <span className="faint">{label}: </span>
+            <span className={label === 'Start-Timecode' ? 'mono' : undefined}>{value}</span>
+          </div>
+        ))}
+      </div>
+      {version.processingError ? (
+        <div className="notice" style={{ marginTop: 10 }}>
+          {version.processingError}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ShortcutHelp() {
+  const shortcuts: Array<[string, string]> = [
+    ['Leer', 'Abspielen / Pause'],
+    ['J / K / L', 'Rückwärts / Stopp / Vorwärts'],
+    ['← →', 'Ein Bild zurück / vor'],
+    ['⇧ + ← →', 'Eine Sekunde'],
+    ['Pos1 / Ende', 'Anfang / Ende'],
+    ['C', 'Kommentar am Bild'],
+    ['M', 'Ton stumm'],
+    ['F', 'Vollbild'],
+  ];
+
+  return (
+    <div className="card" style={{ padding: '12px 16px' }}>
+      <div className="shortcuts">
+        {shortcuts.map(([key, description]) => (
+          <div key={key}>
+            <span className="shortcuts__key">{key}</span>
+            {description}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,30 @@
+{
+  "name": "klappe",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Klappe – selbst gehostetes Video-Review- und Freigabe-Tool",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build -w @klappe/shared && npm run build -w @klappe/api && npm run build -w @klappe/web",
+    "build:server": "npm run build -w @klappe/shared && npm run build -w @klappe/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate": "npm run migrate -w @klappe/api",
+    "db:generate": "npm run db:generate -w @klappe/api",
+    "dev:api": "npm run dev -w @klappe/api",
+    "dev:worker": "npm run dev:worker -w @klappe/api",
+    "dev:web": "npm run dev -w @klappe/web"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.4"
+  }
+}
