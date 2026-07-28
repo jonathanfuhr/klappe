@@ -93,7 +93,16 @@ function runUpload(
       } catch (error) {
         if (controller.signal.aborted) throw error;
         attempt += 1;
-        if (attempt > MAX_RETRIES) throw error;
+        if (attempt > MAX_RETRIES) {
+          // Die erreichte Stelle gehört in die Meldung: Ein Upload, der immer
+          // an derselben Stelle stehen bleibt, deutet auf eine Grenze im Weg
+          // hin – ein zufälliger Abbruch auf eine wackelige Verbindung.
+          const stelle = `${(offset / (1024 * 1024)).toFixed(0)} von ${(input.file.size / (1024 * 1024)).toFixed(0)} MB`;
+          throw new Error(
+            `${error instanceof Error ? error.message : 'Upload fehlgeschlagen.'} ` +
+              `Abgebrochen bei ${stelle}, nach ${MAX_RETRIES} Versuchen.`,
+          );
+        }
 
         // Nach einem Fehler zählt allein der Stand des Servers: Vielleicht
         // ist ein Teil des Blocks noch angekommen, vielleicht keiner.
@@ -118,20 +127,34 @@ async function sendChunk(input: {
   offset: number;
   signal: AbortSignal;
 }): Promise<number> {
-  const response = await fetch(`${API_BASE}${input.location}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    signal: input.signal,
-    headers: {
-      'Content-Type': 'application/offset+octet-stream',
-      'Upload-Offset': String(input.offset),
-      'Tus-Resumable': '1.0.0',
-    },
-    body: input.blob,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${input.location}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      signal: input.signal,
+      headers: {
+        'Content-Type': 'application/offset+octet-stream',
+        'Upload-Offset': String(input.offset),
+        'Tus-Resumable': '1.0.0',
+      },
+      body: input.blob,
+    });
+  } catch (error) {
+    if (input.signal.aborted) throw error;
+    // Hier ist gar keine Antwort angekommen: Verbindung weg, Zeitüberschreitung
+    // oder ein Zwischenstück (Reverse Proxy, Tunnel), das den Block wegwirft.
+    throw new Error(
+      `Die Verbindung brach während der Übertragung ab (${
+        error instanceof Error ? error.message : 'unbekannter Grund'
+      }).`,
+    );
+  }
 
   if (!response.ok) {
-    throw new Error(`Der Block wurde abgelehnt (HTTP ${response.status}).`);
+    // Ohne den Text des Servers steht in der Oberfläche nur eine Zahl, mit der
+    // niemand etwas anfangen kann.
+    throw new Error(`Der Block wurde abgelehnt (HTTP ${response.status}${await grund(response)}).`);
   }
 
   const newOffset = Number(response.headers.get('Upload-Offset'));
@@ -155,6 +178,22 @@ async function fetchOffset(location: string, signal: AbortSignal): Promise<numbe
     throw new Error('Der Server hat keinen gültigen Upload-Offset zurückgegeben.');
   }
   return offset;
+}
+
+/**
+ * Der Begründungstext des Servers, sofern er einen mitschickt. Ein Zwischenstück
+ * wie ein Reverse Proxy antwortet oft mit HTML statt JSON – dann bleibt es beim
+ * blanken Statuscode, statt eine Seite voll Markup in die Meldung zu kippen.
+ */
+async function grund(response: Response): Promise<string> {
+  try {
+    const text = (await response.text()).slice(0, 500);
+    const nachricht = text.trim().startsWith('{') ? JSON.parse(text).message : null;
+    const lesbar = typeof nachricht === 'string' ? nachricht.trim().replace(/\.$/, '') : null;
+    return lesbar ? ` – ${lesbar}` : '';
+  } catch {
+    return '';
+  }
 }
 
 function report(

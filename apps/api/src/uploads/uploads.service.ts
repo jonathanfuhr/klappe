@@ -239,7 +239,32 @@ export class UploadsService {
       if (error instanceof ByteLimitExceededError) {
         throw new PayloadTooLargeException(error.message);
       }
-      throw new BadRequestException('Die Übertragung wurde unterbrochen.');
+
+      // Ein abgerissener Client ist Alltag und braucht keinen Eintrag mit
+      // Stapelspur. Alles andere – volle Platte, fehlende Rechte, defekter
+      // Datenträger – ist ein Betriebsproblem und darf nicht verschwiegen
+      // werden: Ohne diese Zeile sucht man nach „Übertragung unterbrochen“ und
+      // findet nie den eigentlichen Grund.
+      const code = (error as NodeJS.ErrnoException | undefined)?.code;
+      const abgerissen = code === 'ECONNRESET' || code === 'ERR_STREAM_PREMATURE_CLOSE';
+      if (abgerissen) {
+        this.logger.warn(
+          `Upload ${row.id}: Verbindung bei ${offset} von ${row.sizeBytes} Byte abgerissen (${code}).`,
+        );
+        throw new BadRequestException('Die Übertragung wurde unterbrochen.');
+      }
+
+      this.logger.error(
+        `Upload ${row.id} konnte nicht geschrieben werden (${code ?? 'ohne Fehlercode'}): ` +
+          `${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Der Code gehört in die Antwort: `ENOSPC` beantwortet die Frage nach der
+      // Ursache sofort, während „unterbrochen“ nur Rätsel aufgibt.
+      throw new BadRequestException(
+        code
+          ? `Der Block ließ sich nicht speichern (${code}).`
+          : 'Die Übertragung wurde unterbrochen.',
+      );
     } finally {
       this.active.delete(row.id);
     }
