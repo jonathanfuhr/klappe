@@ -7,12 +7,20 @@ const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'klappe_session';
  * erst eine leere Oberfläche aufblitzt. Die eigentliche Prüfung macht die API –
  * hier wird bewusst nur auf Vorhandensein geschaut, nicht auf Gültigkeit.
  */
+/**
+ * Ohne Anmeldung erreichbar: der Einstieg für Gäste über einen Freigabe-Link
+ * und der Abmelde-Link aus den Benachrichtigungen.
+ */
+function isPublicPath(pathname: string): boolean {
+  return pathname === '/login' || pathname === '/abmelden' || pathname.startsWith('/f/');
+}
+
 export function middleware(request: NextRequest) {
   const hasSession = request.cookies.has(COOKIE_NAME);
   const { pathname, search } = request.nextUrl;
   const isLoginPage = pathname === '/login';
 
-  if (!hasSession && !isLoginPage) {
+  if (!hasSession && !isPublicPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.search = pathname === '/' ? '' : `?weiter=${encodeURIComponent(pathname + search)}`;

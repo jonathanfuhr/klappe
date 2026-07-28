@@ -27,7 +27,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const onLoginPage = pathname === '/login';
+  // Auf diesen Seiten gibt es noch keine Sitzung – die Abfrage würde nur eine
+  // 401 in der Browser-Konsole erzeugen.
+  const onLoginPage =
+    pathname === '/login' || pathname === '/abmelden' || pathname.startsWith('/f/');
 
   const refresh = useCallback(async () => {
     try {
@@ -44,8 +47,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   useEffect(() => {
-    // Auf der Anmeldeseite gibt es noch keine Sitzung – die Abfrage würde nur
-    // eine 401 in der Browser-Konsole erzeugen.
     if (onLoginPage) {
       setLoading(false);
       return;

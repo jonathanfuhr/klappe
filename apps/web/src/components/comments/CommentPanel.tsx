@@ -1,6 +1,6 @@
 'use client';
 
-import type { CommentDto, UserDto } from '@klappe/shared';
+import type { Annotation, CommentDto, UserDto } from '@klappe/shared';
 import { useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatRelative, initialsOf } from '@/lib/format';
@@ -20,6 +20,11 @@ interface CommentPanelProps {
   onSelect: (comment: CommentDto) => void;
   onChanged: () => Promise<void> | void;
   onCreate: (body: string, options: { frame: number | null; parentId?: string }) => Promise<void>;
+  /** Gerade auf dem Bild gezeichnete Skizze, die mitgeschickt wird. */
+  draftAnnotation?: Annotation | null;
+  onClearDraftAnnotation?: () => void;
+  /** Gäste ohne Kommentarrecht sehen nur mit. */
+  canComment?: boolean;
 }
 
 type Filter = 'alle' | 'offen' | 'erledigt';
@@ -36,6 +41,9 @@ export function CommentPanel({
   onSelect,
   onChanged,
   onCreate,
+  draftAnnotation,
+  onClearDraftAnnotation,
+  canComment = true,
 }: CommentPanelProps) {
   const [filter, setFilter] = useState<Filter>('alle');
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -126,18 +134,31 @@ export function CommentPanel({
               <CommentBody body={comment.body} />
             )}
 
-            {comment.editedAt ? <span className="faint" style={{ fontSize: 11 }}>bearbeitet</span> : null}
+            <div className="toolbar" style={{ gap: 10 }}>
+              {comment.annotation ? (
+                <span className="comment__pen" title="Enthält eine Zeichnung auf dem Bild">
+                  ✎ Zeichnung
+                </span>
+              ) : null}
+              {comment.editedAt ? (
+                <span className="faint" style={{ fontSize: 11 }}>
+                  bearbeitet
+                </span>
+              ) : null}
+            </div>
 
             <div className="comment__actions">
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setReplyTo(replyTo === comment.id ? null : comment.id);
-                }}
-              >
-                Antworten
-              </button>
+              {canComment ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setReplyTo(replyTo === comment.id ? null : comment.id);
+                  }}
+                >
+                  Antworten
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={(event) => {
@@ -248,14 +269,24 @@ export function CommentPanel({
         ))}
       </div>
 
-      <CommentComposer
-        frame={composerFrame}
-        timecode={composerTimecode}
-        pinned={pinned}
-        onPinnedChange={onPinnedChange}
-        focusToken={focusToken}
-        onSubmit={(body) => onCreate(body, { frame: pinned ? composerFrame : null })}
-      />
+      {canComment ? (
+        <CommentComposer
+          frame={composerFrame}
+          timecode={composerTimecode}
+          pinned={pinned}
+          onPinnedChange={onPinnedChange}
+          focusToken={focusToken}
+          hasAnnotation={Boolean(draftAnnotation)}
+          onClearAnnotation={onClearDraftAnnotation}
+          onSubmit={(body) => onCreate(body, { frame: pinned ? composerFrame : null })}
+        />
+      ) : (
+        <div className="composer">
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+            Für diese Freigabe ist das Kommentieren nicht erlaubt.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   Post,
 } from '@nestjs/common';
 import type { VersionDto, VideoDto } from '@klappe/shared';
+import { AccessService } from '../access/access.service';
 import { CurrentUser, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
 import { StorageService } from '../storage/storage.service';
@@ -22,41 +23,57 @@ export class VideosController {
   constructor(
     private readonly videosService: VideosService,
     private readonly versionsService: VersionsService,
+    private readonly accessService: AccessService,
     private readonly storage: StorageService,
   ) {}
 
   @Get('projects/:projectId/videos')
-  list(@Param('projectId', new ParseUUIDPipe()) projectId: string): Promise<VideoDto[]> {
-    return this.videosService.listForProject(projectId);
+  async list(
+    @Param('projectId', new ParseUUIDPipe()) projectId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<VideoDto[]> {
+    const scope = await this.accessService.loadScope(user);
+    return this.videosService.listForProject(projectId, scope);
   }
 
   @Roles('ADMIN', 'MEMBER')
   @Post('projects/:projectId/videos')
-  create(
+  async create(
     @Param('projectId', new ParseUUIDPipe()) projectId: string,
     @Body() dto: CreateVideoDto,
     @CurrentUser() user: RequestUser,
   ): Promise<VideoDto> {
-    return this.videosService.create(projectId, dto, user);
+    const scope = await this.accessService.loadScope(user);
+    return this.videosService.create(projectId, dto, user, scope);
   }
 
   @Get('videos/:id')
-  findOne(@Param('id', new ParseUUIDPipe()) id: string): Promise<VideoDto> {
-    return this.videosService.findOneOrFail(id);
+  async findOne(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<VideoDto> {
+    const scope = await this.accessService.loadScope(user);
+    return this.videosService.findOneOrFail(id, scope);
   }
 
   @Get('videos/:id/versions')
-  listVersions(@Param('id', new ParseUUIDPipe()) id: string): Promise<VersionDto[]> {
-    return this.versionsService.listForVideo(id);
+  async listVersions(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<VersionDto[]> {
+    const scope = await this.accessService.loadScope(user);
+    return this.versionsService.listForVideo(id, scope);
   }
 
   @Roles('ADMIN', 'MEMBER')
   @Patch('videos/:id')
-  update(
+  async update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateVideoDto,
+    @CurrentUser() user: RequestUser,
   ): Promise<VideoDto> {
-    return this.videosService.update(id, dto);
+    const scope = await this.accessService.loadScope(user);
+    return this.videosService.update(id, dto, scope);
   }
 
   @Roles('ADMIN', 'MEMBER')

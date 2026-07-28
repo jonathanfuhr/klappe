@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  type Annotation,
   type CommentDto,
   type VersionDto,
   type VideoDto,
@@ -10,6 +11,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { ShareManager } from '@/components/ShareManager';
 import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
 import { CommentPanel } from '@/components/comments/CommentPanel';
@@ -17,11 +19,13 @@ import { type CommentMarker, type PlayerHandle, VideoPlayer } from '@/components
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
 import { useSession } from '@/lib/session';
+import { useUploads } from '@/lib/uploads-context';
 
 export default function ReviewPage() {
   const params = useParams<{ videoId: string }>();
   const videoId = params.videoId;
   const { user } = useSession();
+  const { completedCount } = useUploads();
 
   const playerRef = useRef<PlayerHandle>(null);
 
@@ -39,6 +43,10 @@ export default function ReviewPage() {
   const [focusToken, setFocusToken] = useState(0);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [showUploader, setShowUploader] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
+
+  const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
 
   const selectedVersion = useMemo(
     () => versions.find((version) => version.id === selectedVersionId) ?? null,
@@ -82,6 +90,11 @@ export default function ReviewPage() {
     void loadComments();
   }, [loadComments]);
 
+  // Nach einem abgeschlossenen Upload die Fassungen auffrischen.
+  useEffect(() => {
+    if (completedCount > 0) void loadVideo();
+  }, [completedCount, loadVideo]);
+
   // Während der Verarbeitung den Fortschritt nachladen.
   const processing =
     selectedVersion?.status === 'PROCESSING' || selectedVersion?.status === 'UPLOADING';
@@ -118,6 +131,22 @@ export default function ReviewPage() {
     [comments],
   );
 
+  /**
+   * Die Zeichnung eines Kommentars wird eingeblendet, solange der Abspielkopf
+   * auf seinem Frame steht – so wie sie gemeint war.
+   */
+  const shownAnnotation = useMemo(() => {
+    const active = comments.find((comment) => comment.id === activeCommentId);
+    if (active?.annotation && active.frame === currentFrame) return active.annotation;
+    const atFrame = comments.find(
+      (comment) => comment.frame === currentFrame && comment.annotation,
+    );
+    return atFrame?.annotation ?? null;
+  }, [comments, activeCommentId, currentFrame]);
+
+  /** Gäste ohne Kommentarrecht sehen nur zu; die API entscheidet das. */
+  const canComment = video?.canComment ?? false;
+
   const selectComment = useCallback((comment: CommentDto) => {
     setActiveCommentId(comment.id);
     if (comment.frame !== null) {
@@ -132,12 +161,16 @@ export default function ReviewPage() {
         body,
         frame: options.frame,
         parentId: options.parentId,
+        // Eine Skizze gehört zum Frame; bei einer Antwort ohne Frame entfällt sie.
+        annotation: options.parentId || options.frame === null ? null : draftAnnotation,
       });
       setDraftFrame(null);
+      setDraftAnnotation(null);
+      playerRef.current?.clearDrawing();
       await loadComments();
       await loadVideo();
     },
-    [selectedVersionId, loadComments, loadVideo],
+    [selectedVersionId, draftAnnotation, loadComments, loadVideo],
   );
 
   return (
@@ -181,11 +214,22 @@ export default function ReviewPage() {
               </select>
             ) : null}
 
-            <button type="button" className="button" onClick={() => setShowUploader((show) => !show)}>
-              Neue Version
-            </button>
+            {isTeam ? (
+              <>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => setShowUploader((show) => !show)}
+                >
+                  Neue Version
+                </button>
+                <button type="button" className="button" onClick={() => setSharing(true)}>
+                  Freigeben
+                </button>
+              </>
+            ) : null}
 
-            {selectedVersion?.status === 'READY' ? (
+            {selectedVersion?.status === 'READY' && selectedVersion.canDownload ? (
               <a
                 className="button"
                 href={mediaUrl.original(selectedVersion.id)}
@@ -197,18 +241,46 @@ export default function ReviewPage() {
             ) : null}
           </div>
 
+          {isTeam && video && selectedVersion ? (
+            <div className="toolbar card" style={{ padding: '8px 14px' }}>
+              <span className="muted" style={{ fontSize: 13 }}>
+                Download für Gäste:
+              </span>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={video.downloadsEnabled}
+                  onChange={(event) => {
+                    void api
+                      .updateVideo(video.id, { downloadsEnabled: event.target.checked })
+                      .then(loadVideo);
+                  }}
+                />
+                ganzes Video
+              </label>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={selectedVersion.downloadEnabled}
+                  onChange={(event) => {
+                    void api
+                      .updateVersion(selectedVersion.id, { downloadEnabled: event.target.checked })
+                      .then(loadVideo);
+                  }}
+                />
+                v{selectedVersion.versionNumber}
+              </label>
+              <span className="hint" style={{ marginTop: 0 }}>
+                Wirkt nur zusammen mit dem Download-Recht am Freigabe-Link.
+              </span>
+            </div>
+          ) : null}
+
           {error ? <div className="notice">{error}</div> : null}
           {loading ? <p className="muted">Wird geladen …</p> : null}
 
-          {showUploader && video ? (
-            <Uploader
-              projectId={video.projectId}
-              videoId={video.id}
-              onDone={async () => {
-                setShowUploader(false);
-                await loadVideo();
-              }}
-            />
+          {showUploader && video && isTeam ? (
+            <Uploader projectId={video.projectId} videoId={video.id} />
           ) : null}
 
           {selectedVersion ? (
@@ -218,6 +290,9 @@ export default function ReviewPage() {
                 version={selectedVersion}
                 markers={markers}
                 activeCommentId={activeCommentId}
+                shownAnnotation={shownAnnotation}
+                canComment={canComment}
+                onDraftAnnotationChange={setDraftAnnotation}
                 onFrameChange={setCurrentFrame}
                 onMarkerClick={(commentId) => {
                   const comment = comments.find((entry) => entry.id === commentId);
@@ -238,9 +313,7 @@ export default function ReviewPage() {
               <div className="empty">
                 Für dieses Video wurde noch keine Datei hochgeladen.
                 <div style={{ marginTop: 12 }}>
-                  {video ? (
-                    <Uploader projectId={video.projectId} videoId={video.id} onDone={loadVideo} />
-                  ) : null}
+                  {video ? <Uploader projectId={video.projectId} videoId={video.id} /> : null}
                 </div>
               </div>
             )
@@ -262,9 +335,24 @@ export default function ReviewPage() {
               await loadComments();
             }}
             onCreate={createComment}
+            draftAnnotation={draftAnnotation}
+            onClearDraftAnnotation={() => {
+              setDraftAnnotation(null);
+              playerRef.current?.clearDrawing();
+            }}
+            canComment={canComment}
           />
         </aside>
       </div>
+
+      {sharing && video ? (
+        <ShareManager
+          scope="VIDEO"
+          videoId={video.id}
+          targetLabel={video.name}
+          onClose={() => setSharing(false)}
+        />
+      ) : null}
     </AppShell>
   );
 }

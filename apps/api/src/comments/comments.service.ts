@@ -6,15 +6,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  type Annotation,
   type CommentDto,
   type UserSummaryDto,
   framesToTimecode,
   mentionedUserIds,
+  sanitizeAnnotation,
 } from '@klappe/shared';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { AccessService, type AccessScope } from '../access/access.service';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
-import { type CommentRow, commentMentions, comments, users, videoVersions } from '../db/schema';
+import { type CommentRow, commentMentions, comments, users, videoVersions, videos } from '../db/schema';
+import { MailQueueService } from '../queue/mail-queue.service';
 import type { CreateCommentDto, UpdateCommentDto } from './comments.dto';
 
 interface CommentWithAuthor {
@@ -26,13 +30,18 @@ interface CommentWithAuthor {
 
 @Injectable()
 export class CommentsService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly accessService: AccessService,
+    private readonly mailQueue: MailQueueService,
+  ) {}
 
   /**
    * Alle Kommentare einer Version als Threads: Wurzelkommentare nach Frame
    * sortiert, Antworten chronologisch darunter.
    */
-  async listForVersion(versionId: string): Promise<CommentDto[]> {
+  async listForVersion(versionId: string, scope: AccessScope): Promise<CommentDto[]> {
+    await this.accessService.requireVersion(scope, versionId);
     const version = await this.getVersionOrFail(versionId);
 
     const rows = await this.db
@@ -95,7 +104,14 @@ export class CommentsService {
     return roots;
   }
 
-  async create(versionId: string, dto: CreateCommentDto, user: RequestUser): Promise<CommentDto> {
+  async create(
+    versionId: string,
+    dto: CreateCommentDto,
+    user: RequestUser,
+    scope: AccessScope,
+  ): Promise<CommentDto> {
+    const access = await this.accessService.requireVersion(scope, versionId);
+    this.accessService.assertCanComment(scope, { id: access.videoId, projectId: access.projectId });
     const version = await this.getVersionOrFail(versionId);
 
     let parentId: string | null = null;
@@ -123,6 +139,9 @@ export class CommentsService {
       );
     }
 
+    // Eine Zeichnung ohne Frame hätte keinen Bezugspunkt im Video.
+    const annotation = frame === null ? null : sanitizeAnnotation(dto.annotation);
+
     const [row] = await this.db
       .insert(comments)
       .values({
@@ -131,20 +150,38 @@ export class CommentsService {
         authorId: user.id,
         body: dto.body.trim(),
         frame,
+        annotation,
       })
       .returning();
 
     await this.syncMentions(row.id, row.body);
+    await this.mailQueue.enqueue({ kind: 'comment', commentId: row.id });
     return this.findOneOrFail(row.id);
   }
 
-  async update(id: string, dto: UpdateCommentDto, user: RequestUser): Promise<CommentDto> {
+  async update(
+    id: string,
+    dto: UpdateCommentDto,
+    user: RequestUser,
+    scope: AccessScope,
+  ): Promise<CommentDto> {
     const row = await this.getRowOrFail(id);
+    await this.accessService.requireVersion(scope, row.versionId);
     this.assertMayModify(row, user);
 
     const [updated] = await this.db
       .update(comments)
-      .set({ body: dto.body.trim(), editedAt: new Date(), updatedAt: new Date() })
+      .set({
+        body: dto.body.trim(),
+        annotation:
+          dto.annotation === undefined
+            ? undefined
+            : row.frame === null
+              ? null
+              : sanitizeAnnotation(dto.annotation),
+        editedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(comments.id, id))
       .returning();
 
@@ -156,8 +193,9 @@ export class CommentsService {
    * Weiches Löschen: Antworten und der Bezug zum Frame bleiben erhalten,
    * damit ein Thread nicht auseinanderfällt.
    */
-  async remove(id: string, user: RequestUser): Promise<void> {
+  async remove(id: string, user: RequestUser, scope: AccessScope): Promise<void> {
     const row = await this.getRowOrFail(id);
+    await this.accessService.requireVersion(scope, row.versionId);
     this.assertMayModify(row, user);
     await this.db
       .update(comments)
@@ -165,8 +203,14 @@ export class CommentsService {
       .where(eq(comments.id, id));
   }
 
-  async setResolved(id: string, resolved: boolean, user: RequestUser): Promise<CommentDto> {
+  async setResolved(
+    id: string,
+    resolved: boolean,
+    user: RequestUser,
+    scope: AccessScope,
+  ): Promise<CommentDto> {
     const row = await this.getRowOrFail(id);
+    await this.accessService.requireVersion(scope, row.versionId);
     if (row.parentId) {
       throw new BadRequestException('Nur der Wurzelkommentar eines Threads lässt sich erledigen.');
     }
@@ -301,6 +345,7 @@ export class CommentsService {
       body: row.comment.body,
       frame: row.comment.frame,
       timecode,
+      annotation: (row.comment.annotation as Annotation | null) ?? null,
       resolvedAt: row.comment.resolvedAt?.toISOString() ?? null,
       createdAt: row.comment.createdAt.toISOString(),
       updatedAt: row.comment.updatedAt.toISOString(),

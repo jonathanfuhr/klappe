@@ -10,6 +10,7 @@ import { relations } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  date,
   doublePrecision,
   foreignKey,
   index,
@@ -33,6 +34,11 @@ export const versionStatusEnum = pgEnum('version_status', [
   'FAILED',
 ]);
 export const uploadStatusEnum = pgEnum('upload_status', ['IN_PROGRESS', 'COMPLETED', 'ABORTED']);
+/** Wohin ein Upload gehört: eine Videoversion oder der Kunden-Ordner eines Projekts. */
+export const uploadKindEnum = pgEnum('upload_kind', ['VERSION', 'PROJECT_FILE']);
+export const shareScopeEnum = pgEnum('share_scope', ['PROJECT', 'VIDEO']);
+/** Wie das Material fürs Abspielen bereitsteht (siehe `transcode/media-plan.ts`). */
+export const playbackModeEnum = pgEnum('playback_mode', ['ORIGINAL', 'REMUX', 'TRANSCODE']);
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -62,6 +68,8 @@ export const projects = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
+    /** Kunde hinter dem Projekt – geht in die Download-Dateinamen ein. */
+    customer: text('customer'),
     description: text('description'),
     createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
@@ -80,6 +88,8 @@ export const videos = pgTable(
     name: text('name').notNull(),
     description: text('description'),
     sortOrder: integer('sort_order').notNull().default(0),
+    /** Schalter für das ganze Video; wirkt zusätzlich zum Recht am Share-Link. */
+    downloadsEnabled: boolean('downloads_enabled').notNull().default(true),
     createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
     ...timestamps,
   },
@@ -104,12 +114,20 @@ export const videoVersions = pgTable(
     processingFinishedAt: timestamp('processing_finished_at', { withTimezone: true }),
 
     uploadedById: uuid('uploaded_by_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Schalter für diese eine Fassung, z. B. wenn nur v3 raus darf. */
+    downloadEnabled: boolean('download_enabled').notNull().default(true),
 
     // Original – wird für Downloads immer unverändert ausgeliefert.
     originalFilename: text('original_filename').notNull(),
     originalSizeBytes: bigint('original_size_bytes', { mode: 'number' }).notNull(),
     originalMimeType: text('original_mime_type'),
     originalKey: text('original_key'),
+    /**
+     * Datum der Fassung im Dateinamen (JJMMTT). Kommt beim Upload vom
+     * Tagesdatum und lässt sich dort ändern – der Schnitt von gestern soll
+     * nicht das Datum des Hochladens tragen.
+     */
+    fileDate: date('file_date'),
 
     // Von ffprobe gelesene Kennwerte – Grundlage des Frame-Counters.
     durationSeconds: doublePrecision('duration_seconds'),
@@ -123,9 +141,14 @@ export const videoVersions = pgTable(
     height: integer('height'),
     videoCodec: text('video_codec'),
     audioCodec: text('audio_codec'),
+    pixelFormat: text('pixel_format'),
+    formatName: text('format_name'),
     bitrateBps: bigint('bitrate_bps', { mode: 'number' }),
 
     // Abgeleitete Dateien aus der Pipeline.
+    playbackMode: playbackModeEnum('playback_mode'),
+    /** Warum so entschieden wurde – für die Anzeige und die Fehlersuche. */
+    playbackReason: text('playback_reason'),
     proxyKey: text('proxy_key'),
     proxyWidth: integer('proxy_width'),
     proxyHeight: integer('proxy_height'),
@@ -156,12 +179,12 @@ export const uploads = pgTable(
   'uploads',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    videoId: uuid('video_id')
-      .notNull()
-      .references(() => videos.id, { onDelete: 'cascade' }),
-    versionId: uuid('version_id')
-      .notNull()
-      .references(() => videoVersions.id, { onDelete: 'cascade' }),
+    kind: uploadKindEnum('kind').notNull().default('VERSION'),
+    // Je nach Art ist entweder video/version gesetzt (neue Fassung) oder
+    // project (Datei im Kunden-Ordner).
+    videoId: uuid('video_id').references(() => videos.id, { onDelete: 'cascade' }),
+    versionId: uuid('version_id').references(() => videoVersions.id, { onDelete: 'cascade' }),
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
     createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
     filename: text('filename').notNull(),
     sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull(),
@@ -190,6 +213,12 @@ export const comments = pgTable(
     body: text('body').notNull(),
     /** `null` = allgemeiner Kommentar ohne Frame-Bezug. */
     frame: integer('frame'),
+    /**
+     * Zeichnung auf dem Videobild, Koordinaten normalisiert auf 0…1
+     * (siehe `packages/shared/src/annotations.ts`). Als JSONB, weil sie immer
+     * als Ganzes zu genau diesem Kommentar gehört.
+     */
+    annotation: jsonb('annotation').$type<{ strokes: unknown[] }>(),
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
     resolvedById: uuid('resolved_by_id').references(() => users.id, { onDelete: 'set null' }),
     editedAt: timestamp('edited_at', { withTimezone: true }),
@@ -224,6 +253,125 @@ export const commentMentions = pgTable(
   ],
 );
 
+/**
+ * Freigabe-Link auf ein Projekt oder ein einzelnes Video.
+ *
+ * Eine Projektfreigabe schließt alle enthaltenen Videos ein – auch die, die
+ * erst später dazukommen. Das ist Absicht: Der Kunde bekommt einen Link und
+ * sieht darüber den laufenden Stand.
+ */
+export const shareLinks = pgTable(
+  'share_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Zufälliger Teil der URL; nur dieser Wert ist das Geheimnis. */
+    token: text('token').notNull(),
+    scope: shareScopeEnum('scope').notNull(),
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+    videoId: uuid('video_id').references(() => videos.id, { onDelete: 'cascade' }),
+    label: text('label'),
+    /** Ohne dieses Recht sieht der Gast keinen Download-Knopf. */
+    allowDownload: boolean('allow_download').notNull().default(false),
+    /** Erlaubt dem Gast, Material in den Kunden-Ordner des Projekts zu legen. */
+    allowUpload: boolean('allow_upload').notNull().default(false),
+    /** Erlaubt dem Gast das Kommentieren. */
+    allowComments: boolean('allow_comments').notNull().default(true),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('share_links_token_unique').on(table.token),
+    index('share_links_project_idx').on(table.projectId),
+    index('share_links_video_idx').on(table.videoId),
+  ],
+);
+
+/**
+ * Welcher Gast hat sich über welchen Link angemeldet. Daraus ergibt sich sein
+ * Zugriff – und die Gästeübersicht pro Projekt und Video.
+ */
+export const shareLinkGrants = pgTable(
+  'share_link_grants',
+  {
+    shareLinkId: uuid('share_link_id')
+      .notNull()
+      .references(() => shareLinks.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Gesetzt, wenn einem einzelnen Gast der Zugriff entzogen wurde. */
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.shareLinkId, table.userId] }),
+    index('share_link_grants_user_idx').on(table.userId),
+  ],
+);
+
+/** Einmal-Code für die passwortlose Anmeldung von Gästen. */
+export const loginCodes = pgTable(
+  'login_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull(),
+    /** Der Code steht nur gehasht in der Datenbank. */
+    codeHash: text('code_hash').notNull(),
+    shareLinkId: uuid('share_link_id').references(() => shareLinks.id, { onDelete: 'cascade' }),
+    /** Der beim Anfordern angegebene Name; wird beim Einlösen übernommen. */
+    name: text('name'),
+    attempts: integer('attempts').notNull().default(0),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('login_codes_email_idx').on(table.email, table.createdAt)],
+);
+
+/** Datei im Kunden-Upload-Ordner eines Projekts (Phase 7). */
+export const projectFiles = pgTable(
+  'project_files',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    uploadedById: uuid('uploaded_by_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Über welchen Freigabe-Link die Datei kam – für die Nachvollziehbarkeit. */
+    shareLinkId: uuid('share_link_id').references(() => shareLinks.id, { onDelete: 'set null' }),
+    filename: text('filename').notNull(),
+    sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull(),
+    mimeType: text('mime_type'),
+    storageKey: text('storage_key').notNull(),
+    note: text('note'),
+    ...timestamps,
+  },
+  (table) => [index('project_files_project_idx').on(table.projectId, table.createdAt)],
+);
+
+/**
+ * Einstellungen des Workspace. Genau eine Zeile (`id = 1`) – der Container
+ * betreibt laut Konzept genau einen Workspace.
+ */
+export const appSettings = pgTable('app_settings', {
+  id: integer('id').primaryKey().default(1),
+  smtpEnabled: boolean('smtp_enabled').notNull().default(false),
+  smtpProvider: text('smtp_provider'),
+  smtpHost: text('smtp_host'),
+  smtpPort: integer('smtp_port'),
+  /** Implizites TLS (Port 465). Sonst STARTTLS. */
+  smtpSecure: boolean('smtp_secure').notNull().default(false),
+  smtpUser: text('smtp_user'),
+  /** Verschlüsselt abgelegt, siehe `common/secret-box.ts`. */
+  smtpPasswordEncrypted: text('smtp_password_encrypted'),
+  smtpFromName: text('smtp_from_name'),
+  smtpFromEmail: text('smtp_from_email'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   comments: many(comments),
@@ -232,6 +380,25 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   createdBy: one(users, { fields: [projects.createdById], references: [users.id] }),
   videos: many(videos),
+  files: many(projectFiles),
+  shareLinks: many(shareLinks),
+}));
+
+export const shareLinksRelations = relations(shareLinks, ({ one, many }) => ({
+  project: one(projects, { fields: [shareLinks.projectId], references: [projects.id] }),
+  video: one(videos, { fields: [shareLinks.videoId], references: [videos.id] }),
+  createdBy: one(users, { fields: [shareLinks.createdById], references: [users.id] }),
+  grants: many(shareLinkGrants),
+}));
+
+export const shareLinkGrantsRelations = relations(shareLinkGrants, ({ one }) => ({
+  shareLink: one(shareLinks, { fields: [shareLinkGrants.shareLinkId], references: [shareLinks.id] }),
+  user: one(users, { fields: [shareLinkGrants.userId], references: [users.id] }),
+}));
+
+export const projectFilesRelations = relations(projectFiles, ({ one }) => ({
+  project: one(projects, { fields: [projectFiles.projectId], references: [projects.id] }),
+  uploadedBy: one(users, { fields: [projectFiles.uploadedById], references: [users.id] }),
 }));
 
 export const videosRelations = relations(videos, ({ one, many }) => ({
@@ -266,3 +433,8 @@ export type VideoRow = typeof videos.$inferSelect;
 export type VideoVersionRow = typeof videoVersions.$inferSelect;
 export type UploadRow = typeof uploads.$inferSelect;
 export type CommentRow = typeof comments.$inferSelect;
+export type ShareLinkRow = typeof shareLinks.$inferSelect;
+export type ShareLinkGrantRow = typeof shareLinkGrants.$inferSelect;
+export type LoginCodeRow = typeof loginCodes.$inferSelect;
+export type ProjectFileRow = typeof projectFiles.$inferSelect;
+export type AppSettingsRow = typeof appSettings.$inferSelect;

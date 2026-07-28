@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="shell">
       <header className="shell__header">
-        <Link href="/projekte" className="shell__brand">
+        <Link href={user?.role === 'GUEST' ? '#' : '/projekte'} className="shell__brand">
           <span className="shell__brand-mark" aria-hidden>
             ◗
           </span>
@@ -25,9 +25,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             Projekte
           </Link>
           {user?.role === 'ADMIN' ? (
-            <Link href="/benutzer" data-active={pathname.startsWith('/benutzer')}>
-              Benutzer
-            </Link>
+            <>
+              <Link href="/benutzer" data-active={pathname.startsWith('/benutzer')}>
+                Benutzer
+              </Link>
+              <Link href="/einstellungen" data-active={pathname.startsWith('/einstellungen')}>
+                Einstellungen
+              </Link>
+            </>
           ) : null}
         </nav>
 
@@ -39,6 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {initialsOf(user.name)}
             </span>
             <span className="muted">{user.name}</span>
+            {user.role === 'GUEST' ? <span className="badge">Gast</span> : null}
             <button type="button" className="button button--ghost" onClick={() => void logout()}>
               Abmelden
             </button>

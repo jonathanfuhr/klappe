@@ -128,6 +128,34 @@ export class FfmpegService {
     });
   }
 
+  /**
+   * Neu verpacken ohne neu zu kodieren: Bild und Ton werden 1:1 kopiert, nur
+   * der Index wandert nach vorn. Das dauert Sekunden statt Minuten und lässt
+   * die Qualität unangetastet.
+   */
+  async remux(input: { inputPath: string; outputPath: string }): Promise<void> {
+    await this.run(
+      this.config.transcode.ffmpegPath,
+      [
+        '-hide_banner',
+        '-nostdin',
+        '-y',
+        '-i',
+        input.inputPath,
+        '-map',
+        '0:v:0',
+        '-map',
+        '0:a:0?',
+        '-c',
+        'copy',
+        '-movflags',
+        '+faststart',
+        input.outputPath,
+      ],
+      {},
+    );
+  }
+
   /** Einzelbild als Vorschau. */
   async createPoster(input: {
     inputPath: string;

@@ -5,10 +5,14 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { ProjectFiles } from '@/components/ProjectFiles';
+import { ShareManager } from '@/components/ShareManager';
 import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
 import { api, mediaUrl } from '@/lib/api';
 import { formatFrameRate, formatRelative } from '@/lib/format';
+import { useSession } from '@/lib/session';
+import { useUploads } from '@/lib/uploads-context';
 
 export default function ProjectPage() {
   const params = useParams<{ projectId: string }>();
@@ -18,6 +22,10 @@ export default function ProjectPage() {
   const [videos, setVideos] = useState<VideoDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
+  const { user } = useSession();
+  const { completedCount } = useUploads();
+  const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
 
   const load = useCallback(async () => {
     try {
@@ -38,6 +46,11 @@ export default function ProjectPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Nach jedem abgeschlossenen Upload die Liste auffrischen.
+  useEffect(() => {
+    if (completedCount > 0) void load();
+  }, [completedCount, load]);
 
   // Solange etwas transcodiert wird, den Stand regelmäßig nachladen.
   const pending = videos.some(
@@ -60,11 +73,17 @@ export default function ProjectPage() {
             <h1 className="page__title">{project?.name ?? 'Projekt'}</h1>
             {project?.description ? <p className="page__subtitle">{project.description}</p> : null}
           </div>
+          <div className="shell__spacer" />
+          {isTeam ? (
+            <button type="button" className="button" onClick={() => setSharing(true)}>
+              Freigeben
+            </button>
+          ) : null}
         </div>
 
         {error ? <div className="notice">{error}</div> : null}
 
-        <Uploader projectId={projectId} onDone={load} />
+        {isTeam ? <Uploader projectId={projectId} videos={videos} /> : null}
 
         <h2 style={{ fontSize: 16, margin: '26px 0 12px' }}>
           Videos {videos.length > 0 ? <span className="faint">({videos.length})</span> : null}
@@ -112,7 +131,25 @@ export default function ProjectPage() {
             );
           })}
         </div>
+
+        {project && (isTeam || project.canUploadFiles || project.fileCount > 0) ? (
+          <ProjectFiles
+            projectId={projectId}
+            canUpload={project.canUploadFiles}
+            currentUser={user}
+            reloadToken={completedCount}
+          />
+        ) : null}
       </div>
+
+      {sharing && project ? (
+        <ShareManager
+          scope="PROJECT"
+          projectId={projectId}
+          targetLabel={project.name}
+          onClose={() => setSharing(false)}
+        />
+      ) : null}
     </AppShell>
   );
 }

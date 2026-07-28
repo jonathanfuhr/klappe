@@ -4,40 +4,62 @@ Selbst gehostetes Review- und Freigabe-Werkzeug für Videoproduktionen – die
 eigene Alternative zu Frame.io. Läuft vollständig im Docker-Container auf
 eigener Infrastruktur.
 
-**Stand: Phasen 0 bis 4 der Umsetzungsreihenfolge sind gebaut.**
+**Stand: Phasen 0 bis 8 der Umsetzungsreihenfolge sind gebaut.**
 
 | Phase | Inhalt | Stand |
 | --- | --- | --- |
 | 0 | Fundament: Repo, docker-compose, Postgres-Schema, Basis-API, lokales Team-Login | fertig |
 | 1 | Projekte & Videos: CRUD, resumable Upload (tus), Versionen | fertig |
-| 2 | Pipeline: FFmpeg-Worker, 1080p-Proxy, Thumbnails, Metadaten | fertig |
+| 2 | Pipeline: FFmpeg-Worker, Proxy, Thumbnails, Metadaten | fertig |
 | 3 | Player: frame-genaue Wiedergabe, Timecode-/Frame-Counter, Shortcuts | fertig |
 | 4 | Kommentare: an Timecode gebunden, Threads, @-Mentions | fertig |
-| 5–13 | Zeichnen, Freigaben & Gäste, Kunden-Uploads, E-Mail, Verwaltung, Branding, M365, Tags, Feinschliff | offen |
+| 5 | Zeichnen im Bild: Overlay pro Kommentar und Frame | fertig |
+| 6 | Freigaben & Gäste: Links, Zugang per E-Mail-Code, Download-Rechte | fertig |
+| 7 | Kunden-Uploads: Ablage je Projekt, auch für Gäste | fertig |
+| 8 | E-Mail: SMTP-Einrichtung in der Oberfläche, Benachrichtigungen, Abmeldelink | fertig |
+| 9–13 | Verwaltung, Branding, Microsoft 365, Tags, Feinschliff | offen |
 
 ## Was heute funktioniert
 
 - **Anmeldung** mit lokalen Konten (E-Mail + Passwort), Rollen Admin /
   Team-Mitglied / Gast, Benutzerverwaltung für Admins.
 - **Projekte und Videos** anlegen, umbenennen, löschen; Videos mit mehreren
-  Versionen (v1, v2, …).
+  Versionen (v1, v2, …). Projekte tragen einen Kundennamen, der im
+  Download-Dateinamen landet.
 - **Upload großer Dateien** in Blöcken nach dem tus-Protokoll. Bricht die
   Verbindung ab, wird an genau der Stelle weitergemacht – geprüft mit einem
   abgerissenen 6-MB-Upload, dessen Ergebnis Byte für Byte der Quelle entspricht.
+- **Ein Upload-Fenster für viele Dateien**: mehrere Dateien auf einmal, das
+  Fenster lässt sich zuklappen und wieder öffnen, der Upload läuft beim
+  Navigieren weiter. Pro Datei werden Projekt, Video und Versionsnummer aus
+  dem Dateinamen vorgeschlagen – mit sichtbarem Hinweis, das bitte zu prüfen.
+  Fortschritt gibt es zweimal: für das Hochladen und für die Verarbeitung.
 - **Automatische Verarbeitung** jeder hochgeladenen Datei: `ffprobe` liest
-  Start-Timecode, Framerate, Auflösung und Dauer, `ffmpeg` erzeugt einen
-  1080p-H.264-Proxy mit `faststart`, einen Posterframe und einen
-  Sprite-Streifen für die Timeline-Vorschau.
+  Start-Timecode, Framerate, Auflösung und Dauer, `ffmpeg` erzeugt Proxy,
+  Posterframe und Sprite-Streifen für die Timeline-Vorschau. Vorher wird
+  geprüft, ob Neukodieren überhaupt nötig ist (siehe unten).
 - **Frame-genauer Player**: Live-Timecode und Frame-Zähler auf Basis von
   `requestVideoFrameCallback`, Einzelbildschritte, J/K/L, Sprünge an
   Anfang/Ende, Vollbild.
 - **Kommentare am Bild**: an einen Frame geheftet, mit Antworten,
   @-Mentions, Erledigt-Status und Markern auf der Timeline.
-- **Downloads liefern immer das Original**, nie den Proxy.
+- **Zeichnen im Bild**: freihändige Markierung auf dem Standbild, an denselben
+  Frame geheftet wie der Kommentar. Die Striche liegen in relativen
+  Koordinaten, sind also unabhängig von Fenster- und Videogröße.
+- **Freigabe-Links für Kunden**: ohne Konto, Zugang über einen sechsstelligen
+  Code per E-Mail. Pro Link einstellbar, ob kommentiert, heruntergeladen und
+  hochgeladen werden darf und welche Videos sichtbar sind; Entzug wirkt sofort.
+- **Kunden-Uploads**: eine Ablage je Projekt, in die Gäste Briefings, Logos
+  oder Schnittfassungen legen können. Gäste sehen nur die eigenen Dateien.
+- **E-Mail**: SMTP wird in der Oberfläche eingerichtet (Vorlagen für Brevo,
+  Mailgun, Postmark, SES und Microsoft 365), mit Testmail. Benachrichtigt wird
+  bei @-Mention und bei Antworten im eigenen Thread; jede Mail trägt einen
+  Abmeldelink.
+- **Downloads liefern immer das Original**, nie den Proxy – benannt nach dem
+  Schema `JJMMTT_Kunde_Projekt_Video_v2_1080p25.mov`.
 
-Noch nicht enthalten (spätere Phasen): Zeichnen im Bild, Freigabe-Links und
-Gastzugang per E-Mail-Code, Kunden-Upload-Ordner, E-Mail-Benachrichtigungen,
-White-Label, Microsoft 365, Tags und Filter.
+Noch nicht enthalten (spätere Phasen): Verwaltungsoberfläche für Speicher und
+Aufbewahrung, White-Label, Anmeldung über Microsoft 365, Tags und Filter.
 
 ## Schnellstart mit Docker
 
@@ -58,7 +80,88 @@ setzen, sonst schickt der Browser das Sitzungs-Cookie nicht mit.
 Nach außen wird nur der Dienst `web` veröffentlicht. Die API erreicht der
 Browser über die Weiterleitung `/v1/*` in Next.js – Oberfläche und API laufen
 so unter derselben Herkunft, was das Sitzungs-Cookie und den Betrieb hinter
-einem Cloudflared-Tunnel deutlich vereinfacht.
+einem Reverse Proxy deutlich vereinfacht.
+
+## HTTPS
+
+Ohne HTTPS geht es nicht: Das Sitzungs-Cookie wird mit `Secure` gesetzt, und
+Freigabe-Links landen bei Kunden im Postfach. Es gibt zwei Wege, beide ohne
+Zertifikate von Hand.
+
+### Weg 1: Cloudflared-Tunnel (empfohlen, kein Port nach außen)
+
+Der Tunnel baut die Verbindung von innen nach außen auf. Am Router muss
+**nichts** freigegeben werden, die Adresse ist sofort per HTTPS erreichbar,
+und der Server bleibt aus dem Internet unsichtbar. Das ist der einfachere
+Weg, solange der Datenverkehr über Cloudflare laufen darf.
+
+1. Bei Cloudflare unter *Zero Trust → Networks → Tunnels* einen Tunnel anlegen
+   und den Token kopieren.
+2. In der `.env` `PUBLIC_URL=https://klappe.example.org` setzen.
+3. Den Tunnel als weiteren Dienst neben Klappe starten, mit
+   `http://web:3000` als Ziel:
+
+```yaml
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+```
+
+Wichtig ist einzig, dass in Cloudflare bei den Tunnel-Einstellungen die
+maximale Dateigröße nicht bremst – Uploads laufen in Blöcken von wenigen
+Megabyte, sind also unkritisch, aber ein Limit auf der Cloudflare-Seite gilt
+trotzdem pro Anfrage.
+
+### Weg 2: Eigene Domain mit Portfreigabe
+
+Wer den Verkehr nicht über Dritte leiten will, gibt am Router die Ports 80 und
+443 frei und lässt Caddy das Zertifikat holen und erneuern:
+
+```bash
+# in .env:
+#   KLAPPE_DOMAIN=klappe.example.org
+#   ACME_EMAIL=technik@example.org
+#   PUBLIC_URL=https://klappe.example.org
+docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+```
+
+Port 80 wird für die Zertifikatsprüfung gebraucht und leitet danach auf HTTPS
+um. Die Ergänzung nimmt dem Dienst `web` die direkte Veröffentlichung ab, es
+hört also nur noch Caddy nach außen. Der Proxy reicht `X-Forwarded-Proto`
+weiter, gibt Antworten ungepuffert durch (sonst stockt das Video) und
+deckelt die Anfragegröße nicht – die Grenze setzt `UPLOAD_MAX_BYTES`.
+
+## Abspielfassung und Dateinamen
+
+**Es wird nur neu kodiert, wenn es sein muss.** Vor dem Transcoding prüft der
+Worker das Original: H.264, Ton als AAC oder MP3, Pixelformat `yuv420p`,
+MP4-/MOV-Container, kurze Kante klein genug, Bitrate im Rahmen. Passt alles
+und liegt der Index bereits vorn, wird die Datei **gar nicht angefasst** und
+direkt abgespielt. Fehlt nur der vorgezogene Index, genügt ein Neuverpacken
+(`-c copy`, Sekunden statt Minuten, Bild bitgleich). Erst wenn etwas nicht
+passt, läuft x264. Was passiert ist, steht an der Fassung
+(`ORIGINAL` / `REMUX` / `TRANSCODE`) samt Begründung.
+
+**Skaliert wird auf die kurze Kante, nicht auf die Höhe.** `PROXY_SHORT_EDGE=1080`
+heißt im Querformat 1920×1080, im Hochformat 1080×1920 und im Quadrat
+1080×1080. Auf die Höhe zu skalieren, würde einem Hochformat-Clip einen
+608 Pixel breiten Proxy verpassen.
+
+**Heruntergeladen wird unter einem festen Schema:**
+
+```
+JJMMTT_Kunde_Projektname_Videoname_Versionsnummer_Auflösung.Dateiendung
+260304_THD-Marketing_Sommer-Kampagne_Reel-Hochkant_v1_2160p25.mov
+```
+
+Das Datum ist das des Uploads und lässt sich im Upload-Fenster ändern. Die
+Auflösung nennt die kurze Kante samt Bildrate (`2160p25`, `1080p50`,
+`1080p2997`). Fehlende Teile – etwa ein Projekt ohne Kunden – fallen weg,
+statt Lücken zu hinterlassen.
 
 ## Entwicklung ohne Container
 
@@ -89,7 +192,7 @@ Prüfen:
 
 ```bash
 npm run typecheck    # alle Workspaces
-npm test             # 112 Tests
+npm test             # 240 Tests
 npm run build        # shared + API + Web
 ```
 
@@ -102,10 +205,12 @@ npm run db:generate  # erzeugt eine neue SQL-Migration in apps/api/drizzle/
 ## Aufbau
 
 ```
-packages/shared      Typen der Schnittstelle, Timecode-Mathematik, Mention-Format
+packages/shared      Typen der Schnittstelle, Timecode-Mathematik, Mention-Format,
+                     Zeichnungsformat, Dateinamen, Erkennung im Dateinamen
 apps/api             NestJS: HTTP-API (main.ts) und Transcoding-Worker (worker.ts)
 apps/api/drizzle     SQL-Migrationen
-apps/web             Next.js: Oberfläche, Player, Kommentare
+apps/web             Next.js: Oberfläche, Player, Kommentare, Upload-Fenster
+docker/              Caddyfile für den HTTPS-Betrieb mit eigener Domain
 docs/                Architektur, Datenmodell, API-Referenz
 ```
 
@@ -127,6 +232,7 @@ Mehr dazu in [docs/architektur.md](docs/architektur.md),
 | Umschalt + ← / → | Eine Sekunde zurück / vor |
 | Pos1 / Ende | Erstes / letztes Bild |
 | C | Kommentar am aktuellen Bild |
+| D | Zeichnen am aktuellen Bild |
 | M | Ton stumm |
 | F | Vollbild |
 

@@ -2,7 +2,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import IORedis from 'ioredis';
 import { AppConfig, CONFIG } from '../config/configuration';
-import { TRANSCODE_QUEUE } from './queue.constants';
+import { MAIL_QUEUE, TRANSCODE_QUEUE } from './queue.constants';
+import { MailQueueService } from './mail-queue.service';
 import { TranscodeQueueService } from './transcode-queue.service';
 
 @Module({
@@ -24,8 +25,19 @@ import { TranscodeQueueService } from './transcode-queue.service';
         removeOnFail: { age: 60 * 60 * 24 * 7 },
       },
     }),
+    BullModule.registerQueue({
+      name: MAIL_QUEUE,
+      defaultJobOptions: {
+        // Mailserver sind gelegentlich kurz nicht erreichbar; ein paar
+        // Versuche mit wachsendem Abstand fangen das ab.
+        attempts: 4,
+        backoff: { type: 'exponential', delay: 30_000 },
+        removeOnComplete: { age: 60 * 60 * 24, count: 1000 },
+        removeOnFail: { age: 60 * 60 * 24 * 7 },
+      },
+    }),
   ],
-  providers: [TranscodeQueueService],
-  exports: [BullModule, TranscodeQueueService],
+  providers: [TranscodeQueueService, MailQueueService],
+  exports: [BullModule, TranscodeQueueService, MailQueueService],
 })
 export class QueueModule {}

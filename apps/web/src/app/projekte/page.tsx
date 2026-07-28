@@ -78,6 +78,11 @@ export default function ProjectsPage() {
             <Link key={project.id} href={`/projekte/${project.id}`} className="card tile">
               <div className="tile__body">
                 <span className="tile__title">{project.name}</span>
+                {project.customer ? (
+                  <span className="faint" style={{ fontSize: 12 }}>
+                    {project.customer}
+                  </span>
+                ) : null}
                 {project.description ? (
                   <span className="muted" style={{ fontSize: 13 }}>
                     {project.description}
@@ -117,6 +122,7 @@ function CreateProjectDialog({
   onCreated: () => Promise<void>;
 }) {
   const [name, setName] = useState('');
+  const [customer, setCustomer] = useState('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -129,7 +135,11 @@ function CreateProjectDialog({
           setBusy(true);
           setError(null);
           try {
-            await api.createProject({ name, description: description || undefined });
+            await api.createProject({
+              name,
+              customer: customer || undefined,
+              description: description || undefined,
+            });
             await onCreated();
           } catch (createError) {
             setError(createError instanceof Error ? createError.message : 'Anlegen fehlgeschlagen.');
@@ -150,6 +160,20 @@ function CreateProjectDialog({
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
+        </div>
+        <div className="field">
+          <label className="field__label" htmlFor="project-customer">
+            Kunde (optional)
+          </label>
+          <input
+            id="project-customer"
+            className="input"
+            value={customer}
+            onChange={(event) => setCustomer(event.target.value)}
+          />
+          <p className="hint">
+            Steht im Download-Dateinamen und hilft beim Zuordnen hochgeladener Dateien.
+          </p>
         </div>
         <div className="field">
           <label className="field__label" htmlFor="project-description">

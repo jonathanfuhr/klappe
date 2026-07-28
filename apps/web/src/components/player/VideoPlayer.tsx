@@ -1,12 +1,17 @@
 'use client';
 
 import {
+  ANNOTATION_COLORS,
+  ANNOTATION_STROKE_WIDTHS,
+  type Annotation,
+  DEFAULT_ANNOTATION_WIDTH,
   type FrameRate,
   type VersionDto,
   formatDuration,
   frameToDisplayTimecode,
   frameToSeekTime,
   framesToSeconds,
+  isAnnotationEmpty,
 } from '@klappe/shared';
 import {
   forwardRef,
@@ -18,6 +23,7 @@ import {
   useState,
 } from 'react';
 import { mediaUrl } from '@/lib/api';
+import { AnnotationCanvas } from './AnnotationCanvas';
 import { Timeline } from './Timeline';
 import { useFrameClock } from './useFrameClock';
 
@@ -25,6 +31,9 @@ export interface PlayerHandle {
   seekToFrame: (frame: number) => void;
   getFrame: () => number;
   pause: () => void;
+  /** Zeichenmodus einschalten und die Fläche leeren. */
+  startDrawing: () => void;
+  clearDrawing: () => void;
 }
 
 export interface CommentMarker {
@@ -38,16 +47,32 @@ interface VideoPlayerProps {
   version: VersionDto;
   markers: CommentMarker[];
   activeCommentId?: string | null;
+  /** Zeichnung eines ausgewählten Kommentars, die eingeblendet werden soll. */
+  shownAnnotation?: Annotation | null;
+  /** Darf hier gezeichnet und kommentiert werden? */
+  canComment?: boolean;
   onMarkerClick?: (commentId: string) => void;
   onFrameChange?: (frame: number) => void;
   onRequestComment?: (frame: number) => void;
+  /** Meldet die gerade gezeichnete Skizze an die Review-Seite. */
+  onDraftAnnotationChange?: (annotation: Annotation | null) => void;
 }
 
 /** Stufen für J/K/L – wie im Schnittprogramm. */
 const SHUTTLE_RATES = [1, 2, 4, 8] as const;
 
 export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function VideoPlayer(
-  { version, markers, activeCommentId, onMarkerClick, onFrameChange, onRequestComment },
+  {
+    version,
+    markers,
+    activeCommentId,
+    shownAnnotation,
+    canComment = true,
+    onMarkerClick,
+    onFrameChange,
+    onRequestComment,
+    onDraftAnnotationChange,
+  },
   ref,
 ) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -59,6 +84,12 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   const [rate, setRate] = useState(0);
   const [muted, setMuted] = useState(false);
   const [buffered, setBuffered] = useState(0);
+
+  // ---------- Zeichnen (Phase 5) ----------
+  const [drawingMode, setDrawingMode] = useState(false);
+  const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
+  const [penColor, setPenColor] = useState<string>(ANNOTATION_COLORS[0]);
+  const [penWidth, setPenWidth] = useState<number>(DEFAULT_ANNOTATION_WIDTH);
 
   const frameRate: FrameRate | null = version.media.frameRate;
   const frame = useFrameClock(videoRef, frameRate, ready);
@@ -173,6 +204,26 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
     [frame, seekToFrame, stopTransport],
   );
 
+  const setDraft = useCallback(
+    (next: Annotation | null) => {
+      setDraftAnnotation(next);
+      onDraftAnnotationChange?.(next && !isAnnotationEmpty(next) ? next : null);
+    },
+    [onDraftAnnotationChange],
+  );
+
+  const clearDrawing = useCallback(() => {
+    setDraft(null);
+    setDrawingMode(false);
+  }, [setDraft]);
+
+  const startDrawing = useCallback(() => {
+    // Zeichnen auf einem laufenden Bild ergibt keinen Sinn – der Frame, auf
+    // den sich die Skizze bezieht, wäre beim Loslassen schon vorbei.
+    stopTransport();
+    setDrawingMode(true);
+  }, [stopTransport]);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -182,9 +233,19 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
       },
       getFrame: () => frame,
       pause: stopTransport,
+      startDrawing,
+      clearDrawing,
     }),
-    [frame, seekToFrame, stopTransport],
+    [frame, seekToFrame, stopTransport, startDrawing, clearDrawing],
   );
+
+  /** Beim Springen an eine andere Stelle ist die Skizze gegenstandslos. */
+  useEffect(() => {
+    if (!drawingMode) return;
+    setDraft(null);
+    // Absichtlich nur am Frame hängend: Ein neuer Frame heißt neues Blatt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frame]);
 
   /** Tastaturkürzel – global, solange nicht gerade in ein Feld getippt wird. */
   useEffect(() => {
@@ -260,6 +321,13 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           stopTransport();
           onRequestComment?.(frame);
           break;
+        case 'd':
+        case 'D':
+          if (!canComment) break;
+          event.preventDefault();
+          if (drawingMode) clearDrawing();
+          else startDrawing();
+          break;
         default:
           break;
       }
@@ -268,10 +336,14 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
+    canComment,
+    clearDrawing,
+    drawingMode,
     frame,
     frameRate,
     onRequestComment,
     shuttle,
+    startDrawing,
     stepFrames,
     stopTransport,
     togglePlay,
@@ -302,7 +374,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
             onPause={() => setPlaying(false)}
             onEnded={() => setRate(0)}
             onProgress={onProgress}
-            onClick={togglePlay}
+            onClick={drawingMode ? undefined : togglePlay}
           />
         ) : (
           <div className="player__placeholder">
@@ -313,7 +385,59 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
                 : `Der Proxy wird erzeugt … ${version.progress} %`}
           </div>
         )}
+
+        {hasProxy ? (
+          <AnnotationCanvas
+            annotation={drawingMode ? draftAnnotation : (shownAnnotation ?? null)}
+            drawing={drawingMode}
+            color={penColor}
+            strokeWidth={penWidth}
+            onChange={setDraft}
+          />
+        ) : null}
       </div>
+
+      {drawingMode ? (
+        <div className="pentools">
+          <span className="pentools__label">Stift</span>
+          {ANNOTATION_COLORS.map((entry) => (
+            <button
+              key={entry}
+              type="button"
+              className="pentools__color"
+              style={{ background: entry }}
+              data-active={entry === penColor}
+              aria-label={`Farbe ${entry}`}
+              onClick={() => setPenColor(entry)}
+            />
+          ))}
+          <span className="pentools__divider" />
+          {ANNOTATION_STROKE_WIDTHS.map((entry, index) => (
+            <button
+              key={entry}
+              type="button"
+              className="pentools__width"
+              data-active={entry === penWidth}
+              aria-label={`Strichstärke ${index + 1}`}
+              onClick={() => setPenWidth(entry)}
+            >
+              <span style={{ height: 2 + index * 3 }} />
+            </button>
+          ))}
+          <div className="shell__spacer" />
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => setDraft(null)}
+            disabled={isAnnotationEmpty(draftAnnotation)}
+          >
+            Leeren
+          </button>
+          <button type="button" className="button button--ghost" onClick={clearDrawing}>
+            Fertig
+          </button>
+        </div>
+      ) : null}
 
       <Timeline
         version={version}
@@ -431,12 +555,23 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         </button>
         <button
           type="button"
+          className="iconbutton"
+          onClick={() => (drawingMode ? clearDrawing() : startDrawing())}
+          disabled={!hasProxy || !canComment}
+          title="Auf das Bild zeichnen (D)"
+          aria-label="Zeichnen"
+          data-active={drawingMode}
+        >
+          ✎
+        </button>
+        <button
+          type="button"
           className="button"
           onClick={() => {
             stopTransport();
             onRequestComment?.(frame);
           }}
-          disabled={!hasProxy}
+          disabled={!hasProxy || !canComment}
           title="Kommentar am aktuellen Bild (C)"
         >
           Kommentar setzen

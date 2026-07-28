@@ -36,7 +36,10 @@ export interface AppConfig {
   transcode: {
     ffmpegPath: string;
     ffprobePath: string;
-    proxyHeight: number;
+    /** Zielgröße der **kurzen** Kante – passt für Quer-, Hoch- und Quadratformat. */
+    proxyShortEdge: number;
+    /** Ab dieser Bitrate wird auch passendes Material neu kodiert. */
+    playbackMaxBitrateBps: number;
     proxyVideoBitrate: string;
     proxyMaxrate: string;
     proxyBufsize: string;
@@ -117,7 +120,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     transcode: {
       ffmpegPath: env.FFMPEG_PATH?.trim() || 'ffmpeg',
       ffprobePath: env.FFPROBE_PATH?.trim() || 'ffprobe',
-      proxyHeight: readInt(env, 'PROXY_HEIGHT', 1080),
+      // PROXY_HEIGHT bleibt als alter Name gültig, damit bestehende
+      // .env-Dateien weiterlaufen.
+      proxyShortEdge: readInt(env, 'PROXY_SHORT_EDGE', readInt(env, 'PROXY_HEIGHT', 1080)),
+      playbackMaxBitrateBps: readInt(env, 'PLAYBACK_MAX_BITRATE_BPS', 20_000_000),
       proxyVideoBitrate: env.PROXY_VIDEO_BITRATE?.trim() || '10M',
       proxyMaxrate: env.PROXY_MAXRATE?.trim() || '12M',
       proxyBufsize: env.PROXY_BUFSIZE?.trim() || '24M',

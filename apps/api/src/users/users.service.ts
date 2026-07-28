@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { UserDto, UserSummaryDto } from '@klappe/shared';
+import type { UserDto, UserRole, UserSummaryDto } from '@klappe/shared';
 import { and, asc, eq, ilike, ne, or, sql } from 'drizzle-orm';
 import { hashPassword, validatePasswordStrength } from '../auth/password';
 import { normalizeEmail, normalizeName } from '../common/normalize';
@@ -41,8 +41,16 @@ export class UsersService {
   /**
    * Kandidaten für @-Mentions. Bewusst nur aktive Konten und auf wenige
    * Treffer begrenzt – die Liste läuft bei jedem Tastendruck im Editor.
+   *
+   * Gäste bekommen ausschließlich Team-Mitglieder vorgeschlagen. Sonst
+   * könnten sich zwei Kunden am selben Projekt gegenseitig aus der
+   * Vorschlagsliste auslesen.
    */
-  async searchMentionable(query: string, limit = 8): Promise<UserSummaryDto[]> {
+  async searchMentionable(
+    query: string,
+    role: UserRole,
+    limit = 8,
+  ): Promise<UserSummaryDto[]> {
     const term = `%${query.trim()}%`;
     const rows = await this.db
       .select({ id: users.id, name: users.name, email: users.email })
@@ -50,12 +58,23 @@ export class UsersService {
       .where(
         and(
           eq(users.isActive, true),
+          role === 'GUEST' ? ne(users.role, 'GUEST') : undefined,
           query.trim() ? or(ilike(users.name, term), ilike(users.email, term)) : undefined,
         ),
       )
       .orderBy(asc(users.name))
       .limit(limit);
     return rows.map((row) => this.toSummary(row));
+  }
+
+  /** Abmelde-Link aus einer Benachrichtigung: schaltet die Mails ab. */
+  async disableNotifications(userId: string): Promise<boolean> {
+    const [row] = await this.db
+      .update(users)
+      .set({ notificationsEnabled: false, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return Boolean(row);
   }
 
   async findByIdOrFail(id: string): Promise<UserDto> {

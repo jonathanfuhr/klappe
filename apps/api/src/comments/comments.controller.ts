@@ -10,6 +10,7 @@ import {
   Post,
 } from '@nestjs/common';
 import type { CommentDto } from '@klappe/shared';
+import { AccessService } from '../access/access.service';
 import { CurrentUser } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
 import { CommentsService } from './comments.service';
@@ -17,53 +18,65 @@ import { CreateCommentDto, UpdateCommentDto } from './comments.dto';
 
 @Controller('v1')
 export class CommentsController {
-  constructor(private readonly commentsService: CommentsService) {}
+  constructor(
+    private readonly commentsService: CommentsService,
+    private readonly accessService: AccessService,
+  ) {}
 
   @Get('versions/:versionId/comments')
-  list(@Param('versionId', new ParseUUIDPipe()) versionId: string): Promise<CommentDto[]> {
-    return this.commentsService.listForVersion(versionId);
+  async list(
+    @Param('versionId', new ParseUUIDPipe()) versionId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<CommentDto[]> {
+    const scope = await this.accessService.loadScope(user);
+    return this.commentsService.listForVersion(versionId, scope);
   }
 
   @Post('versions/:versionId/comments')
-  create(
+  async create(
     @Param('versionId', new ParseUUIDPipe()) versionId: string,
     @Body() dto: CreateCommentDto,
     @CurrentUser() user: RequestUser,
   ): Promise<CommentDto> {
-    return this.commentsService.create(versionId, dto, user);
+    const scope = await this.accessService.loadScope(user);
+    return this.commentsService.create(versionId, dto, user, scope);
   }
 
   @Patch('comments/:id')
-  update(
+  async update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateCommentDto,
     @CurrentUser() user: RequestUser,
   ): Promise<CommentDto> {
-    return this.commentsService.update(id, dto, user);
+    const scope = await this.accessService.loadScope(user);
+    return this.commentsService.update(id, dto, user, scope);
   }
 
   @Delete('comments/:id')
   @HttpCode(204)
-  remove(
+  async remove(
     @Param('id', new ParseUUIDPipe()) id: string,
     @CurrentUser() user: RequestUser,
   ): Promise<void> {
-    return this.commentsService.remove(id, user);
+    const scope = await this.accessService.loadScope(user);
+    return this.commentsService.remove(id, user, scope);
   }
 
   @Post('comments/:id/resolve')
-  resolve(
+  async resolve(
     @Param('id', new ParseUUIDPipe()) id: string,
     @CurrentUser() user: RequestUser,
   ): Promise<CommentDto> {
-    return this.commentsService.setResolved(id, true, user);
+    const scope = await this.accessService.loadScope(user);
+    return this.commentsService.setResolved(id, true, user, scope);
   }
 
   @Delete('comments/:id/resolve')
-  unresolve(
+  async unresolve(
     @Param('id', new ParseUUIDPipe()) id: string,
     @CurrentUser() user: RequestUser,
   ): Promise<CommentDto> {
-    return this.commentsService.setResolved(id, false, user);
+    const scope = await this.accessService.loadScope(user);
+    return this.commentsService.setResolved(id, false, user, scope);
   }
 }

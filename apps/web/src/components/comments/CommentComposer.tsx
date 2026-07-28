@@ -17,6 +17,9 @@ interface CommentComposerProps {
   autoFocus?: boolean;
   /** Bei jeder Änderung springt der Cursor ins Feld (Shortcut „C“). */
   focusToken?: number;
+  /** Es liegt eine Zeichnung bereit, die mitgeschickt wird. */
+  hasAnnotation?: boolean;
+  onClearAnnotation?: () => void;
   onCancel?: () => void;
 }
 
@@ -37,6 +40,8 @@ export function CommentComposer({
   submitLabel = 'Kommentieren',
   autoFocus,
   focusToken,
+  hasAnnotation,
+  onClearAnnotation,
   onCancel,
 }: CommentComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -215,6 +220,17 @@ export function CommentComposer({
       {error ? (
         <div className="notice" style={{ marginTop: 8 }}>
           {error}
+        </div>
+      ) : null}
+
+      {hasAnnotation ? (
+        <div className="composer__row">
+          <span className="comment__pen">✎ Zeichnung wird mitgeschickt</span>
+          {onClearAnnotation ? (
+            <button type="button" className="button button--ghost" onClick={onClearAnnotation}>
+              Verwerfen
+            </button>
+          ) : null}
         </div>
       ) : null}
 

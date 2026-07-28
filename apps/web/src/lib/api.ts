@@ -1,7 +1,16 @@
 import type {
+  Annotation,
   CommentDto,
+  GuestLoginResponseDto,
   LoginResponseDto,
   ProjectDto,
+  ProjectFileDto,
+  ShareGuestDto,
+  ShareLinkDto,
+  SharePreviewDto,
+  ShareScope,
+  SmtpProviderPresetDto,
+  SmtpSettingsDto,
   UploadSessionDto,
   UserDto,
   UserRole,
@@ -88,9 +97,9 @@ export const api = {
 
   listProjects: () => request<ProjectDto[]>('/v1/projects'),
   getProject: (id: string) => request<ProjectDto>(`/v1/projects/${id}`),
-  createProject: (input: { name: string; description?: string }) =>
+  createProject: (input: { name: string; customer?: string; description?: string }) =>
     request<ProjectDto>('/v1/projects', { method: 'POST', body: JSON.stringify(input) }),
-  updateProject: (id: string, input: { name?: string; description?: string }) =>
+  updateProject: (id: string, input: { name?: string; customer?: string; description?: string }) =>
     request<ProjectDto>(`/v1/projects/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteProject: (id: string) => request<void>(`/v1/projects/${id}`, { method: 'DELETE' }),
 
@@ -101,21 +110,40 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  updateVideo: (id: string, input: { name?: string; description?: string }) =>
-    request<VideoDto>(`/v1/videos/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  updateVideo: (
+    id: string,
+    input: { name?: string; description?: string; downloadsEnabled?: boolean },
+  ) => request<VideoDto>(`/v1/videos/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteVideo: (id: string) => request<void>(`/v1/videos/${id}`, { method: 'DELETE' }),
 
   listVersions: (videoId: string) => request<VersionDto[]>(`/v1/videos/${videoId}/versions`),
   getVersion: (id: string) => request<VersionDto>(`/v1/versions/${id}`),
-  updateVersion: (id: string, input: { label?: string }) =>
+  updateVersion: (
+    id: string,
+    input: { label?: string; downloadEnabled?: boolean; fileDate?: string },
+  ) =>
     request<VersionDto>(`/v1/versions/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteVersion: (id: string) => request<void>(`/v1/versions/${id}`, { method: 'DELETE' }),
 
   createUpload: (
     videoId: string,
-    input: { filename: string; sizeBytes: number; mimeType?: string; label?: string },
+    input: {
+      filename: string;
+      sizeBytes: number;
+      mimeType?: string;
+      label?: string;
+      fileDate?: string;
+    },
   ) =>
     request<UploadSessionDto>(`/v1/videos/${videoId}/uploads`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  createProjectFileUpload: (
+    projectId: string,
+    input: { filename: string; sizeBytes: number; mimeType?: string },
+  ) =>
+    request<UploadSessionDto>(`/v1/projects/${projectId}/uploads`, {
       method: 'POST',
       body: JSON.stringify(input),
     }),
@@ -124,7 +152,12 @@ export const api = {
   listComments: (versionId: string) => request<CommentDto[]>(`/v1/versions/${versionId}/comments`),
   createComment: (
     versionId: string,
-    input: { body: string; frame?: number | null; parentId?: string },
+    input: {
+      body: string;
+      frame?: number | null;
+      parentId?: string;
+      annotation?: Annotation | null;
+    },
   ) =>
     request<CommentDto>(`/v1/versions/${versionId}/comments`, {
       method: 'POST',
@@ -132,6 +165,7 @@ export const api = {
         body: input.body,
         ...(input.frame === null || input.frame === undefined ? {} : { frame: input.frame }),
         ...(input.parentId ? { parentId: input.parentId } : {}),
+        ...(input.annotation ? { annotation: input.annotation } : {}),
       }),
     }),
   updateComment: (id: string, body: string) =>
@@ -149,6 +183,75 @@ export const api = {
   ) => request<UserDto>(`/v1/users/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   mentionableUsers: (query: string) =>
     request<UserSummaryDto[]>(`/v1/mentionable-users?q=${encodeURIComponent(query)}`),
+  unsubscribe: (token: string) =>
+    request<{ ok: boolean }>('/v1/unsubscribe', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+
+  // ---------- Freigaben (Phase 6) ----------
+  listProjectShares: (projectId: string) =>
+    request<ShareLinkDto[]>(`/v1/projects/${projectId}/shares`),
+  listVideoShares: (videoId: string) => request<ShareLinkDto[]>(`/v1/videos/${videoId}/shares`),
+  createShare: (input: {
+    scope: ShareScope;
+    projectId?: string;
+    videoId?: string;
+    label?: string;
+    allowDownload?: boolean;
+    allowUpload?: boolean;
+    allowComments?: boolean;
+    expiresAt?: string;
+  }) => request<ShareLinkDto>('/v1/shares', { method: 'POST', body: JSON.stringify(input) }),
+  updateShare: (
+    id: string,
+    input: {
+      label?: string;
+      allowDownload?: boolean;
+      allowUpload?: boolean;
+      allowComments?: boolean;
+      revoked?: boolean;
+    },
+  ) => request<ShareLinkDto>(`/v1/shares/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  deleteShare: (id: string) => request<void>(`/v1/shares/${id}`, { method: 'DELETE' }),
+  listShareGuests: (id: string) => request<ShareGuestDto[]>(`/v1/shares/${id}/guests`),
+  setShareGuestRevoked: (id: string, userId: string, revoked: boolean) =>
+    request<void>(`/v1/shares/${id}/guests/${userId}`, { method: revoked ? 'DELETE' : 'POST' }),
+
+  // ---------- Gastzugang ----------
+  sharePreview: (token: string) => request<SharePreviewDto>(`/v1/share/${token}`),
+  requestGuestCode: (token: string, input: { name: string; email: string }) =>
+    request<void>(`/v1/share/${token}/code`, { method: 'POST', body: JSON.stringify(input) }),
+  verifyGuestCode: (token: string, input: { email: string; code: string }) =>
+    request<GuestLoginResponseDto>(`/v1/share/${token}/verify`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  // ---------- Kundendateien (Phase 7) ----------
+  listProjectFiles: (projectId: string) =>
+    request<ProjectFileDto[]>(`/v1/projects/${projectId}/files`),
+  deleteProjectFile: (id: string) => request<void>(`/v1/project-files/${id}`, { method: 'DELETE' }),
+
+  // ---------- E-Mail (Phase 8) ----------
+  getSmtpSettings: () => request<SmtpSettingsDto>('/v1/settings/smtp'),
+  updateSmtpSettings: (input: {
+    enabled?: boolean;
+    provider?: string;
+    host?: string;
+    port?: number;
+    secure?: boolean;
+    user?: string;
+    password?: string;
+    fromName?: string;
+    fromEmail?: string;
+  }) => request<SmtpSettingsDto>('/v1/settings/smtp', { method: 'PUT', body: JSON.stringify(input) }),
+  smtpPresets: () => request<SmtpProviderPresetDto[]>('/v1/settings/smtp/presets'),
+  sendTestMail: (to?: string) =>
+    request<void>('/v1/settings/smtp/test', {
+      method: 'POST',
+      body: JSON.stringify(to ? { to } : {}),
+    }),
 };
 
 export const mediaUrl = {
@@ -156,4 +259,5 @@ export const mediaUrl = {
   poster: (versionId: string) => `${API_BASE}/v1/versions/${versionId}/poster`,
   sprite: (versionId: string) => `${API_BASE}/v1/versions/${versionId}/sprite`,
   original: (versionId: string) => `${API_BASE}/v1/versions/${versionId}/original`,
+  projectFile: (fileId: string) => `${API_BASE}/v1/project-files/${fileId}/download`,
 };

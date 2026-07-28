@@ -7,21 +7,29 @@ SQL-Migrationen in `apps/api/drizzle/` erzeugt (`npm run db:generate`).
 users
   └── projects ──┬── videos ── video_versions ──┬── comments ── comment_mentions
                  │                              └── uploads
+                 ├── share_links ── share_link_grants
+                 │        └── login_codes
+                 └── project_files
+
+app_settings   (SMTP, workspace-weit)
 ```
 
 ## users
 
-Konten für Team und (später) Gäste.
+Konten für Team und Gäste.
 
 | Spalte | Anmerkung |
 | --- | --- |
 | `email` | immer kleingeschrieben gespeichert, eindeutig |
-| `password_hash` | `null` bei Konten ohne lokales Passwort (später Gäste, M365) |
+| `password_hash` | `null` bei Konten ohne lokales Passwort (Gäste, später M365) |
 | `role` | `ADMIN` \| `MEMBER` \| `GUEST` |
 | `is_active` | gesperrte Konten kommen sofort nicht mehr durch den Guard |
-| `notifications_enabled` | vorbereitet für Phase 8 |
+| `notifications_enabled` | steuert den Mailversand; der Abmeldelink setzt es auf `false` |
 
 Der letzte aktive Administrator lässt sich weder herabstufen noch sperren.
+
+Gastkonten entstehen beim ersten bestätigten Zugangscode. Sie haben kein
+Passwort und sehen nur, was ihre Freigabe-Links hergeben.
 
 ## projects
 
@@ -29,10 +37,16 @@ Projekt im Workspace. `archived_at` ist vorbereitet, aber noch ohne
 Oberfläche. Jeder Schreibzugriff im Projekt setzt `updated_at` neu, damit die
 Projektliste nach zuletzt bearbeitet sortieren kann.
 
+`customer` ist der Kundenname. Er steht im Download-Dateinamen und dient dem
+Upload-Fenster als Anhaltspunkt, welches Projekt zu einer Datei gehört.
+
 ## videos
 
 Ein Video im Projekt, mit `sort_order` für eine spätere manuelle Reihenfolge.
 Löschen kaskadiert auf Versionen, Uploads und Kommentare.
+
+`downloads_enabled` ist der Schalter am Video – einer von dreien, die dem
+Download eines Gastes zustimmen müssen.
 
 ## video_versions
 
@@ -55,10 +69,17 @@ Inhaltliche Gruppen:
   Downloads liefern immer diese Datei.
 - **Aus `ffprobe`** – `duration_seconds`, `frame_count`, `fps_num`/`fps_den`
   (exakter Bruch, z. B. 30000/1001), `drop_frame`, `start_timecode` und
-  `start_timecode_frames`, Auflösung, Codecs, Bitrate.
+  `start_timecode_frames`, Auflösung, Codecs, `pixel_format`, `format_name`,
+  Bitrate.
 - **Aus der Pipeline** – `proxy_key` samt Maßen, `poster_key`, `sprite_key`
   mit Spalten, Zeilen, Kachelmaßen, Kachelzahl und Abstand.
+- **Abspielweg** – `playback_mode` (`ORIGINAL` \| `REMUX` \| `TRANSCODE`) und
+  `playback_reason`. Bei `ORIGINAL` zeigt `proxy_key` auf dieselbe Datei wie
+  `original_key`; es liegt keine zweite Kopie herum.
 - **Verarbeitung** – `progress` (0–100), `processing_error`, Zeitstempel.
+- **Ablage** – `download_enabled` (dritter Schalter für Gäste) und `file_date`
+  (`JJJJ-MM-TT`), das Datum im Download-Dateinamen. Es kommt vom Upload und
+  ist danach änderbar.
 
 Warum die Framerate als Bruch: 29,97 ist in Wahrheit 30000/1001. Als
 Dezimalzahl gespeichert liefe der Timecode nach einer Stunde um mehrere
@@ -74,7 +95,9 @@ Laufende Upload-Sitzung nach tus-Semantik.
 
 | Spalte | Anmerkung |
 | --- | --- |
-| `version_id` | die Version entsteht schon beim Anlegen der Sitzung |
+| `kind` | `VERSION` (neue Fassung) oder `PROJECT_FILE` (Kunden-Ablage) |
+| `version_id` | bei `VERSION` schon beim Anlegen der Sitzung erzeugt, sonst `null` |
+| `project_id` | bei `PROJECT_FILE` das Ziel, sonst `null` |
 | `size_bytes` | angekündigte Gesamtgröße (`Upload-Length`) |
 | `offset_bytes` | maßgeblicher Stand; wird gegen die Dateigröße abgeglichen |
 | `storage_key` | `tmp/uploads/<id>.part`, nach Abschluss der endgültige Ort |
@@ -89,6 +112,13 @@ Laufende Upload-Sitzung nach tus-Semantik.
 | `resolved_at` / `resolved_by_id` | Erledigt-Status |
 | `deleted_at` | weiches Löschen, damit Threads nicht auseinanderfallen |
 | `edited_at` | gesetzt, sobald der Text geändert wurde |
+| `annotation` | Zeichnung zum selben Frame, als JSON; `null` ohne Zeichnung |
+
+Die Zeichnung liegt in **relativen** Koordinaten (0…1 der Bildbreite und
+-höhe), die Strichstärke als Bruchteil der Höhe. Damit sitzt sie im Vollbild
+genauso wie im kleinen Fenster und passt auch dann noch, wenn dieselbe Szene
+später in anderer Auflösung hochgeladen wird. Format und Prüfung stehen in
+`packages/shared/src/annotations.ts`.
 
 Sortierung in der Liste: nach Frame aufsteigend, allgemeine Kommentare
 zuletzt, bei gleichem Frame nach Zeitpunkt.
@@ -104,4 +134,52 @@ Im Text steht ein Mention als `@[Anna Meier](benutzer-id)`. Der Vorteil
 gegenüber einem bloßen `@anna`: Die Zuordnung bleibt eindeutig, auch wenn
 zwei Personen gleich heißen oder jemand später umbenannt wird. Beim Speichern
 werden die IDs aus dem Text gelesen und gegen aktive Konten geprüft; nur diese
-landen in der Tabelle. Grundlage für die Benachrichtigungen in Phase 8.
+landen in der Tabelle. Sie entscheidet auch, wer benachrichtigt wird.
+
+## share_links
+
+Ein Freigabe-Link auf ein Projekt.
+
+| Spalte | Anmerkung |
+| --- | --- |
+| `token` | 24 Zeichen ohne `0`, `o`, `1`, `l`; eindeutig, am Telefon vorlesbar |
+| `allow_comment` / `allow_download` / `allow_upload` | Rechte des Links |
+| `video_ids` | leere Liste = alle Videos des Projekts, sonst genau diese |
+| `expires_at` | optionales Ablaufdatum |
+| `revoked_at` | Entzug; wirkt sofort, weil die Rechte pro Anfrage geladen werden |
+
+Der Link allein reicht nicht: Er führt zum Zugangsgatter, nicht zum Video.
+
+## login_codes
+
+Sechsstellige Zugangscodes zu einem Link.
+
+| Spalte | Anmerkung |
+| --- | --- |
+| `code_hash` | nur der Hash liegt in der Datenbank |
+| `attempts` | nach fünf Fehlversuchen ist der Code verbrannt |
+| `expires_at` | 15 Minuten |
+| `consumed_at` | ein Code gilt genau einmal |
+
+Fünf Codes je Stunde und E-Mail-Adresse. Adressen von Team-Konten werden
+abgewiesen – die sollen sich anmelden.
+
+## share_link_grants
+
+Wer über welchen Link hereingekommen ist: Zuordnung Gastkonto → Link, mit
+Zeitpunkt und Anzeigename. Aus dieser Tabelle baut der `AccessService` bei
+jeder Anfrage die Rechte des Gastes zusammen.
+
+## project_files
+
+Die Kunden-Ablage je Projekt – Briefings, Logos, Schnittfassungen. Neben
+Name, Größe, Typ und Schlüssel steht hier, wer die Datei hochgeladen hat und
+über welchen Link. Gäste sehen nur ihre eigenen Dateien, das Team sieht alle;
+löschen darf nur das Team.
+
+## app_settings
+
+Workspace-weite Einstellungen als Schlüssel/Wert – derzeit der SMTP-Zugang.
+Das Passwort liegt mit AES-256-GCM verschlüsselt darin (`v1.<nonce>.<ct>.<tag>`),
+der Schlüssel wird aus `JWT_SECRET` abgeleitet. Die API gibt es nie heraus,
+sie meldet nur, ob eines gesetzt ist.

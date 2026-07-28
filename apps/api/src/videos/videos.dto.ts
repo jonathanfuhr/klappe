@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateVideoDto {
   @IsString()
@@ -28,4 +28,9 @@ export class UpdateVideoDto {
   @IsInt()
   @Min(0)
   sortOrder?: number;
+
+  /** Schalter für den Download aller Fassungen dieses Videos. */
+  @IsOptional()
+  @IsBoolean()
+  downloadsEnabled?: boolean;
 }

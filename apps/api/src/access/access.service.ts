@@ -1,0 +1,216 @@
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
+import type { RequestUser } from '../auth/auth.types';
+import { DB, type Database } from '../db/db.module';
+import { shareLinkGrants, shareLinks, videoVersions, videos } from '../db/schema';
+import {
+  type AccessScope,
+  type GrantedShare,
+  canComment,
+  canDownloadVersion,
+  canUploadToProject,
+  canViewProject,
+  canViewVideo,
+  guestScope,
+  teamScope,
+  visibleProjectIds,
+  visibleVideoIdsForProject,
+} from './access-scope';
+
+export type { AccessScope };
+
+/**
+ * Bindeglied zwischen den Freigaben in der Datenbank und den Regeln in
+ * `access-scope.ts`.
+ *
+ * Der Zugriff eines Gastes wird pro Anfrage frisch geladen. Das ist eine
+ * kleine Abfrage – Gäste haben in aller Regel eine Handvoll Freigaben – und
+ * sorgt dafür, dass ein zurückgezogener Link sofort wirkt und nicht erst,
+ * wenn das Sitzungs-Token abläuft.
+ */
+@Injectable()
+export class AccessService {
+  constructor(@Inject(DB) private readonly db: Database) {}
+
+  async loadScope(user: RequestUser): Promise<AccessScope> {
+    if (user.role !== 'GUEST') return teamScope(user.role);
+
+    const now = new Date();
+    const rows = await this.db
+      .select({
+        shareLinkId: shareLinks.id,
+        scope: shareLinks.scope,
+        projectId: shareLinks.projectId,
+        videoId: shareLinks.videoId,
+        videoProjectId: videos.projectId,
+        allowDownload: shareLinks.allowDownload,
+        allowUpload: shareLinks.allowUpload,
+        allowComments: shareLinks.allowComments,
+      })
+      .from(shareLinkGrants)
+      .innerJoin(shareLinks, eq(shareLinkGrants.shareLinkId, shareLinks.id))
+      // Bei einer Videofreigabe steht das Projekt am Video, nicht am Link.
+      .leftJoin(videos, eq(shareLinks.videoId, videos.id))
+      .where(
+        and(
+          eq(shareLinkGrants.userId, user.id),
+          isNull(shareLinkGrants.revokedAt),
+          isNull(shareLinks.revokedAt),
+          or(isNull(shareLinks.expiresAt), gt(shareLinks.expiresAt, now)),
+        ),
+      );
+
+    const shares: GrantedShare[] = [];
+    for (const row of rows) {
+      const projectId = row.scope === 'PROJECT' ? row.projectId : row.videoProjectId;
+      // Zeigt der Link ins Leere (Ziel gelöscht), gibt es nichts freizugeben.
+      if (!projectId) continue;
+      shares.push({
+        shareLinkId: row.shareLinkId,
+        scope: row.scope,
+        projectId,
+        videoId: row.scope === 'VIDEO' ? row.videoId : null,
+        allowDownload: row.allowDownload,
+        allowUpload: row.allowUpload,
+        allowComments: row.allowComments,
+      });
+    }
+
+    return guestScope(shares);
+  }
+
+  /** Merkt sich, wann ein Gast zuletzt da war (für die Gästeübersicht). */
+  async touchGrants(user: RequestUser): Promise<void> {
+    if (user.role !== 'GUEST') return;
+    await this.db
+      .update(shareLinkGrants)
+      .set({ lastSeenAt: sql`now()` })
+      .where(eq(shareLinkGrants.userId, user.id));
+  }
+
+  // ---------- Prüfungen mit klarer Fehlermeldung ----------
+
+  /**
+   * Fehlender Zugriff wird als „nicht gefunden“ gemeldet, nicht als
+   * „verboten“: Sonst könnte ein Gast durch Ausprobieren von IDs herausfinden,
+   * welche Projekte es sonst noch gibt.
+   */
+  assertCanViewProject(scope: AccessScope, projectId: string): void {
+    if (!canViewProject(scope, projectId)) {
+      throw new NotFoundException('Projekt nicht gefunden.');
+    }
+  }
+
+  assertCanViewVideo(scope: AccessScope, video: { id: string; projectId: string }): void {
+    if (!canViewVideo(scope, video)) {
+      throw new NotFoundException('Video nicht gefunden.');
+    }
+  }
+
+  assertCanComment(scope: AccessScope, video: { id: string; projectId: string }): void {
+    this.assertCanViewVideo(scope, video);
+    if (!canComment(scope, video)) {
+      throw new ForbiddenException('Für diese Freigabe ist das Kommentieren nicht erlaubt.');
+    }
+  }
+
+  assertCanUploadToProject(scope: AccessScope, projectId: string): void {
+    this.assertCanViewProject(scope, projectId);
+    if (!canUploadToProject(scope, projectId)) {
+      throw new ForbiddenException('Für diese Freigabe ist das Hochladen nicht erlaubt.');
+    }
+  }
+
+  /** Video samt Projektzugehörigkeit laden und Sichtbarkeit prüfen. */
+  async requireVideo(
+    scope: AccessScope,
+    videoId: string,
+  ): Promise<{ id: string; projectId: string; downloadsEnabled: boolean }> {
+    const [row] = await this.db
+      .select({
+        id: videos.id,
+        projectId: videos.projectId,
+        downloadsEnabled: videos.downloadsEnabled,
+      })
+      .from(videos)
+      .where(eq(videos.id, videoId))
+      .limit(1);
+    if (!row) throw new NotFoundException('Video nicht gefunden.');
+    this.assertCanViewVideo(scope, row);
+    return row;
+  }
+
+  /** Version laden und Sichtbarkeit über ihr Video prüfen. */
+  async requireVersion(
+    scope: AccessScope,
+    versionId: string,
+  ): Promise<{
+    versionId: string;
+    videoId: string;
+    projectId: string;
+    videoDownloadsEnabled: boolean;
+    versionDownloadEnabled: boolean;
+  }> {
+    const [row] = await this.db
+      .select({
+        versionId: videoVersions.id,
+        videoId: videos.id,
+        projectId: videos.projectId,
+        videoDownloadsEnabled: videos.downloadsEnabled,
+        versionDownloadEnabled: videoVersions.downloadEnabled,
+      })
+      .from(videoVersions)
+      .innerJoin(videos, eq(videoVersions.videoId, videos.id))
+      .where(eq(videoVersions.id, versionId))
+      .limit(1);
+    if (!row) throw new NotFoundException('Version nicht gefunden.');
+    this.assertCanViewVideo(scope, { id: row.videoId, projectId: row.projectId });
+    return row;
+  }
+
+  canDownload(
+    scope: AccessScope,
+    version: {
+      videoId: string;
+      projectId: string;
+      videoDownloadsEnabled: boolean;
+      versionDownloadEnabled: boolean;
+    },
+  ): boolean {
+    return canDownloadVersion(scope, {
+      video: { id: version.videoId, projectId: version.projectId },
+      videoDownloadsEnabled: version.videoDownloadsEnabled,
+      versionDownloadEnabled: version.versionDownloadEnabled,
+    });
+  }
+
+  assertCanDownload(
+    scope: AccessScope,
+    version: {
+      videoId: string;
+      projectId: string;
+      videoDownloadsEnabled: boolean;
+      versionDownloadEnabled: boolean;
+    },
+  ): void {
+    if (!this.canDownload(scope, version)) {
+      throw new ForbiddenException('Für diese Fassung ist kein Download freigegeben.');
+    }
+  }
+
+  visibleProjects(scope: AccessScope): string[] {
+    return visibleProjectIds(scope);
+  }
+
+  visibleVideos(scope: AccessScope, projectId: string): string[] | null {
+    return visibleVideoIdsForProject(scope, projectId);
+  }
+
+  canUpload(scope: AccessScope, projectId: string): boolean {
+    return canUploadToProject(scope, projectId);
+  }
+
+  canCommentOn(scope: AccessScope, video: { id: string; projectId: string }): boolean {
+    return canComment(scope, video);
+  }
+}

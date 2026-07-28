@@ -3,13 +3,26 @@ import {
   type FrameRate,
   type VersionDto,
   type VersionStatus,
+  buildDownloadFilename,
+  extensionOf,
+  fileDateFromIso,
   framesToTimecode,
 } from '@klappe/shared';
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { AccessService, type AccessScope } from '../access/access.service';
+import { resolutionLabel } from '../transcode/media-plan';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
-import { comments, users, videoVersions, videos } from '../db/schema';
+import { comments, projects, users, videoVersions, videos } from '../db/schema';
 import type { VideoVersionRow } from '../db/schema';
+
+/** Heutiges Datum als `JJJJ-MM-TT` in Ortszeit. */
+function todayIsoDate(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
 
 /** Alles, was `ffprobe` über das Original herausfindet. */
 export interface ProbeResult {
@@ -23,6 +36,8 @@ export interface ProbeResult {
   height: number | null;
   videoCodec: string | null;
   audioCodec: string | null;
+  pixelFormat: string | null;
+  formatName: string | null;
   bitrateBps: number | null;
 }
 
@@ -44,17 +59,24 @@ export interface TranscodeOutputs {
   } | null;
 }
 
-type VersionQueryRow = {
+export type VersionQueryRow = {
   version: VideoVersionRow;
   uploaderId: string | null;
   uploaderName: string | null;
   uploaderEmail: string | null;
   commentCount: number;
+  /** Für den Download-Dateinamen nach Schema. */
+  videoName?: string | null;
+  projectName?: string | null;
+  projectCustomer?: string | null;
 };
 
 @Injectable()
 export class VersionsService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly accessService: AccessService,
+  ) {}
 
   private baseQuery() {
     return this.db
@@ -67,30 +89,47 @@ export class VersionsService {
           select count(*)::int from ${comments}
           where ${comments.versionId} = ${videoVersions.id} and ${comments.deletedAt} is null
         )`,
+        videoName: videos.name,
+        projectName: projects.name,
+        projectCustomer: projects.customer,
       })
       .from(videoVersions)
-      .leftJoin(users, eq(videoVersions.uploadedById, users.id));
+      .leftJoin(users, eq(videoVersions.uploadedById, users.id))
+      .innerJoin(videos, eq(videoVersions.videoId, videos.id))
+      .innerJoin(projects, eq(videos.projectId, projects.id));
   }
 
-  async listForVideo(videoId: string): Promise<VersionDto[]> {
+  async listForVideo(videoId: string, scope: AccessScope): Promise<VersionDto[]> {
+    const video = await this.accessService.requireVideo(scope, videoId);
+
     const rows = await this.baseQuery()
       .where(eq(videoVersions.videoId, videoId))
       .orderBy(desc(videoVersions.versionNumber));
-    return rows.map((row) => this.toDto(row));
+
+    return rows.map((row) =>
+      this.toDto(row, this.downloadAllowed(scope, video, row.version.downloadEnabled)),
+    );
   }
 
-  async findOneOrFail(id: string): Promise<VersionDto> {
+  async findOneOrFail(id: string, scope: AccessScope): Promise<VersionDto> {
+    const access = await this.accessService.requireVersion(scope, id);
     const [row] = await this.baseQuery().where(eq(videoVersions.id, id)).limit(1);
     if (!row) throw new NotFoundException('Version nicht gefunden.');
-    return this.toDto(row);
+    return this.toDto(row, this.accessService.canDownload(scope, access));
   }
 
-  async findLatestForVideo(videoId: string): Promise<VersionDto | null> {
-    const [row] = await this.baseQuery()
-      .where(eq(videoVersions.videoId, videoId))
-      .orderBy(desc(videoVersions.versionNumber))
-      .limit(1);
-    return row ? this.toDto(row) : null;
+  /** Darf diese Fassung heruntergeladen werden? */
+  private downloadAllowed(
+    scope: AccessScope,
+    video: { id: string; projectId: string; downloadsEnabled: boolean },
+    versionDownloadEnabled: boolean,
+  ): boolean {
+    return this.accessService.canDownload(scope, {
+      videoId: video.id,
+      projectId: video.projectId,
+      videoDownloadsEnabled: video.downloadsEnabled,
+      versionDownloadEnabled,
+    });
   }
 
   /** Rohzeile für den Worker und interne Prüfungen. */
@@ -115,6 +154,8 @@ export class VersionsService {
     sizeBytes: number;
     mimeType: string | null;
     label: string | null;
+    /** `JJJJ-MM-TT`; ohne Angabe das heutige Datum. */
+    fileDate: string | null;
     user: RequestUser;
   }): Promise<VideoVersionRow> {
     const [video] = await this.db
@@ -140,6 +181,7 @@ export class VersionsService {
         originalFilename: input.filename,
         originalSizeBytes: input.sizeBytes,
         originalMimeType: input.mimeType,
+        fileDate: input.fileDate ?? todayIsoDate(),
       })
       .returning();
     return row;
@@ -174,9 +216,23 @@ export class VersionsService {
         height: probe.height,
         videoCodec: probe.videoCodec,
         audioCodec: probe.audioCodec,
+        pixelFormat: probe.pixelFormat,
+        formatName: probe.formatName,
         bitrateBps: probe.bitrateBps,
         updatedAt: new Date(),
       })
+      .where(eq(videoVersions.id, versionId));
+  }
+
+  /** Hält fest, wie die Abspielfassung entstanden ist und warum. */
+  async setPlaybackDecision(
+    versionId: string,
+    mode: 'ORIGINAL' | 'REMUX' | 'TRANSCODE',
+    reason: string,
+  ): Promise<void> {
+    await this.db
+      .update(videoVersions)
+      .set({ playbackMode: mode, playbackReason: reason.slice(0, 500) })
       .where(eq(videoVersions.id, versionId));
   }
 
@@ -232,14 +288,23 @@ export class VersionsService {
       .where(eq(videoVersions.id, versionId));
   }
 
-  async updateLabel(versionId: string, label: string | null): Promise<VersionDto> {
+  async update(
+    versionId: string,
+    changes: { label?: string | null; downloadEnabled?: boolean; fileDate?: string },
+    scope: AccessScope,
+  ): Promise<VersionDto> {
     const [row] = await this.db
       .update(videoVersions)
-      .set({ label, updatedAt: new Date() })
+      .set({
+        label: changes.label,
+        downloadEnabled: changes.downloadEnabled,
+        fileDate: changes.fileDate,
+        updatedAt: new Date(),
+      })
       .where(eq(videoVersions.id, versionId))
       .returning();
     if (!row) throw new NotFoundException('Version nicht gefunden.');
-    return this.findOneOrFail(row.id);
+    return this.findOneOrFail(row.id, scope);
   }
 
   /** Löschen ist nur erlaubt, solange nicht die letzte Version übrig bleibt. */
@@ -267,7 +332,7 @@ export class VersionsService {
       .orderBy(asc(videoVersions.createdAt));
   }
 
-  toDto(row: VersionQueryRow): VersionDto {
+  toDto(row: VersionQueryRow, canDownload: boolean): VersionDto {
     const version = row.version;
     const frameRate =
       version.fpsNum && version.fpsDen ? { num: version.fpsNum, den: version.fpsDen } : null;
@@ -324,6 +389,20 @@ export class VersionsService {
             }
           : null,
       commentCount: row.commentCount,
+      downloadEnabled: version.downloadEnabled,
+      canDownload,
+      playbackMode: version.playbackMode,
+      playbackReason: version.playbackReason,
+      fileDate: fileDateFromIso(version.fileDate),
+      downloadFilename: buildDownloadFilename({
+        date: fileDateFromIso(version.fileDate),
+        customer: row.projectCustomer ?? null,
+        projectName: row.projectName ?? 'Projekt',
+        videoName: row.videoName ?? 'Video',
+        versionNumber: version.versionNumber,
+        resolution: resolutionLabel(version.width, version.height, frameRate),
+        extension: extensionOf(version.originalFilename),
+      }),
     };
   }
 }

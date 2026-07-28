@@ -16,6 +16,7 @@ export interface FfprobeStream {
   codec_tag_string?: string;
   width?: number;
   height?: number;
+  pix_fmt?: string;
   r_frame_rate?: string;
   avg_frame_rate?: string;
   nb_frames?: string;
@@ -122,6 +123,8 @@ export function parseProbeOutput(probe: FfprobeOutput): ProbeResult {
     height: toNumber(video?.height),
     videoCodec: video?.codec_name ?? null,
     audioCodec: audio?.codec_name ?? null,
+    pixelFormat: video?.pix_fmt ?? null,
+    formatName: probe.format?.format_name ?? null,
     bitrateBps: toNumber(probe.format?.bit_rate) ?? toNumber(video?.bit_rate),
   };
 }

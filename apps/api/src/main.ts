@@ -18,6 +18,11 @@ async function bootstrap(): Promise<void> {
   const config = app.get<AppConfig>(CONFIG);
   const logger = new Logger('Bootstrap');
 
+  // Hinter einem Reverse Proxy (Caddy, Cloudflared, Traefik) stehen Schema
+  // und Client-Adresse in den X-Forwarded-Headern. Ohne dieses Vertrauen
+  // hielte Express jede Anfrage für unverschlüsselt.
+  app.set('trust proxy', 1);
+
   const json = express.json({ limit: '1mb' });
   app.use((request: express.Request, response: express.Response, next: express.NextFunction) => {
     if (request.path.startsWith('/v1/uploads/')) return next();

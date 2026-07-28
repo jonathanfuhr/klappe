@@ -1,0 +1,34 @@
+# Reverse Proxy für den Betrieb mit eigener Domain.
+#
+# Caddy holt und erneuert das Zertifikat von selbst; außer der Domain ist
+# nichts einzustellen. Wird über docker-compose.https.yml eingebunden.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$KLAPPE_DOMAIN} {
+	encode zstd gzip
+
+	# Große Uploads dürfen nicht am Proxy scheitern – die eigentliche Grenze
+	# setzt UPLOAD_MAX_BYTES in der API.
+	request_body {
+		max_size 0
+	}
+
+	reverse_proxy web:3000 {
+		# Ohne diese Weitergabe hält die API die Verbindung für unverschlüsselt
+		# und setzt das Sitzungs-Cookie ohne `Secure`.
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+
+		# Video-Streaming verträgt kein Zwischenspeichern der Antwort.
+		flush_interval -1
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}

@@ -3,6 +3,7 @@
  * diese Formen – damit bricht ein Feldwechsel im Backend sofort den Typecheck
  * im Frontend.
  */
+import type { Annotation } from './annotations';
 import type { FrameRate } from './timecode';
 
 export const USER_ROLES = ['ADMIN', 'MEMBER', 'GUEST'] as const;
@@ -10,6 +11,10 @@ export type UserRole = (typeof USER_ROLES)[number];
 
 export const VERSION_STATUSES = ['UPLOADING', 'PROCESSING', 'READY', 'FAILED'] as const;
 export type VersionStatus = (typeof VERSION_STATUSES)[number];
+
+export const PLAYBACK_MODES = ['ORIGINAL', 'REMUX', 'TRANSCODE'] as const;
+/** Wie die Abspielfassung entstanden ist. */
+export type PlaybackMode = (typeof PLAYBACK_MODES)[number];
 
 export const UPLOAD_STATUSES = ['IN_PROGRESS', 'COMPLETED', 'ABORTED'] as const;
 export type UploadStatus = (typeof UPLOAD_STATUSES)[number];
@@ -27,11 +32,17 @@ export interface UserDto {
 export interface ProjectDto {
   id: string;
   name: string;
+  /** Kunde hinter dem Projekt; geht in die Download-Dateinamen ein. */
+  customer: string | null;
   description: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: UserSummaryDto | null;
   videoCount: number;
+  /** Anzahl Dateien im Kunden-Upload-Ordner. */
+  fileCount: number;
+  /** Darf der anfragende Benutzer hier Material hochladen? */
+  canUploadFiles: boolean;
 }
 
 export interface UserSummaryDto {
@@ -50,6 +61,10 @@ export interface VideoDto {
   createdBy: UserSummaryDto | null;
   versionCount: number;
   latestVersion: VersionDto | null;
+  /** Schalter am Video; der tatsächliche Download hängt zusätzlich am Link. */
+  downloadsEnabled: boolean;
+  /** Darf der anfragende Benutzer hier kommentieren und zeichnen? */
+  canComment: boolean;
 }
 
 /** Auflösung und Framerate des Originals, aus `ffprobe`. */
@@ -93,6 +108,17 @@ export interface VersionDto {
   hasPoster: boolean;
   sprite: VersionSpriteDto | null;
   commentCount: number;
+  /** Schalter für diese Fassung. */
+  downloadEnabled: boolean;
+  /** Darf der anfragende Benutzer diese Fassung herunterladen? */
+  canDownload: boolean;
+  /** Wie die Abspielfassung entstanden ist – `null`, solange sie fehlt. */
+  playbackMode: PlaybackMode | null;
+  playbackReason: string | null;
+  /** Datum der Fassung im Dateinamen (`JJMMTT`), beim Upload änderbar. */
+  fileDate: string | null;
+  /** Name, unter dem das Original heruntergeladen wird. */
+  downloadFilename: string;
 }
 
 export interface CommentDto {
@@ -104,6 +130,8 @@ export interface CommentDto {
   /** Frame-Index im Video; `null` = allgemeiner Kommentar ohne Zeitbezug. */
   frame: number | null;
   timecode: string | null;
+  /** Zeichnung auf dem Bild dieses Frames, Koordinaten normalisiert auf 0…1. */
+  annotation: Annotation | null;
   resolvedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -112,10 +140,17 @@ export interface CommentDto {
   replies: CommentDto[];
 }
 
+export const UPLOAD_KINDS = ['VERSION', 'PROJECT_FILE'] as const;
+export type UploadKind = (typeof UPLOAD_KINDS)[number];
+
 export interface UploadSessionDto {
   id: string;
-  videoId: string;
-  versionId: string;
+  kind: UploadKind;
+  /** Bei `VERSION` gesetzt. */
+  videoId: string | null;
+  versionId: string | null;
+  /** Bei `PROJECT_FILE` gesetzt. */
+  projectId: string | null;
   filename: string;
   sizeBytes: number;
   offsetBytes: number;
@@ -126,8 +161,100 @@ export interface UploadSessionDto {
   expiresAt: string;
 }
 
+export const SHARE_SCOPES = ['PROJECT', 'VIDEO'] as const;
+export type ShareScope = (typeof SHARE_SCOPES)[number];
+
+export interface ShareLinkDto {
+  id: string;
+  token: string;
+  scope: ShareScope;
+  projectId: string | null;
+  videoId: string | null;
+  /** Name des freigegebenen Projekts bzw. Videos, für die Übersicht. */
+  targetName: string;
+  label: string | null;
+  allowDownload: boolean;
+  allowUpload: boolean;
+  allowComments: boolean;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  isActive: boolean;
+  /** Vollständige Adresse zum Weitergeben. */
+  url: string;
+  createdAt: string;
+  createdBy: UserSummaryDto | null;
+  guestCount: number;
+}
+
+/** Gast an einer Freigabe – Grundlage der Gästeübersicht. */
+export interface ShareGuestDto {
+  user: UserSummaryDto;
+  shareLinkId: string;
+  shareLabel: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  revokedAt: string | null;
+}
+
+/** Was ein Gast über eine Freigabe erfährt, bevor er sich anmeldet. */
+export interface SharePreviewDto {
+  scope: ShareScope;
+  targetName: string;
+  projectName: string;
+  allowDownload: boolean;
+  allowUpload: boolean;
+  allowComments: boolean;
+  /** `false`, wenn abgelaufen oder zurückgezogen. */
+  isActive: boolean;
+  /** Ohne eingerichteten Mailversand kann kein Code verschickt werden. */
+  mailReady: boolean;
+}
+
+export interface ProjectFileDto {
+  id: string;
+  projectId: string;
+  filename: string;
+  sizeBytes: number;
+  mimeType: string | null;
+  note: string | null;
+  uploadedBy: UserSummaryDto | null;
+  createdAt: string;
+}
+
+export interface SmtpSettingsDto {
+  enabled: boolean;
+  provider: string | null;
+  host: string | null;
+  port: number | null;
+  secure: boolean;
+  user: string | null;
+  /** Das Passwort verlässt den Server nie; hier steht nur, ob eines hinterlegt ist. */
+  hasPassword: boolean;
+  fromName: string | null;
+  fromEmail: string | null;
+  updatedAt: string;
+}
+
+/** Vorbelegung der SMTP-Felder je Anbieter (nur Host, Port, TLS). */
+export interface SmtpProviderPresetDto {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  secure: boolean;
+  hint: string;
+}
+
 export interface LoginResponseDto {
   user: UserDto;
+}
+
+/** Antwort nach erfolgreicher Gast-Anmeldung. */
+export interface GuestLoginResponseDto {
+  user: UserDto;
+  share: SharePreviewDto;
+  /** Wohin die Oberfläche nach der Anmeldung springt. */
+  redirectPath: string;
 }
 
 export interface ApiErrorDto {

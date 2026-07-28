@@ -1,19 +1,26 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
+import { type FileHandle, open } from 'node:fs/promises';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { TRANSCODE_QUEUE, type TranscodeJobData } from '../queue/queue.constants';
 import { StorageService } from '../storage/storage.service';
 import { VersionsService, type TranscodeOutputs } from '../versions/versions.service';
 import { FfmpegService } from './ffmpeg.service';
-import { planPosterTime, planProxyScale, planSprite } from './media-plan';
+import { type PlaybackDecision, decidePlayback, planPosterTime, planProxyScale, planSprite } from './media-plan';
+import { readTopLevelBoxes } from './mp4-faststart';
 
 /**
- * Die Pipeline aus Phase 2: Metadaten lesen, Proxy bauen, Posterframe und
- * Sprite-Streifen erzeugen.
+ * Die Pipeline aus Phase 2: Metadaten lesen, Abspielfassung bereitstellen,
+ * Posterframe und Sprite-Streifen erzeugen.
+ *
+ * Nicht jede Datei muss neu kodiert werden. Ein fertiges 1080p-H.264-MP4
+ * durch x264 zu schicken kostet Minuten und Qualität, ohne dass jemand etwas
+ * davon hat. Deshalb wird zuerst geprüft, was die Datei überhaupt braucht:
+ * gar nichts, ein Neu-Verpacken in Sekunden, oder den vollen Durchlauf.
  *
  * Die Nebenwege (Poster, Sprite) dürfen scheitern, ohne die Version als
- * fehlgeschlagen zu markieren – ohne Proxy geht dagegen gar nichts.
+ * fehlgeschlagen zu markieren – ohne Abspielfassung geht dagegen gar nichts.
  *
  * Die Nebenläufigkeit steht im Decorator und wird deshalb direkt aus der
  * Umgebung gelesen; Decorator-Argumente stehen vor der Dependency Injection fest.
@@ -47,7 +54,7 @@ export class TranscodeProcessor extends WorkerHost {
     const posterKey = this.storage.keyForPoster(versionId);
     const spriteKey = this.storage.keyForSprite(versionId);
 
-    this.logger.log(`Transcoding gestartet: ${version.originalFilename} (${versionId})`);
+    this.logger.log(`Verarbeitung gestartet: ${version.originalFilename} (${versionId})`);
 
     try {
       await this.versionsService.setStatus(versionId, 'PROCESSING');
@@ -60,16 +67,32 @@ export class TranscodeProcessor extends WorkerHost {
         throw new Error('Die Datei enthält keine auswertbare Videospur.');
       }
 
-      const scale = planProxyScale(probe.width, probe.height, this.config.transcode.proxyHeight);
+      const decision = decidePlayback(
+        {
+          videoCodec: probe.videoCodec,
+          audioCodec: probe.audioCodec,
+          pixelFormat: probe.pixelFormat,
+          formatName: probe.formatName,
+          width: probe.width,
+          height: probe.height,
+          bitrateBps: probe.bitrateBps,
+          fastStart: await this.hasFastStart(originalPath),
+        },
+        {
+          maxShortEdge: this.config.transcode.proxyShortEdge,
+          maxBitrateBps: this.config.transcode.playbackMaxBitrateBps,
+        },
+      );
+      this.logger.log(`Abspielfassung (${versionId}): ${decision.mode} – ${decision.reason}`);
+      await this.versionsService.setPlaybackDecision(versionId, decision.mode, decision.reason);
 
-      await this.storage.ensureDirForKey(proxyKey);
-      await this.ffmpeg.createProxy({
-        inputPath: originalPath,
-        outputPath: this.storage.resolveKey(proxyKey),
-        width: scale.width,
-        height: scale.height,
-        frameRate: probe.frameRate,
-        durationSeconds: probe.durationSeconds,
+      const playback = await this.preparePlayback({
+        decision,
+        versionId,
+        originalKey: version.originalKey,
+        originalPath,
+        proxyKey,
+        probe,
         onProgress: (fraction) => {
           // Der Proxy ist der lange Teil; Poster und Sprite bekommen den Rest.
           void this.versionsService.setProgress(versionId, 5 + fraction * 80);
@@ -80,22 +103,23 @@ export class TranscodeProcessor extends WorkerHost {
       await this.versionsService.setProgress(versionId, 88);
 
       const outputs: TranscodeOutputs = {
-        proxyKey,
-        proxyWidth: scale.width,
-        proxyHeight: scale.height,
-        proxySizeBytes: await this.storage.size(proxyKey),
+        proxyKey: playback.key,
+        proxyWidth: playback.width,
+        proxyHeight: playback.height,
+        proxySizeBytes: await this.storage.size(playback.key),
         posterKey: null,
         sprite: null,
       };
 
-      // Poster und Sprite entstehen aus dem Proxy statt aus dem Original:
-      // Das ist um ein Vielfaches schneller als ein zweiter 4K-Durchlauf.
-      const proxyPath = this.storage.resolveKey(proxyKey);
+      // Poster und Sprite entstehen aus der Abspielfassung statt aus dem
+      // Original: Das ist um ein Vielfaches schneller als ein zweiter
+      // 4K-Durchlauf.
+      const playbackPath = this.storage.resolveKey(playback.key);
 
       try {
         await this.storage.ensureDirForKey(posterKey);
         await this.ffmpeg.createPoster({
-          inputPath: proxyPath,
+          inputPath: playbackPath,
           outputPath: this.storage.resolveKey(posterKey),
           atSeconds: planPosterTime(probe.durationSeconds),
           height: this.config.transcode.posterHeight,
@@ -109,8 +133,8 @@ export class TranscodeProcessor extends WorkerHost {
 
       const spritePlan = planSprite({
         durationSeconds: probe.durationSeconds ?? 0,
-        sourceWidth: scale.width,
-        sourceHeight: scale.height,
+        sourceWidth: playback.width,
+        sourceHeight: playback.height,
         tileWidth: this.config.transcode.spriteTileWidth,
         columns: this.config.transcode.spriteColumns,
         maxTiles: this.config.transcode.spriteMaxTiles,
@@ -120,7 +144,7 @@ export class TranscodeProcessor extends WorkerHost {
         try {
           await this.storage.ensureDirForKey(spriteKey);
           await this.ffmpeg.createSprite({
-            inputPath: proxyPath,
+            inputPath: playbackPath,
             outputPath: this.storage.resolveKey(spriteKey),
             plan: spritePlan,
           });
@@ -131,10 +155,10 @@ export class TranscodeProcessor extends WorkerHost {
       }
 
       await this.versionsService.markReady(versionId, outputs);
-      this.logger.log(`Transcoding fertig: ${version.originalFilename} (${versionId})`);
+      this.logger.log(`Verarbeitung fertig: ${version.originalFilename} (${versionId})`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Transcoding fehlgeschlagen (${versionId}): ${message}`);
+      this.logger.error(`Verarbeitung fehlgeschlagen (${versionId}): ${message}`);
 
       // Halbfertige Ausgaben wegräumen, damit ein neuer Versuch sauber startet.
       await this.storage.remove(proxyKey);
@@ -143,6 +167,70 @@ export class TranscodeProcessor extends WorkerHost {
 
       await this.versionsService.markFailed(versionId, message);
       throw error;
+    }
+  }
+
+  /**
+   * Stellt die Abspielfassung bereit und gibt zurück, wo sie liegt und wie
+   * groß sie ist.
+   */
+  private async preparePlayback(input: {
+    decision: PlaybackDecision;
+    versionId: string;
+    originalKey: string;
+    originalPath: string;
+    proxyKey: string;
+    probe: { width: number | null; height: number | null; frameRate: { num: number; den: number } | null; durationSeconds: number | null };
+    onProgress: (fraction: number) => void;
+  }): Promise<{ key: string; width: number; height: number }> {
+    const width = input.probe.width ?? 0;
+    const height = input.probe.height ?? 0;
+
+    if (input.decision.mode === 'ORIGINAL') {
+      // Nichts anfassen: Der Player bekommt die Originaldatei.
+      return { key: input.originalKey, width, height };
+    }
+
+    await this.storage.ensureDirForKey(input.proxyKey);
+
+    if (input.decision.mode === 'REMUX') {
+      await this.ffmpeg.remux({
+        inputPath: input.originalPath,
+        outputPath: this.storage.resolveKey(input.proxyKey),
+      });
+      return { key: input.proxyKey, width, height };
+    }
+
+    const scale = planProxyScale(width, height, this.config.transcode.proxyShortEdge);
+    await this.ffmpeg.createProxy({
+      inputPath: input.originalPath,
+      outputPath: this.storage.resolveKey(input.proxyKey),
+      width: scale.width,
+      height: scale.height,
+      frameRate: input.probe.frameRate,
+      durationSeconds: input.probe.durationSeconds,
+      onProgress: input.onProgress,
+    });
+    return { key: input.proxyKey, width: scale.width, height: scale.height };
+  }
+
+  /** Liegt der MP4-Index schon vorn? Bei Fehlern gilt: lieber neu verpacken. */
+  private async hasFastStart(path: string): Promise<boolean> {
+    let handle: FileHandle | undefined;
+    try {
+      const opened = await open(path, 'r');
+      handle = opened;
+      const stat = await opened.stat();
+      const result = await readTopLevelBoxes(async (offset, length) => {
+        const buffer = Buffer.alloc(length);
+        const { bytesRead } = await opened.read(buffer, 0, length, offset);
+        return buffer.subarray(0, bytesRead);
+      }, stat.size);
+      return result.fastStart;
+    } catch {
+      return false;
+    } finally {
+      await handle?.close();
     }
   }
 }

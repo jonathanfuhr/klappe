@@ -18,7 +18,8 @@ export interface UploadProgress {
 }
 
 export interface UploadHandle {
-  promise: Promise<{ versionId: string }>;
+  /** `versionId` ist nur beim Video-Upload gesetzt, nicht beim Kunden-Ordner. */
+  promise: Promise<{ versionId: string | null }>;
   abort: () => void;
 }
 
@@ -26,19 +27,50 @@ export function uploadVideoFile(input: {
   videoId: string;
   file: File;
   label?: string;
+  /** Datum im Download-Dateinamen, `JJJJ-MM-TT`. */
+  fileDate?: string;
   chunkSize?: number;
   onProgress?: (progress: UploadProgress) => void;
 }): UploadHandle {
-  const controller = new AbortController();
-  const chunkSize = input.chunkSize ?? DEFAULT_CHUNK_SIZE;
-
-  const promise = (async () => {
-    const session = await api.createUpload(input.videoId, {
+  return runUpload(input.file, input.chunkSize, input.onProgress, () =>
+    api.createUpload(input.videoId, {
       filename: input.file.name,
       sizeBytes: input.file.size,
       mimeType: input.file.type || undefined,
       label: input.label,
-    });
+      fileDate: input.fileDate,
+    }),
+  );
+}
+
+/** Kunden-Upload in den Projektordner (Phase 7) – dieselbe Mechanik. */
+export function uploadProjectFile(input: {
+  projectId: string;
+  file: File;
+  chunkSize?: number;
+  onProgress?: (progress: UploadProgress) => void;
+}): UploadHandle {
+  return runUpload(input.file, input.chunkSize, input.onProgress, () =>
+    api.createProjectFileUpload(input.projectId, {
+      filename: input.file.name,
+      sizeBytes: input.file.size,
+      mimeType: input.file.type || undefined,
+    }),
+  );
+}
+
+function runUpload(
+  file: File,
+  chunkSizeInput: number | undefined,
+  onProgress: ((progress: UploadProgress) => void) | undefined,
+  createSession: () => Promise<{ location: string; offsetBytes: number; versionId: string | null }>,
+): UploadHandle {
+  const controller = new AbortController();
+  const chunkSize = chunkSizeInput ?? DEFAULT_CHUNK_SIZE;
+  const input = { file, onProgress };
+
+  const promise = (async () => {
+    const session = await createSession();
 
     let offset = session.offsetBytes;
     let attempt = 0;

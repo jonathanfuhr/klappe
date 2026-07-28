@@ -15,8 +15,10 @@ import type { RequestUser } from '../auth/auth.types';
 import { sanitizeFilename } from '../common/normalize';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
-import { type UploadRow, uploads, videoVersions } from '../db/schema';
+import { type UploadRow, uploads, videoVersions, videos } from '../db/schema';
+import { ProjectFilesService } from '../project-files/project-files.service';
 import { ProjectsService } from '../projects/projects.service';
+import { MailQueueService } from '../queue/mail-queue.service';
 import { TranscodeQueueService } from '../queue/transcode-queue.service';
 import { StorageService } from '../storage/storage.service';
 import { VersionsService } from '../versions/versions.service';
@@ -43,26 +45,22 @@ export class UploadsService {
     private readonly versionsService: VersionsService,
     private readonly videosService: VideosService,
     private readonly projectsService: ProjectsService,
+    private readonly projectFilesService: ProjectFilesService,
     private readonly queue: TranscodeQueueService,
+    private readonly mailQueue: MailQueueService,
   ) {}
 
+  /** Neue Fassung eines Videos hochladen. */
   async create(input: {
     videoId: string;
     filename: string;
     sizeBytes: number;
     mimeType: string | null;
     label: string | null;
+    fileDate: string | null;
     user: RequestUser;
   }): Promise<UploadSessionDto> {
-    if (input.sizeBytes <= 0) {
-      throw new BadRequestException('Die Dateigröße muss größer als 0 sein.');
-    }
-    if (input.sizeBytes > this.config.uploads.maxBytes) {
-      throw new PayloadTooLargeException(
-        `Die Datei ist größer als das erlaubte Maximum von ${this.config.uploads.maxBytes} Byte.`,
-      );
-    }
-
+    this.assertSize(input.sizeBytes);
     await this.videosService.assertExists(input.videoId);
 
     const version = await this.versionsService.createNextVersion({
@@ -71,12 +69,14 @@ export class UploadsService {
       sizeBytes: input.sizeBytes,
       mimeType: input.mimeType,
       label: input.label,
+      fileDate: input.fileDate,
       user: input.user,
     });
 
     const [row] = await this.db
       .insert(uploads)
       .values({
+        kind: 'VERSION',
         videoId: input.videoId,
         versionId: version.id,
         createdById: input.user.id,
@@ -100,9 +100,76 @@ export class UploadsService {
     return this.toDto(withKey);
   }
 
+  /**
+   * Datei in den Kunden-Ordner eines Projekts hochladen (Phase 7).
+   * Dieselbe Mechanik wie beim Video-Upload, nur ohne Version und ohne
+   * Transcoding – es ist Rohmaterial, kein Review-Gegenstand.
+   */
+  async createProjectFileUpload(input: {
+    projectId: string;
+    filename: string;
+    sizeBytes: number;
+    mimeType: string | null;
+    shareLinkId: string | null;
+    user: RequestUser;
+  }): Promise<UploadSessionDto> {
+    this.assertSize(input.sizeBytes);
+    await this.projectsService.assertExists(input.projectId);
+
+    const [row] = await this.db
+      .insert(uploads)
+      .values({
+        kind: 'PROJECT_FILE',
+        projectId: input.projectId,
+        createdById: input.user.id,
+        filename: input.filename,
+        sizeBytes: input.sizeBytes,
+        storageKey: '',
+        expiresAt: new Date(Date.now() + this.config.uploads.ttlSeconds * 1000),
+        metadata: {
+          ...(input.mimeType ? { filetype: input.mimeType } : {}),
+          ...(input.shareLinkId ? { shareLinkId: input.shareLinkId } : {}),
+        },
+      })
+      .returning();
+
+    const storageKey = this.storage.keyForUploadPart(row.id);
+    const [withKey] = await this.db
+      .update(uploads)
+      .set({ storageKey })
+      .where(eq(uploads.id, row.id))
+      .returning();
+
+    return this.toDto(withKey);
+  }
+
+  private assertSize(sizeBytes: number): void {
+    if (sizeBytes <= 0) {
+      throw new BadRequestException('Die Dateigröße muss größer als 0 sein.');
+    }
+    if (sizeBytes > this.config.uploads.maxBytes) {
+      throw new PayloadTooLargeException(
+        `Die Datei ist größer als das erlaubte Maximum von ${this.config.uploads.maxBytes} Byte.`,
+      );
+    }
+  }
+
   async getOrFail(id: string): Promise<UploadRow> {
     const [row] = await this.db.select().from(uploads).where(eq(uploads.id, id)).limit(1);
     if (!row) throw new NotFoundException('Upload-Sitzung nicht gefunden.');
+    return row;
+  }
+
+  /**
+   * An einer Upload-Sitzung darf nur weiterschreiben, wer sie angelegt hat –
+   * oder das Team. Ohne diese Prüfung könnte ein Gast mit einer fremden
+   * Sitzungs-ID in einen anderen Upload hineinschreiben.
+   */
+  async getWritableOrFail(id: string, user: RequestUser): Promise<UploadRow> {
+    const row = await this.getOrFail(id);
+    if (user.role === 'GUEST' && row.createdById !== user.id) {
+      throw new NotFoundException('Upload-Sitzung nicht gefunden.');
+    }
     return row;
   }
 
@@ -115,8 +182,9 @@ export class UploadsService {
     clientOffset: number;
     body: Readable;
     contentLength: number | null;
+    user: RequestUser;
   }): Promise<{ offset: number; completed: boolean; row: UploadRow }> {
-    const row = await this.getOrFail(input.uploadId);
+    const row = await this.getWritableOrFail(input.uploadId, input.user);
 
     if (row.status === 'ABORTED') {
       throw new NotFoundException('Diese Upload-Sitzung wurde abgebrochen.');
@@ -187,11 +255,23 @@ export class UploadsService {
     return { offset, completed: false, row };
   }
 
-  /**
-   * Upload vollständig: Datei an ihren endgültigen Platz verschieben,
-   * Version auf `PROCESSING` setzen und die Pipeline anstoßen.
-   */
+  /** Upload vollständig – je nach Art landet die Datei woanders. */
   private async finalize(row: UploadRow): Promise<void> {
+    if (row.kind === 'PROJECT_FILE') {
+      await this.finalizeProjectFile(row);
+      return;
+    }
+    await this.finalizeVersion(row);
+  }
+
+  /**
+   * Datei an ihren endgültigen Platz verschieben, Version auf `PROCESSING`
+   * setzen und die Pipeline anstoßen.
+   */
+  private async finalizeVersion(row: UploadRow): Promise<void> {
+    if (!row.versionId) {
+      throw new BadRequestException('Zu dieser Upload-Sitzung fehlt die Version.');
+    }
     const targetKey = this.storage.keyForOriginal(row.versionId, sanitizeFilename(row.filename));
     await this.storage.move(row.storageKey, targetKey);
 
@@ -208,24 +288,64 @@ export class UploadsService {
       .where(eq(videoVersions.id, row.versionId))
       .limit(1);
     if (version) {
-      const video = await this.videosService.findOneOrFail(version.videoId);
-      await this.projectsService.touch(video.projectId);
+      const [video] = await this.db
+        .select({ projectId: videos.projectId })
+        .from(videos)
+        .where(eq(videos.id, version.videoId))
+        .limit(1);
+      if (video) await this.projectsService.touch(video.projectId);
     }
 
     await this.queue.enqueue(row.versionId);
     this.logger.log(`Upload abgeschlossen: ${row.filename} (${row.sizeBytes} Byte)`);
   }
 
+  /** Kundenmaterial ablegen und das Team benachrichtigen. */
+  private async finalizeProjectFile(row: UploadRow): Promise<void> {
+    if (!row.projectId) {
+      throw new BadRequestException('Zu dieser Upload-Sitzung fehlt das Projekt.');
+    }
+    const targetKey = this.storage.keyForProjectFile(
+      row.projectId,
+      row.id,
+      sanitizeFilename(row.filename),
+    );
+    await this.storage.move(row.storageKey, targetKey);
+
+    await this.db
+      .update(uploads)
+      .set({ status: 'COMPLETED', storageKey: targetKey, updatedAt: new Date() })
+      .where(eq(uploads.id, row.id));
+
+    const file = await this.projectFilesService.create({
+      projectId: row.projectId,
+      uploadedById: row.createdById ?? '',
+      shareLinkId: row.metadata?.shareLinkId ?? null,
+      filename: row.filename,
+      sizeBytes: row.sizeBytes,
+      mimeType: row.metadata?.filetype ?? null,
+      storageKey: targetKey,
+    });
+
+    await this.projectsService.touch(row.projectId);
+    await this.mailQueue.enqueue({ kind: 'project-file', projectFileId: file.id });
+    this.logger.log(`Kunden-Upload abgeschlossen: ${row.filename} (${row.sizeBytes} Byte)`);
+  }
+
   /** Bricht eine Sitzung ab und räumt Teil-Datei und Versionszeile weg. */
-  async abort(id: string): Promise<void> {
-    const row = await this.getOrFail(id);
+  async abort(id: string, user: RequestUser): Promise<void> {
+    const row = await this.getWritableOrFail(id, user);
     if (row.status === 'COMPLETED') {
       throw new ConflictException('Ein abgeschlossener Upload kann nicht abgebrochen werden.');
     }
 
     await this.storage.remove(row.storageKey);
     await this.db.update(uploads).set({ status: 'ABORTED', updatedAt: new Date() }).where(eq(uploads.id, id));
-    await this.db.delete(videoVersions).where(eq(videoVersions.id, row.versionId));
+    // Die halb angelegte Version verschwindet mit; beim Kundenmaterial gibt
+    // es nichts aufzuräumen, dort entsteht der Datensatz erst am Ende.
+    if (row.versionId) {
+      await this.db.delete(videoVersions).where(eq(videoVersions.id, row.versionId));
+    }
   }
 
   /**
@@ -244,7 +364,9 @@ export class UploadsService {
         .update(uploads)
         .set({ status: 'ABORTED', updatedAt: new Date() })
         .where(eq(uploads.id, row.id));
-      await this.db.delete(videoVersions).where(eq(videoVersions.id, row.versionId));
+      if (row.versionId) {
+        await this.db.delete(videoVersions).where(eq(videoVersions.id, row.versionId));
+      }
       this.logger.log(`Abgelaufene Upload-Sitzung aufgeräumt: ${row.id}`);
     }
     return stale.length;
@@ -260,8 +382,10 @@ export class UploadsService {
   toDto(row: UploadRow): UploadSessionDto {
     return {
       id: row.id,
+      kind: row.kind,
       videoId: row.videoId,
       versionId: row.versionId,
+      projectId: row.projectId,
       filename: row.filename,
       sizeBytes: row.sizeBytes,
       offsetBytes: row.offsetBytes,
