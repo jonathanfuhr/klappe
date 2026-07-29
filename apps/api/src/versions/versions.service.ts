@@ -340,6 +340,19 @@ export class VersionsService {
     await this.meldeFassung(versionId);
   }
 
+  /**
+   * Die HLS-Stufenleiter nachtragen (Phase 19). Sie entsteht als eigener
+   * Auftrag, lange nachdem die Fassung fertig gemeldet wurde – deshalb ein
+   * eigener Schreibvorgang statt eines Feldes in `markReady`.
+   */
+  async setHls(versionId: string, hlsKey: string, variants: string): Promise<void> {
+    await this.db
+      .update(videoVersions)
+      .set({ hlsKey, hlsVariants: variants, updatedAt: new Date() })
+      .where(eq(videoVersions.id, versionId));
+    await this.meldeFassung(versionId);
+  }
+
   async markFailed(versionId: string, message: string): Promise<void> {
     await this.db
       .update(videoVersions)

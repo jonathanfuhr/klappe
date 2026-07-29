@@ -4,6 +4,12 @@ import type { Job } from 'bullmq';
 import { type FileHandle, open } from 'node:fs/promises';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { TRANSCODE_QUEUE, type TranscodeJobData } from '../queue/queue.constants';
+import { AftercareService } from '../renditions/aftercare.service';
+import { RenditionsService } from '../renditions/renditions.service';
+import {
+  TranscodeSettingsService,
+  type EffectiveTranscode,
+} from '../settings/transcode-settings.service';
 import { StorageService } from '../storage/storage.service';
 import { UploadTranscodeService } from '../uploads/upload-transcode.service';
 import { VersionsService, type TranscodeOutputs } from '../versions/versions.service';
@@ -11,6 +17,7 @@ import { FfmpegService } from './ffmpeg.service';
 import { SEGMENT_SECONDS, planLadder } from './hls-plan';
 import { type PlaybackDecision, decidePlayback, planPosterTime, planProxyScale, planSprite } from './media-plan';
 import { readTopLevelBoxes } from './mp4-faststart';
+import { planRendition } from './rendition-plan';
 import type { ProbeResult } from '../versions/versions.service';
 
 /** Wohin die Ergebnisse geschrieben werden – Schlüssel je Erzeugnis. */
@@ -45,6 +52,11 @@ export interface PipelineResult {
  * unterscheidet sich; deshalb steckt er in `runPipeline` und nicht im
  * Job-Handler.
  *
+ * Seit Phase 19 kommen zwei Nacharbeiten dazu, die *nicht* mehr in diesem
+ * Durchgang stecken: die HLS-Stufenleiter und die Download-Formate. Beide
+ * hielten die Fassung nur auf – abspielbar ist sie mit dem Proxy. Sie laufen
+ * jetzt als eigene Aufträge mit niedrigem Vorrang.
+ *
  * Die Nebenläufigkeit steht im Decorator und wird deshalb direkt aus der
  * Umgebung gelesen; Decorator-Argumente stehen vor der Dependency Injection fest.
  */
@@ -60,6 +72,9 @@ export class TranscodeProcessor extends WorkerHost {
     private readonly uploadTranscode: UploadTranscodeService,
     private readonly storage: StorageService,
     private readonly ffmpeg: FfmpegService,
+    private readonly settings: TranscodeSettingsService,
+    private readonly renditions: RenditionsService,
+    private readonly aftercare: AftercareService,
   ) {
     super();
   }
@@ -67,6 +82,14 @@ export class TranscodeProcessor extends WorkerHost {
   async process(job: Job<TranscodeJobData>): Promise<void> {
     if ('uploadId' in job.data) {
       await this.processUpload(job, job.data.uploadId);
+      return;
+    }
+    if ('hlsVersionId' in job.data) {
+      await this.processHls(job, job.data.hlsVersionId);
+      return;
+    }
+    if ('renditionId' in job.data) {
+      await this.processRendition(job, job.data.renditionId);
       return;
     }
     await this.processVersion(job, job.data.versionId);
@@ -110,6 +133,9 @@ export class TranscodeProcessor extends WorkerHost {
 
       await this.versionsService.markReady(versionId, ergebnis.outputs);
       this.logger.log(`Verarbeitung fertig: ${version.originalFilename} (${versionId})`);
+      // HLS-Leiter und Download-Formate erst danach – die Fassung ist ab
+      // jetzt abspielbar und soll darauf nicht warten (Phase 19).
+      await this.aftercare.scheduleQuietly(versionId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Verarbeitung fehlgeschlagen (${versionId}): ${message}`);
@@ -168,6 +194,125 @@ export class TranscodeProcessor extends WorkerHost {
     }
   }
 
+  // ---------- Weg 3: die HLS-Stufenleiter (Phase 19) ----------
+
+  /**
+   * Die adaptive Wiedergabe als eigener Auftrag. Sie kostet einen weiteren
+   * vollen Durchlauf über das Original – deshalb hinten in der Schlange und,
+   * wenn ein Zeitfenster gesetzt ist, erst darin.
+   *
+   * Scheitert sie, bleibt die Fassung fertig: Der progressive Proxy trägt das
+   * Abspielen ohnehin allein.
+   */
+  private async processHls(job: Job<TranscodeJobData>, versionId: string): Promise<void> {
+    const version = await this.versionsService.getRowOrFail(versionId);
+    if (version.status !== 'READY' || !version.originalKey) return;
+    if (version.hlsKey) return;
+
+    const einstellungen = await this.settings.effective();
+    if (!einstellungen.hlsEnabled) {
+      this.logger.log(`HLS-Leiter übersprungen (${versionId}): inzwischen abgeschaltet.`);
+      return;
+    }
+
+    const rungs = planLadder(version.width ?? 0, version.height ?? 0);
+    if (rungs.length === 0) return;
+
+    const key = this.storage.keyForHlsDir(versionId);
+    this.logger.log(`HLS-Leiter gestartet: ${version.originalFilename} (${versionId})`);
+
+    try {
+      await this.storage.ensureDirForKey(`${key}/master.m3u8`);
+      for (const rung of rungs) {
+        await this.storage.ensureDirForKey(`${key}/${rung.name}/index.m3u8`);
+      }
+
+      await this.ffmpeg.createHlsLadder({
+        inputPath: this.storage.resolveKey(version.originalKey),
+        outputDir: this.storage.resolveKey(key),
+        rungs,
+        frameRate:
+          version.fpsNum && version.fpsDen ? { num: version.fpsNum, den: version.fpsDen } : null,
+        durationSeconds: version.durationSeconds,
+        segmentSeconds: this.config.transcode.hlsSegmentSeconds || SEGMENT_SECONDS,
+        preset: einstellungen.proxyPreset,
+        onProgress: (anteil) => void job.updateProgress(Math.round(anteil * 100)),
+      });
+
+      await this.versionsService.setHls(versionId, key, rungs.map((rung) => rung.name).join(','));
+      this.logger.log(`HLS-Leiter fertig (${versionId}): ${rungs.map((r) => r.name).join(', ')}`);
+    } catch (error) {
+      // Ein Nebenweg, der scheitern darf – die Fassung bleibt fertig.
+      this.logger.warn(`HLS-Leiter fehlgeschlagen (${versionId}): ${String(error)}`);
+      await this.storage.remove(key);
+    }
+  }
+
+  // ---------- Weg 4: eine Download-Fassung (Phase 19) ----------
+
+  private async processRendition(job: Job<TranscodeJobData>, renditionId: string): Promise<void> {
+    const auftrag = await this.renditions.loadJob(renditionId);
+    if (!auftrag) {
+      this.logger.warn(`Download-Fassung ${renditionId} existiert nicht mehr.`);
+      return;
+    }
+
+    const { rendition, preset, version } = auftrag;
+    if (rendition.status === 'READY') return;
+    if (version.status !== 'READY' || !version.originalKey) {
+      await this.renditions.markFailed(renditionId, 'Die Fassung ist nicht (mehr) verarbeitet.');
+      return;
+    }
+    if (!version.width || !version.height) {
+      await this.renditions.markFailed(renditionId, 'Die Auflösung des Originals ist unbekannt.');
+      return;
+    }
+
+    const plan = planRendition(version.width, version.height, preset);
+    const key = this.storage.keyForRendition(version.id, rendition.id, plan.container);
+
+    this.logger.log(
+      `Download-Fassung gestartet: ${preset.name} für ${version.originalFilename} ` +
+        `(${plan.width}×${plan.height}, ${plan.videoBitrateKbps} kbit/s)`,
+    );
+
+    try {
+      await this.renditions.setProcessing(renditionId);
+      await this.storage.ensureDirForKey(key);
+
+      await this.ffmpeg.createRendition({
+        inputPath: this.storage.resolveKey(version.originalKey),
+        outputPath: this.storage.resolveKey(key),
+        width: plan.width,
+        height: plan.height,
+        videoBitrateKbps: plan.videoBitrateKbps,
+        audioBitrateKbps: plan.audioBitrateKbps,
+        preset: plan.preset,
+        frameRate:
+          version.fpsNum && version.fpsDen ? { num: version.fpsNum, den: version.fpsDen } : null,
+        durationSeconds: version.durationSeconds,
+        onProgress: async (anteil) => {
+          await this.renditions.setProgress(renditionId, anteil * 100);
+          await job.updateProgress(Math.round(anteil * 100));
+        },
+      });
+
+      await this.renditions.finish(renditionId, {
+        storageKey: key,
+        sizeBytes: await this.storage.size(key),
+        width: plan.width,
+        height: plan.height,
+      });
+      this.logger.log(`Download-Fassung fertig: ${preset.name} (${renditionId})`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Download-Fassung fehlgeschlagen (${renditionId}): ${message}`);
+      await this.storage.remove(key);
+      await this.renditions.markFailed(renditionId, message);
+      throw error;
+    }
+  }
+
   // ---------- Der gemeinsame Ablauf ----------
 
   private async runPipeline(input: {
@@ -181,6 +326,11 @@ export class TranscodeProcessor extends WorkerHost {
   }): Promise<PipelineResult> {
     const originalPath = this.storage.resolveKey(input.originalKey);
     await input.onProgress(1);
+
+    // Frisch aus der Datenbank, nicht beim Start eingelesen: Eine Änderung in
+    // den Einstellungen greift damit ab dem nächsten Auftrag, ohne dass der
+    // Container neu starten muss (Phase 19).
+    const einstellungen = await this.settings.effective();
 
     const probe = await this.ffmpeg.probe(originalPath);
     await input.onProbe(probe);
@@ -201,7 +351,7 @@ export class TranscodeProcessor extends WorkerHost {
         fastStart: await this.hasFastStart(originalPath),
       },
       {
-        maxShortEdge: this.config.transcode.proxyShortEdge,
+        maxShortEdge: einstellungen.proxyShortEdge,
         maxBitrateBps: this.config.transcode.playbackMaxBitrateBps,
       },
     );
@@ -214,6 +364,7 @@ export class TranscodeProcessor extends WorkerHost {
       originalPath,
       proxyKey: input.keys.proxy,
       probe,
+      einstellungen,
       // Der Proxy ist der lange Teil; Poster und Sprite bekommen den Rest.
       onProgress: (fraction) => void input.onProgress(5 + fraction * 80),
     });
@@ -274,38 +425,10 @@ export class TranscodeProcessor extends WorkerHost {
       }
     }
 
-    // Die HLS-Leiter ist die Ausbaustufe aus dem Konzept: ein weiterer
-    // Durchlauf, deshalb nur auf ausdrücklichen Wunsch. Der progressive
-    // Proxy bleibt in jedem Fall die Grundlage fürs frame-genaue Arbeiten.
-    if (this.config.transcode.hlsEnabled) {
-      const rungs = planLadder(probe.width ?? 0, probe.height ?? 0);
-      if (rungs.length > 0) {
-        try {
-          await this.storage.ensureDirForKey(`${input.keys.hls}/master.m3u8`);
-          for (const rung of rungs) {
-            await this.storage.ensureDirForKey(`${input.keys.hls}/${rung.name}/index.m3u8`);
-          }
-
-          await this.ffmpeg.createHlsLadder({
-            inputPath: originalPath,
-            outputDir: this.storage.resolveKey(input.keys.hls),
-            rungs,
-            frameRate: probe.frameRate,
-            durationSeconds: probe.durationSeconds,
-            segmentSeconds: this.config.transcode.hlsSegmentSeconds || SEGMENT_SECONDS,
-          });
-
-          outputs.hlsKey = input.keys.hls;
-          outputs.hlsVariants = rungs.map((rung) => rung.name).join(',');
-          this.logger.log(`HLS-Leiter erzeugt (${input.label}): ${outputs.hlsVariants}`);
-        } catch (error) {
-          // Wie Poster und Sprite: ein Nebenweg, der scheitern darf.
-          this.logger.warn(`HLS-Leiter fehlgeschlagen (${input.label}): ${String(error)}`);
-          await this.storage.remove(input.keys.hls);
-        }
-      }
-    }
-
+    // Die HLS-Leiter entsteht seit Phase 19 nicht mehr hier, sondern als
+    // eigener Auftrag: Sie kostet einen zweiten vollen Durchlauf über das
+    // Original und hielt die Fassung nur auf, die mit dem Proxy längst
+    // abspielbar ist. Siehe `processHls`.
     return { probe, decision, outputs };
   }
 
@@ -327,6 +450,7 @@ export class TranscodeProcessor extends WorkerHost {
     originalPath: string;
     proxyKey: string;
     probe: { width: number | null; height: number | null; frameRate: { num: number; den: number } | null; durationSeconds: number | null };
+    einstellungen: EffectiveTranscode;
     onProgress: (fraction: number) => void;
   }): Promise<{ key: string; width: number; height: number }> {
     const width = input.probe.width ?? 0;
@@ -347,7 +471,7 @@ export class TranscodeProcessor extends WorkerHost {
       return { key: input.proxyKey, width, height };
     }
 
-    const scale = planProxyScale(width, height, this.config.transcode.proxyShortEdge);
+    const scale = planProxyScale(width, height, input.einstellungen.proxyShortEdge);
     await this.ffmpeg.createProxy({
       inputPath: input.originalPath,
       outputPath: this.storage.resolveKey(input.proxyKey),
@@ -355,6 +479,12 @@ export class TranscodeProcessor extends WorkerHost {
       height: scale.height,
       frameRate: input.probe.frameRate,
       durationSeconds: input.probe.durationSeconds,
+      encoding: {
+        preset: input.einstellungen.proxyPreset,
+        videoBitrate: input.einstellungen.proxyVideoBitrate,
+        maxrate: input.einstellungen.proxyMaxrate,
+        bufsize: input.einstellungen.proxyBufsize,
+      },
       onProgress: input.onProgress,
     });
     return { key: input.proxyKey, width: scale.width, height: scale.height };

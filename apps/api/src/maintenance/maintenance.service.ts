@@ -19,6 +19,7 @@ import {
   pendingNotifications,
   projectFiles,
   projects,
+  versionRenditions,
   videoVersions,
   videos,
 } from '../db/schema';
@@ -197,7 +198,18 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
     let count = 0;
     let bytes = 0;
 
-    for (const ordner of ['originals', 'proxies', 'posters', 'sprites', 'hls', 'project-files']) {
+    for (const ordner of [
+      'originals',
+      'proxies',
+      'posters',
+      'sprites',
+      'hls',
+      'project-files',
+      // Download-Formate (Phase 19). Hier landet auch, was nach einer
+      // Preset-Änderung stehen geblieben ist – die Zeile zeigt dann auf eine
+      // neue Datei, die alte ist verwaist.
+      'renditions',
+    ]) {
       for await (const eintrag of this.walk(ordner)) {
         // Bei HLS und Originalen zeigt die Datenbank aufs Verzeichnis bzw.
         // auf die Datei darin – deshalb zählt auch ein übergeordneter Treffer.
@@ -236,6 +248,13 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
 
     const dateien = await this.db.select({ key: projectFiles.storageKey }).from(projectFiles);
     for (const zeile of dateien) keys.add(normalize(zeile.key));
+
+    const formate = await this.db
+      .select({ key: versionRenditions.storageKey })
+      .from(versionRenditions);
+    for (const zeile of formate) {
+      if (zeile.key) keys.add(normalize(zeile.key));
+    }
 
     // Laufende Uploads liegen unter tmp/ und werden vom Upload-Aufräumer
     // behandelt – hier bleiben sie außen vor.

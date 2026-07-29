@@ -21,6 +21,7 @@ import { ProjectFoldersService } from '../project-files/project-folders.service'
 import { ProjectsService } from '../projects/projects.service';
 import { MailQueueService } from '../queue/mail-queue.service';
 import { TranscodeQueueService } from '../queue/transcode-queue.service';
+import { AftercareService } from '../renditions/aftercare.service';
 import { StorageService } from '../storage/storage.service';
 import { VersionsService } from '../versions/versions.service';
 import { VideosService } from '../videos/videos.service';
@@ -52,6 +53,7 @@ export class UploadsService {
     private readonly queue: TranscodeQueueService,
     private readonly mailQueue: MailQueueService,
     private readonly uploadTranscode: UploadTranscodeService,
+    private readonly aftercare: AftercareService,
   ) {
     // Wird die Verarbeitung im Zwischenspeicher fertig, *nachdem* jemand
     // gespeichert hat, muss sie den Umzug selbst anstoßen. Der Rückruf wird
@@ -484,6 +486,10 @@ export class UploadsService {
       outputs.sprite = { ...outputs.sprite, key: ziel };
     }
 
+    // Seit Phase 19 entsteht die HLS-Leiter als eigener Auftrag an der
+    // fertigen Fassung, hier also nichts mehr. Der Zweig bleibt für Ergebnisse
+    // stehen, die noch vom alten Weg im Zwischenspeicher liegen – etwa wenn
+    // der Container mitten in einer Sitzung aktualisiert wurde.
     if (outputs.hlsKey) {
       const ziel = this.storage.keyForHlsDir(versionId);
       await this.storage.move(outputs.hlsKey, ziel);
@@ -492,6 +498,7 @@ export class UploadsService {
 
     await this.versionsService.markReady(versionId, outputs);
     await this.uploadTranscode.removeWorkDir(row.id);
+    await this.aftercare.scheduleQuietly(versionId);
   }
 
   /**

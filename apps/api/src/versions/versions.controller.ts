@@ -13,6 +13,7 @@ import { IsBoolean, IsOptional, IsString, Matches, MaxLength } from 'class-valid
 import { AccessService } from '../access/access.service';
 import { CurrentUser, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
+import { RenditionsService } from '../renditions/renditions.service';
 import { StorageService } from '../storage/storage.service';
 import { VersionsService } from './versions.service';
 
@@ -44,6 +45,7 @@ export class VersionsController {
     private readonly versionsService: VersionsService,
     private readonly accessService: AccessService,
     private readonly storage: StorageService,
+    private readonly renditions: RenditionsService,
   ) {}
 
   @Get(':id')
@@ -63,7 +65,7 @@ export class VersionsController {
     @CurrentUser() user: RequestUser,
   ): Promise<VersionDto> {
     const scope = await this.accessService.loadScope(user);
-    return this.versionsService.update(
+    const aktualisiert = await this.versionsService.update(
       id,
       {
         label: dto.label === undefined ? undefined : dto.label.trim() || null,
@@ -73,6 +75,13 @@ export class VersionsController {
       },
       scope,
     );
+
+    // Wer „nur Endfassungen“ eingestellt hat, bekommt die Formate erst, wenn
+    // der Haken gesetzt ist – also genau jetzt (Phase 19).
+    if (dto.isFinal === true) {
+      await this.renditions.prebuildFor(id).catch(() => undefined);
+    }
+    return aktualisiert;
   }
 
   @Roles('ADMIN', 'MEMBER')
@@ -83,5 +92,8 @@ export class VersionsController {
     for (const key of [row.originalKey, row.proxyKey, row.posterKey, row.spriteKey, row.hlsKey]) {
       if (key) await this.storage.remove(key);
     }
+    // Die erzeugten Download-Formate liegen alle in einem Verzeichnis je
+    // Fassung – eine Bewegung nimmt sie mit (Phase 19).
+    await this.storage.remove(this.storage.keyForRenditionDir(id));
   }
 }

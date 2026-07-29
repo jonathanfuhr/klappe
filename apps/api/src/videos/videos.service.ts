@@ -6,6 +6,7 @@ import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
 import { comments, projects, users, videoVersions, videos } from '../db/schema';
 import { ProjectsService } from '../projects/projects.service';
+import { StorageService } from '../storage/storage.service';
 import { VersionsService } from '../versions/versions.service';
 import type { CreateVideoDto, UpdateVideoDto } from './videos.dto';
 
@@ -25,6 +26,7 @@ export class VideosService {
     private readonly projectsService: ProjectsService,
     private readonly versionsService: VersionsService,
     private readonly accessService: AccessService,
+    private readonly storage: StorageService,
   ) {}
 
   async listForProject(projectId: string, scope: AccessScope): Promise<VideoDto[]> {
@@ -151,6 +153,9 @@ export class VideosService {
         version.posterKey,
         version.spriteKey,
         version.hlsKey,
+        // Die erzeugten Download-Formate (Phase 19) liegen je Fassung in
+        // einem eigenen Verzeichnis.
+        this.storage.keyForRenditionDir(version.id),
       ])
       .filter((key): key is string => Boolean(key));
   }

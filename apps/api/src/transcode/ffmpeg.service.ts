@@ -68,6 +68,12 @@ export class FfmpegService {
     height: number;
     frameRate: FrameRate | null;
     durationSeconds: number | null;
+    /**
+     * Kodierwerte aus den Einstellungen (Phase 19). Sie kommen aus der
+     * Datenbank oder – solange dort nichts entschieden wurde – aus der `.env`;
+     * zusammengeführt wird das im `TranscodeSettingsService`.
+     */
+    encoding: { preset: string; videoBitrate: string; maxrate: string; bufsize: string };
     onProgress?: (fraction: number) => void;
   }): Promise<void> {
     const { transcode } = this.config;
@@ -87,13 +93,13 @@ export class FfmpegService {
       '-profile:v',
       'high',
       '-preset',
-      transcode.proxyPreset,
+      input.encoding.preset,
       '-b:v',
-      transcode.proxyVideoBitrate,
+      input.encoding.videoBitrate,
       '-maxrate',
-      transcode.proxyMaxrate,
+      input.encoding.maxrate,
       '-bufsize',
-      transcode.proxyBufsize,
+      input.encoding.bufsize,
       '-pix_fmt',
       'yuv420p',
       '-vf',
@@ -115,6 +121,81 @@ export class FfmpegService {
       '2',
       // Ohne faststart liegt der Index am Dateiende und der Player müsste
       // erst alles laden, bevor er springen kann.
+      '-movflags',
+      '+faststart',
+      '-progress',
+      'pipe:1',
+      '-nostats',
+      input.outputPath,
+    );
+
+    await this.run(this.config.transcode.ffmpegPath, args, {
+      totalSeconds: input.durationSeconds ?? undefined,
+      onProgress: input.onProgress,
+    });
+  }
+
+  /**
+   * Eine Download-Fassung aus einem Format-Preset (Phase 19).
+   *
+   * Anders als beim Proxy kommen Größe, Bitrate und Preset nicht aus der
+   * Konfiguration, sondern aus dem Preset – gerechnet wird das in
+   * `rendition-plan.ts`. Die Bildrate bleibt wie beim Proxy 1:1 und CFR: Auch
+   * eine heruntergeladene Fassung soll frame-genau zum Original passen.
+   */
+  async createRendition(input: {
+    inputPath: string;
+    outputPath: string;
+    width: number;
+    height: number;
+    videoBitrateKbps: number;
+    audioBitrateKbps: number;
+    preset: string;
+    frameRate: FrameRate | null;
+    durationSeconds: number | null;
+    onProgress?: (fraction: number) => void;
+  }): Promise<void> {
+    const args = [
+      '-hide_banner',
+      '-nostdin',
+      '-y',
+      '-i',
+      input.inputPath,
+      '-map',
+      '0:v:0',
+      '-map',
+      '0:a:0?',
+      '-c:v',
+      'libx264',
+      '-profile:v',
+      'high',
+      '-preset',
+      input.preset,
+      '-b:v',
+      `${input.videoBitrateKbps}k`,
+      '-maxrate',
+      `${Math.round(input.videoBitrateKbps * 1.2)}k`,
+      '-bufsize',
+      `${Math.round(input.videoBitrateKbps * 2.4)}k`,
+      '-pix_fmt',
+      'yuv420p',
+      '-vf',
+      `scale=${input.width}:${input.height}`,
+      '-fps_mode',
+      'cfr',
+    ];
+
+    if (input.frameRate) {
+      args.push('-r', `${input.frameRate.num}/${input.frameRate.den}`);
+    }
+
+    args.push(
+      '-c:a',
+      'aac',
+      '-b:a',
+      `${input.audioBitrateKbps}k`,
+      '-ac',
+      '2',
       '-movflags',
       '+faststart',
       '-progress',
@@ -172,6 +253,8 @@ export class FfmpegService {
     frameRate: FrameRate | null;
     durationSeconds: number | null;
     segmentSeconds: number;
+    /** x264-Preset aus den Einstellungen (Phase 19). */
+    preset: string;
     onProgress?: (fraction: number) => void;
   }): Promise<void> {
     const { rungs } = input;
@@ -206,7 +289,7 @@ export class FfmpegService {
         `-bufsize:v:${index}`,
         String(rung.maxrateBps * 2),
         `-preset:v:${index}`,
-        this.config.transcode.proxyPreset,
+        input.preset,
       );
       // Ton optional – stummes Material soll nicht abbrechen.
       args.push('-map', '0:a:0?', `-c:a:${index}`, 'aac', `-b:a:${index}`, '128k', '-ac', '2');

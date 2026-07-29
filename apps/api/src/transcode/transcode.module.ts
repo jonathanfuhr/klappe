@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { QueueModule } from '../queue/queue.module';
+import { RenditionsModule } from '../renditions/renditions.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { VersionsModule } from '../versions/versions.module';
 import { FfmpegService } from './ffmpeg.service';
@@ -14,7 +15,7 @@ import { TranscodeRecoveryService } from './transcode-recovery.service';
  * bevor eine Fassung existiert, und muss danach selbst aufnehmen können.
  */
 @Module({
-  imports: [QueueModule, VersionsModule, UploadsModule],
+  imports: [QueueModule, VersionsModule, UploadsModule, RenditionsModule],
   providers: [FfmpegService, TranscodeProcessor, TranscodeRecoveryService],
 })
 export class TranscodeModule {}

@@ -16,6 +16,7 @@ import {
   videoVersions,
   videos,
 } from '../db/schema';
+import { StorageService } from '../storage/storage.service';
 import type { CreateProjectDto, UpdateProjectDto } from './projects.dto';
 
 type ProjectQueryRow = {
@@ -49,6 +50,7 @@ export class ProjectsService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly accessService: AccessService,
+    private readonly storage: StorageService,
   ) {}
 
   private baseQuery() {
@@ -262,6 +264,7 @@ export class ProjectsService {
   async remove(id: string): Promise<string[]> {
     const versionen = await this.db
       .select({
+        id: videoVersions.id,
         originalKey: videoVersions.originalKey,
         proxyKey: videoVersions.proxyKey,
         posterKey: videoVersions.posterKey,
@@ -280,7 +283,15 @@ export class ProjectsService {
     if (!row) throw new NotFoundException('Projekt nicht gefunden.');
 
     return [
-      ...versionen.flatMap((v) => [v.originalKey, v.proxyKey, v.posterKey, v.spriteKey, v.hlsKey]),
+      ...versionen.flatMap((v) => [
+        v.originalKey,
+        v.proxyKey,
+        v.posterKey,
+        v.spriteKey,
+        v.hlsKey,
+        // Erzeugte Download-Formate, je Fassung ein Verzeichnis (Phase 19).
+        this.storage.keyForRenditionDir(v.id),
+      ]),
       ...dateien.map((d) => d.storageKey),
     ].filter((key): key is string => Boolean(key));
   }

@@ -6,8 +6,31 @@ export const TRANSCODE_JOB = 'transcode-version';
  * zu einer Fassung, oder sie liegt noch im Zwischenspeicher und wartet
  * darauf, dass jemand Projekt und Video einträgt. Verarbeitet wird sie in
  * beiden Fällen sofort.
+ *
+ * Seit Phase 19 kommen zwei Nacharbeiten dazu, auf die niemand wartet: die
+ * HLS-Stufenleiter und eine Download-Fassung aus einem Format-Preset.
  */
-export type TranscodeJobData = { versionId: string } | { uploadId: string };
+export type TranscodeJobData =
+  | { versionId: string }
+  | { uploadId: string }
+  | { hlsVersionId: string }
+  | { renditionId: string };
+
+/**
+ * Vorrang in der Warteschlange (Phase 19).
+ *
+ * BullMQ liest `0` als „keine Priorität" und arbeitet solche Aufträge **vor**
+ * allen priorisierten ab. Genau das ist hier gewollt: Die Abspielfassung
+ * bekommt deshalb bewusst keine Priorität mitgegeben und drängelt sich damit
+ * immer vor. Ein Download, auf den gerade jemand schaut, geht vor der
+ * Vorratsarbeit – und die HLS-Leiter wie die Vorab-Erzeugung ganz hinten.
+ */
+export const TRANSCODE_PRIORITY = {
+  /** Ein angefordertes Format – der Kunde sieht den Fortschrittsbalken. */
+  angefordert: 1,
+  /** Vorab-Erzeugung und HLS-Leiter. */
+  vorrat: 10,
+} as const;
 
 export const MAIL_QUEUE = 'mail';
 export const MAIL_JOB = 'send-notification';

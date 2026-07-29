@@ -63,6 +63,19 @@ export class StorageService {
   }
 
   /**
+   * Eine erzeugte Download-Fassung (Phase 19). Ein Verzeichnis je Fassung,
+   * damit das Löschen einer Version alles in einem Zug mitnimmt.
+   */
+  keyForRendition(versionId: string, renditionId: string, container: string): string {
+    const endung = container.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'mp4';
+    return join('renditions', versionId, `${renditionId}.${endung}`);
+  }
+
+  keyForRenditionDir(versionId: string): string {
+    return join('renditions', versionId);
+  }
+
+  /**
    * Datei im Kunden-Ordner eines Projekts. Die Upload-ID im Pfad verhindert,
    * dass zwei gleichnamige Dateien einander überschreiben.
    */
