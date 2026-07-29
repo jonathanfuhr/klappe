@@ -11,6 +11,7 @@ import type {
   GuestOverviewDto,
   LoginMethodsDto,
   LoginResponseDto,
+  MailFailureDto,
   NotificationDto,
   NotificationSubscriberDto,
   ProjectDto,
@@ -436,6 +437,10 @@ export const api = {
     archiveRetentionDays?: number;
   }) => request<SmtpSettingsDto>('/v1/settings/smtp', { method: 'PUT', body: JSON.stringify(input) }),
   smtpPresets: () => request<SmtpProviderPresetDto[]>('/v1/settings/smtp/presets'),
+  /** Was nicht zugestellt werden konnte (Phase 18). */
+  mailFailures: () => request<MailFailureDto[]>('/v1/settings/smtp/fehlversand'),
+  clearMailFailures: (id?: string) =>
+    request<void>(`/v1/settings/smtp/fehlversand${id ? `?id=${id}` : ''}`, { method: 'DELETE' }),
 
   // ---------- Schlagworte (Phase 12) ----------
   listTags: () => request<TagDto[]>('/v1/tags'),

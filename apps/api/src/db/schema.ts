@@ -668,6 +668,35 @@ export const notifications = pgTable(
 );
 
 /**
+ * Mails, die nicht zugestellt werden konnten (Phase 18).
+ *
+ * Bisher stand ein gescheiterter Versand nur im Log – wer keins liest, erfuhr
+ * nie, dass der Kunde die Einladung gar nicht bekommen hat. Jetzt steht es in
+ * den Einstellungen.
+ *
+ * Eine Zeile je Empfänger und Betreff: Die Warteschlange versucht es mehrfach,
+ * und vier gleiche Zeilen sind kein besserer Hinweis als eine mit „4
+ * Versuche“.
+ */
+export const mailFailures = pgTable(
+  'mail_failures',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    recipient: text('recipient').notNull(),
+    subject: text('subject').notNull(),
+    /** Die Meldung des Mailservers, gekürzt. */
+    error: text('error').notNull(),
+    attempts: integer('attempts').notNull().default(1),
+    firstAt: timestamp('first_at', { withTimezone: true }).notNull().defaultNow(),
+    lastAt: timestamp('last_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('mail_failures_recipient_subject_idx').on(table.recipient, table.subject),
+    index('mail_failures_last_idx').on(table.lastAt),
+  ],
+);
+
+/**
  * Wartende Benachrichtigungen (Phase 18).
  *
  * Ein Kommentar landet hier je Empfänger, statt sofort eine Mail auszulösen.
@@ -774,3 +803,4 @@ export type ProjectFolderRow = typeof projectFolders.$inferSelect;
 export type PendingNotificationRow = typeof pendingNotifications.$inferSelect;
 export type NotificationSubscriptionRow = typeof notificationSubscriptions.$inferSelect;
 export type NotificationRow = typeof notifications.$inferSelect;
+export type MailFailureRow = typeof mailFailures.$inferSelect;

@@ -1,5 +1,10 @@
-import { Body, Controller, Get, HttpCode, Post, Put } from '@nestjs/common';
-import type { AuthSettingsDto, SmtpProviderPresetDto, SmtpSettingsDto } from '@klappe/shared';
+import { Body, Controller, Delete, Get, HttpCode, Post, Put, Query } from '@nestjs/common';
+import type {
+  AuthSettingsDto,
+  MailFailureDto,
+  SmtpProviderPresetDto,
+  SmtpSettingsDto,
+} from '@klappe/shared';
 import {
   IsBoolean,
   IsEmail,
@@ -174,6 +179,24 @@ export class SettingsController {
   @HttpCode(204)
   async sendTest(@Body() dto: TestMailDto, @CurrentUser() user: RequestUser): Promise<void> {
     await this.mailService.sendTestMail(dto.to?.trim() || user.email);
+  }
+
+  /**
+   * Was nicht zugestellt werden konnte (Phase 18). Steht neben dem
+   * Mailserver, der es nicht geschafft hat – dort sucht man danach.
+   */
+  @Roles('ADMIN')
+  @Get('smtp/fehlversand')
+  failures(): Promise<MailFailureDto[]> {
+    return this.mailService.listFailures();
+  }
+
+  /** Abhaken – einzeln über `?id=`, ohne Angabe die ganze Liste. */
+  @Roles('ADMIN')
+  @Delete('smtp/fehlversand')
+  @HttpCode(204)
+  async clearFailures(@Query('id') id?: string): Promise<void> {
+    await this.mailService.clearFailures(id);
   }
 
   /**

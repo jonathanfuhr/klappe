@@ -1,6 +1,6 @@
 'use client';
 
-import type { SmtpProviderPresetDto, SmtpSettingsDto } from '@klappe/shared';
+import type { MailFailureDto, SmtpProviderPresetDto, SmtpSettingsDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
@@ -34,12 +34,18 @@ export function SmtpPanel() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [fehlversand, setFehlversand] = useState<MailFailureDto[]>([]);
 
   const load = useCallback(async () => {
     try {
-      const [current, presetList] = await Promise.all([api.getSmtpSettings(), api.smtpPresets()]);
+      const [current, presetList, gescheitert] = await Promise.all([
+        api.getSmtpSettings(),
+        api.smtpPresets(),
+        api.mailFailures().catch(() => []),
+      ]);
       setSettings(current);
       setPresets(presetList);
+      setFehlversand(gescheitert);
       setForm({
         enabled: current.enabled,
         provider: current.provider ?? 'brevo',
@@ -130,6 +136,63 @@ export function SmtpPanel() {
       {info ? (
         <div className="card" style={{ padding: '10px 12px', marginBottom: 14 }}>
           {info}
+        </div>
+      ) : null}
+
+      {/* Ganz oben, nicht unten: Wer hier hereinkommt, weil eine Mail nicht
+          ankam, soll es sofort sehen (Phase 18). */}
+      {fehlversand.length > 0 ? (
+        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <div className="toolbar" style={{ marginBottom: 10 }}>
+            <strong>Nicht zugestellt</strong>
+            <span className="badge badge--failed">{fehlversand.length}</span>
+            <div className="shell__spacer" />
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={async () => {
+                await api.clearMailFailures().catch(() => undefined);
+                setFehlversand([]);
+              }}
+            >
+              Liste leeren
+            </button>
+          </div>
+
+          {fehlversand.map((eintrag) => (
+            <div key={eintrag.id} className="guest">
+              <div className="toolbar" style={{ gap: 8 }}>
+                <strong style={{ fontSize: 14 }}>{eintrag.recipient}</strong>
+                {eintrag.attempts > 1 ? (
+                  <span className="badge">{eintrag.attempts} Versuche</span>
+                ) : null}
+                <div className="shell__spacer" />
+                <span className="faint" style={{ fontSize: 12 }}>
+                  {formatDateTime(eintrag.lastAt)}
+                </span>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={async () => {
+                    await api.clearMailFailures(eintrag.id).catch(() => undefined);
+                    setFehlversand((current) => current.filter((e) => e.id !== eintrag.id));
+                  }}
+                >
+                  Abhaken
+                </button>
+              </div>
+              <span className="faint" style={{ fontSize: 12 }}>
+                {eintrag.subject}
+              </span>
+              <div className="notice" style={{ marginTop: 6 }}>
+                {eintrag.error}
+              </div>
+            </div>
+          ))}
+
+          <p className="hint" style={{ margin: '8px 0 0' }}>
+            Ein geglückter Versand an dieselbe Adresse räumt den Eintrag von selbst weg.
+          </p>
         </div>
       ) : null}
 

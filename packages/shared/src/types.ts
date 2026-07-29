@@ -463,6 +463,20 @@ export interface SmtpSettingsDto {
   updatedAt: string;
 }
 
+/**
+ * Eine Mail, die nicht zugestellt werden konnte (Phase 18). Eine Zeile je
+ * Empfänger und Betreff; `attempts` zählt die Versuche der Warteschlange.
+ */
+export interface MailFailureDto {
+  id: string;
+  recipient: string;
+  subject: string;
+  error: string;
+  attempts: number;
+  firstAt: string;
+  lastAt: string;
+}
+
 /** Vorbelegung der SMTP-Felder je Anbieter (nur Host, Port, TLS). */
 export interface SmtpProviderPresetDto {
   id: string;
