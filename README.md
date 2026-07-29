@@ -121,8 +121,26 @@ Weg, solange der Datenverkehr über Cloudflare laufen darf.
 1. Bei Cloudflare unter *Zero Trust → Networks → Tunnels* einen Tunnel anlegen
    und den Token kopieren.
 2. In der `.env` `PUBLIC_URL=https://klappe.example.org` setzen.
-3. Den Tunnel als weiteren Dienst neben Klappe starten, mit
-   `http://web:3000` als Ziel:
+   `SESSION_COOKIE_SECURE` bleibt unangetastet – die Markierung richtet sich
+   danach.
+3. Klappe ohne Host-Port starten:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d
+```
+
+**Ziel im Tunnel ist `http://caddy:80`** – der Dienstname, keine IP-Adresse.
+Die ändert sich bei jedem Neuaufbau des Netzes.
+
+> **Nicht auf `web:3000` zeigen.** Caddy verteilt `/v1/*` an die API und alles
+> andere an Next. Führte der Tunnel direkt auf Next, liefen die Uploads wieder
+> über dessen Weiterleitung – und damit in den `Connection: close`-Fehler, an
+> dem Safari zuverlässig scheitert (siehe `docker/klappe-routen.caddy`).
+
+#### Der Tunnel läuft im Stack
+
+Der einfachste Fall: cloudflared als weiterer Dienst neben Klappe. Dann sind
+beide von Haus aus im selben Netz.
 
 ```yaml
 services:
@@ -134,10 +152,51 @@ services:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
 ```
 
-Wichtig ist einzig, dass in Cloudflare bei den Tunnel-Einstellungen die
-maximale Dateigröße nicht bremst – Uploads laufen in Blöcken von wenigen
-Megabyte, sind also unkritisch, aber ein Limit auf der Cloudflare-Seite gilt
-trotzdem pro Anfrage.
+#### Der Tunnel läuft schon woanders auf demselben Host
+
+Wer bereits einen cloudflared für andere Dienste betreibt, nimmt ihn und hängt
+ihn zusätzlich ins Klappe-Netz:
+
+```bash
+docker network connect klappe_default <name-des-cloudflared-containers>
+```
+
+Danach löst `caddy` auch dort auf. Der Beitritt überlebt kein Neuanlegen des
+Containers – nach einem Update ist er zu wiederholen.
+
+**Ein Ziel wie `http://<host-ip>:3000` funktioniert in dieser Aufstellung
+nicht**, und die Fehlermeldung führt in die Irre. Läuft cloudflared mit eigener
+Adresse an einem `macvlan`- oder `ipvlan`-Netz (auf Unraid `br0`), erreicht der
+Container zwar andere Container mit eigener Adresse, **nicht aber seinen
+eigenen Host**: Die Pakete gehen an dessen Netzkarte vorbei und kommen nie
+zurück. Im Tunnel-Log steht dann
+
+```
+Unable to reach the origin service … connect: no route to host
+```
+
+– ein Fehler auf IP-Ebene, im Unterschied zu `connection refused`, wo der Host
+antwortet, aber nichts lauscht. Der Ausweg ist immer derselbe: über das
+Docker-Netz gehen, nicht über die Host-Adresse.
+
+Nachprüfen lässt sich das, ohne cloudflared anzufassen:
+
+```bash
+docker run --rm --network klappe_default alpine \
+  wget -qO- -T5 http://caddy:80/login | head -c 80
+```
+
+#### Nicht zusammen mit `docker-compose.https.yml`
+
+Tunnel und eigenes Zertifikat sind Alternativen. Caddy holt das Zertifikat über
+die Ports 80/443, die es hinter einem Tunnel nicht gibt.
+
+#### Größe der Uploads
+
+In Cloudflare gilt eine Obergrenze **pro Anfrage** (im kostenlosen Plan
+100 MB). Klappe überträgt in Blöcken von wenigen Megabyte, liegt also weit
+darunter – auch ein 40-GB-Kameraband geht durch. Das ist der übliche
+Stolperstein bei Tunneln und hier bewusst keiner.
 
 ### Weg 2: Eigene Domain mit Portfreigabe
 
@@ -153,10 +212,10 @@ docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
 ```
 
 Port 80 wird für die Zertifikatsprüfung gebraucht und leitet danach auf HTTPS
-um. Die Ergänzung nimmt dem Dienst `web` die direkte Veröffentlichung ab, es
-hört also nur noch Caddy nach außen. Der Proxy reicht `X-Forwarded-Proto`
-weiter, gibt Antworten ungepuffert durch (sonst stockt das Video) und
-deckelt die Anfragegröße nicht – die Grenze setzt `UPLOAD_MAX_BYTES`.
+um. Der Reverse Proxy steht schon im Grundstapel; die Ergänzung gibt ihm nur
+Domain, Zertifikat und die Ports 80/443. Er reicht `X-Forwarded-Proto` weiter,
+gibt Antworten ungepuffert durch (sonst stockt das Video) und deckelt die
+Anfragegröße nicht – die Grenze setzt `UPLOAD_MAX_BYTES`.
 
 ## Abspielfassung und Dateinamen
 

@@ -1,0 +1,31 @@
+# Ergänzung für den Betrieb hinter einem Cloudflared-Tunnel.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d
+#
+# Der Tunnel bringt TLS mit und verbindet sich von innen nach außen – am Router
+# muss kein Port offen sein, und auf dem Host muss keiner belegt werden. Genau
+# das nimmt diese Datei dem Reverse Proxy ab.
+#
+# **Ziel im Tunnel ist `http://caddy:80`**, nicht `web:3000`. Caddy verteilt
+# `/v1/*` an die API und alles andere an Next; führte der Tunnel direkt auf
+# Next, liefen die Uploads wieder über dessen Weiterleitung – und damit in den
+# `Connection: close`-Fehler, an dem Safari zuverlässig scheitert. Die
+# ausführliche Begründung steht in `docker/klappe-routen.caddy`.
+#
+# Warum die Veröffentlichung ganz weg soll, statt danebenzustehen: Mit
+# `PUBLIC_URL=https://…` trägt das Sitzungs-Cookie die Markierung `Secure`.
+# Über eine Klartext-Adresse wie http://<host>:3000 nimmt der Browser es dann
+# gar nicht erst an – man käme bis zur Anmeldemaske und nicht weiter. Ein
+# offener Port wäre also kein zweiter Weg, sondern eine Sackgasse, die wie ein
+# Weg aussieht. Wer den LAN-Zugang behalten will, lässt diese Datei weg und
+# nimmt in Kauf, dass dort nur noch geschaut und nicht angemeldet werden kann.
+#
+# Das Gegenstück für den anderen Weg (eigenes Zertifikat, Portfreigabe) ist
+# `docker-compose.https.yml`. Die beiden schließen sich aus: Caddy holt sein
+# Zertifikat über die Ports 80/443, die es hinter einem Tunnel nicht gibt.
+
+services:
+  caddy:
+    # Erreichbar bleibt der Dienst über das Docker-Netz `klappe_default` – dort
+    # muss auch der cloudflared-Container hängen, siehe README.
+    ports: !override []

@@ -3,10 +3,14 @@
 #   cp .env.example .env   # Werte anpassen, insbesondere die Geheimnisse
 #   docker compose up -d --build
 #
-# Nach außen wird nur `web` veröffentlicht; die API erreicht der Browser über
-# die Weiterleitung `/v1/*` in Next.js. Das Deployment-Ziel (Synology +
-# Cloudflared) ist bewusst nicht Teil dieser Datei – hier steht ein
-# allgemeiner Stack, der auf jedem Docker-Host läuft.
+# Nach außen zeigt nur `caddy`. Er verteilt `/v1/*` an die API und alles andere
+# an Next – beides unter derselben Herkunft, sodass das Sitzungs-Cookie greift
+# und CORS nicht gebraucht wird. Warum das nicht Next selbst übernimmt, steht
+# in `docker/klappe-routen.caddy`.
+#
+# Für HTTPS gibt es zwei Ergänzungen: `docker-compose.tunnel.yml` (Cloudflared,
+# kein Port nach außen) und `docker-compose.https.yml` (eigenes Zertifikat,
+# Portfreigabe). Sie schließen sich gegenseitig aus.
 
 name: klappe
 
