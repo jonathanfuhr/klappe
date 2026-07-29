@@ -181,6 +181,20 @@ export class UploadsController {
     return this.uploadsService.listUnassigned(user);
   }
 
+  /**
+   * Eine einzelne Sitzung – vor allem wegen des Verarbeitungsfortschritts im
+   * Zwischenspeicher (Phase 18). `HEAD` gibt nur den Byte-Stand zurück; hier
+   * steht auch, wie weit ffmpeg schon ist.
+   */
+  @Roles('ADMIN', 'MEMBER')
+  @Get('uploads/:id')
+  async getOne(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<UploadSessionDto> {
+    return this.uploadsService.toDto(await this.uploadsService.getWritableOrFail(id, user));
+  }
+
   /** Zuordnung nachreichen; ist die Datei schon durch, entsteht die Fassung. */
   @Roles('ADMIN', 'MEMBER')
   @Patch('uploads/:id/ziel')

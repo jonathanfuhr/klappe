@@ -225,6 +225,14 @@ export interface UploadSessionDto {
   sizeBytes: number;
   offsetBytes: number;
   status: UploadStatus;
+  /**
+   * Verarbeitung im Zwischenspeicher (Phase 18). Sie beginnt, sobald die
+   * Datei vollständig übertragen ist – auch wenn noch kein Ziel feststeht.
+   * `NONE` heißt: noch nicht angefangen.
+   */
+  transcodeStatus: 'NONE' | 'PROCESSING' | 'READY' | 'FAILED';
+  transcodeProgress: number;
+  transcodeError: string | null;
   /** Absoluter Pfad für `PATCH`/`HEAD` nach tus-Semantik. */
   location: string;
   createdAt: string;

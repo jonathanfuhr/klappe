@@ -26,6 +26,7 @@ import { VersionsService } from '../versions/versions.service';
 import { VideosService } from '../videos/videos.service';
 import { ByteLimitExceededError, LimitStream } from './limit-stream';
 import { checkOffset } from './tus';
+import { type StoredTranscodeResult, UploadTranscodeService } from './upload-transcode.service';
 
 @Injectable()
 export class UploadsService {
@@ -50,7 +51,14 @@ export class UploadsService {
     private readonly projectFoldersService: ProjectFoldersService,
     private readonly queue: TranscodeQueueService,
     private readonly mailQueue: MailQueueService,
-  ) {}
+    private readonly uploadTranscode: UploadTranscodeService,
+  ) {
+    // Wird die Verarbeitung im Zwischenspeicher fertig, *nachdem* jemand
+    // gespeichert hat, muss sie den Umzug selbst anstoßen. Der Rückruf wird
+    // hier gesetzt statt umgekehrt eingehängt – sonst zeigten die beiden
+    // Dienste im Kreis aufeinander.
+    this.uploadTranscode.registerFinishHandler((row) => this.finalizeVersion(row));
+  }
 
   /**
    * Neue Fassung hochladen.
@@ -324,8 +332,14 @@ export class UploadsService {
     if (offset >= row.sizeBytes) {
       // Ohne Ziel wird noch nichts aufgenommen: Die Datei wartet im
       // Zwischenspeicher, bis die Zuordnung steht. `assign()` schließt dann ab.
+      //
+      // Verarbeitet wird sie aber schon (Phase 18) – wer beim Hochladen erst
+      // überlegt, soll danach nicht noch einmal die volle Transcode-Zeit
+      // warten.
       if (row.kind === 'VERSION' && !row.videoId) {
-        return { offset, completed: true, row };
+        await this.starteVerarbeitung(row);
+        const [frisch] = await this.db.select().from(uploads).where(eq(uploads.id, row.id)).limit(1);
+        return { offset, completed: true, row: frisch ?? row };
       }
       await this.finalize(row);
       // Die Fassung entsteht erst im Abschluss – ohne dieses Nachlesen stünde
@@ -338,6 +352,19 @@ export class UploadsService {
     return { offset, completed: false, row };
   }
 
+  /**
+   * Verarbeitung im Zwischenspeicher anstoßen (Phase 18) – für eine Datei,
+   * die vollständig da ist, aber noch kein Ziel hat.
+   */
+  private async starteVerarbeitung(row: UploadRow): Promise<void> {
+    if (row.transcodeStatus !== 'NONE') return;
+    await this.db
+      .update(uploads)
+      .set({ transcodeStatus: 'PROCESSING', transcodeProgress: 0, updatedAt: new Date() })
+      .where(eq(uploads.id, row.id));
+    await this.queue.enqueueUpload(row.id);
+  }
+
   /** Upload vollständig – je nach Art landet die Datei woanders. */
   private async finalize(row: UploadRow): Promise<void> {
     if (row.kind === 'PROJECT_FILE') {
@@ -348,8 +375,13 @@ export class UploadsService {
   }
 
   /**
-   * Datei an ihren endgültigen Platz verschieben, Version auf `PROCESSING`
-   * setzen und die Pipeline anstoßen.
+   * Die Datei an ihren endgültigen Platz bringen und die Fassung fertigstellen.
+   *
+   * Seit Phase 18 ist die Verarbeitung an dieser Stelle oft schon gelaufen –
+   * sie startet, sobald die Datei vollständig übertragen ist, und arbeitet im
+   * Zwischenspeicher. Dann zieht hier alles nur noch um und die Fassung ist
+   * sofort fertig. Läuft sie noch, entsteht die Fassung in Verarbeitung und
+   * der Umzug kommt hinterher – wer als Zweiter fertig wird, macht ihn.
    */
   private async finalizeVersion(row: UploadRow): Promise<void> {
     if (!row.videoId) {
@@ -390,8 +422,76 @@ export class UploadsService {
       if (video) await this.projectsService.touch(video.projectId);
     }
 
+    const fertig = this.uploadTranscode.result(row);
+    if (fertig) {
+      await this.uebernehmeVerarbeitung(row, versionId, targetKey, fertig);
+      this.logger.log(`Upload aufgenommen, Verarbeitung lag schon vor: ${row.filename}`);
+      return;
+    }
+
+    if (row.transcodeStatus === 'PROCESSING') {
+      // Sie läuft noch. Der Job trägt am Ende selbst ein – hier nichts tun,
+      // sonst liefen zwei ffmpeg-Durchläufe für dieselbe Datei.
+      this.logger.log(`Upload aufgenommen, Verarbeitung läuft noch: ${row.filename}`);
+      return;
+    }
+
+    // Kein Ergebnis und nichts unterwegs (etwa nach einem Fehlschlag oder bei
+    // einer Sitzung von vor Phase 18): der gewohnte Weg über die Fassung.
     await this.queue.enqueue(versionId);
     this.logger.log(`Upload abgeschlossen: ${row.filename} (${row.sizeBytes} Byte)`);
+  }
+
+  /**
+   * Die im Zwischenspeicher erzeugten Dateien an ihren Platz schieben und die
+   * Fassung damit fertig melden. Ein zweiter ffmpeg-Lauf wäre reine
+   * Verschwendung – die Arbeit ist längst getan.
+   */
+  private async uebernehmeVerarbeitung(
+    row: UploadRow,
+    versionId: string,
+    originalKey: string,
+    ergebnis: StoredTranscodeResult,
+  ): Promise<void> {
+    await this.versionsService.applyProbe(versionId, ergebnis.probe);
+    await this.versionsService.setPlaybackDecision(
+      versionId,
+      ergebnis.playbackMode,
+      ergebnis.playbackReason,
+    );
+
+    const outputs = { ...ergebnis.outputs };
+
+    // Bei `ORIGINAL` zeigt der Proxy auf die Originaldatei – die ist gerade
+    // umgezogen, der Schlüssel muss mitziehen.
+    if (ergebnis.playbackMode === 'ORIGINAL') {
+      outputs.proxyKey = originalKey;
+    } else {
+      const ziel = this.storage.keyForProxy(versionId);
+      await this.storage.move(outputs.proxyKey, ziel);
+      outputs.proxyKey = ziel;
+    }
+
+    if (outputs.posterKey) {
+      const ziel = this.storage.keyForPoster(versionId);
+      await this.storage.move(outputs.posterKey, ziel);
+      outputs.posterKey = ziel;
+    }
+
+    if (outputs.sprite) {
+      const ziel = this.storage.keyForSprite(versionId);
+      await this.storage.move(outputs.sprite.key, ziel);
+      outputs.sprite = { ...outputs.sprite, key: ziel };
+    }
+
+    if (outputs.hlsKey) {
+      const ziel = this.storage.keyForHlsDir(versionId);
+      await this.storage.move(outputs.hlsKey, ziel);
+      outputs.hlsKey = ziel;
+    }
+
+    await this.versionsService.markReady(versionId, outputs);
+    await this.uploadTranscode.removeWorkDir(row.id);
   }
 
   /**
@@ -544,6 +644,9 @@ export class UploadsService {
     }
 
     await this.storage.remove(row.storageKey);
+    // Auch die halbfertige Verarbeitung im Zwischenspeicher muss weg – sonst
+    // bliebe ein 4K-Proxy für eine Datei liegen, die es nicht mehr gibt.
+    await this.uploadTranscode.removeWorkDir(row.id);
     await this.db.update(uploads).set({ status: 'ABORTED', updatedAt: new Date() }).where(eq(uploads.id, id));
     // Die halb angelegte Version verschwindet mit; beim Kundenmaterial gibt
     // es nichts aufzuräumen, dort entsteht der Datensatz erst am Ende.
@@ -564,6 +667,8 @@ export class UploadsService {
 
     for (const row of stale) {
       await this.storage.remove(row.storageKey);
+      // Samt dem, was die Verarbeitung im Zwischenspeicher erzeugt hat.
+      await this.uploadTranscode.removeWorkDir(row.id);
       await this.db
         .update(uploads)
         .set({ status: 'ABORTED', updatedAt: new Date() })
@@ -594,6 +699,9 @@ export class UploadsService {
       sizeBytes: row.sizeBytes,
       offsetBytes: row.offsetBytes,
       status: row.status,
+      transcodeStatus: row.transcodeStatus,
+      transcodeProgress: row.transcodeProgress,
+      transcodeError: row.transcodeError,
       location: `/v1/uploads/${row.id}`,
       createdAt: row.createdAt.toISOString(),
       expiresAt: row.expiresAt.toISOString(),

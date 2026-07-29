@@ -50,9 +50,29 @@ export function UploadPanel() {
     }
   }, [jobs, videosByProject]);
 
-  /** Fortschritt des Transcodings nachfragen, solange etwas verarbeitet wird. */
+  /**
+   * Fortschritt der Verarbeitung nachfragen. Zwei Quellen, je nachdem, wie
+   * weit die Zeile ist: Wer schon gespeichert hat, fragt an der Fassung nach –
+   * wer noch nicht, an der Upload-Sitzung, denn seit Phase 18 läuft die
+   * Verarbeitung dort schon im Zwischenspeicher.
+   */
   const refreshTranscode = useCallback(async () => {
     for (const job of jobs) {
+      if (job.state === 'bereit' && job.uploadId && !job.versionId) {
+        try {
+          const sitzung = await api.getUpload(job.uploadId);
+          update(job.id, {
+            transcodeProgress:
+              sitzung.transcodeStatus === 'READY' ? 100 : sitzung.transcodeProgress,
+            ...(sitzung.transcodeStatus === 'FAILED'
+              ? { message: sitzung.transcodeError ?? 'Verarbeitung fehlgeschlagen.' }
+              : {}),
+          });
+        } catch {
+          // Wie unten: Ein Aussetzer beim Nachfragen ändert nichts am Upload.
+        }
+        continue;
+      }
       if (job.state !== 'verarbeitet' || !job.versionId) continue;
       try {
         const version = await api.getVersion(job.versionId);
@@ -74,7 +94,12 @@ export function UploadPanel() {
   }, [jobs, update]);
 
   useEffect(() => {
-    if (!jobs.some((job) => job.state === 'verarbeitet')) return;
+    const laeuft = jobs.some(
+      (job) =>
+        job.state === 'verarbeitet' ||
+        (job.state === 'bereit' && job.uploadId && job.transcodeProgress < 100),
+    );
+    if (!laeuft) return;
     const timer = setInterval(() => void refreshTranscode(), 2500);
     return () => clearInterval(timer);
   }, [jobs, refreshTranscode]);
@@ -194,32 +219,37 @@ function JobRow({
           {formatBytes(job.uploadedBytes)} / {formatBytes(job.sizeBytes)}
         </span>
         <StateBadge job={job} />
+        {/* Speichern geht seit Phase 18 schon während der Übertragung –
+            sobald die Sitzung steht. Wer die Angaben beisammen hat, muss
+            nicht warten, bis die letzten Gigabyte durch sind. */}
+        {(job.state === 'bereit' || (job.state === 'lädt' && job.uploadId)) && !job.gespeichert ? (
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={onSave}
+            disabled={!job.projectId || (!job.videoId && !job.newVideoName.trim())}
+            title={
+              !job.projectId
+                ? 'Erst ein Projekt wählen'
+                : !job.videoId && !job.newVideoName.trim()
+                  ? 'Erst ein Video wählen oder benennen'
+                  : job.state === 'lädt'
+                    ? 'Wird aufgenommen, sobald die Übertragung durch ist'
+                    : undefined
+            }
+          >
+            Speichern
+          </button>
+        ) : null}
         {job.state === 'lädt' ? (
           <button type="button" className="button button--ghost" onClick={onCancel}>
             Abbrechen
           </button>
         ) : null}
         {job.state === 'bereit' ? (
-          <>
-            <button
-              type="button"
-              className="button button--primary"
-              onClick={onSave}
-              disabled={!job.projectId || (!job.videoId && !job.newVideoName.trim())}
-              title={
-                !job.projectId
-                  ? 'Erst ein Projekt wählen'
-                  : !job.videoId && !job.newVideoName.trim()
-                    ? 'Erst ein Video wählen oder benennen'
-                    : undefined
-              }
-            >
-              Speichern
-            </button>
-            <button type="button" className="button button--ghost" onClick={onCancel}>
-              Verwerfen
-            </button>
-          </>
+          <button type="button" className="button button--ghost" onClick={onCancel}>
+            Verwerfen
+          </button>
         ) : null}
         {job.state === 'wartet' || job.state === 'fehler' || job.state === 'abgebrochen' ? (
           <button type="button" className="button button--ghost" onClick={onRemove}>
@@ -362,10 +392,23 @@ function StateBadge({ job }: { job: UploadJob }) {
     case 'verarbeitet':
       return <span className="badge badge--processing">Verarbeitung</span>;
     case 'lädt':
-      return <span className="badge">Lädt</span>;
+      // Wer schon gespeichert hat, wartet nur noch auf die letzten Bytes –
+      // danach läuft alles von selbst weiter (Phase 18).
+      return job.gespeichert ? (
+        <span className="badge badge--ready">Gespeichert · lädt</span>
+      ) : (
+        <span className="badge">Lädt</span>
+      );
     case 'bereit':
-      // Die Bytes sind da; ohne „Speichern“ passiert nichts weiter.
-      return <span className="badge badge--processing">Nicht gespeichert</span>;
+      // Die Bytes sind da und die Verarbeitung läuft schon (Phase 18) – nur
+      // aufgenommen wird erst auf Knopfdruck.
+      return job.transcodeProgress > 0 && job.transcodeProgress < 100 ? (
+        <span className="badge badge--processing">
+          Nicht gespeichert · Verarbeitung {job.transcodeProgress} %
+        </span>
+      ) : (
+        <span className="badge badge--processing">Nicht gespeichert</span>
+      );
     case 'abgebrochen':
       return <span className="badge">Abgebrochen</span>;
     default:

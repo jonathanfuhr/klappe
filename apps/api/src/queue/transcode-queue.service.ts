@@ -18,4 +18,18 @@ export class TranscodeQueueService {
     await this.queue.add(TRANSCODE_JOB, { versionId }, { jobId: versionId });
     this.logger.log(`Transcoding eingereiht: ${versionId}`);
   }
+
+  /**
+   * Verarbeitung im Zwischenspeicher, noch ohne Fassung (Phase 18).
+   *
+   * Die Job-ID trägt ein Präfix, damit sie nie mit einer Versions-ID
+   * kollidiert – mit Bindestrich, nicht mit Doppelpunkt: Den lässt BullMQ in
+   * einer eigenen Job-ID nicht zu.
+   */
+  async enqueueUpload(uploadId: string): Promise<void> {
+    const jobId = `upload-${uploadId}`;
+    await this.queue.remove(jobId).catch(() => undefined);
+    await this.queue.add(TRANSCODE_JOB, { uploadId }, { jobId });
+    this.logger.log(`Verarbeitung im Zwischenspeicher eingereiht: ${uploadId}`);
+  }
 }

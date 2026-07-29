@@ -62,13 +62,24 @@ export function uploadVersionFile(input: {
   file: File;
   chunkSize?: number;
   onProgress?: (progress: UploadProgress) => void;
+  /**
+   * Sobald die Sitzung steht – also lange vor dem letzten Block. Damit lässt
+   * sich schon **während** der Übertragung speichern (Phase 18); vorher kannte
+   * die Oberfläche die Kennung erst am Ende und der Knopf blieb so lange grau.
+   */
+  onSession?: (uploadId: string) => void;
 }): UploadHandle {
-  return runUpload(input.file, input.chunkSize, input.onProgress, () =>
-    api.createUnassignedUpload({
-      filename: input.file.name,
-      sizeBytes: input.file.size,
-      mimeType: input.file.type || undefined,
-    }),
+  return runUpload(
+    input.file,
+    input.chunkSize,
+    input.onProgress,
+    () =>
+      api.createUnassignedUpload({
+        filename: input.file.name,
+        sizeBytes: input.file.size,
+        mimeType: input.file.type || undefined,
+      }),
+    input.onSession,
   );
 }
 
@@ -124,6 +135,7 @@ function runUpload(
     offsetBytes: number;
     versionId: string | null;
   }>,
+  onSession?: (uploadId: string) => void,
 ): UploadHandle {
   const controller = new AbortController();
   const chunkSize = chunkSizeInput ?? DEFAULT_CHUNK_SIZE;
@@ -131,6 +143,7 @@ function runUpload(
 
   const promise = (async () => {
     const session = await createSession();
+    onSession?.(session.id);
 
     let attempt = 0;
     let letzteMeldung = 0;

@@ -36,6 +36,15 @@ export class StorageService {
     return join('tmp', 'uploads', `${uploadId}.part`);
   }
 
+  /**
+   * Wo die Verarbeitung im Zwischenspeicher ihre Ergebnisse ablegt (Phase 18).
+   * Ein Verzeichnis je Sitzung, damit der Umzug beim Speichern – und das
+   * Wegräumen beim Abbruch – eine einzige Bewegung ist.
+   */
+  keyForUploadWorkDir(uploadId: string): string {
+    return join('tmp', 'verarbeitung', uploadId);
+  }
+
   keyForProxy(versionId: string): string {
     return join('proxies', `${versionId}.mp4`);
   }

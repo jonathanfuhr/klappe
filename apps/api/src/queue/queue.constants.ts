@@ -1,9 +1,13 @@
 export const TRANSCODE_QUEUE = 'transcode';
 export const TRANSCODE_JOB = 'transcode-version';
 
-export interface TranscodeJobData {
-  versionId: string;
-}
+/**
+ * Zwei Wege in dieselbe Pipeline (Phase 18): Entweder gehört die Datei schon
+ * zu einer Fassung, oder sie liegt noch im Zwischenspeicher und wartet
+ * darauf, dass jemand Projekt und Video einträgt. Verarbeitet wird sie in
+ * beiden Fällen sofort.
+ */
+export type TranscodeJobData = { versionId: string } | { uploadId: string };
 
 export const MAIL_QUEUE = 'mail';
 export const MAIL_JOB = 'send-notification';

@@ -35,6 +35,17 @@ export const versionStatusEnum = pgEnum('version_status', [
   'FAILED',
 ]);
 export const uploadStatusEnum = pgEnum('upload_status', ['IN_PROGRESS', 'COMPLETED', 'ABORTED']);
+/**
+ * Stand der Verarbeitung im Zwischenspeicher (Phase 18). `NONE` heißt: noch
+ * nicht angefangen – entweder ist die Datei noch nicht vollständig da, oder
+ * es ist Kundenmaterial, das gar nicht verarbeitet wird.
+ */
+export const transcodeStatusEnum = pgEnum('transcode_status', [
+  'NONE',
+  'PROCESSING',
+  'READY',
+  'FAILED',
+]);
 /** Wohin ein Upload gehört: eine Videoversion oder der Kunden-Ordner eines Projekts. */
 export const uploadKindEnum = pgEnum('upload_kind', ['VERSION', 'PROJECT_FILE']);
 export const shareScopeEnum = pgEnum('share_scope', ['PROJECT', 'VIDEO']);
@@ -209,6 +220,26 @@ export const uploads = pgTable(
     storageKey: text('storage_key').notNull(),
     status: uploadStatusEnum('status').notNull().default('IN_PROGRESS'),
     metadata: jsonb('metadata').$type<Record<string, string>>(),
+
+    // ---------- Verarbeitung im Zwischenspeicher (Phase 18) ----------
+    /**
+     * Seit Phase 18 beginnt die Verarbeitung, sobald die Datei vollständig
+     * übertragen ist – auch wenn noch kein Ziel feststeht. Sie läuft dann im
+     * Zwischenspeicher, und erst beim Speichern wandert alles an seinen Platz.
+     * Wer beim Hochladen erst überlegt, wartet danach nicht noch einmal.
+     */
+    transcodeStatus: transcodeStatusEnum('transcode_status').notNull().default('NONE'),
+    transcodeProgress: integer('transcode_progress').notNull().default(0),
+    transcodeError: text('transcode_error'),
+    /**
+     * Was dabei herauskam: Messwerte aus `ffprobe`, die Entscheidung über die
+     * Abspielfassung und die Schlüssel der erzeugten Dateien. Beim Speichern
+     * wird daraus die Fassung geschrieben – ohne ffmpeg ein zweites Mal
+     * anzuwerfen. Als JSONB, weil es immer als Ganzes gelesen und geschrieben
+     * wird und die Form nur den Weg vom Zwischenspeicher zur Fassung betrifft.
+     */
+    transcodeResult: jsonb('transcode_result'),
+
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     ...timestamps,
   },

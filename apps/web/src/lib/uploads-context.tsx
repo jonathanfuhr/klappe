@@ -57,6 +57,12 @@ export interface UploadJob {
   state: 'wartet' | 'lädt' | 'bereit' | 'verarbeitet' | 'fertig' | 'fehler' | 'abgebrochen';
   /** Die Upload-Sitzung – über sie wird die Zuordnung nachgereicht. */
   uploadId: string | null;
+  /**
+   * Schon gespeichert, während die Übertragung noch läuft (Phase 18)? Dann
+   * nimmt die API die Datei auf, sobald der letzte Block da ist – hier muss
+   * niemand mehr klicken.
+   */
+  gespeichert: boolean;
   uploadedBytes: number;
   /** Fortschritt des Transcodings in Prozent, sobald die Datei durch ist. */
   transcodeProgress: number;
@@ -165,6 +171,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         uploadedBytes: 0,
         transcodeProgress: 0,
         uploadId: null,
+        gespeichert: false,
         versionId: null,
       };
     });
@@ -246,7 +253,13 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
                     file: datei,
                     onProgress,
                   })
-                : uploadVersionFile({ file: datei, onProgress });
+                : uploadVersionFile({
+                    file: datei,
+                    onProgress,
+                    // Die Kennung kommt sofort, nicht erst am Ende: Damit
+                    // lässt sich schon während der Übertragung speichern.
+                    onSession: (uploadId) => update(job.id, { uploadId }),
+                  });
 
             update(job.id, { handle });
             const result = await handle.promise;
@@ -259,13 +272,17 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
               });
               setCompletedCount((count) => count + 1);
             } else {
-              // Übertragen, aber noch nicht eingeordnet. Den Rest erledigt der
-              // Effekt weiter unten, sobald die Angaben stehen.
+              // Wer schon während der Übertragung gespeichert hat, ist fertig:
+              // Die API nimmt die Datei mit dem letzten Block selbst auf.
+              // Sonst wartet sie im Zwischenspeicher auf den Knopf.
+              const aktuell = jobsRef.current.find((eintrag) => eintrag.id === job.id);
               update(job.id, {
-                state: 'bereit',
+                state: aktuell?.gespeichert ? 'verarbeitet' : 'bereit',
                 uploadedBytes: datei.size,
                 uploadId: result.uploadId,
+                versionId: result.versionId ?? aktuell?.versionId ?? null,
               });
+              if (aktuell?.gespeichert) setCompletedCount((count) => count + 1);
             }
           } catch (error) {
             const aborted = error instanceof DOMException && error.name === 'AbortError';
@@ -295,6 +312,9 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
   const uebernehmen = useCallback(
     async (job: UploadJob) => {
       if (!job.uploadId || !job.projectId) return;
+      // Läuft die Übertragung noch, wird das Ziel nur hinterlegt; die API
+      // nimmt die Datei dann mit dem letzten Block von selbst auf (Phase 18).
+      const laeuftNoch = job.state === 'lädt';
       uebernahmeLaeuft.current.add(job.id);
       try {
         const videoId =
@@ -312,17 +332,20 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         });
 
         update(job.id, {
-          state: 'verarbeitet',
+          state: laeuftNoch ? 'lädt' : 'verarbeitet',
+          gespeichert: true,
           videoId,
           versionId: sitzung.versionId,
           message: undefined,
         });
-        setCompletedCount((count) => count + 1);
+        if (!laeuftNoch) setCompletedCount((count) => count + 1);
       } catch (error) {
         // Kein Datenverlust: Die Datei bleibt im Zwischenspeicher liegen, der
-        // Fehler betrifft nur die Zuordnung. Deshalb zurück auf „bereit“.
+        // Fehler betrifft nur die Zuordnung. Deshalb zurück in den Zustand,
+        // aus dem der Klick kam.
         update(job.id, {
-          state: 'bereit',
+          state: laeuftNoch ? 'lädt' : 'bereit',
+          gespeichert: false,
           message:
             error instanceof Error ? error.message : 'Die Zuordnung ließ sich nicht speichern.',
         });
@@ -343,7 +366,12 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
   const save = useCallback(
     (id: string) => {
       const job = jobsRef.current.find((entry) => entry.id === id);
-      if (!job || job.state !== 'bereit' || uebernahmeLaeuft.current.has(job.id)) return;
+      if (!job || uebernahmeLaeuft.current.has(job.id) || job.gespeichert) return;
+      // Seit Phase 18 geht das auch mitten in der Übertragung – sobald die
+      // Sitzung steht. Wer die Angaben schon beisammen hat, muss nicht warten,
+      // bis die letzten Gigabyte durch sind.
+      if (job.state !== 'bereit' && job.state !== 'lädt') return;
+      if (!job.uploadId) return;
       if (!job.projectId) return;
       // Ein neues Video braucht wenigstens einen Namen.
       if (!job.videoId && !job.newVideoName.trim()) return;
@@ -382,8 +410,9 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
             hint: 'Übertragung aus einer früheren Sitzung – Angaben prüfen und speichern',
             state: 'bereit',
             uploadId: sitzung.id,
+            gespeichert: false,
             uploadedBytes: sitzung.sizeBytes,
-            transcodeProgress: 0,
+            transcodeProgress: sitzung.transcodeProgress,
             versionId: null,
           }));
         if (neue.length === 0) return;
