@@ -48,6 +48,44 @@ export const SMTP_PRESETS: SmtpProviderPresetDto[] = [
     secure: false,
     hint: 'Das Postfach braucht SMTP AUTH; mit MFA ist ein App-Kennwort nötig.',
   },
+  // Die drei folgenden sind gewöhnliche Postfächer, keine Versanddienste. Alle
+  // drei verlangen ein eigens erzeugtes Kennwort – das normale Anmeldekennwort
+  // wird abgewiesen, sobald Zwei-Faktor an ist. Genau daran scheitert die
+  // Einrichtung sonst, deshalb steht der Weg dorthin im Hinweis.
+  {
+    id: 'gmail',
+    name: 'Google / Gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    hint:
+      'Zwei-Faktor muss an sein, dann unter myaccount.google.com/apppasswords ein ' +
+      'App-Passwort erzeugen. Benutzername ist die volle Adresse, Passwort das ' +
+      '16-stellige App-Passwort (ohne Leerzeichen).',
+  },
+  {
+    id: 'outlook',
+    name: 'Outlook.com (privat)',
+    host: 'smtp-mail.outlook.com',
+    port: 587,
+    secure: false,
+    hint:
+      'Nicht für Microsoft 365 aus dem Geschäftskonto – dafür den Eintrag darüber ' +
+      'nehmen. App-Passwort unter account.microsoft.com → Sicherheit → Erweiterte ' +
+      'Sicherheitsoptionen.',
+  },
+  {
+    id: 'icloud',
+    name: 'iCloud Mail',
+    host: 'smtp.mail.me.com',
+    port: 587,
+    secure: false,
+    hint:
+      'Braucht zwingend ein app-spezifisches Passwort: account.apple.com → Anmelden ' +
+      'und Sicherheit → App-spezifische Passwörter. Als Absender geht nur eine ' +
+      'Adresse, die dem Konto gehört (auch eine eigene Domain, wenn sie dort ' +
+      'eingerichtet ist).',
+  },
   {
     id: 'custom',
     name: 'Eigener Server',

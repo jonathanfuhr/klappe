@@ -1,6 +1,6 @@
 'use client';
 
-import { type UserSummaryDto, serializeMention } from '@klappe/shared';
+import { type UserSummaryDto, applyMentions, mentionLabel } from '@klappe/shared';
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { initialsOf } from '@/lib/format';
@@ -46,6 +46,13 @@ export function CommentComposer({
 }: CommentComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState('');
+  /**
+   * Wen der Nutzer per Vorschlag ausgewählt hat. Im Feld selbst steht nur der
+   * Name – die Zuordnung wartet hier und wird erst beim Absenden eingesetzt.
+   * Vorher stand `@[Name](3fa8…)` mitten im Satz, was zu Recht wie ein Fehler
+   * aussah.
+   */
+  const [chosen, setChosen] = useState<{ label: string; userId: string }[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,9 +112,15 @@ export function CommentComposer({
       if (!textarea || !query) return;
 
       const caret = textarea.selectionStart;
-      const token = `${serializeMention(user)} `;
+      const label = mentionLabel(user.name);
+      const token = `@${label} `;
       const next = value.slice(0, query.start) + token + value.slice(caret);
       setValue(next);
+      setChosen((current) =>
+        current.some((eintrag) => eintrag.userId === user.id && eintrag.label === label)
+          ? current
+          : [...current, { label, userId: user.id }],
+      );
       setQuery(null);
       setSuggestions([]);
 
@@ -121,13 +134,17 @@ export function CommentComposer({
   );
 
   const submit = useCallback(async () => {
-    const body = value.trim();
+    // Jetzt erst wird aus `@Name` wieder die eindeutige Form. Wer den Namen
+    // nachträglich verändert hat, verliert die Zuordnung – gewollt, denn ein
+    // falsches Mention wäre schlimmer als keines.
+    const body = applyMentions(value, chosen).trim();
     if (!body || busy) return;
     setBusy(true);
     setError(null);
     try {
       await onSubmit(body);
       setValue('');
+      setChosen([]);
       setQuery(null);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Speichern fehlgeschlagen.');

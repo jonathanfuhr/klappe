@@ -2119,10 +2119,9 @@ a.badge:hover {
     justify-content: center;
   }
 
-  .player__counter {
-    order: -1;
-    width: 100%;
-    justify-content: center;
+  .timeline__scale {
+    font-size: 10px;
+    align-items: baseline;
   }
 
   .player__rate {
@@ -2195,4 +2194,50 @@ a.badge:hover {
 .timeline__frame {
   color: var(--klappe-text);
   font-variant-numeric: tabular-nums;
+}
+
+.timeline__now {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Am Schreibtisch steht der laufende Timecode in der Steuerleiste – hier wäre
+   er doppelt. Am Handy tauschen die beiden die Plätze (siehe unten). */
+.timeline__now-tc {
+  display: none;
+}
+
+/*
+ * Wird es wirklich eng (Telefon im Hochformat), weicht der Frame-Zähler. Der
+ * Timecode ist die Angabe, nach der besprochen wird – „bei 00:01:12:03" sagt
+ * jeder, „bei Frame 1803" niemand.
+ */
+@media (max-width: 480px) {
+  .timeline__frame {
+    display: none;
+  }
+}
+
+/*
+ * Der laufende Timecode zieht in die Skala zwischen Anfang und Ende, die
+ * Kachel in der Steuerleiste entfällt.
+ *
+ * Die Bedingung hängt **auch an der Höhe**, nicht nur an der Breite: Ein
+ * Telefon im Querformat ist mit 844 px breit genug für den Schreibtisch-Umbruch,
+ * hat aber nur ~390 px Höhe – und im Querformat schaut man sich das Bild an.
+ * Dort zählt jede Zeile, die nicht das Video zeigt.
+ */
+@media (max-width: 700px), (max-height: 500px) {
+  .player__counter {
+    display: none;
+  }
+
+  .timeline__now-tc {
+    display: inline;
+    color: var(--klappe-text);
+    font-size: 13px;
+    font-weight: 600;
+  }
 }

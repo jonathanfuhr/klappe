@@ -177,11 +177,18 @@ export function Timeline({
 
       <div className="timeline__scale mono">
         <span>{frameRate ? frameToDisplayTimecode(0, timecodeContext) : '00:00:00:00'}</span>
-        {/* Die laufende Nummer sitzt zwischen Start und Ende – dort steht sie
-            im Zusammenhang, statt in der Steuerleiste eine Kachel zu belegen. */}
-        <span className="timeline__frame">
-          Frame {frame}
-          {lastFrame > 0 ? ` / ${lastFrame}` : ''}
+        {/* Was gerade läuft, steht zwischen Anfang und Ende – dort hat es den
+            Zusammenhang. Am Handy wandert auch der Timecode hierher, statt in
+            der Steuerleiste eine ganze Zeile zu belegen; wird es noch enger,
+            weicht der Frame-Zähler und der Timecode bleibt. */}
+        <span className="timeline__now">
+          <span className="timeline__now-tc">
+            {frameRate ? frameToDisplayTimecode(frame, timecodeContext) : '--:--:--:--'}
+          </span>
+          <span className="timeline__frame">
+            Frame {frame}
+            {lastFrame > 0 ? ` / ${lastFrame}` : ''}
+          </span>
         </span>
         <span>
           {frameRate
