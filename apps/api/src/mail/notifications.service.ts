@@ -22,6 +22,7 @@ import { MailQueueService } from '../queue/mail-queue.service';
 import { SettingsService } from '../settings/settings.service';
 import { decideDigest } from './digest';
 import { MailService } from './mail.service';
+import { NotificationCenterService } from './notification-center.service';
 import {
   type NotificationCandidate,
   formatBytes,
@@ -54,11 +55,10 @@ export class NotificationsService {
     private readonly mailService: MailService,
     private readonly settings: SettingsService,
     private readonly mailQueue: MailQueueService,
+    private readonly center: NotificationCenterService,
   ) {}
 
   async notifyNewComment(commentId: string): Promise<number> {
-    if (!(await this.mailService.isReady())) return 0;
-
     const row = await this.loadComment(commentId);
     if (!row) {
       this.logger.warn(`Kommentar ${commentId} existiert nicht mehr – keine Benachrichtigung.`);
@@ -76,6 +76,12 @@ export class NotificationsService {
       participants,
     });
     if (recipients.length === 0) return 0;
+
+    // Zuerst in die Zentrale, dann erst der Versand: Wer ohne Mailserver
+    // arbeitet oder die Mail übersieht, findet den Hinweis trotzdem.
+    await this.center.record(commentId, row.videoId, recipients);
+
+    if (!(await this.mailService.isReady())) return 0;
 
     const minuten = await this.settings.digestMinutes();
     if (minuten <= 0) {

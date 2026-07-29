@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { NotificationBell } from '@/components/NotificationBell';
 import { useBranding } from '@/lib/branding';
 import { initialsOf } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -46,6 +47,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {user ? (
           <div className="shell__user">
+            {/* Die Zentrale gilt für alle Angemeldeten – auch Gäste werden
+                erwähnt und bekommen Antworten (Phase 18). */}
+            <NotificationBell />
             <span className="avatar" title={user.email}>
               {initialsOf(user.name)}
             </span>

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { SettingsService } from '../settings/settings.service';
 import { MailService } from './mail.service';
+import { NotificationCenterController } from './notification-center.controller';
+import { NotificationCenterService } from './notification-center.service';
 import { SubscriptionsController } from './subscriptions.controller';
 import { SubscriptionsService } from './subscriptions.service';
 
@@ -13,8 +15,8 @@ import { SubscriptionsService } from './subscriptions.service';
  * startet gar keinen HTTP-Server, Controller sind dort wirkungslos.
  */
 @Module({
-  controllers: [SubscriptionsController],
-  providers: [SettingsService, MailService, SubscriptionsService],
-  exports: [SettingsService, MailService, SubscriptionsService],
+  controllers: [SubscriptionsController, NotificationCenterController],
+  providers: [SettingsService, MailService, SubscriptionsService, NotificationCenterService],
+  exports: [SettingsService, MailService, SubscriptionsService, NotificationCenterService],
 })
 export class MailModule {}

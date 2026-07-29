@@ -10,6 +10,7 @@ import type {
   GuestOverviewDto,
   LoginMethodsDto,
   LoginResponseDto,
+  NotificationDto,
   NotificationSubscriberDto,
   ProjectDto,
   ProjectFieldDefDto,
@@ -332,6 +333,17 @@ export const api = {
     request<GuestOverviewDto[]>(`/v1/guests/${userId}`, {
       method: 'PATCH',
       body: JSON.stringify({ isActive }),
+    }),
+
+  // ---------- Benachrichtigungszentrale (Phase 18) ----------
+  listNotifications: (limit = 50) =>
+    request<NotificationDto[]>(`/v1/notifications?limit=${limit}`),
+  unreadNotifications: () => request<{ unread: number }>('/v1/notifications/count'),
+  /** Ohne `ids` gilt alles als gelesen. */
+  markNotificationsRead: (ids?: string[]) =>
+    request<{ unread: number }>('/v1/notifications/read', {
+      method: 'POST',
+      body: JSON.stringify(ids ? { ids } : {}),
     }),
 
   // ---------- Benachrichtigungen je Projekt und Video (Phase 18) ----------

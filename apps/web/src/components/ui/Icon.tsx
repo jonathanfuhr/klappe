@@ -11,7 +11,7 @@ import type { ReactElement } from 'react';
  * Ein Icon allein sagt nie, was es tut. Jede Verwendung gehört deshalb in
  * einen Knopf mit `aria-label` und `title` – siehe `IconButton`.
  */
-export type IconName = 'plus' | 'share' | 'download' | 'users' | 'comment';
+export type IconName = 'plus' | 'share' | 'download' | 'users' | 'comment' | 'bell';
 
 const PFADE: Record<IconName, ReactElement> = {
   plus: (
@@ -47,6 +47,12 @@ const PFADE: Record<IconName, ReactElement> = {
   comment: (
     <>
       <path d="M20 4H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h4v4l4.5-4H20a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6z" />
+      <path d="M10.3 20a2 2 0 0 0 3.4 0" />
     </>
   ),
 };

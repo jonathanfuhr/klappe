@@ -359,6 +359,27 @@ export interface ProjectFileDto {
   createdAt: string;
 }
 
+/** Ein Eintrag der Benachrichtigungszentrale (Phase 18). */
+export interface NotificationDto {
+  id: string;
+  /** Erwähnung oder gewöhnlicher Kommentar – die Liste hebt Ersteres hervor. */
+  mentioned: boolean;
+  createdAt: string;
+  /** `null`, solange ungelesen. */
+  readAt: string | null;
+  authorName: string;
+  projectName: string;
+  videoId: string;
+  videoName: string;
+  versionLabel: string;
+  /** Stelle im Film; `null` bei einem Kommentar ohne Zeitbezug. */
+  timecode: string | null;
+  /** Anfang des Kommentars, ohne Mention-Auszeichnung. */
+  excerpt: string;
+  /** Antwort in einem Gespräch? */
+  isReply: boolean;
+}
+
 /**
  * Ein Eintrag der Spalte „Benachrichtigungen“ (Phase 18): eine Person aus dem
  * Team und die Frage, ob sie zu diesem Projekt oder Video Post bekommt.

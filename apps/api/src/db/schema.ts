@@ -588,6 +588,39 @@ export const notificationSubscriptions = pgTable(
 );
 
 /**
+ * Die Benachrichtigungszentrale (Phase 18).
+ *
+ * Hier bleibt stehen, was jemanden betrifft – ob eine Mail rausging oder
+ * nicht. Absichtlich getrennt von `pending_notifications`: Das ist eine
+ * Warteschlange, die sich mit dem Versand leert; das hier ist die Ablage, in
+ * der man nachsieht, was man verpasst hat.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    commentId: uuid('comment_id')
+      .notNull()
+      .references(() => comments.id, { onDelete: 'cascade' }),
+    videoId: uuid('video_id')
+      .notNull()
+      .references(() => videos.id, { onDelete: 'cascade' }),
+    /** Namentlich erwähnt – in der Liste hervorgehoben. */
+    mentioned: boolean('mentioned').notNull().default(false),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('notifications_user_comment_idx').on(table.userId, table.commentId),
+    // Die Abfrage der Zentrale: eigene Einträge, neueste zuerst.
+    index('notifications_user_created_idx').on(table.userId, table.createdAt),
+  ],
+);
+
+/**
  * Wartende Benachrichtigungen (Phase 18).
  *
  * Ein Kommentar landet hier je Empfänger, statt sofort eine Mail auszulösen.
@@ -693,3 +726,4 @@ export type ProjectFieldDefRow = typeof projectFieldDefs.$inferSelect;
 export type ProjectFolderRow = typeof projectFolders.$inferSelect;
 export type PendingNotificationRow = typeof pendingNotifications.$inferSelect;
 export type NotificationSubscriptionRow = typeof notificationSubscriptions.$inferSelect;
+export type NotificationRow = typeof notifications.$inferSelect;
