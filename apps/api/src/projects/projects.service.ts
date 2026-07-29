@@ -5,7 +5,17 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
-import { projectFiles, projectTags, projects, tags, users, videoVersions, videos } from '../db/schema';
+import {
+  projectFieldDefs,
+  projectFieldValues,
+  projectFiles,
+  projectTags,
+  projects,
+  tags,
+  users,
+  videoVersions,
+  videos,
+} from '../db/schema';
 import type { CreateProjectDto, UpdateProjectDto } from './projects.dto';
 
 type ProjectQueryRow = {
@@ -16,6 +26,7 @@ type ProjectQueryRow = {
   videoCount: number;
   fileCount: number;
   tags: { id: string; name: string; color: string | null }[] | null;
+  fields: { fieldId: string; name: string; value: string }[] | null;
 };
 
 /** Wie die Projektliste gefiltert und sortiert werden soll (Phase 12/15). */
@@ -51,6 +62,14 @@ export class ProjectsService {
           from ${projectTags} pt
           join ${tags} t on t.id = pt.tag_id
           where pt.project_id = ${projects.id}
+        )`,
+        // Nur belegte Felder – die vollständige Definitionsliste holt sich das
+        // Formular über /v1/project-fields.
+        fields: sql<{ fieldId: string; name: string; value: string }[] | null>`(
+          select json_agg(json_build_object('fieldId', d.id, 'name', d.name, 'value', v.value) order by d.sort_order, lower(d.name))
+          from ${projectFieldValues} v
+          join ${projectFieldDefs} d on d.id = v.field_id
+          where v.project_id = ${projects.id}
         )`,
       })
       .from(projects)
@@ -256,6 +275,7 @@ export class ProjectsService {
       fileCount: row.fileCount,
       canUploadFiles: this.accessService.canUpload(scope, row.project.id),
       tags: (row.tags ?? []).map(toTagRef),
+      fields: row.fields ?? [],
     };
   }
 }

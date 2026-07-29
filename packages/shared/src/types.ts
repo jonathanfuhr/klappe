@@ -45,6 +45,24 @@ export interface ProjectDto {
   canUploadFiles: boolean;
   /** Schlagworte des Projekts (Phase 12). */
   tags: TagRefDto[];
+  /** Belegte benutzerdefinierte Felder (Phase 15) – leere fehlen. */
+  fields: ProjectFieldValueDto[];
+}
+
+/** Definition eines benutzerdefinierten Projekt-Felds (Phase 15). */
+export interface ProjectFieldDefDto {
+  id: string;
+  name: string;
+  sortOrder: number;
+  /** An wie vielen Projekten das Feld belegt ist – für die Löschwarnung. */
+  projectCount: number;
+}
+
+/** Ein belegtes Feld am Projekt. */
+export interface ProjectFieldValueDto {
+  fieldId: string;
+  name: string;
+  value: string;
 }
 
 /** Schlagwort, wie es am Projekt hängt – ohne Zählwerk. */

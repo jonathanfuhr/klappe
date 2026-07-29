@@ -408,6 +408,39 @@ export const projectTags = pgTable(
 );
 
 /**
+ * Benutzerdefinierte Projekt-Felder (Phase 15): erst die Definitionen –
+ * workspace-weit, in den Einstellungen gepflegt. Eine Projektnummer ist der
+ * Anlassfall; deshalb schlichte Textfelder statt eines Typsystems.
+ */
+export const projectFieldDefs = pgTable(
+  'project_field_defs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
+    ...timestamps,
+  },
+  // Zwei Felder mit gleichem Namen wären im Formular nicht zu unterscheiden.
+  (table) => [uniqueIndex('project_field_defs_name_unique').on(sql`lower(${table.name})`)],
+);
+
+/** … und die Werte je Projekt. Kein Eintrag heißt: Feld ist dort leer. */
+export const projectFieldValues = pgTable(
+  'project_field_values',
+  {
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    fieldId: uuid('field_id')
+      .notNull()
+      .references(() => projectFieldDefs.id, { onDelete: 'cascade' }),
+    value: text('value').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.projectId, table.fieldId] })],
+);
+
+/**
  * Einstellungen des Workspace. Genau eine Zeile (`id = 1`) – der Container
  * betreibt laut Konzept genau einen Workspace.
  */
@@ -521,3 +554,4 @@ export type LoginCodeRow = typeof loginCodes.$inferSelect;
 export type ProjectFileRow = typeof projectFiles.$inferSelect;
 export type AppSettingsRow = typeof appSettings.$inferSelect;
 export type TagRow = typeof tags.$inferSelect;
+export type ProjectFieldDefRow = typeof projectFieldDefs.$inferSelect;

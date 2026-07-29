@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { AuthPanel } from '@/components/settings/AuthPanel';
 import { BrandingPanel } from '@/components/settings/BrandingPanel';
+import { FieldsPanel } from '@/components/settings/FieldsPanel';
 import { SmtpPanel } from '@/components/settings/SmtpPanel';
 import { useSession } from '@/lib/session';
 
@@ -11,6 +12,7 @@ const TABS = [
   { id: 'branding', label: 'Erscheinungsbild' },
   { id: 'auth', label: 'Anmeldung' },
   { id: 'mail', label: 'E-Mail-Versand' },
+  { id: 'felder', label: 'Felder' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -56,6 +58,7 @@ export default function SettingsPage() {
         {tab === 'branding' ? <BrandingPanel /> : null}
         {tab === 'auth' ? <AuthPanel /> : null}
         {tab === 'mail' ? <SmtpPanel /> : null}
+        {tab === 'felder' ? <FieldsPanel /> : null}
       </div>
     </AppShell>
   );

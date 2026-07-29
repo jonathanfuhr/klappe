@@ -1,4 +1,13 @@
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsArray,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 
 export class CreateProjectDto {
   @IsString()
@@ -31,6 +40,23 @@ export class RenameCustomerDto {
   @IsString()
   @MaxLength(200)
   nach?: string;
+}
+
+/** Ein Feldwert am Projekt; leerer `value` löscht den Eintrag. */
+export class FieldValueDto {
+  @IsUUID()
+  fieldId!: string;
+
+  @IsString()
+  @MaxLength(500)
+  value!: string;
+}
+
+export class SetFieldValuesDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FieldValueDto)
+  values!: FieldValueDto[];
 }
 
 export class UpdateProjectDto {

@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { GuestAccess } from '@/components/GuestAccess';
+import { ProjectFieldValues } from '@/components/ProjectFieldValues';
 import { ProjectFiles } from '@/components/ProjectFiles';
 import { ProjectTags } from '@/components/ProjectTags';
 import { ShareManager } from '@/components/ShareManager';
@@ -104,6 +105,8 @@ export default function ProjectPage() {
         {isTeam && project ? (
           <ProjectTags projectId={projectId} assigned={project.tags} onChanged={load} />
         ) : null}
+
+        {project ? <ProjectFieldValues project={project} isTeam={isTeam} onChanged={load} /> : null}
 
         {isTeam ? <Uploader projectId={projectId} videos={videos} /> : null}
 

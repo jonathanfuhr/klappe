@@ -116,7 +116,10 @@ export default function ProjectsPage() {
         (project) =>
           project.name.toLowerCase().includes(term) ||
           (project.customer ?? '').toLowerCase().includes(term) ||
-          (project.description ?? '').toLowerCase().includes(term),
+          (project.description ?? '').toLowerCase().includes(term) ||
+          // Auch die benutzerdefinierten Felder – wer „24-117" sucht, meint
+          // die Projektnummer.
+          project.fields.some((feld) => feld.value.toLowerCase().includes(term)),
       )
     : projects;
 

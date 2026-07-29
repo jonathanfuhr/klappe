@@ -10,6 +10,7 @@ import type {
   LoginMethodsDto,
   LoginResponseDto,
   ProjectDto,
+  ProjectFieldDefDto,
   ProjectFileDto,
   ShareGuestDto,
   ShareLinkDto,
@@ -119,6 +120,25 @@ export const api = {
     return request<ProjectDto[]>(`/v1/projects${suffix ? `?${suffix}` : ''}`);
   },
   listCustomers: () => request<CustomerDto[]>('/v1/projects/customers'),
+  listProjectFields: () => request<ProjectFieldDefDto[]>('/v1/project-fields'),
+  createProjectField: (name: string) =>
+    request<ProjectFieldDefDto>('/v1/project-fields', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+  updateProjectField: (id: string, input: { name?: string; sortOrder?: number }) =>
+    request<ProjectFieldDefDto>(`/v1/project-fields/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  deleteProjectField: (id: string) =>
+    request<void>(`/v1/project-fields/${id}`, { method: 'DELETE' }),
+  /** Leere Werte löschen den Eintrag am Projekt. */
+  setProjectFieldValues: (projectId: string, values: { fieldId: string; value: string }[]) =>
+    request<ProjectDto>(`/v1/projects/${projectId}/fields`, {
+      method: 'PUT',
+      body: JSON.stringify({ values }),
+    }),
   /** `nach` weglassen entfernt den Kundennamen von allen Projekten. */
   renameCustomer: (von: string, nach?: string) =>
     request<{ projectCount: number }>('/v1/projects/customers', {
