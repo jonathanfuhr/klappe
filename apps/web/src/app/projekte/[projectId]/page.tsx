@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { NotificationPanel } from '@/components/NotificationPanel';
 import { SharePanel } from '@/components/SharePanel';
 import { ProjectFieldValues } from '@/components/ProjectFieldValues';
 import { ProjectFiles } from '@/components/ProjectFiles';
@@ -33,6 +34,8 @@ export default function ProjectPage() {
   const [deleting, setDeleting] = useState(false);
   const [editingVideo, setEditingVideo] = useState<VideoDto | null>(null);
   const [deletingVideo, setDeletingVideo] = useState<VideoDto | null>(null);
+  // Reiter der rechten Spalte – wie am Video, nur ohne Kommentare (Phase 18).
+  const [seitenTab, setSeitenTab] = useState<'freigaben' | 'benachrichtigungen'>('freigaben');
   const router = useRouter();
   const { user } = useSession();
   const { completedCount } = useUploads();
@@ -181,10 +184,35 @@ export default function ProjectPage() {
 
       </div>
 
-      {/* Die Freigaben stehen als Spalte rechts – wie am Video (Phase 16). */}
+      {/* Die Freigaben stehen als Spalte rechts – wie am Video (Phase 16),
+          seit Phase 18 mit den Benachrichtigungen daneben. */}
       {isTeam && project ? (
         <aside className="review__side">
-          <SharePanel scope="PROJECT" projectId={projectId} targetLabel={project.name} />
+          <div className="sidetabs">
+            <button
+              type="button"
+              className="sidetabs__tab"
+              data-active={seitenTab === 'freigaben'}
+              onClick={() => setSeitenTab('freigaben')}
+            >
+              Freigaben
+            </button>
+            <button
+              type="button"
+              className="sidetabs__tab"
+              data-active={seitenTab === 'benachrichtigungen'}
+              onClick={() => setSeitenTab('benachrichtigungen')}
+              title="Wer bekommt Post zu diesem Projekt?"
+            >
+              Benachrichtigungen
+            </button>
+          </div>
+
+          {seitenTab === 'freigaben' ? (
+            <SharePanel scope="PROJECT" projectId={projectId} targetLabel={project.name} />
+          ) : (
+            <NotificationPanel scope="PROJECT" projectId={projectId} />
+          )}
         </aside>
       ) : null}
 

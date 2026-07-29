@@ -359,6 +359,21 @@ export interface ProjectFileDto {
   createdAt: string;
 }
 
+/**
+ * Ein Eintrag der Spalte „Benachrichtigungen“ (Phase 18): eine Person aus dem
+ * Team und die Frage, ob sie zu diesem Projekt oder Video Post bekommt.
+ */
+export interface NotificationSubscriberDto {
+  user: UserSummaryDto;
+  /** Genau hier eingetragen – am Video also nur fürs Video. */
+  subscribed: boolean;
+  /**
+   * Kommt übers Projekt und gilt für alle seine Videos. Am Video lässt sich
+   * das nicht einzeln abschalten; dafür geht man ins Projekt.
+   */
+  inherited: boolean;
+}
+
 export interface SmtpSettingsDto {
   enabled: boolean;
   provider: string | null;

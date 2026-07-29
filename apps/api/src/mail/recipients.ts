@@ -21,9 +21,15 @@ export interface SelectCommentRecipientsInput {
   /** Namentlich erwähnte Personen. */
   mentioned: NotificationCandidate[];
   /**
-   * Am Gespräch Beteiligte: die Person, die die Fassung hochgeladen hat,
-   * bisherige Kommentierende und – bei einer Antwort – der Verfasser des
-   * Wurzelkommentars.
+   * Wer den Film in der Spalte „Benachrichtigungen“ eingetragen hat – über
+   * das Projekt oder über dieses Video (Phase 18).
+   */
+  subscribers?: NotificationCandidate[];
+  /**
+   * Am Gespräch Beteiligte. Seit Phase 18 sind das die **Gäste**, die zu
+   * dieser Fassung schon kommentiert haben: Sie können sich nirgends
+   * eintragen, sollen aber die Antwort auf ihre eigene Anmerkung mitbekommen.
+   * Fürs Team entscheidet die Eintragung, nicht der Zufall.
    */
   participants: NotificationCandidate[];
 }
@@ -33,8 +39,8 @@ export interface SelectCommentRecipientsInput {
  * Konten und abbestellte Benachrichtigungen fallen raus – auch bei einer
  * Erwähnung, denn „abbestellt“ heißt abbestellt.
  *
- * Wer sowohl erwähnt als auch beteiligt ist, bekommt genau eine Mail, und
- * zwar die für die Erwähnung.
+ * Wer mehrfach in Frage kommt, bekommt genau eine Mail; ist eine Erwähnung
+ * dabei, gilt die.
  */
 export function selectCommentRecipients(input: SelectCommentRecipientsInput): CommentRecipient[] {
   const byId = new Map<string, CommentRecipient>();
@@ -42,7 +48,10 @@ export function selectCommentRecipients(input: SelectCommentRecipientsInput): Co
   for (const candidate of input.participants) {
     byId.set(candidate.id, { ...candidate, mentioned: false });
   }
-  // Nach den Beteiligten, damit eine Erwähnung die Einstufung überschreibt.
+  for (const candidate of input.subscribers ?? []) {
+    byId.set(candidate.id, { ...candidate, mentioned: false });
+  }
+  // Zuletzt, damit eine Erwähnung die Einstufung überschreibt.
   for (const candidate of input.mentioned) {
     byId.set(candidate.id, { ...candidate, mentioned: true });
   }

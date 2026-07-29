@@ -10,6 +10,7 @@ import { DB, type Database } from '../db/db.module';
 import {
   commentMentions,
   comments,
+  notificationSubscriptions,
   pendingNotifications,
   projectFiles,
   projects,
@@ -65,15 +66,13 @@ export class NotificationsService {
     }
 
     const mentioned = await this.loadMentioned(commentId);
-    const participants = await this.loadCommentParticipants({
-      versionId: row.comment.versionId,
-      uploadedById: row.uploadedById,
-      parentId: row.comment.parentId,
-    });
+    const subscribers = await this.loadSubscribers(row.videoId, row.projectId);
+    const participants = await this.loadGuestParticipants(row.comment.versionId);
 
     const recipients = selectCommentRecipients({
       authorId: row.comment.authorId,
       mentioned,
+      subscribers,
       participants,
     });
     if (recipients.length === 0) return 0;
@@ -313,6 +312,7 @@ export class NotificationsService {
         authorName: users.name,
         videoId: videos.id,
         videoName: videos.name,
+        projectId: projects.id,
         projectName: projects.name,
         versionNumber: videoVersions.versionNumber,
         versionLabel: videoVersions.label,
@@ -378,34 +378,57 @@ export class NotificationsService {
   }
 
   /**
-   * Beteiligte eines Gesprächs: alle, die zu dieser Fassung schon
-   * kommentiert haben, plus die Person, die die Fassung hochgeladen hat.
+   * Gäste, die zu dieser Fassung schon kommentiert haben.
+   *
+   * Sie stehen nicht in der Spalte „Benachrichtigungen“ und können sich dort
+   * auch nicht eintragen – die Antwort auf die eigene Anmerkung sollen sie
+   * trotzdem bekommen. Fürs Team gilt seit Phase 18 allein die Eintragung:
+   * Ein einzelner Kommentar abonniert den Film nicht mehr auf Dauer.
    */
-  private async loadCommentParticipants(input: {
-    versionId: string;
-    uploadedById: string | null;
-    parentId: string | null;
-  }): Promise<NotificationCandidate[]> {
-    const columns = {
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      isActive: users.isActive,
-      notificationsEnabled: users.notificationsEnabled,
-    };
-
-    const commenters = await this.db
-      .selectDistinctOn([users.id], columns)
+  private async loadGuestParticipants(versionId: string): Promise<NotificationCandidate[]> {
+    return this.db
+      .selectDistinctOn([users.id], {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        isActive: users.isActive,
+        notificationsEnabled: users.notificationsEnabled,
+      })
       .from(comments)
       .innerJoin(users, eq(comments.authorId, users.id))
-      .where(and(eq(comments.versionId, input.versionId), isNull(comments.deletedAt)));
+      .where(
+        and(
+          eq(comments.versionId, versionId),
+          isNull(comments.deletedAt),
+          eq(users.role, 'GUEST'),
+        ),
+      );
+  }
 
-    const extraIds = [input.uploadedById].filter((id): id is string => Boolean(id));
-    const extras = extraIds.length
-      ? await this.db.select(columns).from(users).where(inArray(users.id, extraIds))
-      : [];
-
-    return [...commenters, ...extras];
+  /**
+   * Wer den Film verfolgt: eingetragen am Video oder am ganzen Projekt
+   * (Phase 18). Gesperrte Konten fallen schon hier raus.
+   */
+  private async loadSubscribers(
+    videoId: string,
+    projectId: string,
+  ): Promise<NotificationCandidate[]> {
+    return this.db
+      .selectDistinctOn([users.id], {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        isActive: users.isActive,
+        notificationsEnabled: users.notificationsEnabled,
+      })
+      .from(notificationSubscriptions)
+      .innerJoin(users, eq(notificationSubscriptions.userId, users.id))
+      .where(
+        or(
+          eq(notificationSubscriptions.videoId, videoId),
+          eq(notificationSubscriptions.projectId, projectId),
+        ),
+      );
   }
 }
 

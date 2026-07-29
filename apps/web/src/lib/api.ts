@@ -10,6 +10,7 @@ import type {
   GuestOverviewDto,
   LoginMethodsDto,
   LoginResponseDto,
+  NotificationSubscriberDto,
   ProjectDto,
   ProjectFieldDefDto,
   ProjectFieldSettingsDto,
@@ -331,6 +332,22 @@ export const api = {
     request<GuestOverviewDto[]>(`/v1/guests/${userId}`, {
       method: 'PATCH',
       body: JSON.stringify({ isActive }),
+    }),
+
+  // ---------- Benachrichtigungen je Projekt und Video (Phase 18) ----------
+  listProjectSubscribers: (projectId: string) =>
+    request<NotificationSubscriberDto[]>(`/v1/projects/${projectId}/notifications`),
+  setProjectSubscriber: (projectId: string, userId: string, subscribed: boolean) =>
+    request<NotificationSubscriberDto[]>(`/v1/projects/${projectId}/notifications/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ subscribed }),
+    }),
+  listVideoSubscribers: (videoId: string) =>
+    request<NotificationSubscriberDto[]>(`/v1/videos/${videoId}/notifications`),
+  setVideoSubscriber: (videoId: string, userId: string, subscribed: boolean) =>
+    request<NotificationSubscriberDto[]>(`/v1/videos/${videoId}/notifications/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ subscribed }),
     }),
 
   // ---------- Gastzugang ----------

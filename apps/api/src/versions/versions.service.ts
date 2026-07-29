@@ -17,6 +17,7 @@ import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
 import { comments, projects, users, videoVersions, videos } from '../db/schema';
 import type { VideoVersionRow } from '../db/schema';
+import { SubscriptionsService } from '../mail/subscriptions.service';
 
 /** Heutiges Datum als `JJJJ-MM-TT` in Ortszeit. */
 function todayIsoDate(): string {
@@ -81,6 +82,7 @@ export class VersionsService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly accessService: AccessService,
+    private readonly subscriptions: SubscriptionsService,
   ) {}
 
   private baseQuery() {
@@ -214,6 +216,11 @@ export class VersionsService {
         fileDate: input.fileDate ?? todayIsoDate(),
       })
       .returning();
+
+    // Wer hochlädt, verfolgt das Video ab jetzt – ohne daran denken zu
+    // müssen. Nur das Video: Ein Upload sagt nichts darüber, ob auch der
+    // Rest des Projekts interessiert.
+    await this.subscriptions.subscribeUploader(input.user.id, input.videoId);
     return row;
   }
 

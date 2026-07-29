@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { NotificationPanel } from '@/components/NotificationPanel';
 import { ShareManager } from '@/components/ShareManager';
 import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
@@ -56,7 +57,9 @@ export default function ReviewPage() {
 
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
   const router = useRouter();
-  const [seitenTab, setSeitenTab] = useState<'kommentare' | 'freigaben'>('kommentare');
+  const [seitenTab, setSeitenTab] = useState<'kommentare' | 'freigaben' | 'benachrichtigungen'>(
+    'kommentare',
+  );
   const [editingVideo, setEditingVideo] = useState(false);
   const [deletingVideo, setDeletingVideo] = useState(false);
 
@@ -413,6 +416,15 @@ export default function ReviewPage() {
               >
                 Freigaben
               </button>
+              <button
+                type="button"
+                className="sidetabs__tab"
+                data-active={seitenTab === 'benachrichtigungen'}
+                onClick={() => setSeitenTab('benachrichtigungen')}
+                title="Wer bekommt Post zu diesem Video?"
+              >
+                Benachrichtigungen
+              </button>
             </div>
           ) : null}
 
@@ -423,6 +435,8 @@ export default function ReviewPage() {
               videoId={video.id}
               targetLabel={video.name}
             />
+          ) : isTeam && seitenTab === 'benachrichtigungen' && video ? (
+            <NotificationPanel scope="VIDEO" projectId={video.projectId} videoId={video.id} />
           ) : (
           <CommentPanel
             comments={comments}

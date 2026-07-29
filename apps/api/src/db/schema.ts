@@ -557,6 +557,37 @@ export const appSettings = pgTable('app_settings', {
 });
 
 /**
+ * Wer will über einen Film Bescheid wissen? (Phase 18)
+ *
+ * Vorher entschied das der Zufall: Wer eine Fassung hochgeladen oder einmal
+ * kommentiert hatte, bekam fortan Mails. Jetzt trägt man es ein – entweder
+ * fürs ganze Projekt oder für ein einzelnes Video. Bewusst **nicht** je
+ * Fassung: Eine neue Version ist derselbe Film, nicht ein neuer.
+ *
+ * Genau eine der beiden Spalten ist gesetzt. Zwei Unique-Indizes reichen zum
+ * Absichern, weil Postgres `NULL` als verschieden ansieht: Eine Projektzeile
+ * kollidiert nie mit einer Videozeile.
+ */
+export const notificationSubscriptions = pgTable(
+  'notification_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+    videoId: uuid('video_id').references(() => videos.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('notification_subscriptions_user_project_idx').on(table.userId, table.projectId),
+    uniqueIndex('notification_subscriptions_user_video_idx').on(table.userId, table.videoId),
+    index('notification_subscriptions_project_idx').on(table.projectId),
+    index('notification_subscriptions_video_idx').on(table.videoId),
+  ],
+);
+
+/**
  * Wartende Benachrichtigungen (Phase 18).
  *
  * Ein Kommentar landet hier je Empfänger, statt sofort eine Mail auszulösen.
@@ -661,3 +692,4 @@ export type TagRow = typeof tags.$inferSelect;
 export type ProjectFieldDefRow = typeof projectFieldDefs.$inferSelect;
 export type ProjectFolderRow = typeof projectFolders.$inferSelect;
 export type PendingNotificationRow = typeof pendingNotifications.$inferSelect;
+export type NotificationSubscriptionRow = typeof notificationSubscriptions.$inferSelect;

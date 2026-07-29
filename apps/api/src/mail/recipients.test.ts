@@ -74,6 +74,58 @@ describe('selectCommentRecipients', () => {
   it('liefert für einen Kommentar ohne Beteiligte nichts', () => {
     expect(selectCommentRecipients({ authorId: 'autor', mentioned: [], participants: [] })).toEqual([]);
   });
+
+  // Phase 18: Fürs Team entscheidet die Spalte „Benachrichtigungen“.
+  it('benachrichtigt, wer den Film eingetragen hat', () => {
+    const result = selectCommentRecipients({
+      authorId: 'autor',
+      mentioned: [],
+      subscribers: [person('chef')],
+      participants: [],
+    });
+    expect(result.map((entry) => entry.id)).toEqual(['chef']);
+  });
+
+  it('schickt einer eingetragenen *und* erwähnten Person eine Mail für die Erwähnung', () => {
+    const result = selectCommentRecipients({
+      authorId: 'autor',
+      mentioned: [person('chef')],
+      subscribers: [person('chef')],
+      participants: [],
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].mentioned).toBe(true);
+  });
+
+  it('lässt eine eingetragene Person aus, die abbestellt hat', () => {
+    const result = selectCommentRecipients({
+      authorId: 'autor',
+      mentioned: [],
+      subscribers: [person('chef', { notificationsEnabled: false })],
+      participants: [],
+    });
+    expect(result).toEqual([]);
+  });
+
+  it('schweigt auch den Eingetragenen gegenüber, wenn er selbst kommentiert', () => {
+    const result = selectCommentRecipients({
+      authorId: 'chef',
+      mentioned: [],
+      subscribers: [person('chef')],
+      participants: [],
+    });
+    expect(result).toEqual([]);
+  });
+
+  it('nennt Gast und Eingetragenen zusammen, jeden einmal', () => {
+    const result = selectCommentRecipients({
+      authorId: 'autor',
+      mentioned: [],
+      subscribers: [person('chef'), person('gast')],
+      participants: [person('gast')],
+    });
+    expect(result.map((entry) => entry.id).sort()).toEqual(['chef', 'gast']);
+  });
 });
 
 describe('selectTeamRecipients', () => {
