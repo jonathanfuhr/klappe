@@ -12,6 +12,7 @@ import type {
   ProjectDto,
   ProjectFieldDefDto,
   ProjectFileDto,
+  ProjectFolderDto,
   ShareGuestDto,
   ShareLinkDto,
   SharePreviewDto,
@@ -208,7 +209,7 @@ export const api = {
     }),
   createProjectFileUpload: (
     projectId: string,
-    input: { filename: string; sizeBytes: number; mimeType?: string },
+    input: { filename: string; sizeBytes: number; mimeType?: string; folderId?: string },
   ) =>
     request<UploadSessionDto>(`/v1/projects/${projectId}/uploads`, {
       method: 'POST',
@@ -315,6 +316,21 @@ export const api = {
   listProjectFiles: (projectId: string) =>
     request<ProjectFileDto[]>(`/v1/projects/${projectId}/files`),
   deleteProjectFile: (id: string) => request<void>(`/v1/project-files/${id}`, { method: 'DELETE' }),
+  listProjectFolders: (projectId: string) =>
+    request<ProjectFolderDto[]>(`/v1/projects/${projectId}/folders`),
+  /** Legt eine Ordnerkette an (idempotent); „Neuer Ordner" ist ein Pfad der Länge 1. */
+  ensureProjectFolderPath: (projectId: string, input: { parentId?: string; path: string[] }) =>
+    request<ProjectFolderDto>(`/v1/projects/${projectId}/folders`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  renameProjectFolder: (id: string, name: string) =>
+    request<ProjectFolderDto>(`/v1/folders/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    }),
+  /** Löscht den Ordner samt Unterordnern und Dateien. */
+  deleteProjectFolder: (id: string) => request<void>(`/v1/folders/${id}`, { method: 'DELETE' }),
 
   // ---------- E-Mail (Phase 8) ----------
   getSmtpSettings: () => request<SmtpSettingsDto>('/v1/settings/smtp'),
@@ -390,6 +406,9 @@ export const mediaUrl = {
   sprite: (versionId: string) => `${API_BASE}/v1/versions/${versionId}/sprite`,
   original: (versionId: string) => `${API_BASE}/v1/versions/${versionId}/original`,
   projectFile: (fileId: string) => `${API_BASE}/v1/project-files/${fileId}/download`,
+  /** Der ganze Kunden-Bereich (oder ein Ordner) als ZIP. */
+  projectFilesZip: (projectId: string, folderId?: string | null) =>
+    `${API_BASE}/v1/projects/${projectId}/files.zip${folderId ? `?folder=${folderId}` : ''}`,
   /** Master-Playlist der adaptiven Wiedergabe (Phase 13). */
   hls: (versionId: string) => `${API_BASE}/v1/versions/${versionId}/hls/master.m3u8`,
 };

@@ -316,9 +316,20 @@ export interface SharePreviewDto {
   mailReady: boolean;
 }
 
+/** Ordner im Kunden-Bereich eines Projekts (Phase 15). */
+export interface ProjectFolderDto {
+  id: string;
+  projectId: string;
+  parentId: string | null;
+  name: string;
+  createdAt: string;
+}
+
 export interface ProjectFileDto {
   id: string;
   projectId: string;
+  /** Ordner im Kunden-Bereich; `null` heißt Wurzelebene (Phase 15). */
+  folderId: string | null;
   filename: string;
   sizeBytes: number;
   mimeType: string | null;

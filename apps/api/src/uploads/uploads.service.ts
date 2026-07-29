@@ -17,6 +17,7 @@ import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import { type UploadRow, uploads, videoVersions, videos } from '../db/schema';
 import { ProjectFilesService } from '../project-files/project-files.service';
+import { ProjectFoldersService } from '../project-files/project-folders.service';
 import { ProjectsService } from '../projects/projects.service';
 import { MailQueueService } from '../queue/mail-queue.service';
 import { TranscodeQueueService } from '../queue/transcode-queue.service';
@@ -46,6 +47,7 @@ export class UploadsService {
     private readonly videosService: VideosService,
     private readonly projectsService: ProjectsService,
     private readonly projectFilesService: ProjectFilesService,
+    private readonly projectFoldersService: ProjectFoldersService,
     private readonly queue: TranscodeQueueService,
     private readonly mailQueue: MailQueueService,
   ) {}
@@ -124,6 +126,7 @@ export class UploadsService {
    */
   async createProjectFileUpload(input: {
     projectId: string;
+    folderId: string | null;
     filename: string;
     sizeBytes: number;
     mimeType: string | null;
@@ -132,6 +135,11 @@ export class UploadsService {
   }): Promise<UploadSessionDto> {
     this.assertSize(input.sizeBytes);
     await this.projectsService.assertExists(input.projectId);
+    // Ein fremder oder gelöschter Ordner fällt hier auf – nicht erst, wenn die
+    // Datei fertig übertragen ist.
+    if (input.folderId) {
+      await this.projectFoldersService.requireInProject(input.folderId, input.projectId);
+    }
 
     const [row] = await this.db
       .insert(uploads)
@@ -146,6 +154,7 @@ export class UploadsService {
         metadata: {
           ...(input.mimeType ? { filetype: input.mimeType } : {}),
           ...(input.shareLinkId ? { shareLinkId: input.shareLinkId } : {}),
+          ...(input.folderId ? { folderId: input.folderId } : {}),
         },
       })
       .returning();
@@ -440,6 +449,7 @@ export class UploadsService {
 
     const file = await this.projectFilesService.create({
       projectId: row.projectId,
+      folderId: row.metadata?.folderId ?? null,
       uploadedById: row.createdById ?? '',
       shareLinkId: row.metadata?.shareLinkId ?? null,
       filename: row.filename,

@@ -98,6 +98,8 @@ export function uploadVideoFile(input: {
 /** Kunden-Upload in den Projektordner (Phase 7) – dieselbe Mechanik. */
 export function uploadProjectFile(input: {
   projectId: string;
+  /** Ziel-Ordner im Kunden-Bereich; leer heißt Wurzelebene (Phase 15). */
+  folderId?: string;
   file: File;
   chunkSize?: number;
   onProgress?: (progress: UploadProgress) => void;
@@ -107,6 +109,7 @@ export function uploadProjectFile(input: {
       filename: input.file.name,
       sizeBytes: input.file.size,
       mimeType: input.file.type || undefined,
+      folderId: input.folderId,
     }),
   );
 }

@@ -68,6 +68,11 @@ class CreateUploadDto {
   @MaxLength(200)
   label?: string;
 
+  /** Ziel-Ordner im Kunden-Bereich; nur bei Projekt-Uploads (Phase 15). */
+  @IsOptional()
+  @IsUUID()
+  folderId?: string;
+
   /** Datum der Fassung als `JJJJ-MM-TT`; ohne Angabe das heutige. */
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Das Datum muss im Format JJJJ-MM-TT stehen.' })
@@ -238,6 +243,7 @@ export class UploadsController {
 
     const session = await this.uploadsService.createProjectFileUpload({
       projectId,
+      folderId: dto.folderId ?? null,
       filename: details.filename,
       sizeBytes: details.sizeBytes,
       mimeType: details.mimeType,

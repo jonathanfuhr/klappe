@@ -10,6 +10,8 @@ interface UploaderProps {
   videoId?: string;
   /** `project-file` legt die Datei in den Kunden-Ordner statt als Video an. */
   target?: 'video' | 'project-file';
+  /** Ziel-Ordner im Kunden-Bereich; leer heißt Wurzelebene (Phase 15). */
+  folderId?: string;
   /** Für die Vorauswahl im Upload-Fenster. */
   projects?: ProjectDto[];
   videos?: VideoDto[];
@@ -22,15 +24,23 @@ interface UploaderProps {
  * Upload-Fenster (`UploadPanel`), das über allen Seiten liegt und beim
  * Blättern nicht verschwindet.
  */
-export function Uploader({ projectId, videoId, target = 'video', projects, videos }: UploaderProps) {
+export function Uploader({
+  projectId,
+  videoId,
+  target = 'video',
+  folderId,
+  projects,
+  videos,
+}: UploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const { enqueue } = useUploads();
 
   const accept = (files: File[]) => {
     const usable = files.filter((file) => file.size > 0);
     if (usable.length === 0) return;
-    enqueue({ files: usable, target, projectId, videoId, projects, videos });
+    enqueue({ files: usable, target, projectId, videoId, folderId, projects, videos });
   };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
@@ -70,6 +80,22 @@ export function Uploader({ projectId, videoId, target = 'video', projects, video
       <div style={{ fontSize: 13, marginTop: 4 }}>
         Mehrere Dateien auf einmal sind möglich. Zuordnung und Fortschritt stehen danach im
         Upload-Fenster; abgerissene Übertragungen werden fortgesetzt.
+        {target === 'project-file' ? (
+          <>
+            {' '}
+            <button
+              type="button"
+              className="button button--ghost"
+              style={{ marginLeft: 6, padding: '2px 10px', fontSize: 12 }}
+              onClick={(event) => {
+                event.stopPropagation();
+                folderInputRef.current?.click();
+              }}
+            >
+              Ganzen Ordner wählen …
+            </button>
+          </>
+        ) : null}
       </div>
       <input
         ref={inputRef}
@@ -83,6 +109,23 @@ export function Uploader({ projectId, videoId, target = 'video', projects, video
           accept(files);
         }}
       />
+      {target === 'project-file' ? (
+        // Ein zweites Eingabefeld nur für Ordner: `webkitdirectory` liefert
+        // jede Datei mit ihrem relativen Pfad, aus dem die Ordnerkette entsteht.
+        <input
+          ref={folderInputRef}
+          type="file"
+          hidden
+          multiple
+          // @ts-expect-error – Nicht im Standard, aber in allen Browsern.
+          webkitdirectory=""
+          onChange={(event) => {
+            const files = Array.from(event.target.files ?? []);
+            event.target.value = '';
+            accept(files);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

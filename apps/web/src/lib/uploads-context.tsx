@@ -35,6 +35,8 @@ export interface UploadJob {
   filename: string;
   sizeBytes: number;
   target: UploadTarget;
+  /** Ziel-Ordner im Kunden-Bereich, nur bei `project-file` (Phase 15). */
+  folderId?: string;
   /** Zuordnung, die der Benutzer im Fenster noch ändern kann. */
   projectId: string;
   /** Leer = neues Video anlegen. */
@@ -72,6 +74,7 @@ interface UploadsState {
     target: UploadTarget;
     projectId: string;
     videoId?: string;
+    folderId?: string;
     projects?: ProjectDto[];
     videos?: VideoDto[];
   }) => void;
@@ -150,6 +153,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         filename: file.name,
         sizeBytes: file.size,
         target: input.target,
+        folderId: input.folderId,
         projectId,
         videoId,
         newVideoName: suggestVideoName(file.name),
@@ -218,9 +222,30 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
             const onProgress = (progress: { uploadedBytes: number }) =>
               update(job.id, { uploadedBytes: progress.uploadedBytes });
 
+            // Kommt die Datei aus einem gewählten Ordner, trägt sie ihren
+            // relativen Pfad – die Ordnerkette entsteht vor der Übertragung,
+            // damit zwei Dateien aus demselben Unterordner ihn teilen.
+            let zielOrdner = job.folderId;
+            const relativ = (datei as File & { webkitRelativePath?: string }).webkitRelativePath;
+            if (job.target === 'project-file' && relativ && relativ.includes('/')) {
+              const segmente = relativ.split('/').slice(0, -1).filter(Boolean);
+              if (segmente.length > 0) {
+                const ordner = await api.ensureProjectFolderPath(job.projectId, {
+                  parentId: job.folderId || undefined,
+                  path: segmente,
+                });
+                zielOrdner = ordner.id;
+              }
+            }
+
             const handle: UploadHandle =
               job.target === 'project-file'
-                ? uploadProjectFile({ projectId: job.projectId, file: datei, onProgress })
+                ? uploadProjectFile({
+                    projectId: job.projectId,
+                    folderId: zielOrdner,
+                    file: datei,
+                    onProgress,
+                  })
                 : uploadVersionFile({ file: datei, onProgress });
 
             update(job.id, { handle });

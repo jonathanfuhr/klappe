@@ -348,6 +348,35 @@ export const loginCodes = pgTable(
   (table) => [index('login_codes_email_idx').on(table.email, table.createdAt)],
 );
 
+/**
+ * Ordner im Kunden-Bereich eines Projekts (Phase 15).
+ *
+ * Eine schlichte Baumstruktur über `parentId`; `null` heißt Wurzelebene. Die
+ * Kaskade auf sich selbst räumt beim Löschen eines Ordners den ganzen Ast ab –
+ * die Dateien darin fallen über ihre eigene Kaskade mit.
+ */
+export const projectFolders = pgTable(
+  'project_folders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    parentId: uuid('parent_id'),
+    name: text('name').notNull(),
+    createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.parentId],
+      foreignColumns: [table.id],
+      name: 'project_folders_parent_fk',
+    }).onDelete('cascade'),
+    index('project_folders_project_idx').on(table.projectId),
+  ],
+);
+
 /** Datei im Kunden-Upload-Ordner eines Projekts (Phase 7). */
 export const projectFiles = pgTable(
   'project_files',
@@ -356,6 +385,8 @@ export const projectFiles = pgTable(
     projectId: uuid('project_id')
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
+    /** Ordner im Kunden-Bereich; `null` heißt Wurzelebene (Phase 15). */
+    folderId: uuid('folder_id').references(() => projectFolders.id, { onDelete: 'cascade' }),
     uploadedById: uuid('uploaded_by_id').references(() => users.id, { onDelete: 'set null' }),
     /** Über welchen Freigabe-Link die Datei kam – für die Nachvollziehbarkeit. */
     shareLinkId: uuid('share_link_id').references(() => shareLinks.id, { onDelete: 'set null' }),
@@ -555,3 +586,4 @@ export type ProjectFileRow = typeof projectFiles.$inferSelect;
 export type AppSettingsRow = typeof appSettings.$inferSelect;
 export type TagRow = typeof tags.$inferSelect;
 export type ProjectFieldDefRow = typeof projectFieldDefs.$inferSelect;
+export type ProjectFolderRow = typeof projectFolders.$inferSelect;
