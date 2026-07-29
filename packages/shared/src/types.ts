@@ -38,6 +38,12 @@ export interface ProjectDto {
   createdAt: string;
   updatedAt: string;
   createdBy: UserSummaryDto | null;
+  /**
+   * Archiviert seit (Phase 18)? Dann bleibt das Projekt betrachtbar, zeigt
+   * aber nur noch die neueste Fassung je Video, und kommentieren geht nicht
+   * mehr. Ältere Fassungen verschwinden nach der eingestellten Frist.
+   */
+  archivedAt: string | null;
   videoCount: number;
   /** Anzahl Dateien im Kunden-Upload-Ordner. */
   fileCount: number;
@@ -449,6 +455,11 @@ export interface SmtpSettingsDto {
    * sofort – dann kommt wie früher eine Mail je Kommentar.
    */
   digestMinutes: number;
+  /**
+   * Wie lange die alten Fassungen eines archivierten Projekts liegen bleiben
+   * (Phase 18). Steht hier, weil es dieselbe Einstellungsseite ist.
+   */
+  archiveRetentionDays: number;
   updatedAt: string;
 }
 

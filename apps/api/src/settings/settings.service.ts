@@ -29,6 +29,7 @@ export interface UpdateSmtpInput {
   fromName?: string | null;
   fromEmail?: string | null;
   digestMinutes?: number;
+  archiveRetentionDays?: number;
 }
 
 const SETTINGS_ID = 1;
@@ -42,6 +43,15 @@ const SETTINGS_ID = 1;
 export const DEFAULT_MAIL_DIGEST_MINUTES = 5;
 /** Länger als zwei Stunden zu sammeln hilft niemandem mehr. */
 export const MAX_MAIL_DIGEST_MINUTES = 120;
+
+/**
+ * Wie lange die alten Fassungen eines archivierten Projekts liegen bleiben
+ * (Phase 18). 30 Tage: lang genug, um ein versehentliches Archivieren zu
+ * bemerken, kurz genug, um Platz zu schaffen.
+ */
+export const DEFAULT_ARCHIVE_RETENTION_DAYS = 30;
+/** Ein Jahr ist die Obergrenze – darüber ist es kein Archiv mehr, sondern Ablage. */
+export const MAX_ARCHIVE_RETENTION_DAYS = 365;
 
 @Injectable()
 export class SettingsService {
@@ -88,6 +98,7 @@ export class SettingsService {
       fromName: row.smtpFromName,
       fromEmail: row.smtpFromEmail,
       digestMinutes: row.mailDigestMinutes,
+      archiveRetentionDays: row.archiveRetentionDays,
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -97,6 +108,14 @@ export class SettingsService {
    * in der Datenbank fällt auf den Standard zurück, statt den Versand
    * lahmzulegen.
    */
+  /** Aufbewahrungsfrist für alte Fassungen archivierter Projekte, in Tagen. */
+  async archiveRetentionDays(): Promise<number> {
+    const row = await this.getRow();
+    const tage = row.archiveRetentionDays;
+    if (!Number.isFinite(tage) || tage < 0) return DEFAULT_ARCHIVE_RETENTION_DAYS;
+    return Math.min(tage, MAX_ARCHIVE_RETENTION_DAYS);
+  }
+
   async digestMinutes(): Promise<number> {
     const row = await this.getRow();
     const minutes = row.mailDigestMinutes;
@@ -129,6 +148,13 @@ export class SettingsService {
           input.digestMinutes === undefined
             ? undefined
             : Math.max(0, Math.min(MAX_MAIL_DIGEST_MINUTES, Math.round(input.digestMinutes))),
+        archiveRetentionDays:
+          input.archiveRetentionDays === undefined
+            ? undefined
+            : Math.max(
+                0,
+                Math.min(MAX_ARCHIVE_RETENTION_DAYS, Math.round(input.archiveRetentionDays)),
+              ),
         updatedAt: new Date(),
       })
       .where(eq(appSettings.id, SETTINGS_ID));

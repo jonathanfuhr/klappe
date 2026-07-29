@@ -14,7 +14,11 @@ import { CurrentUser, Public, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
 import { MailService } from '../mail/mail.service';
 import { AuthSettingsService } from './auth-settings.service';
-import { MAX_MAIL_DIGEST_MINUTES, SettingsService } from './settings.service';
+import {
+  MAX_ARCHIVE_RETENTION_DAYS,
+  MAX_MAIL_DIGEST_MINUTES,
+  SettingsService,
+} from './settings.service';
 import { SMTP_PRESETS } from './smtp-presets';
 
 class UpdateSmtpDto {
@@ -69,6 +73,13 @@ class UpdateSmtpDto {
   @Min(0)
   @Max(MAX_MAIL_DIGEST_MINUTES)
   digestMinutes?: number;
+
+  /** Aufbewahrung alter Fassungen archivierter Projekte, in Tagen (Phase 18). */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_ARCHIVE_RETENTION_DAYS)
+  archiveRetentionDays?: number;
 }
 
 class TestMailDto {
@@ -147,6 +158,7 @@ export class SettingsController {
       fromName: dto.fromName,
       fromEmail: dto.fromEmail,
       digestMinutes: dto.digestMinutes,
+      archiveRetentionDays: dto.archiveRetentionDays,
     });
   }
 

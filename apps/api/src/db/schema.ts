@@ -592,6 +592,14 @@ export const appSettings = pgTable('app_settings', {
    */
   mailDigestMinutes: integer('mail_digest_minutes').notNull().default(5),
 
+  /**
+   * Wie lange die alten Fassungen eines archivierten Projekts noch liegen
+   * bleiben (Phase 18). Danach räumt der tägliche Aufräumer sie weg – die
+   * neueste bleibt immer. 30 Tage sind der Standard: lang genug, um einen
+   * Irrtum zu bemerken, kurz genug, um Platz zu schaffen.
+   */
+  archiveRetentionDays: integer('archive_retention_days').notNull().default(30),
+
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

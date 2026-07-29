@@ -156,3 +156,90 @@ export function DeleteProjectDialog({
   );
 }
 
+
+/**
+ * Archivieren und zurückholen (Phase 18).
+ *
+ * Bewusst mit Nachfrage: Archivieren ist kein Umbenennen. Danach sieht der
+ * Kunde nur noch die neueste Fassung, kommentieren geht nicht mehr, und die
+ * älteren Fassungen verschwinden nach der eingestellten Frist. Das steht hier
+ * im Klartext, samt Frist – wer sie nicht kennt, kann die Folgen nicht
+ * abschätzen.
+ */
+export function ArchiveProjectDialog({
+  project,
+  onClose,
+  onDone,
+}: {
+  project: ProjectDto;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tage, setTage] = useState<number | null>(null);
+
+  const archiviert = Boolean(project.archivedAt);
+
+  useEffect(() => {
+    if (archiviert) return;
+    api
+      .getSmtpSettings()
+      .then((einstellungen) => setTage(einstellungen.archiveRetentionDays))
+      .catch(() => setTage(null));
+  }, [archiviert]);
+
+  return (
+    <Dialog
+      title={archiviert ? `„${project.name}“ zurückholen?` : `„${project.name}“ archivieren?`}
+      onClose={onClose}
+    >
+      {archiviert ? (
+        <p>
+          Das Projekt wird wieder ein gewöhnliches: alle noch vorhandenen Fassungen sichtbar,
+          kommentieren wieder möglich. Bereits gelöschte Fassungen kommen nicht zurück.
+        </p>
+      ) : (
+        <>
+          <p>
+            Das Projekt bleibt sichtbar und abspielbar. Aber: Je Video ist nur noch die{' '}
+            <strong>neueste Fassung</strong> zu sehen, und <strong>kommentieren geht nicht mehr</strong>.
+          </p>
+          <p className="hint" style={{ marginTop: 0 }}>
+            {tage === null
+              ? 'Die älteren Fassungen werden nach der in den Einstellungen hinterlegten Frist gelöscht.'
+              : tage === 0
+                ? 'Achtung: Die Frist steht auf 0 Tage – die älteren Fassungen werden beim nächsten Aufräumen gelöscht.'
+                : `Die älteren Fassungen bleiben noch ${tage} Tage liegen und werden dann gelöscht, um Platz zu schaffen. Die Frist steht unter Einstellungen → E-Mail-Versand.`}
+          </p>
+        </>
+      )}
+
+      {error ? <div className="notice">{error}</div> : null}
+
+      <div className="dialog__actions">
+        <button type="button" className="button" onClick={onClose}>
+          Abbrechen
+        </button>
+        <button
+          type="button"
+          className="button button--primary"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              await api.setProjectArchived(project.id, !archiviert);
+              await onDone();
+            } catch (saveError) {
+              setError(saveError instanceof Error ? saveError.message : 'Hat nicht geklappt.');
+              setBusy(false);
+            }
+          }}
+        >
+          {archiviert ? 'Zurückholen' : 'Archivieren'}
+        </button>
+      </div>
+    </Dialog>
+  );
+}

@@ -20,6 +20,7 @@ import { ProjectFieldsService } from './project-fields.service';
 import {
   CreateProjectDto,
   RenameCustomerDto,
+  SetArchivedDto,
   SetFieldValuesDto,
   UpdateProjectDto,
 } from './projects.dto';
@@ -111,6 +112,23 @@ export class ProjectsController {
   ): Promise<ProjectDto> {
     const scope = await this.accessService.loadScope(user);
     return this.projectsService.update(id, dto, scope);
+  }
+
+  /**
+   * Archivieren und zurückholen (Phase 18). Bewusst ein eigener Weg statt
+   * eines Feldes in `PATCH`: Archivieren hat Folgen – nur die neueste Fassung
+   * bleibt sichtbar, kommentieren geht nicht mehr, ältere Fassungen laufen ab.
+   * Das soll man ausdrücklich tun, nicht nebenbei beim Umbenennen.
+   */
+  @Roles('ADMIN', 'MEMBER')
+  @Put(':id/archiv')
+  async setArchived(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: SetArchivedDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<ProjectDto> {
+    const scope = await this.accessService.loadScope(user);
+    return this.projectsService.setArchived(id, dto.archived, scope);
   }
 
   /** Alle Feldwerte des Projekts in einem Rutsch; leere Werte löschen. */

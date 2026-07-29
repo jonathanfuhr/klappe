@@ -172,6 +172,12 @@ export const api = {
   updateProject: (id: string, input: { name?: string; customer?: string; description?: string }) =>
     request<ProjectDto>(`/v1/projects/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteProject: (id: string) => request<void>(`/v1/projects/${id}`, { method: 'DELETE' }),
+  /** Archivieren oder zurückholen (Phase 18). */
+  setProjectArchived: (id: string, archived: boolean) =>
+    request<ProjectDto>(`/v1/projects/${id}/archiv`, {
+      method: 'PUT',
+      body: JSON.stringify({ archived }),
+    }),
 
   listVideos: (projectId: string) => request<VideoDto[]>(`/v1/projects/${projectId}/videos`),
   getVideo: (id: string) => request<VideoDto>(`/v1/videos/${id}`),
@@ -427,6 +433,7 @@ export const api = {
     fromName?: string;
     fromEmail?: string;
     digestMinutes?: number;
+    archiveRetentionDays?: number;
   }) => request<SmtpSettingsDto>('/v1/settings/smtp', { method: 'PUT', body: JSON.stringify(input) }),
   smtpPresets: () => request<SmtpProviderPresetDto[]>('/v1/settings/smtp/presets'),
 

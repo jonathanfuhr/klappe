@@ -113,7 +113,21 @@ export class VersionsService {
       .where(eq(videoVersions.videoId, videoId))
       .orderBy(desc(videoVersions.versionNumber));
 
-    return rows.map((row) =>
+    // In einem archivierten Projekt bleibt nur die neueste Fassung sichtbar
+    // (Phase 18) – die älteren werden nach der Frist ohnehin gelöscht, und
+    // eine Liste, aus der laufend Einträge verschwinden, verwirrt mehr, als
+    // sie nützt. Fehlgeschlagene zählen nicht als „neueste“.
+    const [projekt] = await this.db
+      .select({ archivedAt: projects.archivedAt })
+      .from(projects)
+      .where(eq(projects.id, video.projectId))
+      .limit(1);
+
+    const sichtbar = projekt?.archivedAt
+      ? rows.filter((row) => row.version.status === 'READY').slice(0, 1)
+      : rows;
+
+    return sichtbar.map((row) =>
       this.toDto(row, this.downloadAllowed(scope, video, row.version.downloadEnabled)),
     );
   }

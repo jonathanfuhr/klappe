@@ -208,6 +208,9 @@ export default function ProjectsPage() {
           </div>
         ) : null}
         <div className="tile__meta">
+          {/* Archiviert sieht man der Kachel sonst nicht an – und es
+              entscheidet, ob dort noch kommentiert werden kann (Phase 18). */}
+          {project.archivedAt ? <span className="badge">archiviert</span> : null}
           <span>
             {project.videoCount} {project.videoCount === 1 ? 'Video' : 'Videos'}
           </span>

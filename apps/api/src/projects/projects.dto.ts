@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsOptional,
   IsString,
   IsUUID,
@@ -75,4 +76,10 @@ export class UpdateProjectDto {
   @IsString()
   @MaxLength(2000)
   description?: string;
+}
+
+/** Archivieren und zurückholen (Phase 18). */
+export class SetArchivedDto {
+  @IsBoolean()
+  archived!: boolean;
 }

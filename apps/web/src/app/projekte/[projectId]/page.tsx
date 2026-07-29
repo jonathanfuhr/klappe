@@ -14,7 +14,11 @@ import { ShareManager } from '@/components/ShareManager';
 import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
 import { Menu, MenuItem } from '@/components/ui/Menu';
-import { DeleteProjectDialog, EditProjectDialog } from '@/components/ProjectDialogs';
+import {
+  ArchiveProjectDialog,
+  DeleteProjectDialog,
+  EditProjectDialog,
+} from '@/components/ProjectDialogs';
 import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
 import { formatFrameRate, formatRelative } from '@/lib/format';
@@ -32,6 +36,7 @@ export default function ProjectPage() {
   const [sharing, setSharing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [editingVideo, setEditingVideo] = useState<VideoDto | null>(null);
   const [deletingVideo, setDeletingVideo] = useState<VideoDto | null>(null);
   // Reiter der rechten Spalte – wie am Video, nur ohne Kommentare (Phase 18).
@@ -85,7 +90,10 @@ export default function ProjectPage() {
 
         <div className="page__header">
           <div>
-            <h1 className="page__title">{project?.name ?? 'Projekt'}</h1>
+            <h1 className="page__title">
+              {project?.name ?? 'Projekt'}
+              {project?.archivedAt ? <span className="badge">archiviert</span> : null}
+            </h1>
             {project?.description ? <p className="page__subtitle">{project.description}</p> : null}
           </div>
           <div className="shell__spacer" />
@@ -96,6 +104,9 @@ export default function ProjectPage() {
               <Menu label="Aktionen für dieses Projekt">
                 <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
                 <MenuItem onSelect={() => setEditing(true)}>Umbenennen …</MenuItem>
+                <MenuItem onSelect={() => setArchiving(true)}>
+                  {project?.archivedAt ? 'Aus dem Archiv holen …' : 'Archivieren …'}
+                </MenuItem>
                 <MenuItem danger onSelect={() => setDeleting(true)}>
                   Löschen …
                 </MenuItem>
@@ -224,6 +235,17 @@ export default function ProjectPage() {
           projectId={projectId}
           targetLabel={project.name}
           onClose={() => setSharing(false)}
+        />
+      ) : null}
+
+      {archiving && project ? (
+        <ArchiveProjectDialog
+          project={project}
+          onClose={() => setArchiving(false)}
+          onDone={async () => {
+            setArchiving(false);
+            await load();
+          }}
         />
       ) : null}
 

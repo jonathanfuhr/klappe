@@ -17,7 +17,15 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
-import { type CommentRow, commentMentions, comments, users, videoVersions, videos } from '../db/schema';
+import {
+  type CommentRow,
+  commentMentions,
+  comments,
+  projects,
+  users,
+  videoVersions,
+  videos,
+} from '../db/schema';
 import { MailQueueService } from '../queue/mail-queue.service';
 import type { CreateCommentDto, UpdateCommentDto } from './comments.dto';
 
@@ -112,6 +120,9 @@ export class CommentsService {
   ): Promise<CommentDto> {
     const access = await this.accessService.requireVersion(scope, versionId);
     this.accessService.assertCanComment(scope, { id: access.videoId, projectId: access.projectId });
+    // In einem archivierten Projekt ist die Rückmeldung abgeschlossen
+    // (Phase 18). Lesen geht weiter, schreiben nicht.
+    await this.assertNichtArchiviert(access.projectId);
     const version = await this.getVersionOrFail(versionId);
 
     let parentId: string | null = null;
@@ -306,6 +317,24 @@ export class CommentsService {
       .limit(1);
     if (!row) throw new NotFoundException('Kommentar nicht gefunden.');
     return row;
+  }
+
+  /**
+   * In einem archivierten Projekt ist die Rückmeldung abgeschlossen: Ansehen
+   * ja, kommentieren nein (Phase 18). Wer es doch versucht, bekommt eine
+   * Erklärung statt eines nackten „verboten".
+   */
+  private async assertNichtArchiviert(projectId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ archivedAt: projects.archivedAt })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    if (row?.archivedAt) {
+      throw new ForbiddenException(
+        'Dieses Projekt ist archiviert – es lässt sich noch ansehen, aber nicht mehr kommentieren.',
+      );
+    }
   }
 
   private async getVersionOrFail(versionId: string) {

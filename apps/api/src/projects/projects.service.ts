@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { ProjectDto, TagRefDto } from '@klappe/shared';
 import { colorForTagName } from '@klappe/shared';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
@@ -44,6 +44,8 @@ export interface ProjectListOptions {
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly accessService: AccessService,
@@ -283,6 +285,38 @@ export class ProjectsService {
     ].filter((key): key is string => Boolean(key));
   }
 
+  /**
+   * Projekt archivieren oder zurückholen (Phase 18).
+   *
+   * Archiviert heißt nicht gelöscht: Das Projekt bleibt sichtbar und
+   * abspielbar, zeigt aber nur noch die neueste Fassung je Video, und
+   * kommentiert wird nicht mehr. Die älteren Fassungen bleiben die
+   * eingestellte Frist lang liegen – falls es ein Irrtum war – und werden
+   * danach vom täglichen Aufräumer entfernt.
+   */
+  async setArchived(id: string, archived: boolean, scope: AccessScope): Promise<ProjectDto> {
+    const [row] = await this.db
+      .update(projects)
+      // Beim Zurückholen wird das Datum gelöscht: Die Frist beginnt bei einem
+      // erneuten Archivieren von vorn, sonst wäre alles sofort weg.
+      .set({ archivedAt: archived ? new Date() : null, updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    if (!row) throw new NotFoundException('Projekt nicht gefunden.');
+    this.logger.log(`Projekt ${id} ${archived ? 'archiviert' : 'zurückgeholt'}.`);
+    return this.findOneOrFail(row.id, scope);
+  }
+
+  /** Ist dieses Projekt archiviert? Kurze Auskunft für die Rechteprüfungen. */
+  async isArchived(id: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ archivedAt: projects.archivedAt })
+      .from(projects)
+      .where(eq(projects.id, id))
+      .limit(1);
+    return Boolean(row?.archivedAt);
+  }
+
   /** Ein Schreibzugriff im Projekt hebt es in der Liste nach oben. */
   async touch(id: string): Promise<void> {
     await this.db.update(projects).set({ updatedAt: new Date() }).where(eq(projects.id, id));
@@ -300,6 +334,7 @@ export class ProjectsService {
         row.creatorId && row.creatorName && row.creatorEmail
           ? { id: row.creatorId, name: row.creatorName, email: row.creatorEmail }
           : null,
+      archivedAt: row.project.archivedAt?.toISOString() ?? null,
       videoCount: row.videoCount,
       fileCount: row.fileCount,
       canUploadFiles: this.accessService.canUpload(scope, row.project.id),

@@ -12,9 +12,17 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { and, isNotNull, lt, or } from 'drizzle-orm';
+import { and, isNotNull, lt, or, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
-import { loginCodes, pendingNotifications, projectFiles, videoVersions } from '../db/schema';
+import {
+  loginCodes,
+  pendingNotifications,
+  projectFiles,
+  projects,
+  videoVersions,
+  videos,
+} from '../db/schema';
+import { SettingsService } from '../settings/settings.service';
 import { StorageService } from '../storage/storage.service';
 
 /** Einmal am Tag genügt; der erste Lauf kommt kurz nach dem Start. */
@@ -40,6 +48,8 @@ export interface CleanupReport {
   orphanFiles: number;
   freedBytes: number;
   pendingNotifications: number;
+  /** Alte Fassungen archivierter Projekte (Phase 18). */
+  archivedVersions: number;
 }
 
 @Injectable()
@@ -51,6 +61,7 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly storage: StorageService,
+    private readonly settings: SettingsService,
   ) {}
 
   onModuleInit(): void {
@@ -69,11 +80,16 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
     try {
       const codes = await this.cleanupLoginCodes();
       const hinweise = await this.cleanupPendingNotifications();
+      // Vor dem Datei-Durchlauf: Was hier wegfällt, ist danach verwaist und
+      // wird im selben Lauf mit abgeräumt.
+      const fassungen = await this.cleanupArchivedVersions();
       const dateien = await this.cleanupOrphanFiles();
 
-      if (codes > 0 || dateien.count > 0 || hinweise > 0) {
+      if (codes > 0 || dateien.count > 0 || hinweise > 0 || fassungen > 0) {
         this.logger.log(
-          `Aufgeräumt: ${codes} Anmeldecodes, ${hinweise} liegengebliebene Benachrichtigungen, ${dateien.count} verwaiste Dateien (${Math.round(dateien.bytes / 1024 / 1024)} MB).`,
+          `Aufgeräumt: ${codes} Anmeldecodes, ${hinweise} liegengebliebene Benachrichtigungen, ` +
+            `${fassungen} alte Fassungen aus archivierten Projekten, ` +
+            `${dateien.count} verwaiste Dateien (${Math.round(dateien.bytes / 1024 / 1024)} MB).`,
         );
       }
       return {
@@ -81,11 +97,61 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
         orphanFiles: dateien.count,
         freedBytes: dateien.bytes,
         pendingNotifications: hinweise,
+        archivedVersions: fassungen,
       };
     } catch (error) {
       this.logger.error(`Aufräumen fehlgeschlagen: ${String(error)}`);
-      return { loginCodes: 0, orphanFiles: 0, freedBytes: 0, pendingNotifications: 0 };
+      return {
+        loginCodes: 0,
+        orphanFiles: 0,
+        freedBytes: 0,
+        pendingNotifications: 0,
+        archivedVersions: 0,
+      };
     }
+  }
+
+  /**
+   * Alte Fassungen archivierter Projekte (Phase 18).
+   *
+   * Nach dem Archivieren bleiben sie noch die eingestellte Frist liegen –
+   * falls das Archivieren ein Irrtum war. Danach fliegen sie, um Platz zu
+   * schaffen. Die **neueste** Fassung je Video bleibt immer stehen; ohne sie
+   * wäre das Projekt nicht mehr betrachtbar, und genau das soll es bleiben.
+   *
+   * Die Dateien selbst werden nicht hier gelöscht: Sie sind nach dem Wegfall
+   * der Zeilen verwaist und gehen im selben Lauf durch `cleanupOrphanFiles`.
+   */
+  async cleanupArchivedVersions(): Promise<number> {
+    const tage = await this.settings.archiveRetentionDays();
+    const grenze = new Date(Date.now() - tage * 24 * 60 * 60 * 1000);
+
+    const rows = await this.db
+      .delete(videoVersions)
+      .where(
+        sql`${videoVersions.id} in (
+          select v.id
+          from ${videoVersions} v
+          join ${videos} w on w.id = v.video_id
+          join ${projects} p on p.id = w.project_id
+          where p.archived_at is not null
+            and p.archived_at < ${grenze}
+            and v.id <> (
+              select v2.id from ${videoVersions} v2
+              where v2.video_id = w.id and v2.status = 'READY'
+              order by v2.version_number desc
+              limit 1
+            )
+        )`,
+      )
+      .returning({ id: videoVersions.id });
+
+    if (rows.length > 0) {
+      this.logger.warn(
+        `${rows.length} alte Fassung(en) aus archivierten Projekten entfernt (Frist: ${tage} Tage).`,
+      );
+    }
+    return rows.length;
   }
 
   /**
