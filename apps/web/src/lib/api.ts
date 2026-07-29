@@ -6,6 +6,7 @@ import type {
   CustomerDto,
   FieldValueCountDto,
   GuestAccessDto,
+  GuestCandidateDto,
   GuestLoginResponseDto,
   GuestOverviewDto,
   LoginMethodsDto,
@@ -329,6 +330,12 @@ export const api = {
     request<GuestAccessDto[]>(`/v1/projects/${projectId}/guests/${userId}`, {
       method: revoked ? 'DELETE' : 'POST',
     }),
+  /**
+   * Gäste aus Projekten desselben Kunden – wen man diesem Projekt noch
+   * hinzufügen könnte (Phase 18).
+   */
+  listGuestCandidates: (projectId: string) =>
+    request<GuestCandidateDto[]>(`/v1/projects/${projectId}/gastkandidaten`),
   /**
    * Einen vorhandenen Gast erweitern – aufs ganze Projekt oder auf weitere
    * Videos. Ohne neuen Link, ohne neue Mail (Phase 18).

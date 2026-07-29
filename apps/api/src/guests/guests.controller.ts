@@ -9,7 +9,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import type { GuestAccessDto, GuestOverviewDto } from '@klappe/shared';
+import type { GuestAccessDto, GuestCandidateDto, GuestOverviewDto } from '@klappe/shared';
 import { IsArray, IsBoolean, IsIn, IsOptional, IsUUID } from 'class-validator';
 import { CurrentUser, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
@@ -32,6 +32,19 @@ class ExtendGuestDto {
   @IsArray()
   @IsUUID('4', { each: true })
   videoIds?: string[];
+
+  /** Ohne Angabe: übernehmen, was der Gast im Projekt schon darf. */
+  @IsOptional()
+  @IsBoolean()
+  allowComments?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowDownload?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowUpload?: boolean;
 }
 
 /** `null` setzt das Recht zurück auf „wie der Link". */
@@ -105,7 +118,23 @@ export class GuestsController {
         ? { scope: 'PROJECT' }
         : { scope: 'VIDEO', videoIds: dto.videoIds ?? [] },
       actor.id,
+      {
+        allowComments: dto.allowComments,
+        allowDownload: dto.allowDownload,
+        allowUpload: dto.allowUpload,
+      },
     );
+  }
+
+  /**
+   * Wen könnte man diesem Projekt noch hinzufügen? Gäste aus Projekten
+   * desselben Kunden (Phase 18).
+   */
+  @Get('projects/:projectId/gastkandidaten')
+  candidates(
+    @Param('projectId', new ParseUUIDPipe()) projectId: string,
+  ): Promise<GuestCandidateDto[]> {
+    return this.guestsService.listCandidates(projectId);
   }
 
   @Post('projects/:projectId/guests/:userId')

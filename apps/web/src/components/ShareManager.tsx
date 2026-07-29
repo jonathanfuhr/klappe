@@ -1,6 +1,6 @@
 'use client';
 
-import type { ShareGuestDto, ShareLinkDto, ShareScope } from '@klappe/shared';
+import type { GuestCandidateDto, ShareGuestDto, ShareLinkDto, ShareScope } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateTime, formatRelative } from '@/lib/format';
@@ -90,6 +90,13 @@ export function ShareManager({
           </p>
         ) : null}
       </div>
+
+      {/* Am Projekt lässt sich auch ohne neuen Link freigeben – an Gäste,
+          die schon bei einem anderen Projekt desselben Kunden dabei sind
+          (Phase 18). */}
+      {scope === 'PROJECT' && projectId ? (
+        <BekannteGaeste projectId={projectId} onAdded={load} />
+      ) : null}
 
       <div className="dialog__actions">
         <button type="button" className="button" onClick={onClose}>
@@ -323,4 +330,109 @@ function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Pr
 function einbettSchnipsel(embedUrl: string | null): string {
   if (!embedUrl) return '';
   return `<iframe src="${embedUrl}" style="width:100%;aspect-ratio:16/9;border:0" allowfullscreen></iframe>`;
+}
+
+/**
+ * An bereits angelegte Gäste freigeben (Phase 18).
+ *
+ * Wer schon bei einem anderen Projekt desselben Kunden dabei ist, braucht
+ * keinen neuen Link und keine neue Anmeldung – ein Klick genügt. Der Kreis
+ * bleibt bewusst auf den Kunden beschränkt: Zwei Kunden dürfen nicht
+ * versehentlich ineinander rutschen, und eine Liste aller Gäste des Workspace
+ * wäre genau die Gelegenheit dazu.
+ *
+ * Ohne Kunden am Projekt gibt es keinen Kreis – dann steht hier, woran es
+ * liegt, statt einer leeren Liste ohne Erklärung.
+ */
+function BekannteGaeste({ projectId, onAdded }: { projectId: string; onAdded: () => Promise<void> }) {
+  const [kandidaten, setKandidaten] = useState<GuestCandidateDto[] | null>(null);
+  const [kunde, setKunde] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<string | null>(null);
+
+  const laden = useCallback(async () => {
+    try {
+      const [liste, projekt] = await Promise.all([
+        api.listGuestCandidates(projectId),
+        api.getProject(projectId),
+      ]);
+      setKandidaten(liste);
+      setKunde(projekt.customer);
+    } catch (loadError) {
+      setFehler(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setKandidaten([]);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    void laden();
+  }, [laden]);
+
+  const hinzufuegen = async (userId: string) => {
+    setBusy(userId);
+    setFehler(null);
+    try {
+      await api.extendProjectGuest(projectId, userId, { scope: 'PROJECT' });
+      await Promise.all([laden(), onAdded()]);
+    } catch (addError) {
+      setFehler(addError instanceof Error ? addError.message : 'Freigeben fehlgeschlagen.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="section">
+      <div className="section__head">
+        <h2 className="section__title">Bekannte Gäste</h2>
+        {kandidaten && kandidaten.length > 0 ? (
+          <span className="badge">{kandidaten.length}</span>
+        ) : null}
+      </div>
+
+      {fehler ? <div className="notice">{fehler}</div> : null}
+
+      {!kunde ? (
+        <p className="hint" style={{ margin: 0 }}>
+          Dieses Projekt hat keinen Kunden. Ohne Kunden lässt sich nicht sagen, wer dazugehört –
+          trage oben einen ein, dann stehen hier die Gäste seiner übrigen Projekte.
+        </p>
+      ) : kandidaten === null ? (
+        <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          Wird geladen …
+        </p>
+      ) : kandidaten.length === 0 ? (
+        <p className="hint" style={{ margin: 0 }}>
+          Bei „{kunde}“ gibt es sonst niemanden, der nicht schon hier wäre.
+        </p>
+      ) : (
+        <>
+          <p className="hint" style={{ margin: '0 0 8px' }}>
+            Gäste aus anderen Projekten von „{kunde}“. Ein Klick gibt das ganze Projekt frei – ohne
+            neuen Link, sie melden sich mit ihrem bestehenden Zugang an. Kommentieren ist dabei,
+            Download und Kunden-Upload bleiben zunächst aus.
+          </p>
+          {kandidaten.map((eintrag) => (
+            <div key={eintrag.user.id} className="guest">
+              <div className="toolbar" style={{ gap: 8 }}>
+                <strong style={{ fontSize: 14 }}>{eintrag.user.name}</strong>
+                <div className="shell__spacer" />
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy === eintrag.user.id}
+                  onClick={() => void hinzufuegen(eintrag.user.id)}
+                >
+                  Projekt freigeben
+                </button>
+              </div>
+              <span className="faint" style={{ fontSize: 12 }}>
+                {eintrag.user.email} · über {eintrag.fromProjects.map((p) => p.name).join(', ')}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
 }

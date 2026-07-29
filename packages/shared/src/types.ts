@@ -330,6 +330,16 @@ export interface GuestAccessDto {
   lastSeenAt: string;
 }
 
+/**
+ * Ein Gast, den man diesem Projekt hinzufügen könnte, weil er schon bei einem
+ * anderen Projekt desselben Kunden dabei ist (Phase 18).
+ */
+export interface GuestCandidateDto {
+  user: UserSummaryDto;
+  /** Projekte desselben Kunden, über die er hereinkommt – als Beleg. */
+  fromProjects: { id: string; name: string }[];
+}
+
 /** Zeile der workspace-weiten Gästeübersicht. */
 export interface GuestOverviewDto {
   user: UserSummaryDto;

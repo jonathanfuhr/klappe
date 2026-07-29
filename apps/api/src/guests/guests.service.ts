@@ -13,7 +13,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import type { GuestAccessDto, GuestOverviewDto } from '@klappe/shared';
+import type { GuestAccessDto, GuestCandidateDto, GuestOverviewDto } from '@klappe/shared';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { projects, shareLinkGrants, shareLinks, users, videos } from '../db/schema';
@@ -190,21 +190,33 @@ export class GuestsService {
     userId: string,
     ziel: { scope: 'PROJECT' } | { scope: 'VIDEO'; videoIds: string[] },
     actorId: string,
+    /** Ohne Angabe: übernehmen, was der Gast im Projekt schon darf. */
+    wunschRechte?: { allowComments?: boolean; allowDownload?: boolean; allowUpload?: boolean },
   ): Promise<GuestAccessDto[]> {
     const bisher = (await this.listForProject(projectId)).find(
       (eintrag) => eintrag.user.id === userId,
     );
-    // Nur erweitern, was es schon gibt. Wer hier noch nie war, bekommt einen
-    // richtigen Link – sonst würde diese Abkürzung zur Hintertür.
+
+    // Zwei Wege führen hierher: ein Gast, der im Projekt schon drin ist und
+    // erweitert wird – oder einer aus einem Projekt desselben Kunden, den man
+    // hinzunimmt. Alles andere wäre eine Hintertür an den Links vorbei.
     if (!bisher) {
-      throw new NotFoundException('Dieser Gast hat in diesem Projekt keinen Zugang.');
+      const moeglich = await this.listCandidates(projectId);
+      if (!moeglich.some((eintrag) => eintrag.user.id === userId)) {
+        throw new NotFoundException(
+          'Dieser Gast gehört weder zu diesem Projekt noch zu einem Projekt desselben Kunden.',
+        );
+      }
     }
 
     const rechte = {
-      allowComments: bisher.canComment,
-      allowDownload: bisher.canDownload,
+      // Ein hinzugenommener Gast darf erst einmal nur schauen und
+      // kommentieren; alles Weitere ist eine eigene Entscheidung.
+      allowComments: wunschRechte?.allowComments ?? bisher?.canComment ?? true,
+      allowDownload: wunschRechte?.allowDownload ?? bisher?.canDownload ?? false,
       // Hochladen hängt am Projekt; bei einer Erweiterung auf Videos bleibt es aus.
-      allowUpload: ziel.scope === 'PROJECT' ? bisher.canUpload : false,
+      allowUpload:
+        ziel.scope === 'PROJECT' ? (wunschRechte?.allowUpload ?? bisher?.canUpload ?? false) : false,
     };
 
     const ziele: { scope: 'PROJECT' | 'VIDEO'; id: string }[] =
@@ -293,6 +305,88 @@ export class GuestsService {
       })
       .returning({ id: shareLinks.id });
     return neu.id;
+  }
+
+  /**
+   * Wen könnte man diesem Projekt noch hinzufügen? (Phase 18)
+   *
+   * Die Antwort: alle Gäste aus Projekten desselben Kunden. Das ist der
+   * Zusammenhang, in dem die Frage aufkommt – „der kennt das Projekt doch
+   * schon, warum muss ich ihm einen neuen Link schicken?“. Weiter zu gehen und
+   * *alle* Gäste des Workspace anzubieten wäre gefährlich: Zwei Kunden dürfen
+   * nicht versehentlich ineinander rutschen.
+   *
+   * Ohne Kunden am Projekt gibt es keinen Kreis, aus dem man wählen könnte –
+   * dann bleibt die Liste leer. Die Oberfläche sagt, woran es liegt.
+   */
+  async listCandidates(projectId: string): Promise<GuestCandidateDto[]> {
+    const [project] = await this.db
+      .select({ id: projects.id, customer: projects.customer })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    if (!project) throw new NotFoundException('Projekt nicht gefunden.');
+
+    const kunde = project.customer?.trim();
+    if (!kunde) return [];
+
+    // Wer im Projekt schon dabei ist, steht nicht zur Wahl.
+    const schonDa = new Set(
+      (await this.listForProject(projectId))
+        .filter((eintrag) => eintrag.canView)
+        .map((eintrag) => eintrag.user.id),
+    );
+
+    const rows = await this.db
+      .select({
+        userId: users.id,
+        name: users.name,
+        email: users.email,
+        projectId: sql<string>`coalesce(${shareLinks.projectId}, ${videos.projectId})`,
+        projectName: projects.name,
+      })
+      .from(shareLinkGrants)
+      .innerJoin(users, eq(users.id, shareLinkGrants.userId))
+      .innerJoin(shareLinks, eq(shareLinks.id, shareLinkGrants.shareLinkId))
+      .leftJoin(videos, eq(videos.id, shareLinks.videoId))
+      .innerJoin(
+        projects,
+        eq(projects.id, sql`coalesce(${shareLinks.projectId}, ${videos.projectId})`),
+      )
+      .where(
+        and(
+          eq(users.role, 'GUEST'),
+          eq(users.isActive, true),
+          isNull(shareLinkGrants.revokedAt),
+          isNull(shareLinks.revokedAt),
+          // Kunden werden als Freitext geführt; Groß- und Kleinschreibung
+          // sowie Leerzeichen am Rand dürfen nicht entscheiden.
+          sql`lower(btrim(${projects.customer})) = lower(${kunde})`,
+        ),
+      );
+
+    const byUser = new Map<string, GuestCandidateDto>();
+    for (const row of rows) {
+      if (schonDa.has(row.userId)) continue;
+      let eintrag = byUser.get(row.userId);
+      if (!eintrag) {
+        eintrag = {
+          user: { id: row.userId, name: row.name, email: row.email },
+          fromProjects: [],
+        };
+        byUser.set(row.userId, eintrag);
+      }
+      if (
+        row.projectId !== projectId &&
+        !eintrag.fromProjects.some((treffer) => treffer.id === row.projectId)
+      ) {
+        eintrag.fromProjects.push({ id: row.projectId, name: row.projectName });
+      }
+    }
+
+    return [...byUser.values()]
+      .filter((eintrag) => eintrag.fromProjects.length > 0)
+      .sort((left, right) => left.user.name.localeCompare(right.user.name, 'de'));
   }
 
   /** Gastkonto sperren oder entsperren – wirkt über alle Projekte hinweg. */
