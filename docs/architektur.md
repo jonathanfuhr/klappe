@@ -329,23 +329,52 @@ Startet der Worker neu, während ein Transcoding lief, bliebe die Version auf
 `PROCESSING` stehen. `TranscodeRecoveryService` reiht solche Fälle beim Start
 erneut ein.
 
+### Nacharbeit steht hinten an (Phase 19)
+
+Was niemand gerade erwartet, läuft nicht mehr im selben Durchgang mit: Die
+HLS-Stufenleiter und die Download-Formate sind eigene Aufträge. Die Fassung ist
+damit früher `READY` – abspielbar ist sie mit dem Proxy ohnehin.
+
+Der Vorrang steckt in einer Eigenheit von BullMQ: Aufträge **ohne** Priorität
+werden vor allen priorisierten abgearbeitet. Die Abspielfassung bekommt deshalb
+bewusst keine mitgegeben und drängelt sich immer vor; ein angefordertes Format
+trägt `1`, Vorratsarbeit `10`. Ein laufender ffmpeg wird dabei nicht
+abgebrochen – der nächste freie Platz geht an die Abspielfassung, nicht der
+gerade belegte.
+
+Das Zeitfenster ist eine Verzögerung beim Einreihen (`delayUntilWindow`),
+keine Sperre im Worker: Der Auftrag wacht auf, wenn das Fenster offen ist. Es
+gilt nur für die Vorratsarbeit; ein Format, auf das jemand gerade schaut, läuft
+immer sofort.
+
+Die Einstellungen dazu liest der Worker **vor jedem Auftrag** frisch aus der
+Datenbank statt einmal beim Start. Deshalb greift eine Änderung in der
+Oberfläche ab dem nächsten Auftrag, ohne dass der Container neu starten muss.
+Einzige Ausnahme bleibt `WORKER_CONCURRENCY`: Die steht im Decorator des
+Prozessors und damit fest, bevor überhaupt eine Datenbankverbindung existiert.
+
 ## Grenzen des jetzigen Stands
 
 - **Ein Container, ein Workspace.** So im Konzept entschieden. Der
   prozessweite Schreibschutz für Upload-Sitzungen setzt genau das voraus;
   mehrere API-Instanzen bräuchten dafür ein Schloss in Redis.
-- **Kein Live-Update.** Fortschritt und neue Kommentare kommen durch
-  regelmäßiges Nachladen, nicht über eine offene Verbindung.
+- **Live-Update ohne Inhalt.** Seit Phase 18 hängt an jeder offenen Seite ein
+  Ereignisstrom (SSE über Redis), der aber nur meldet, *dass* sich etwas
+  geändert hat. Die Daten holt die Oberfläche danach über die gewohnten,
+  rechtegeprüften Wege. Der alte Takt bleibt als Netz darunter, falls ein
+  Proxy SSE kappt.
 - **Keine Zugriffsprüfung pro Projekt fürs Team.** Alle Team-Mitglieder sehen
   alle Projekte – so vorgesehen. Für Gäste gilt der Freigabe-Link.
 - **E-Mail geht raus oder gar nicht.** Fehlgeschlagene Zustellungen werden von
-  BullMQ wiederholt und danach protokolliert; eine Anzeige in der Oberfläche,
-  welche Mail nicht ankam, gibt es noch nicht.
+  BullMQ wiederholt; was danach übrig bleibt, steht seit Phase 18 unter
+  **Einstellungen → E-Mail-Versand** mit Empfänger, Betreff und der Meldung
+  des Servers im Klartext. Ein späterer geglückter Versand räumt den Eintrag
+  selbst weg.
 - **Die Anfragebremse ist prozessweit.** Mit mehreren API-Instanzen zählte
   jede für sich. Bei einem Container pro Workspace ist das genau richtig.
 - **HLS ist die Ausbaustufe, nicht der Normalfall.** Frame-genaues Arbeiten
   läuft über den progressiven Proxy; die Leiter kommt nur dazu.
 - **Dateien werden verzögert gelöscht.** Beim Löschen eines Videos werden die
-  Blobs direkt entfernt; bleibt dabei etwas liegen (etwa weil das Dateisystem
-  klemmt), räumt es derzeit niemand nach. Ein Aufräum-Job dafür gehört in
-  Phase 13.
+  Blobs direkt entfernt; was dabei liegen bleibt, holt der tägliche Aufräumer
+  aus Phase 13 mit einem Tag Karenz nach – seit Phase 19 auch die erzeugten
+  Download-Formate unter `renditions/`.

@@ -296,16 +296,42 @@ Drittanbietern zulassen. Die Adresse allein ist damit der Schlüssel:
 Bei einer Projektfreigabe zeigt der Player das zuletzt bearbeitete Video des
 Projekts, bei einer Videofreigabe dessen neueste fertige Fassung.
 
-## Adaptive Wiedergabe (optional)
+## Verarbeitung: Download-Formate und adaptive Wiedergabe
 
-Mit `HLS_ENABLED=1` erzeugt die Pipeline zusätzlich eine HLS-Stufenleiter
-(2160p / 1080p / 720p / 480p, je nachdem, was die Quelle hergibt). Der Player
-nimmt sie automatisch, wo der Browser sie abspielt – Safari von Haus aus,
-Chrome und Firefox über `hls.js`, das erst bei Bedarf nachgeladen wird.
+Unter **Einstellungen → Transcode** steht, was der Server nach dem Hochladen
+noch erzeugt. Alles davon ist ausschaltbar, und eine Änderung greift ab dem
+nächsten Auftrag – der Worker liest die Einstellungen vor jedem Lauf frisch,
+ein Neustart des Containers ist nicht nötig.
 
-Das kostet einen weiteren Durchlauf pro Datei und ist deshalb aus. Der
-progressive Proxy bleibt in jedem Fall die Grundlage fürs frame-genaue
-Arbeiten: eine Datei, sofort springbar, ohne Zwischenschicht.
+**Download in verschiedenen Formaten.** Der Admin legt Formate an (Name, kurze
+Kante, Bitrate, x264-Preset, `.mp4` oder `.mov`); wer herunterlädt, sieht nur
+die Auswahl. Das Original steht immer an erster Stelle und geht sofort los.
+Ein Format, das noch nicht erzeugt ist, entsteht beim Klick – mit
+Fortschrittsbalken, und der Download startet von selbst, sobald es fertig ist.
+Erzeugt wird immer aus dem Original, nie aus der Abspielfassung.
+
+Wird ein Format nachträglich geändert, gelten die schon erzeugten Dateien als
+überholt und entstehen beim nächsten Abruf neu – eine Datei auszuliefern, die
+mit dem gewählten Format nichts mehr zu tun hat, wäre schlimmer als ein paar
+Minuten Warten.
+
+**Adaptive Wiedergabe (HLS).** Eine Stufenleiter aus 2160p / 1080p / 720p /
+480p, je nachdem, was die Quelle hergibt. Der Player nimmt sie automatisch, wo
+der Browser sie abspielt – Safari von Haus aus, Chrome und Firefox über
+`hls.js`, das erst bei Bedarf nachgeladen wird. Der progressive Proxy bleibt in
+jedem Fall die Grundlage fürs frame-genaue Arbeiten: eine Datei, sofort
+springbar, ohne Zwischenschicht.
+
+**Wann gerechnet wird.** Die Abspielfassung hat immer Vorrang – darauf wartet
+jemand. Die Nacharbeit (Download-Formate im Voraus, HLS-Leiter) steht hinten in
+der Warteschlange und lässt sich auf ein Zeitfenster legen, etwa 22:00–06:00.
+Nicht davon betroffen: ein Format, das gerade jemand angefordert hat. Das läuft
+sofort, sonst stünde der Kunde acht Stunden vor einem leeren Balken.
+
+`HLS_ENABLED`, `PROXY_SHORT_EDGE`, `PROXY_VIDEO_BITRATE` und `PROXY_PRESET` in
+der `.env` sind seit Phase 19 nur noch die Voreinstellung für eine frische
+Anlage: Sobald in der Oberfläche einmal gespeichert wurde, gilt die dortige
+Einstellung.
 
 ## Entwicklung ohne Container
 

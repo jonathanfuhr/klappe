@@ -79,7 +79,9 @@ Inhaltliche Gruppen:
   `original_key`; es liegt keine zweite Kopie herum.
 - **Adaptive Wiedergabe** (Phase 13) – `hls_key` zeigt aufs Verzeichnis der
   Stufenleiter, `hls_variants` nennt die Stufen (`1080p,720p,480p`). Beide
-  `null`, solange `HLS_ENABLED` aus ist.
+  `null`, solange die Stufenleiter abgeschaltet ist; seit Phase 19 entsteht
+  sie als eigener Auftrag und wird deshalb nachgetragen, nicht beim
+  Fertigmelden gesetzt.
 - **Verarbeitung** – `progress` (0–100), `processing_error`, Zeitstempel.
 - **Ablage** – `download_enabled` (dritter Schalter für Gäste) und `file_date`
   (`JJJJ-MM-TT`), das Datum im Download-Dateinamen. Es kommt vom Upload und
@@ -214,3 +216,36 @@ Workspace-weite Einstellungen – genau eine Zeile. Drei Gruppen:
   Client-Secret liegt wie das SMTP-Passwort verschlüsselt darin.
   `oidc_auto_provision` steht standardmäßig auf `false` – ohne diesen Schalter
   kommt über M365 nur herein, wer hier schon ein Konto hat.
+- **Verarbeitung** (Phase 19): `download_formats_enabled`,
+  `download_prebuild`, `download_final_only` und das Zeitfenster
+  (`transcode_window_start` / `_end`, Minuten seit Mitternacht; Start hinter
+  dem Ende meint die Nacht). Dazu `hls_enabled`, `proxy_short_edge`,
+  `proxy_video_bitrate_kbps` und `proxy_preset` – diese vier sind **nullbar**:
+  `null` heißt „in der Oberfläche nie entschieden, nimm den Wert aus der
+  `.env`". So läuft eine bestehende Anlage unverändert weiter, und der erste
+  Klick übernimmt die Hoheit.
+
+## download_presets
+
+Die Formate, die beim Herunterladen zur Auswahl stehen (Phase 19). Angelegt
+werden sie nur vom Admin; wer herunterlädt, sieht Name und Größe, nicht
+Bitrate und Preset. `short_edge` ist wie überall die **kurze** Kante.
+`is_active` nimmt ein Format aus der Auswahl, ohne die schon erzeugten
+Dateien wegzuwerfen – dafür ist das Löschen da. Der eindeutige Index liegt auf
+`lower(name)`.
+
+## version_renditions
+
+Eine erzeugte Download-Fassung: ein Preset, angewendet auf eine Version
+(Phase 19). Eindeutig je (`version_id`, `preset_id`), beide Fremdschlüssel mit
+`on delete cascade`.
+
+`signature` hält fest, mit welchen Werten die Datei entstanden ist (kurze
+Kante, Bitraten, Preset, Container). Ändert der Admin das Format, passt die
+Unterschrift nicht mehr, und die Fassung gilt wieder als nicht erzeugt – statt
+still eine Datei auszuliefern, die mit dem gewählten Format nichts mehr zu tun
+hat. Der Name steht bewusst **nicht** in der Unterschrift: Ein Umbenennen soll
+keine fertigen Dateien wegwerfen.
+
+`requested_by_id` ist `null`, wenn die Datei aus der Vorab-Erzeugung stammt und
+nicht auf Klick.

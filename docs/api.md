@@ -298,15 +298,46 @@ Namen sind eindeutig ohne Rücksicht auf die Schreibweise; ein Duplikat ergibt
 | `GET /v1/versions/:id/hls/:variant/:file` | Stufen-Playlist und Segmente |
 | `GET /v1/versions/:id/media-links` | kurzlebige Adressen für Proxy, Poster, Streifen und (mit Recht) Original |
 
-Die HLS-Leiter entsteht nur mit `HLS_ENABLED=1`; `hlsVariants` an der Fassung
-nennt die vorhandenen Stufen. Dateinamen unterhalb von `hls/` werden streng
-geprüft, Stufen müssen in `hlsVariants` stehen.
+Die HLS-Leiter entsteht nur, wenn sie unter **Einstellungen → Transcode**
+eingeschaltet ist (Phase 19; ohne Entscheidung dort gilt `HLS_ENABLED` aus der
+`.env`). Sie läuft als eigener Auftrag mit niedrigem Vorrang, die Fassung ist
+also schon `READY`, bevor `hlsVariants` gefüllt ist. `hlsVariants` an der
+Fassung nennt die vorhandenen Stufen. Dateinamen unterhalb von `hls/` werden
+streng geprüft, Stufen müssen in `hlsVariants` stehen.
 
 Die Links aus `media-links` tragen einen signierten Token in `?t=`, der an
 Fassung, Art und Person gebunden ist und nach sechs Stunden verfällt. Er
 **ersetzt die Rechteprüfung nicht** – ein entzogener Zugang macht auch einen
 schon vergebenen Link wertlos. Ein Token für den Proxy schaltet das Original
 nicht frei.
+
+## Verarbeitung und Download-Formate (Phase 19)
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/settings/transcode` | Einstellungen samt Formaten (nur Admin) |
+| `PUT /v1/settings/transcode` | Schalter, Zeitfenster, HLS, Werte der Abspielfassung |
+| `POST /v1/settings/transcode/presets` | Format anlegen |
+| `PATCH /v1/settings/transcode/presets/:id` | Format ändern |
+| `DELETE /v1/settings/transcode/presets/:id` | Format samt erzeugter Dateien löschen |
+| `GET /v1/versions/:id/downloads` | was das Download-Fenster anbietet |
+| `POST /v1/versions/:id/downloads/:presetId` | Format anfordern |
+| `GET /v1/versions/:id/downloads/:presetId/datei` | die fertige Datei |
+
+Die Auskunft nennt `formatsEnabled`; ist sie `false`, kommt die Liste leer
+zurück und der Knopf lädt wie bisher direkt das Original. `POST` antwortet mit
+dem Stand des Formats (`QUEUED`, `PROCESSING`, `READY`, `FAILED`); ist es
+schon fertig und passt es noch zum Preset, kommt es unverändert zurück, ohne
+einen zweiten ffmpeg-Lauf.
+
+`…/datei` liefert `404`, solange die Fassung noch entsteht – lieber das als
+eine halbe Datei. Die Rechteprüfung ist dieselbe wie beim Original: Ein Format
+ist ein Download, kein Nebeneingang. Ausgeliefert wird mit `Range`-Unter­stützung
+und unter dem gewohnten Dateinamen, dessen Auflösungsangabe die des Formats
+nennt (`…_v1_720p25.mp4`), nicht die des Originals.
+
+Zeiten stehen als `HH:MM`; ein leerer String löscht das Zeitfenster. Beide
+Zeiten müssen gesetzt oder beide leer sein.
 
 ## Anfragebremsen
 
