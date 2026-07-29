@@ -1,12 +1,37 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import type { GuestAccessDto, GuestOverviewDto } from '@klappe/shared';
-import { IsBoolean } from 'class-validator';
+import { IsBoolean, IsOptional } from 'class-validator';
 import { Roles } from '../auth/auth.decorators';
 import { GuestsService } from './guests.service';
 
 class SetGuestActiveDto {
   @IsBoolean()
   isActive!: boolean;
+}
+
+/** `null` setzt das Recht zurück auf „wie der Link". */
+class SetGuestRightsDto {
+  @IsOptional()
+  @IsBoolean()
+  allowComments?: boolean | null;
+
+  @IsOptional()
+  @IsBoolean()
+  allowDownload?: boolean | null;
+
+  @IsOptional()
+  @IsBoolean()
+  allowUpload?: boolean | null;
 }
 
 /**
@@ -56,6 +81,20 @@ export class GuestsController {
   }
 
   /** Gastkonto sperren oder entsperren – gilt über alle Projekte hinweg. */
+  /**
+   * Rechte einer Person an einem Link (Phase 16). `null` heißt „wie der Link“,
+   * damit sich eine Ausnahme auch wieder zurücknehmen lässt.
+   */
+  @Patch('shares/:shareLinkId/guests/:userId/rechte')
+  @HttpCode(204)
+  async setRights(
+    @Param('shareLinkId', new ParseUUIDPipe()) shareLinkId: string,
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @Body() dto: SetGuestRightsDto,
+  ): Promise<void> {
+    await this.guestsService.setGuestRights(shareLinkId, userId, dto);
+  }
+
   @Roles('ADMIN')
   @Patch('guests/:userId')
   setActive(

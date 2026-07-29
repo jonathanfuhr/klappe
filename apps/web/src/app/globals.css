@@ -1791,3 +1791,75 @@ a.badge:hover {
 .grouphead:first-child {
   margin-top: 0;
 }
+
+/* ---------- Freigaben-Spalte (Phase 16) ---------- */
+
+.sidetabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--klappe-border);
+  flex-shrink: 0;
+}
+
+.sidetabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--klappe-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+
+.sidetabs__tab[data-active='true'] {
+  color: var(--klappe-text);
+  border-bottom-color: var(--klappe-accent);
+}
+
+.sharepanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.sharepanel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--klappe-border);
+}
+
+.sharepanel__title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.sharepanel__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sharepanel__link {
+  border-left: 2px solid var(--klappe-border);
+  padding-left: 10px;
+  margin-top: 6px;
+}
+
+.sharepanel__rights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 2px;
+}

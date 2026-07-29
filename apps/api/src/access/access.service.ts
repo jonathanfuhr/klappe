@@ -59,6 +59,9 @@ export class AccessService {
         allowDownload: shareLinks.allowDownload,
         allowUpload: shareLinks.allowUpload,
         allowComments: shareLinks.allowComments,
+        grantAllowDownload: shareLinkGrants.allowDownload,
+        grantAllowUpload: shareLinkGrants.allowUpload,
+        grantAllowComments: shareLinkGrants.allowComments,
       })
       .from(shareLinkGrants)
       .innerJoin(shareLinks, eq(shareLinkGrants.shareLinkId, shareLinks.id))
@@ -83,9 +86,10 @@ export class AccessService {
         scope: row.scope,
         projectId,
         videoId: row.scope === 'VIDEO' ? row.videoId : null,
-        allowDownload: row.allowDownload,
-        allowUpload: row.allowUpload,
-        allowComments: row.allowComments,
+        // Eine Ausnahme an der Person ersetzt das Link-Recht (Phase 16).
+        allowDownload: row.grantAllowDownload ?? row.allowDownload,
+        allowUpload: row.grantAllowUpload ?? row.allowUpload,
+        allowComments: row.grantAllowComments ?? row.allowComments,
       });
     }
 

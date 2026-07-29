@@ -320,6 +320,14 @@ export const shareLinkGrants = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     /** Gesetzt, wenn einem einzelnen Gast der Zugriff entzogen wurde. */
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    /**
+     * Rechte-Ausnahmen für genau diese Person (Phase 16). `null` heißt „wie
+     * der Link“; ein gesetzter Wert ersetzt das Link-Recht – in beide
+     * Richtungen, geben wie nehmen.
+     */
+    allowDownload: boolean('allow_download'),
+    allowUpload: boolean('allow_upload'),
+    allowComments: boolean('allow_comments'),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

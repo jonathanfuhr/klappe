@@ -179,6 +179,36 @@ export class GuestsService {
   // ---------- Hilfsmittel ----------
 
   /** Projektfreigaben und Videofreigaben innerhalb des Projekts. */
+  /**
+   * Rechte einer Person an einem Link setzen (Phase 16). `null` bedeutet
+   * „wie der Link“ – so kommt man auch wieder zurück zum Standard.
+   */
+  async setGuestRights(
+    shareLinkId: string,
+    userId: string,
+    rechte: {
+      allowComments?: boolean | null;
+      allowDownload?: boolean | null;
+      allowUpload?: boolean | null;
+    },
+  ): Promise<void> {
+    const [row] = await this.db
+      .update(shareLinkGrants)
+      .set({
+        allowComments: rechte.allowComments,
+        allowDownload: rechte.allowDownload,
+        allowUpload: rechte.allowUpload,
+      })
+      .where(
+        and(
+          eq(shareLinkGrants.shareLinkId, shareLinkId),
+          eq(shareLinkGrants.userId, userId),
+        ),
+      )
+      .returning({ userId: shareLinkGrants.userId });
+    if (!row) throw new NotFoundException('Dieser Gast kommt nicht über diesen Link herein.');
+  }
+
   private async linkIdsForProject(projectId: string): Promise<string[]> {
     const rows = await this.db
       .select({ id: shareLinks.id })
@@ -205,6 +235,9 @@ export class GuestsService {
         allowComments: shareLinks.allowComments,
         allowDownload: shareLinks.allowDownload,
         allowUpload: shareLinks.allowUpload,
+        grantAllowComments: shareLinkGrants.allowComments,
+        grantAllowDownload: shareLinkGrants.allowDownload,
+        grantAllowUpload: shareLinkGrants.allowUpload,
         linkRevokedAt: shareLinks.revokedAt,
         expiresAt: shareLinks.expiresAt,
         revokedAt: shareLinkGrants.revokedAt,
@@ -227,9 +260,17 @@ export class GuestsService {
       label: row.label,
       scope: row.scope,
       targetName: row.scope === 'VIDEO' ? (row.videoName ?? 'Video') : (row.projectName ?? 'Projekt'),
-      allowComments: row.allowComments,
-      allowDownload: row.allowDownload,
-      allowUpload: row.allowUpload,
+      // Eine Ausnahme an der Person ersetzt das Link-Recht (Phase 16) –
+      // dieselbe Regel wie im AccessService, damit Anzeige und Wirkung
+      // nicht auseinanderlaufen.
+      allowComments: row.grantAllowComments ?? row.allowComments,
+      allowDownload: row.grantAllowDownload ?? row.allowDownload,
+      allowUpload: row.grantAllowUpload ?? row.allowUpload,
+      /** Weicht diese Person vom Link ab? Für den Hinweis in der Oberfläche. */
+      hasOverride:
+        row.grantAllowComments !== null ||
+        row.grantAllowDownload !== null ||
+        row.grantAllowUpload !== null,
       linkActive: isLinkActive({ revokedAt: row.linkRevokedAt, expiresAt: row.expiresAt }),
       revokedAt: row.revokedAt,
       firstSeenAt: row.firstSeenAt,

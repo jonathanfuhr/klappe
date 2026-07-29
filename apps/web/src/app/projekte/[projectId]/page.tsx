@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
-import { GuestAccess } from '@/components/GuestAccess';
+import { SharePanel } from '@/components/SharePanel';
 import { ProjectFieldValues } from '@/components/ProjectFieldValues';
 import { ProjectFiles } from '@/components/ProjectFiles';
 import { ProjectTags } from '@/components/ProjectTags';
@@ -72,6 +72,7 @@ export default function ProjectPage() {
 
   return (
     <AppShell>
+      <div className={isTeam ? 'review' : ''}>
       <div className="page">
         <div className="breadcrumb">
           <Link href="/projekte">Projekte</Link>
@@ -87,10 +88,10 @@ export default function ProjectPage() {
           <div className="shell__spacer" />
           {isTeam ? (
             <>
-              <button type="button" className="button" onClick={() => setSharing(true)}>
-                Freigeben
-              </button>
+              {/* Der große „Freigeben"-Knopf ist in die Spalte rechts gewandert
+                  (Phase 16) – dort steht er neben denen, die es betrifft. */}
               <Menu label="Aktionen für dieses Projekt">
+                <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
                 <MenuItem onSelect={() => setEditing(true)}>Umbenennen …</MenuItem>
                 <MenuItem danger onSelect={() => setDeleting(true)}>
                   Löschen …
@@ -178,12 +179,15 @@ export default function ProjectPage() {
           />
         ) : null}
 
-        {isTeam ? (
-          <>
-            <h2 style={{ fontSize: 16, margin: '26px 0 12px' }}>Wer hat Zugriff</h2>
-            <GuestAccess projectId={projectId} />
-          </>
-        ) : null}
+      </div>
+
+      {/* Die Freigaben stehen als Spalte rechts – wie am Video (Phase 16). */}
+      {isTeam && project ? (
+        <aside className="review__side">
+          <SharePanel scope="PROJECT" projectId={projectId} targetLabel={project.name} />
+        </aside>
+      ) : null}
+
       </div>
 
       {sharing && project ? (

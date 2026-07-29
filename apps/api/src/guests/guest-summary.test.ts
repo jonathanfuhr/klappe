@@ -14,6 +14,7 @@ function grant(overrides: Partial<GuestGrantRow> = {}): GuestGrantRow {
     allowComments: true,
     allowDownload: false,
     allowUpload: false,
+    hasOverride: false,
     linkActive: true,
     revokedAt: null,
     firstSeenAt: new Date('2026-07-01T10:00:00Z'),

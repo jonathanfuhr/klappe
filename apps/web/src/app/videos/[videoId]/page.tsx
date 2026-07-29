@@ -12,7 +12,6 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
-import { GuestAccess } from '@/components/GuestAccess';
 import { ShareManager } from '@/components/ShareManager';
 import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
@@ -20,6 +19,8 @@ import { CommentPanel } from '@/components/comments/CommentPanel';
 import { type CommentMarker, type PlayerHandle, VideoPlayer } from '@/components/player/VideoPlayer';
 import { Dialog } from '@/components/ui/Dialog';
 import { Menu, MenuItem } from '@/components/ui/Menu';
+import { IconButton } from '@/components/ui/Icon';
+import { SharePanel } from '@/components/SharePanel';
 import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
@@ -49,13 +50,13 @@ export default function ReviewPage() {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [showUploader, setShowUploader] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [showingGuests, setShowingGuests] = useState(false);
   /** Nachfrage vor dem Löschen – eine Fassung ist samt Kommentaren weg. */
   const [versionToDelete, setVersionToDelete] = useState<VersionDto | null>(null);
   const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
 
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
   const router = useRouter();
+  const [seitenTab, setSeitenTab] = useState<'kommentare' | 'freigaben'>('kommentare');
   const [editingVideo, setEditingVideo] = useState(false);
   const [deletingVideo, setDeletingVideo] = useState(false);
 
@@ -232,37 +233,39 @@ export default function ReviewPage() {
               </select>
             ) : null}
 
+            {/* Symbole statt Textknöpfe – die Leiste war voll (Phase 16).
+                Was seltener gebraucht wird, steht im „…"-Menü daneben; wer
+                Zugriffe sehen will, nimmt den Reiter „Freigaben" rechts. */}
             {isTeam ? (
               <>
-                <button
-                  type="button"
-                  className="button"
+                <IconButton
+                  icon="plus"
+                  label="Neue Version hochladen"
                   onClick={() => setShowUploader((show) => !show)}
-                >
-                  Neue Version
-                </button>
-                <button type="button" className="button" onClick={() => setSharing(true)}>
-                  Freigeben
-                </button>
-                <button type="button" className="button" onClick={() => setShowingGuests(true)}>
-                  Zugriff
-                </button>
+                />
+                <IconButton
+                  icon="share"
+                  label="Freigabe-Links verwalten"
+                  onClick={() => setSharing(true)}
+                />
               </>
             ) : null}
 
             {selectedVersion?.status === 'READY' && selectedVersion.canDownload ? (
-              <a
-                className="button"
+              <IconButton
+                icon="download"
+                label="Original herunterladen (nie der Proxy)"
                 href={mediaUrl.original(selectedVersion.id)}
                 download
-                title="Lädt immer die Originaldatei, nicht den Proxy"
-              >
-                Original laden
-              </a>
+              />
             ) : null}
 
             {isTeam ? (
               <Menu label="Aktionen für dieses Video">
+                <MenuItem onSelect={() => setShowUploader((show) => !show)}>
+                  Neue Version …
+                </MenuItem>
+                <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
                 <MenuItem onSelect={() => setEditingVideo(true)}>Video umbenennen …</MenuItem>
                 {selectedVersion ? (
                   <MenuItem danger onSelect={() => setVersionToDelete(selectedVersion)}>
@@ -356,6 +359,35 @@ export default function ReviewPage() {
         </div>
 
         <aside className="review__side">
+          {isTeam ? (
+            <div className="sidetabs">
+              <button
+                type="button"
+                className="sidetabs__tab"
+                data-active={seitenTab === 'kommentare'}
+                onClick={() => setSeitenTab('kommentare')}
+              >
+                Kommentare
+              </button>
+              <button
+                type="button"
+                className="sidetabs__tab"
+                data-active={seitenTab === 'freigaben'}
+                onClick={() => setSeitenTab('freigaben')}
+              >
+                Freigaben
+              </button>
+            </div>
+          ) : null}
+
+          {isTeam && seitenTab === 'freigaben' && video ? (
+            <SharePanel
+              scope="VIDEO"
+              projectId={video.projectId}
+              videoId={video.id}
+              targetLabel={video.name}
+            />
+          ) : (
           <CommentPanel
             comments={comments}
             currentUser={user}
@@ -377,6 +409,7 @@ export default function ReviewPage() {
             }}
             canComment={canComment}
           />
+          )}
         </aside>
       </div>
 
@@ -389,21 +422,6 @@ export default function ReviewPage() {
         />
       ) : null}
 
-      {showingGuests && video ? (
-        <Dialog title={`Zugriff auf ${video.name}`} onClose={() => setShowingGuests(false)}>
-          <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-            Auch Gäste, die über eine Projektfreigabe hereinkommen – das ist der häufigere Weg.
-          </p>
-          <div style={{ maxHeight: 460, overflowY: 'auto' }}>
-            <GuestAccess videoId={video.id} />
-          </div>
-          <div className="dialog__actions">
-            <button type="button" className="button" onClick={() => setShowingGuests(false)}>
-              Schließen
-            </button>
-          </div>
-        </Dialog>
-      ) : null}
 
       {versionToDelete ? (
         <Dialog

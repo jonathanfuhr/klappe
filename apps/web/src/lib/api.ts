@@ -301,6 +301,20 @@ export const api = {
   ) => request<ShareLinkDto>(`/v1/shares/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteShare: (id: string) => request<void>(`/v1/shares/${id}`, { method: 'DELETE' }),
   listShareGuests: (id: string) => request<ShareGuestDto[]>(`/v1/shares/${id}/guests`),
+  /** Rechte einer Person an einem Link; `null` = wie der Link (Phase 16). */
+  setShareGuestRights: (
+    shareLinkId: string,
+    userId: string,
+    rechte: {
+      allowComments?: boolean | null;
+      allowDownload?: boolean | null;
+      allowUpload?: boolean | null;
+    },
+  ) =>
+    request<void>(`/v1/shares/${shareLinkId}/guests/${userId}/rechte`, {
+      method: 'PATCH',
+      body: JSON.stringify(rechte),
+    }),
   setShareGuestRevoked: (id: string, userId: string, revoked: boolean) =>
     request<void>(`/v1/shares/${id}/guests/${userId}`, { method: revoked ? 'DELETE' : 'POST' }),
 

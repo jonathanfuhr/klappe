@@ -23,6 +23,8 @@ export interface GuestGrantRow {
   allowComments: boolean;
   allowDownload: boolean;
   allowUpload: boolean;
+  /** Weicht diese Person vom Link ab (Phase 16)? Nur für die Anzeige. */
+  hasOverride: boolean;
   /** Der Link ist weder zurückgezogen noch abgelaufen. */
   linkActive: boolean;
   /** Diesem Gast wurde der Zugriff über genau diesen Link entzogen. */
@@ -61,6 +63,7 @@ export function summarizeGuests(rows: GuestGrantRow[]): GuestAccessDto[] {
         allowComments: row.allowComments,
         allowDownload: row.allowDownload,
         allowUpload: row.allowUpload,
+        hasOverride: row.hasOverride,
         linkActive: row.linkActive,
         revokedAt: row.revokedAt?.toISOString() ?? null,
         firstSeenAt: row.firstSeenAt.toISOString(),

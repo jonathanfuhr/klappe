@@ -277,6 +277,12 @@ export interface GuestAccessLinkDto {
   allowComments: boolean;
   allowDownload: boolean;
   allowUpload: boolean;
+  /**
+   * Für diese Person weichen die Rechte vom Link ab (Phase 16) – die
+   * Oberfläche weist darauf hin, sonst wundert man sich über den Unterschied
+   * zur Link-Einstellung.
+   */
+  hasOverride: boolean;
   /** Der Link selbst gilt noch (nicht zurückgezogen, nicht abgelaufen). */
   linkActive: boolean;
   /** Gesetzt, wenn diesem Gast der Zugriff über diesen Link entzogen wurde. */
