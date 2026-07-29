@@ -171,6 +171,29 @@ export class UploadsService {
     }
   }
 
+  /**
+   * Die eigenen Übertragungen, die vollständig angekommen sind, aber noch auf
+   * ihre Zuordnung warten (Phase 15). Damit übersteht die Upload-Liste einen
+   * Seiten-Reload: Die Datei liegt ja längst im Zwischenspeicher – nur die
+   * Angaben fehlen noch, und die sollen nicht mit dem Tab sterben.
+   */
+  async listUnassigned(user: RequestUser): Promise<UploadSessionDto[]> {
+    const rows = await this.db
+      .select()
+      .from(uploads)
+      .where(
+        and(
+          eq(uploads.createdById, user.id),
+          eq(uploads.kind, 'VERSION'),
+          eq(uploads.status, 'IN_PROGRESS'),
+          sql`${uploads.videoId} is null`,
+          sql`${uploads.offsetBytes} >= ${uploads.sizeBytes}`,
+        ),
+      )
+      .orderBy(uploads.createdAt);
+    return rows.map((row) => this.toDto(row));
+  }
+
   async getOrFail(id: string): Promise<UploadRow> {
     const [row] = await this.db.select().from(uploads).where(eq(uploads.id, id)).limit(1);
     if (!row) throw new NotFoundException('Upload-Sitzung nicht gefunden.');

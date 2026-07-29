@@ -190,6 +190,8 @@ export const api = {
       body: JSON.stringify(input),
     }),
   /** Sitzung ohne Ziel – Projekt und Video kommen später. */
+  /** Fertig übertragene, noch unzugeordnete Sitzungen – für den Reload (Phase 15). */
+  listUnassignedUploads: () => request<UploadSessionDto[]>('/v1/uploads'),
   createUnassignedUpload: (input: { filename: string; sizeBytes: number; mimeType?: string }) =>
     request<UploadSessionDto>('/v1/uploads', { method: 'POST', body: JSON.stringify(input) }),
   /**

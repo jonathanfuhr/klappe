@@ -18,7 +18,7 @@ import { type UploadJob, useUploads } from '@/lib/uploads-context';
  * kommt aus dem Dateinamen und ist als Vorschlag gekennzeichnet.
  */
 export function UploadPanel() {
-  const { jobs, open, setOpen, update, start, cancel, remove, clearFinished } = useUploads();
+  const { jobs, open, setOpen, update, start, save, cancel, remove, clearFinished } = useUploads();
   const { user } = useSession();
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [videosByProject, setVideosByProject] = useState<Record<string, VideoDto[]>>({});
@@ -82,7 +82,7 @@ export function UploadPanel() {
   const summary = useMemo(() => {
     const bereit = jobs.filter((job) => job.state === 'bereit').length;
     if (active.length > 0) return `${active.length} laufend`;
-    if (bereit > 0) return `${bereit} wartet auf Zuordnung`;
+    if (bereit > 0) return `${bereit} nicht gespeichert`;
     if (pending.length > 0) return `${pending.length} wartet`;
     const failed = jobs.filter((job) => job.state === 'fehler').length;
     if (failed > 0) return `${failed} fehlgeschlagen`;
@@ -117,6 +117,7 @@ export function UploadPanel() {
                 (job.state === 'wartet' || job.state === 'lädt' || job.state === 'bereit') && isTeam
               }
               onChange={(changes) => update(job.id, changes)}
+              onSave={() => save(job.id)}
               onCancel={() => cancel(job.id)}
               onRemove={() => remove(job.id)}
             />
@@ -157,6 +158,7 @@ function JobRow({
   videos,
   editable,
   onChange,
+  onSave,
   onCancel,
   onRemove,
 }: {
@@ -165,10 +167,11 @@ function JobRow({
   videos: VideoDto[];
   editable: boolean;
   onChange: (changes: Partial<UploadJob>) => void;
+  onSave: () => void;
   onCancel: () => void;
   onRemove: () => void;
 }) {
-  const uploadFraction = job.file.size > 0 ? job.uploadedBytes / job.file.size : 0;
+  const uploadFraction = job.sizeBytes > 0 ? job.uploadedBytes / job.sizeBytes : 0;
   const isVideo = job.target === 'video';
 
   // Ohne Eingabe zählt die API weiter; wer will, trägt eine eigene Nummer ein –
@@ -183,12 +186,12 @@ function JobRow({
   return (
     <div className="uploadjob" data-state={job.state}>
       <div className="toolbar">
-        <span className="uploadjob__name" title={job.file.name}>
-          {job.file.name}
+        <span className="uploadjob__name" title={job.filename}>
+          {job.filename}
         </span>
         <span className="shell__spacer" />
         <span className="muted mono" style={{ fontSize: 12 }}>
-          {formatBytes(job.uploadedBytes)} / {formatBytes(job.file.size)}
+          {formatBytes(job.uploadedBytes)} / {formatBytes(job.sizeBytes)}
         </span>
         <StateBadge job={job} />
         {job.state === 'lädt' ? (
@@ -197,9 +200,26 @@ function JobRow({
           </button>
         ) : null}
         {job.state === 'bereit' ? (
-          <button type="button" className="button button--ghost" onClick={onCancel}>
-            Verwerfen
-          </button>
+          <>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={onSave}
+              disabled={!job.projectId || (!job.videoId && !job.newVideoName.trim())}
+              title={
+                !job.projectId
+                  ? 'Erst ein Projekt wählen'
+                  : !job.videoId && !job.newVideoName.trim()
+                    ? 'Erst ein Video wählen oder benennen'
+                    : undefined
+              }
+            >
+              Speichern
+            </button>
+            <button type="button" className="button button--ghost" onClick={onCancel}>
+              Verwerfen
+            </button>
+          </>
         ) : null}
         {job.state === 'wartet' || job.state === 'fehler' || job.state === 'abgebrochen' ? (
           <button type="button" className="button button--ghost" onClick={onRemove}>
@@ -289,14 +309,11 @@ function JobRow({
         </div>
       ) : null}
 
-      {job.state === 'bereit' && !job.projectId ? (
+      {job.state === 'bereit' ? (
         <div className="uploadjob__hint">
-          Die Datei liegt vollständig auf dem Server. Sobald ein Projekt gewählt ist, wird sie
-          aufgenommen und verarbeitet.
+          Die Datei liegt vollständig auf dem Server, taucht aber noch nirgends auf. Erst
+          „Speichern“ legt Video und Fassung an – bis dahin lassen sich alle Angaben ändern.
         </div>
-      ) : null}
-      {job.state === 'bereit' && job.projectId && !job.videoId && !job.newVideoName.trim() ? (
-        <div className="uploadjob__hint">Es fehlt noch der Name des neuen Videos.</div>
       ) : null}
 
       {editable && job.hint ? <div className="uploadjob__hint">⚠ {job.hint}</div> : null}
@@ -347,8 +364,8 @@ function StateBadge({ job }: { job: UploadJob }) {
     case 'lädt':
       return <span className="badge">Lädt</span>;
     case 'bereit':
-      // Die Bytes sind da, es fehlt nur noch, wohin damit.
-      return <span className="badge badge--processing">Übertragen</span>;
+      // Die Bytes sind da; ohne „Speichern“ passiert nichts weiter.
+      return <span className="badge badge--processing">Nicht gespeichert</span>;
     case 'abgebrochen':
       return <span className="badge">Abgebrochen</span>;
     default:

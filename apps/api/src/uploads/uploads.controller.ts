@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Head,
   Headers,
   HttpCode,
@@ -163,6 +164,16 @@ export class UploadsController {
     response.setHeader('Tus-Resumable', TUS_VERSION);
     response.setHeader('Location', session.location);
     return session;
+  }
+
+  /**
+   * Die eigenen fertig übertragenen, noch unzugeordneten Sitzungen – die
+   * Upload-Liste holt sie sich nach einem Seiten-Reload zurück (Phase 15).
+   */
+  @Roles('ADMIN', 'MEMBER')
+  @Get('uploads')
+  listUnassigned(@CurrentUser() user: RequestUser): Promise<UploadSessionDto[]> {
+    return this.uploadsService.listUnassigned(user);
   }
 
   /** Zuordnung nachreichen; ist die Datei schon durch, entsteht die Fassung. */

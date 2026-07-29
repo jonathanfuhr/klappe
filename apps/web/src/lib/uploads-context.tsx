@@ -26,7 +26,14 @@ export type UploadTarget = 'video' | 'project-file';
 
 export interface UploadJob {
   id: string;
-  file: File;
+  /**
+   * Fehlt nach einem Seiten-Reload: Die Bytes liegen dann längst auf dem
+   * Server, nur die Zuordnung steht noch aus. Name und Größe stehen deshalb
+   * getrennt, damit die Zeile auch ohne Datei-Objekt vollständig ist.
+   */
+  file?: File;
+  filename: string;
+  sizeBytes: number;
   target: UploadTarget;
   /** Zuordnung, die der Benutzer im Fenster noch ändern kann. */
   projectId: string;
@@ -70,6 +77,8 @@ interface UploadsState {
   }) => void;
   update: (id: string, changes: Partial<UploadJob>) => void;
   start: () => void;
+  /** Zuordnung eines fertig übertragenen Jobs übernehmen (Phase 15). */
+  save: (id: string) => void;
   cancel: (id: string) => void;
   remove: (id: string) => void;
   clearFinished: () => void;
@@ -138,6 +147,8 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
       return {
         id: `${Date.now()}-${index}-${file.name}`,
         file,
+        filename: file.name,
+        sizeBytes: file.size,
         target: input.target,
         projectId,
         videoId,
@@ -195,9 +206,12 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
           // Zuordnung, die man später nachreichen könnte.
           const job = jobsRef.current.find(
             (entry) =>
-              entry.state === 'wartet' && (entry.target === 'video' || Boolean(entry.projectId)),
+              entry.state === 'wartet' &&
+              entry.file !== undefined &&
+              (entry.target === 'video' || Boolean(entry.projectId)),
           );
-          if (!job) break;
+          if (!job?.file) break;
+          const datei = job.file;
 
           update(job.id, { state: 'lädt', message: undefined });
           try {
@@ -206,8 +220,8 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
 
             const handle: UploadHandle =
               job.target === 'project-file'
-                ? uploadProjectFile({ projectId: job.projectId, file: job.file, onProgress })
-                : uploadVersionFile({ file: job.file, onProgress });
+                ? uploadProjectFile({ projectId: job.projectId, file: datei, onProgress })
+                : uploadVersionFile({ file: datei, onProgress });
 
             update(job.id, { handle });
             const result = await handle.promise;
@@ -215,7 +229,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
             if (job.target === 'project-file') {
               update(job.id, {
                 state: 'fertig',
-                uploadedBytes: job.file.size,
+                uploadedBytes: datei.size,
                 versionId: result.versionId,
               });
               setCompletedCount((count) => count + 1);
@@ -224,7 +238,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
               // Effekt weiter unten, sobald die Angaben stehen.
               update(job.id, {
                 state: 'bereit',
-                uploadedBytes: job.file.size,
+                uploadedBytes: datei.size,
                 uploadId: result.uploadId,
               });
             }
@@ -260,7 +274,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
       try {
         const videoId =
           job.videoId ||
-          (await api.createVideo(job.projectId, { name: job.newVideoName.trim() || job.file.name }))
+          (await api.createVideo(job.projectId, { name: job.newVideoName.trim() || job.filename }))
             .id;
         const wunsch = job.versionNumber.trim()
           ? Number(job.versionNumber.replace(',', '.'))
@@ -294,15 +308,67 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
     [update],
   );
 
-  useEffect(() => {
-    for (const job of jobs) {
-      if (job.state !== 'bereit' || uebernahmeLaeuft.current.has(job.id)) continue;
-      if (!job.projectId) continue;
+  /**
+   * Aufgenommen wird erst auf Knopfdruck (Phase 15). Vorher lief die Übernahme
+   * automatisch los, sobald Projekt und Video feststanden – wer in Ruhe die
+   * Nummer oder das Datum prüfen wollte, kam zu spät. Jetzt bleibt die Zeile
+   * so lange offen, bis „Speichern“ gedrückt ist; ohne das entsteht weder
+   * Video noch Fassung, und die Datei wartet im Zwischenspeicher.
+   */
+  const save = useCallback(
+    (id: string) => {
+      const job = jobsRef.current.find((entry) => entry.id === id);
+      if (!job || job.state !== 'bereit' || uebernahmeLaeuft.current.has(job.id)) return;
+      if (!job.projectId) return;
       // Ein neues Video braucht wenigstens einen Namen.
-      if (!job.videoId && !job.newVideoName.trim()) continue;
+      if (!job.videoId && !job.newVideoName.trim()) return;
       void uebernehmen(job);
-    }
-  }, [jobs, uebernehmen]);
+    },
+    [uebernehmen],
+  );
+
+  /**
+   * Einmal beim Start: fertig übertragene, noch unzugeordnete Sitzungen vom
+   * Server zurückholen. Die Upload-Liste überlebt so einen Seiten-Reload –
+   * die Bytes liegen ja längst im Zwischenspeicher.
+   */
+  const wiederhergestellt = useRef(false);
+  useEffect(() => {
+    if (wiederhergestellt.current) return;
+    wiederhergestellt.current = true;
+    void (async () => {
+      try {
+        const sitzungen = await api.listUnassignedUploads();
+        const bekannt = new Set(jobsRef.current.map((job) => job.uploadId).filter(Boolean));
+        const heute = todayIso();
+        const neue: UploadJob[] = sitzungen
+          .filter((sitzung) => !bekannt.has(sitzung.id))
+          .map((sitzung) => ({
+            id: `wieder-${sitzung.id}`,
+            filename: sitzung.filename,
+            sizeBytes: sitzung.sizeBytes,
+            target: 'video',
+            projectId: '',
+            videoId: '',
+            newVideoName: suggestVideoName(sitzung.filename),
+            detectedVersion: detectVersionNumber(sitzung.filename),
+            versionNumber: '',
+            fileDate: heute,
+            hint: 'Übertragung aus einer früheren Sitzung – Angaben prüfen und speichern',
+            state: 'bereit',
+            uploadId: sitzung.id,
+            uploadedBytes: sitzung.sizeBytes,
+            transcodeProgress: 0,
+            versionId: null,
+          }));
+        if (neue.length === 0) return;
+        setJobs((current) => [...current, ...neue]);
+        setOpen(true);
+      } catch {
+        // Gäste und Abgemeldete haben hier nichts – die Liste bleibt leer.
+      }
+    })();
+  }, []);
 
   const cancel = useCallback(
     (id: string) => {
@@ -342,13 +408,14 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
       enqueue,
       update,
       start,
+      save,
       cancel,
       remove,
       clearFinished,
       setOpen,
       completedCount,
     }),
-    [jobs, open, enqueue, update, start, cancel, remove, clearFinished, completedCount],
+    [jobs, open, enqueue, update, start, save, cancel, remove, clearFinished, completedCount],
   );
 
   return <UploadsContext.Provider value={value}>{children}</UploadsContext.Provider>;
