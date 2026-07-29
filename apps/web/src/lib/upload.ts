@@ -8,16 +8,31 @@ import { API_BASE, api } from './api';
  * bei 40-GB-Kameramaterial über WLAN ist das der Unterschied zwischen
  * „nochmal von vorn“ und „läuft weiter“.
  */
-const DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024;
+/**
+ * Kleiner als die früheren 8 MiB. Eine kurze Anfrage übersteht einen
+ * Aussetzer eher, und eine Wiederholung kostet weniger. Der Aufpreis sind
+ * mehr Anfragen – bei 8 MB Overhead pro Stunde nicht der Rede wert.
+ */
+const DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024;
 const MAX_RETRIES = 5;
 /**
- * So lange darf eine Übertragung ohne jedes Lebenszeichen dastehen, bevor wir
- * sie abbrechen und neu ansetzen. Ein hängender Block ist schlimmer als ein
- * gescheiterter: Ein Fehler wird gemeldet und wiederholt, ein Hänger sieht für
- * immer nach „lädt“ aus. Auch eine langsame Leitung meldet mehrmals pro Sekunde
- * Fortschritt – eine ganze Minute Stille bedeutet, dass nichts mehr kommt.
+ * Obergrenze für einen einzelnen Block, damit ein Hänger nicht ewig dauert.
+ *
+ * Bewusst `xhr.timeout` statt einer eigenen Uhr auf `upload.onprogress`: In
+ * WebKit hören diese Ereignisse mitten in einer *gesunden* Übertragung auf zu
+ * feuern. Eine Wache, die daran hängt, bricht dann genau das ab, was gerade
+ * funktioniert – in Safari blieb der Balken bei 128 KB stehen, weil dort das
+ * letzte Ereignis kam und die Wache 60 Sekunden später zuschlug. `xhr.timeout`
+ * misst die Anfrage selbst und braucht kein einziges Ereignis.
+ *
+ * Die Grenze wächst mit der Blockgröße: eine Grundzeit plus die Zeit, die der
+ * Block bei sehr langsamen 20 kB/s bräuchte. Für 4 MiB sind das gut vier
+ * Minuten – großzügig genug für eine schlechte Leitung, eng genug, dass ein
+ * echter Hänger auffällt.
  */
-const STALL_TIMEOUT_MS = 60_000;
+function chunkTimeoutMs(bytes: number): number {
+  return 60_000 + Math.ceil(bytes / (20 * 1024)) * 1000;
+}
 
 export interface UploadProgress {
   uploadedBytes: number;
@@ -26,9 +41,35 @@ export interface UploadProgress {
 }
 
 export interface UploadHandle {
-  /** `versionId` ist nur beim Video-Upload gesetzt, nicht beim Kunden-Ordner. */
-  promise: Promise<{ versionId: string | null }>;
+  /**
+   * `uploadId` ist die Sitzung – über sie wird die Zuordnung nachgereicht.
+   * `versionId` steht nur dann schon fest, wenn das Ziel von Anfang an bekannt
+   * war (Kunden-Ordner, oder eine Fassung für ein bestimmtes Video).
+   */
+  promise: Promise<{ versionId: string | null; uploadId: string }>;
   abort: () => void;
+}
+
+/**
+ * Fassung hochladen, **ohne** vorher zu wissen wohin.
+ *
+ * Die Übertragung ist der lange Teil, das Eintragen von Projekt und Video der
+ * kurze. Also fängt sie sofort an; die Datei wartet im Zwischenspeicher, bis
+ * `api.assignUpload` das Ziel nachreicht. Vorher war es umgekehrt, und wer
+ * eine 90-GB-Datei ablegte, sah dem Formular beim Nichtstun zu.
+ */
+export function uploadVersionFile(input: {
+  file: File;
+  chunkSize?: number;
+  onProgress?: (progress: UploadProgress) => void;
+}): UploadHandle {
+  return runUpload(input.file, input.chunkSize, input.onProgress, () =>
+    api.createUnassignedUpload({
+      filename: input.file.name,
+      sizeBytes: input.file.size,
+      mimeType: input.file.type || undefined,
+    }),
+  );
 }
 
 export function uploadVideoFile(input: {
@@ -74,7 +115,12 @@ function runUpload(
   file: File,
   chunkSizeInput: number | undefined,
   onProgress: ((progress: UploadProgress) => void) | undefined,
-  createSession: () => Promise<{ location: string; offsetBytes: number; versionId: string | null }>,
+  createSession: () => Promise<{
+    id: string;
+    location: string;
+    offsetBytes: number;
+    versionId: string | null;
+  }>,
 ): UploadHandle {
   const controller = new AbortController();
   const chunkSize = chunkSizeInput ?? DEFAULT_CHUNK_SIZE;
@@ -139,7 +185,7 @@ function runUpload(
       }
     }
 
-    return { versionId: entstandeneVersion };
+    return { versionId: entstandeneVersion, uploadId: session.id };
   })();
 
   return {
@@ -157,9 +203,9 @@ function runUpload(
  * auch `tus-js-client` und Uppy hier auf XHR.
  *
  * Der zweite Gewinn: `upload.onprogress` meldet den Fortschritt *innerhalb*
- * eines Blocks – `fetch` kennt das nicht. Damit sehen wir auch, ob überhaupt
- * noch etwas fließt, und können einen Hänger von einer langsamen Leitung
- * unterscheiden.
+ * eines Blocks – `fetch` kennt das nicht. Das ist reine Anzeige; als Grundlage
+ * für einen Abbruch taugen die Ereignisse ausdrücklich nicht (siehe
+ * `chunkTimeoutMs`).
  */
 function sendChunk(input: {
   location: string;
@@ -170,12 +216,10 @@ function sendChunk(input: {
 }): Promise<{ offset: number; versionId: string | null }> {
   return new Promise<{ offset: number; versionId: string | null }>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    let letztesLebenszeichen = Date.now();
     let erledigt = false;
 
     const aufraeumen = () => {
       erledigt = true;
-      clearInterval(wache);
       input.signal.removeEventListener('abort', beiAbbruch);
     };
     const scheitern = (fehler: Error) => {
@@ -190,16 +234,6 @@ function sendChunk(input: {
       reject(new DOMException('Abgebrochen', 'AbortError'));
     };
 
-    const wache = setInterval(() => {
-      if (Date.now() - letztesLebenszeichen < STALL_TIMEOUT_MS) return;
-      xhr.abort();
-      scheitern(
-        new Error(
-          `Die Übertragung stand ${Math.round(STALL_TIMEOUT_MS / 1000)} Sekunden still ` +
-            'und wurde abgebrochen.',
-        ),
-      );
-    }, 2000);
 
     input.signal.addEventListener('abort', beiAbbruch);
 
@@ -210,15 +244,17 @@ function sendChunk(input: {
     xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
     xhr.setRequestHeader('Upload-Offset', String(input.offset));
     xhr.setRequestHeader('Tus-Resumable', '1.0.0');
+    // Die einzige Zeitgrenze. Sie misst die Anfrage selbst, nicht die
+    // Ereignisse darüber – genau deshalb überlebt eine gesunde Übertragung in
+    // Safari, deren Fortschrittsmeldungen unterwegs versiegen.
+    xhr.timeout = chunkTimeoutMs(input.blob.size);
 
+    // Nur noch für die Anzeige – aus diesen Ereignissen wird **keine**
+    // Entscheidung mehr abgeleitet. In WebKit versiegen sie mitten in einer
+    // laufenden Übertragung, und wer daran einen Abbruch hängt, killt genau
+    // das, was gerade funktioniert.
     xhr.upload.onprogress = (event) => {
-      letztesLebenszeichen = Date.now();
       input.onPartial?.(input.offset + event.loaded);
-    };
-    // Der Body ist draußen, jetzt schreibt der Server. Auch das ist ein
-    // Lebenszeichen, sonst schlüge der Wachhund bei langsamen Platten zu.
-    xhr.upload.onload = () => {
-      letztesLebenszeichen = Date.now();
     };
 
     xhr.onerror = () =>
@@ -227,7 +263,13 @@ function sendChunk(input: {
           'Die Verbindung brach während der Übertragung ab (kein Kontakt zum Server).',
         ),
       );
-    xhr.ontimeout = () => scheitern(new Error('Zeitüberschreitung bei der Übertragung.'));
+    xhr.ontimeout = () =>
+      scheitern(
+        new Error(
+          `Der Block kam in ${Math.round(chunkTimeoutMs(input.blob.size) / 1000)} Sekunden ` +
+            'nicht durch und wurde abgebrochen.',
+        ),
+      );
     xhr.onabort = () => {
       if (!input.signal.aborted) return;
       scheitern(new DOMException('Abgebrochen', 'AbortError'));

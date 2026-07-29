@@ -80,7 +80,9 @@ export function UploadPanel() {
   }, [jobs, refreshTranscode]);
 
   const summary = useMemo(() => {
+    const bereit = jobs.filter((job) => job.state === 'bereit').length;
     if (active.length > 0) return `${active.length} laufend`;
+    if (bereit > 0) return `${bereit} wartet auf Zuordnung`;
     if (pending.length > 0) return `${pending.length} wartet`;
     const failed = jobs.filter((job) => job.state === 'fehler').length;
     if (failed > 0) return `${failed} fehlgeschlagen`;
@@ -109,7 +111,11 @@ export function UploadPanel() {
               job={job}
               projects={projects}
               videos={videosByProject[job.projectId] ?? []}
-              editable={job.state === 'wartet' && isTeam}
+              // Bis zur Aufnahme ins Projekt bleibt alles änderbar – genau
+              // dafür läuft die Übertragung ja schon im Hintergrund.
+              editable={
+                (job.state === 'wartet' || job.state === 'lädt' || job.state === 'bereit') && isTeam
+              }
               onChange={(changes) => update(job.id, changes)}
               onCancel={() => cancel(job.id)}
               onRemove={() => remove(job.id)}
@@ -188,6 +194,11 @@ function JobRow({
         {job.state === 'lädt' ? (
           <button type="button" className="button button--ghost" onClick={onCancel}>
             Abbrechen
+          </button>
+        ) : null}
+        {job.state === 'bereit' ? (
+          <button type="button" className="button button--ghost" onClick={onCancel}>
+            Verwerfen
           </button>
         ) : null}
         {job.state === 'wartet' || job.state === 'fehler' || job.state === 'abgebrochen' ? (
@@ -278,14 +289,27 @@ function JobRow({
         </div>
       ) : null}
 
+      {job.state === 'bereit' && !job.projectId ? (
+        <div className="uploadjob__hint">
+          Die Datei liegt vollständig auf dem Server. Sobald ein Projekt gewählt ist, wird sie
+          aufgenommen und verarbeitet.
+        </div>
+      ) : null}
+      {job.state === 'bereit' && job.projectId && !job.videoId && !job.newVideoName.trim() ? (
+        <div className="uploadjob__hint">Es fehlt noch der Name des neuen Videos.</div>
+      ) : null}
+
       {editable && job.hint ? <div className="uploadjob__hint">⚠ {job.hint}</div> : null}
 
-      {job.state === 'lädt' || job.state === 'fertig' || job.state === 'verarbeitet' ? (
+      {job.state === 'lädt' ||
+      job.state === 'bereit' ||
+      job.state === 'fertig' ||
+      job.state === 'verarbeitet' ? (
         <>
           <div className="progress" style={{ marginTop: 6 }}>
             <div className="progress__bar" style={{ width: `${uploadFraction * 100}%` }} />
           </div>
-          {isVideo && job.state !== 'lädt' ? (
+          {isVideo && job.state !== 'lädt' && job.state !== 'bereit' ? (
             <div className="uploadjob__transcode">
               <span className="faint" style={{ fontSize: 12 }}>
                 Verarbeitung
@@ -322,6 +346,9 @@ function StateBadge({ job }: { job: UploadJob }) {
       return <span className="badge badge--processing">Verarbeitung</span>;
     case 'lädt':
       return <span className="badge">Lädt</span>;
+    case 'bereit':
+      // Die Bytes sind da, es fehlt nur noch, wohin damit.
+      return <span className="badge badge--processing">Übertragen</span>;
     case 'abgebrochen':
       return <span className="badge">Abgebrochen</span>;
     default:

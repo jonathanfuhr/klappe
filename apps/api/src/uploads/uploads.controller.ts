@@ -20,7 +20,17 @@ import {
   VERSION_NUMBER_MAX,
   type UploadSessionDto,
 } from '@klappe/shared';
-import { IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import type { Request, Response } from 'express';
 import { AccessService } from '../access/access.service';
 import { CurrentUser, Public, Roles } from '../auth/auth.decorators';
@@ -73,6 +83,27 @@ class CreateUploadDto {
   versionNumber?: number;
 }
 
+class AssignUploadDto {
+  @IsOptional()
+  @IsUUID()
+  videoId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  label?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Das Datum muss im Format JJJJ-MM-TT stehen.' })
+  fileDate?: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: VERSION_NUMBER_DECIMALS })
+  @Min(0.001)
+  @Max(VERSION_NUMBER_MAX)
+  versionNumber?: number;
+}
+
 /**
  * Resumable Upload nach tus 1.0.0.
  *
@@ -102,6 +133,50 @@ export class UploadsController {
   @HttpCode(204)
   optionsUpload(@Res({ passthrough: true }) response: Response): void {
     this.setDiscoveryHeaders(response);
+  }
+
+  /**
+   * Upload ohne Ziel: Die Übertragung beginnt sofort, Projekt und Video werden
+   * später mit `PATCH /v1/uploads/:id` nachgereicht. So wartet die lange
+   * Übertragung nicht auf die kurze Eingabe.
+   */
+  @Roles('ADMIN', 'MEMBER')
+  @Post('uploads')
+  @HttpCode(201)
+  async createUnassigned(
+    @Body() dto: CreateUploadDto,
+    @Headers() headers: Record<string, string | undefined>,
+    @CurrentUser() user: RequestUser,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<UploadSessionDto> {
+    const details = this.readUploadDetails(dto, headers);
+    const session = await this.uploadsService.create({
+      videoId: null,
+      filename: details.filename,
+      sizeBytes: details.sizeBytes,
+      mimeType: details.mimeType,
+      label: dto.label?.trim() || null,
+      fileDate: dto.fileDate ?? null,
+      versionNumber: dto.versionNumber ?? null,
+      user,
+    });
+    response.setHeader('Tus-Resumable', TUS_VERSION);
+    response.setHeader('Location', session.location);
+    return session;
+  }
+
+  /** Zuordnung nachreichen; ist die Datei schon durch, entsteht die Fassung. */
+  @Roles('ADMIN', 'MEMBER')
+  @Patch('uploads/:id/ziel')
+  async assign(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: AssignUploadDto,
+    @CurrentUser() user: RequestUser,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<UploadSessionDto> {
+    const ergebnis = await this.uploadsService.assign(id, dto, user);
+    if (ergebnis.versionId) response.setHeader('Klappe-Version-Id', ergebnis.versionId);
+    return ergebnis.session;
   }
 
   @Roles('ADMIN', 'MEMBER')

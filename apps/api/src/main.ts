@@ -24,8 +24,19 @@ async function bootstrap(): Promise<void> {
   app.set('trust proxy', 1);
 
   const json = express.json({ limit: '1mb' });
+  /**
+   * Nur der Chunk-Endpunkt selbst darf am JSON-Parser vorbei – dort liegen
+   * Videodaten im Body, die niemals in den Speicher gelesen werden dürfen.
+   *
+   * Früher stand hier `startsWith('/v1/uploads/')`, und damit fiel jede
+   * weitere Route unter diesem Pfad mit heraus. Die Zuordnung
+   * (`/v1/uploads/:id/ziel`) bekam so nie einen Body: Der Aufruf lief durch,
+   * tat aber nichts – ein Fehler, den keine Typprüfung findet.
+   */
+  const istChunkAnfrage = (request: express.Request): boolean =>
+    /^\/v1\/uploads\/[^/]+$/.test(request.path);
   app.use((request: express.Request, response: express.Response, next: express.NextFunction) => {
-    if (request.path.startsWith('/v1/uploads/')) return next();
+    if (istChunkAnfrage(request)) return next();
     return json(request, response, next);
   });
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));

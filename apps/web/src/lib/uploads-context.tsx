@@ -20,7 +20,7 @@ import {
   useState,
 } from 'react';
 import { api } from './api';
-import { type UploadHandle, uploadProjectFile, uploadVideoFile } from './upload';
+import { type UploadHandle, uploadProjectFile, uploadVersionFile } from './upload';
 
 export type UploadTarget = 'video' | 'project-file';
 
@@ -45,7 +45,9 @@ export interface UploadJob {
   fileDate: string;
   /** Woher die Vorauswahl kommt – die Oberfläche bittet dann ums Prüfen. */
   hint: string | null;
-  state: 'wartet' | 'lädt' | 'verarbeitet' | 'fertig' | 'fehler' | 'abgebrochen';
+  state: 'wartet' | 'lädt' | 'bereit' | 'verarbeitet' | 'fertig' | 'fehler' | 'abgebrochen';
+  /** Die Upload-Sitzung – über sie wird die Zuordnung nachgereicht. */
+  uploadId: string | null;
   uploadedBytes: number;
   /** Fortschritt des Transcodings in Prozent, sobald die Datei durch ist. */
   transcodeProgress: number;
@@ -99,6 +101,8 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
    * Über die Box bleibt die Reihenfolge der Deklarationen sauber.
    */
   const startRef = useRef<(() => void) | null>(null);
+  /** Verhindert, dass derselbe Job zweimal gleichzeitig aufgenommen wird. */
+  const uebernahmeLaeuft = useRef<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
   /** Läuft die Abarbeitung gerade? Verhindert zwei Schleifen nebeneinander. */
@@ -145,6 +149,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         state: 'wartet',
         uploadedBytes: 0,
         transcodeProgress: 0,
+        uploadId: null,
         versionId: null,
       };
     });
@@ -161,13 +166,23 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
    * wählt: Ohne Ziel gibt es keine Sitzung.
    */
   useEffect(() => {
-    if (jobs.some((job) => job.state === 'wartet' && job.projectId)) startRef.current?.();
+    if (
+      jobs.some(
+        (job) => job.state === 'wartet' && (job.target === 'video' || Boolean(job.projectId)),
+      )
+    ) {
+      startRef.current?.();
+    }
   }, [jobs]);
 
   /**
    * Arbeitet die Warteschlange der Reihe nach ab. Nacheinander statt parallel:
    * Bei großen Dateien teilen sich gleichzeitige Uploads nur die Leitung und
    * jeder einzelne dauert länger.
+   *
+   * Videofassungen gehen **ohne Ziel** los: Die Datei landet im
+   * Zwischenspeicher, während im Fenster noch Projekt und Video eingetragen
+   * werden. Aufgenommen wird sie erst in `uebernehmen`.
    */
   const start = useCallback(() => {
     if (running.current) return;
@@ -176,9 +191,12 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         for (;;) {
-          // Nur, was ein Ziel hat: Ohne Projekt gäbe es nichts, wohin die
-          // Datei gehört – die bleibt liegen, bis jemand es einträgt.
-          const job = jobsRef.current.find((entry) => entry.state === 'wartet' && entry.projectId);
+          // Kunden-Uploads brauchen weiter ein Projekt – dort gibt es keine
+          // Zuordnung, die man später nachreichen könnte.
+          const job = jobsRef.current.find(
+            (entry) =>
+              entry.state === 'wartet' && (entry.target === 'video' || Boolean(entry.projectId)),
+          );
           if (!job) break;
 
           update(job.id, { state: 'lädt', message: undefined });
@@ -186,38 +204,30 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
             const onProgress = (progress: { uploadedBytes: number }) =>
               update(job.id, { uploadedBytes: progress.uploadedBytes });
 
-            let handle: UploadHandle;
-            if (job.target === 'project-file') {
-              handle = uploadProjectFile({ projectId: job.projectId, file: job.file, onProgress });
-            } else {
-              const videoId =
-                job.videoId ||
-                (
-                  await api.createVideo(job.projectId, {
-                    name: job.newVideoName.trim() || job.file.name,
-                  })
-                ).id;
-              const wunschnummer = job.versionNumber.trim()
-                ? Number(job.versionNumber.replace(',', '.'))
-                : undefined;
-              handle = uploadVideoFile({
-                videoId,
-                file: job.file,
-                fileDate: job.fileDate,
-                versionNumber: Number.isFinite(wunschnummer) ? wunschnummer : undefined,
-                onProgress,
-              });
-              update(job.id, { videoId });
-            }
+            const handle: UploadHandle =
+              job.target === 'project-file'
+                ? uploadProjectFile({ projectId: job.projectId, file: job.file, onProgress })
+                : uploadVersionFile({ file: job.file, onProgress });
 
             update(job.id, { handle });
             const result = await handle.promise;
-            update(job.id, {
-              state: job.target === 'project-file' ? 'fertig' : 'verarbeitet',
-              uploadedBytes: job.file.size,
-              versionId: result.versionId,
-            });
-            setCompletedCount((count) => count + 1);
+
+            if (job.target === 'project-file') {
+              update(job.id, {
+                state: 'fertig',
+                uploadedBytes: job.file.size,
+                versionId: result.versionId,
+              });
+              setCompletedCount((count) => count + 1);
+            } else {
+              // Übertragen, aber noch nicht eingeordnet. Den Rest erledigt der
+              // Effekt weiter unten, sobald die Angaben stehen.
+              update(job.id, {
+                state: 'bereit',
+                uploadedBytes: job.file.size,
+                uploadId: result.uploadId,
+              });
+            }
           } catch (error) {
             const aborted = error instanceof DOMException && error.name === 'AbortError';
             update(job.id, {
@@ -238,10 +248,82 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
 
   startRef.current = start;
 
-  const cancel = useCallback((id: string) => {
-    const job = jobsRef.current.find((entry) => entry.id === id);
-    job?.handle?.abort();
-  }, []);
+  /**
+   * Die zweite Hälfte: Die Datei ist da, jetzt kommt sie ins Projekt. Passiert
+   * von selbst, sobald Projekt und Video feststehen – ob das vor oder nach dem
+   * Ende der Übertragung geschieht, spielt keine Rolle mehr.
+   */
+  const uebernehmen = useCallback(
+    async (job: UploadJob) => {
+      if (!job.uploadId || !job.projectId) return;
+      uebernahmeLaeuft.current.add(job.id);
+      try {
+        const videoId =
+          job.videoId ||
+          (await api.createVideo(job.projectId, { name: job.newVideoName.trim() || job.file.name }))
+            .id;
+        const wunsch = job.versionNumber.trim()
+          ? Number(job.versionNumber.replace(',', '.'))
+          : undefined;
+
+        const sitzung = await api.assignUpload(job.uploadId, {
+          videoId,
+          fileDate: job.fileDate || undefined,
+          ...(Number.isFinite(wunsch) ? { versionNumber: wunsch } : {}),
+        });
+
+        update(job.id, {
+          state: 'verarbeitet',
+          videoId,
+          versionId: sitzung.versionId,
+          message: undefined,
+        });
+        setCompletedCount((count) => count + 1);
+      } catch (error) {
+        // Kein Datenverlust: Die Datei bleibt im Zwischenspeicher liegen, der
+        // Fehler betrifft nur die Zuordnung. Deshalb zurück auf „bereit“.
+        update(job.id, {
+          state: 'bereit',
+          message:
+            error instanceof Error ? error.message : 'Die Zuordnung ließ sich nicht speichern.',
+        });
+      } finally {
+        uebernahmeLaeuft.current.delete(job.id);
+      }
+    },
+    [update],
+  );
+
+  useEffect(() => {
+    for (const job of jobs) {
+      if (job.state !== 'bereit' || uebernahmeLaeuft.current.has(job.id)) continue;
+      if (!job.projectId) continue;
+      // Ein neues Video braucht wenigstens einen Namen.
+      if (!job.videoId && !job.newVideoName.trim()) continue;
+      void uebernehmen(job);
+    }
+  }, [jobs, uebernehmen]);
+
+  const cancel = useCallback(
+    (id: string) => {
+      const job = jobsRef.current.find((entry) => entry.id === id);
+      if (!job) return;
+      // Läuft noch: Der Abbruch am Handle reicht, der Rest kommt über den
+      // Fehlerpfad zurück.
+      if (job.state === 'lädt') {
+        job.handle?.abort();
+        return;
+      }
+      // Schon vollständig übertragen, aber noch nicht aufgenommen: Hier hilft
+      // nur, die Sitzung serverseitig wegzuwerfen – sonst bliebe die Datei bis
+      // zum Ablauf im Zwischenspeicher liegen.
+      if (job.state === 'bereit' && job.uploadId) {
+        void api.abortUpload(job.uploadId).catch(() => undefined);
+        update(id, { state: 'abgebrochen', message: 'Verworfen.' });
+      }
+    },
+    [update],
+  );
 
   const remove = useCallback((id: string) => {
     setJobs((current) => current.filter((job) => job.id !== id));

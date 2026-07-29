@@ -153,6 +153,21 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+  /** Sitzung ohne Ziel – Projekt und Video kommen später. */
+  createUnassignedUpload: (input: { filename: string; sizeBytes: number; mimeType?: string }) =>
+    request<UploadSessionDto>('/v1/uploads', { method: 'POST', body: JSON.stringify(input) }),
+  /**
+   * Zuordnung nachreichen. Ist die Datei schon vollständig übertragen, entsteht
+   * dabei die Fassung – die Kennung steht dann im zurückgegebenen `versionId`.
+   */
+  assignUpload: (
+    uploadId: string,
+    input: { videoId?: string; label?: string; fileDate?: string; versionNumber?: number },
+  ) =>
+    request<UploadSessionDto>(`/v1/uploads/${uploadId}/ziel`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
   createProjectFileUpload: (
     projectId: string,
     input: { filename: string; sizeBytes: number; mimeType?: string },

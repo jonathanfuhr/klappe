@@ -50,9 +50,15 @@ export class UploadsService {
     private readonly mailQueue: MailQueueService,
   ) {}
 
-  /** Neue Fassung eines Videos hochladen. */
+  /**
+   * Neue Fassung hochladen.
+   *
+   * `videoId` darf fehlen: Dann läuft die Übertragung schon los, während im
+   * Fenster noch Projekt, Video und Datum eingetragen werden. Die Datei liegt
+   * so lange im Zwischenspeicher und wird erst mit `assign()` aufgenommen.
+   */
   async create(input: {
-    videoId: string;
+    videoId: string | null;
     filename: string;
     sizeBytes: number;
     mimeType: string | null;
@@ -62,12 +68,12 @@ export class UploadsService {
     user: RequestUser;
   }): Promise<UploadSessionDto> {
     this.assertSize(input.sizeBytes);
-    await this.videosService.assertExists(input.videoId);
+    if (input.videoId) await this.videosService.assertExists(input.videoId);
 
     // Die Nummer wird schon hier geprüft, obwohl die Fassung erst beim
     // Abschluss entsteht: Eine Absage nach 90 GB Übertragung wäre eine
-    // Zumutung.
-    if (input.versionNumber !== null) {
+    // Zumutung. Ohne Video lässt sich nichts prüfen – das holt `assign()` nach.
+    if (input.videoId && input.versionNumber !== null) {
       await this.versionsService.assertNumberFree(input.videoId, input.versionNumber);
     }
 
@@ -284,6 +290,11 @@ export class UploadsService {
     row.offsetBytes = offset;
 
     if (offset >= row.sizeBytes) {
+      // Ohne Ziel wird noch nichts aufgenommen: Die Datei wartet im
+      // Zwischenspeicher, bis die Zuordnung steht. `assign()` schließt dann ab.
+      if (row.kind === 'VERSION' && !row.videoId) {
+        return { offset, completed: true, row };
+      }
       await this.finalize(row);
       // Die Fassung entsteht erst im Abschluss – ohne dieses Nachlesen stünde
       // in der Antwort noch die leere Version von vorhin, und die Oberfläche
@@ -420,6 +431,79 @@ export class UploadsService {
   }
 
   /** Bricht eine Sitzung ab und räumt Teil-Datei und Versionszeile weg. */
+  /**
+   * Zuordnung nachreichen und – wenn die Datei schon vollständig da ist –
+   * die Fassung anlegen.
+   *
+   * Das ist die zweite Hälfte des Uploads: Die Bytes fließen bereits, während
+   * im Fenster noch Projekt und Video eingetragen werden. Erst hier bekommt
+   * die Datei ihr Ziel. Kommt die Zuordnung, bevor die Übertragung fertig ist,
+   * wird sie nur vermerkt; der letzte Block schließt dann wie gewohnt ab.
+   */
+  async assign(
+    id: string,
+    input: {
+      videoId?: string;
+      label?: string | null;
+      fileDate?: string | null;
+      versionNumber?: number | null;
+    },
+    user: RequestUser,
+  ): Promise<{ session: UploadSessionDto; versionId: string | null }> {
+    const row = await this.getWritableOrFail(id, user);
+    if (row.kind !== 'VERSION') {
+      throw new BadRequestException('Diese Upload-Sitzung gehört nicht zu einer Fassung.');
+    }
+    if (row.status === 'ABORTED') throw new NotFoundException('Diese Sitzung wurde abgebrochen.');
+    if (row.status === 'COMPLETED') {
+      throw new ConflictException('Diese Fassung wurde bereits aufgenommen.');
+    }
+
+    const videoId = input.videoId ?? row.videoId;
+    if (videoId) await this.videosService.assertExists(videoId);
+
+    // Jetzt lässt sich die Wunschnummer endlich prüfen – vorher war kein Video
+    // bekannt, gegen das man sie hätte halten können.
+    const nummer =
+      input.versionNumber === undefined
+        ? (row.metadata as Record<string, string> | null)?.versionNumber
+        : input.versionNumber === null
+          ? undefined
+          : String(input.versionNumber);
+    if (videoId && nummer !== undefined) {
+      await this.versionsService.assertNumberFree(videoId, Number(nummer));
+    }
+
+    const metadata = { ...((row.metadata ?? {}) as Record<string, string>) };
+    if (input.label !== undefined) {
+      if (input.label) metadata.label = input.label;
+      else delete metadata.label;
+    }
+    if (input.fileDate !== undefined) {
+      if (input.fileDate) metadata.fileDate = input.fileDate;
+      else delete metadata.fileDate;
+    }
+    if (input.versionNumber !== undefined) {
+      if (input.versionNumber === null) delete metadata.versionNumber;
+      else metadata.versionNumber = String(input.versionNumber);
+    }
+
+    const [aktualisiert] = await this.db
+      .update(uploads)
+      .set({ videoId: videoId ?? null, metadata, updatedAt: new Date() })
+      .where(eq(uploads.id, row.id))
+      .returning();
+
+    // Vollständig übertragen und jetzt mit Ziel: aufnehmen.
+    if (videoId && aktualisiert.offsetBytes >= aktualisiert.sizeBytes) {
+      await this.finalize(aktualisiert);
+      const [fertig] = await this.db.select().from(uploads).where(eq(uploads.id, row.id)).limit(1);
+      return { session: this.toDto(fertig ?? aktualisiert), versionId: fertig?.versionId ?? null };
+    }
+
+    return { session: this.toDto(aktualisiert), versionId: null };
+  }
+
   async abort(id: string, user: RequestUser): Promise<void> {
     const row = await this.getWritableOrFail(id, user);
     if (row.status === 'COMPLETED') {
