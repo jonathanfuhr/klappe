@@ -44,6 +44,25 @@ Keep-Alive-Verbindungen nach **5 Sekunden**. Gemessen: FIN nach 6,00 s, und eine
 danach wiederverwendete Verbindung verschluckte die Anfrage genauso spurlos.
 Das betraf alles außer `/v1/*` und erklärt den allerersten Hänger.
 
+Und ein dritter, der erst nach den beiden Server-Korrekturen sichtbar wurde,
+weil er dasselbe Symptom trägt: **Safari stellt dem XHR die Antwort nicht zu,
+wenn der Anfrage-Body dateigestützt ist – oder ein `ArrayBuffer`.** Der Block
+geht vollständig raus, `upload.onload` feuert, Proxy und API protokollieren
+`204` mit Feld für Feld identischen Einträgen – aber der Client sieht nichts
+und hängt bis `xhr.timeout`. Der direkte Vergleich, gleiche Minute, gleicher
+Server, drei Läufe der Testseite:
+
+| Body des Blocks | Ergebnis in Safari 26.5.2 |
+| --- | --- |
+| Blob im Arbeitsspeicher, direkt gesendet | läuft |
+| derselbe Inhalt als `ArrayBuffer` | hängt nach Block 1 |
+| gelesen und wieder als Blob verpackt | läuft |
+
+Die Falle dabei: Der naheliegende Ausweg aus dem Datei-Fehler – den Block per
+`arrayBuffer()` lesen und senden – tauscht nur einen kaputten Pfad gegen den
+anderen. Funktioniert hat allein `new Blob([await slice.arrayBuffer()])`:
+Das Lesen löst die Bindung an die Datei, der Blob nimmt den heilen Sendepfad.
+
 ## Was geändert wurde
 
 **Ein Reverse Proxy vor dem Stapel.** `caddy` nimmt Port 3000 entgegen und
@@ -63,6 +82,11 @@ tiefer.
 `apps/web/src/lib/upload.ts`). Idempotent, also wiederholt WebKit es notfalls
 selbst und räumt dabei tote Verbindungen aus dem Pool, bevor der teure Block
 sie erwischt. Gürtel und Hosenträger – die Ursache liegt auf der Serverseite.
+
+**Jeder Block wird gelesen und als Blob gesendet** (`leseBlock` in
+`apps/web/src/lib/upload.ts`) – gegen den dritten Fund. Weder `file.slice()`
+direkt noch ein `ArrayBuffer` dürfen als Body auf die Reise: beides hängt in
+Safari. Bei der Testseite steht die Sendeart zum Gegenprüfen als Schalter drin.
 
 **`UPLOAD_TRACE=1`** (`apps/api/src/uploads/upload-trace.ts`, standardmäßig
 aus). Schreibt pro Block: Eintreffen, alle 10 Sekunden die Byteposition im

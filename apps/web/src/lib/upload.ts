@@ -198,28 +198,31 @@ function runUpload(
 }
 
 /**
- * Den Block **in den Speicher holen**, statt den Datei-Ausschnitt selbst zu
- * verschicken.
+ * Den Block in den Speicher holen – und als **Blob** zurückgeben, nicht als
+ * `ArrayBuffer`. Beides ist die Umgehung je eines WebKit-Fehlers, gemessen am
+ * 29.07.2026 in Safari 26.5.2 mit identischer Strecke und identischen
+ * Server-Protokollen:
  *
- * Das ist keine Bequemlichkeit, sondern die Umgehung eines WebKit-Fehlers:
- * Eine Anfrage mit dateigestütztem Body geht in Safari zwar vollständig raus –
- * `upload.onload` feuert, der Server empfängt alle Bytes und antwortet mit
- * `204` –, aber **die Antwort wird dem XHR nie zugestellt**. Er hängt, bis
- * `xhr.timeout` nach viereinhalb Minuten zuschlägt.
+ * - Ein **dateigestützter** Body (`file.slice()` direkt verschicken) geht
+ *   vollständig raus, der Server antwortet `204` – aber die Antwort wird dem
+ *   XHR nie zugestellt. Er hängt bis `xhr.timeout`, viereinhalb Minuten.
+ * - Ein **`ArrayBuffer`**-Body zeigt exakt dasselbe Bild. Der erste Versuch,
+ *   den Datei-Fehler zu umgehen, indem der Block als `ArrayBuffer` gelesen und
+ *   verschickt wurde, hat den Fehler deshalb nur verschoben: gleiche Strecke,
+ *   Block kommt vollständig an, `204` geht raus, der Client sieht nichts.
+ * - Nur ein **im Speicher liegender Blob** bekommt die Antwort zugestellt.
+ *   Direkter Vergleich, gleiche Minute, gleicher Server: Blob 3/3 Blöcke,
+ *   derselbe Inhalt als `ArrayBuffer` hängt nach Block 1.
  *
- * Nachgemessen am 29.07.2026 auf allen drei Ebenen gleichzeitig: Die
- * Protokolleinträge von Proxy und API sind für einen gelungenen Block aus dem
- * Arbeitsspeicher und einen hängenden aus einer Datei Feld für Feld identisch –
- * gleiche empfangene Bytezahl, gleiche Dauer, gleicher Statuscode, gleiche
- * Antwortköpfe. Serverseitig gibt es keinen Unterschied; er liegt allein im
- * Browser. Derselbe Fehler war schon der Grund, von `fetch` auf XHR zu
- * wechseln – der Wechsel hat ihn nur anders aussehen lassen, nicht behoben.
- *
- * Der Preis ist ein Block im Speicher, bei 4 MiB nicht der Rede wert. Aus
- * demselben Grund lesen `tus-js-client` und Uppy ihre Blöcke ebenfalls ein.
+ * Deshalb: erst `arrayBuffer()` – das löst die Bindung an die Datei –, dann
+ * wieder als Blob verpacken. Der Preis ist ein Block im Speicher, bei 4 MiB
+ * nicht der Rede wert. Serverseitig ist derweil nichts zu holen: Proxy- und
+ * API-Protokolle sind für gelungene und hängende Blöcke Feld für Feld
+ * identisch. Derselbe Fehler war schon der Grund, von `fetch` auf XHR zu
+ * wechseln – gewirkt hat am Ende nur die Body-Art.
  */
-async function leseBlock(file: File, von: number, bis: number): Promise<ArrayBuffer> {
-  return file.slice(von, bis).arrayBuffer();
+async function leseBlock(file: File, von: number, bis: number): Promise<Blob> {
+  return new Blob([await file.slice(von, bis).arrayBuffer()]);
 }
 
 /**
@@ -232,7 +235,7 @@ async function leseBlock(file: File, von: number, bis: number): Promise<ArrayBuf
  */
 function sendChunk(input: {
   location: string;
-  daten: ArrayBuffer;
+  daten: Blob;
   offset: number;
   signal: AbortSignal;
   onPartial?: (uploadedBytes: number) => void;
@@ -280,7 +283,7 @@ function sendChunk(input: {
     // Die einzige Zeitgrenze. Sie misst die Anfrage selbst, nicht die
     // Ereignisse darüber – genau deshalb überlebt eine gesunde Übertragung in
     // Safari, deren Fortschrittsmeldungen unterwegs versiegen.
-    xhr.timeout = chunkTimeoutMs(input.daten.byteLength);
+    xhr.timeout = chunkTimeoutMs(input.daten.size);
 
     // Nur für die Anzeige und für die Fehlermeldung – aus diesen Ereignissen
     // wird **keine** Entscheidung abgeleitet, insbesondere kein Abbruch. In
@@ -293,24 +296,24 @@ function sendChunk(input: {
     };
     xhr.upload.onload = () => {
       bodyDraussen = true;
-      abgegeben = input.daten.byteLength;
+      abgegeben = input.daten.size;
     };
 
     xhr.onerror = () =>
       scheitern(
         new Error(
           'Die Verbindung brach während der Übertragung ab (kein Kontakt zum Server) – ' +
-            `nach ${abgegeben} von ${input.daten.byteLength} Byte dieses Blocks.`,
+            `nach ${abgegeben} von ${input.daten.size} Byte dieses Blocks.`,
         ),
       );
     xhr.ontimeout = () =>
       scheitern(
         new Error(
-          `Der Block kam in ${Math.round(chunkTimeoutMs(input.daten.byteLength) / 1000)} Sekunden ` +
+          `Der Block kam in ${Math.round(chunkTimeoutMs(input.daten.size) / 1000)} Sekunden ` +
             'nicht durch und wurde abgebrochen. ' +
             (bodyDraussen
               ? 'Die Daten waren vollständig abgegeben, die Antwort des Servers blieb aus.'
-              : `Es kamen nur ${abgegeben} von ${input.daten.byteLength} Byte heraus – die Gegenstelle ` +
+              : `Es kamen nur ${abgegeben} von ${input.daten.size} Byte heraus – die Gegenstelle ` +
                 'hat sie nicht abgeholt.'),
         ),
       );

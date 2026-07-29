@@ -61,8 +61,9 @@
       </select>
       <label for="lesen" style="margin-top: 12px">Wie der Block verschickt wird</label>
       <select id="lesen">
-        <option value="speicher" selected>Erst in den Speicher lesen (wie die App)</option>
-        <option value="direkt">Den Datei-Ausschnitt direkt senden (hängt in Safari)</option>
+        <option value="blob" selected>In den Speicher lesen, als Blob senden (wie die App)</option>
+        <option value="arraybuffer">In den Speicher lesen, als ArrayBuffer senden (hängt in Safari)</option>
+        <option value="direkt">Datei-Ausschnitt direkt senden (hängt in Safari bei echten Dateien)</option>
       </select>
       <p style="margin: 14px 0 0">
         <button id="los">Test starten</button>
@@ -250,6 +251,10 @@
         feldQuelle.dispatchEvent(new Event('change'));
         if (adresse.get('mb')) feldGroesse.value = adresse.get('mb');
         if (adresse.get('block')) feldBlock.value = adresse.get('block');
+        if (adresse.get('lesen')) {
+          const wert = adresse.get('lesen');
+          feldLesen.value = wert === 'speicher' ? 'arraybuffer' : wert;
+        }
         addEventListener('load', () => knopfLos.click());
       }
 
@@ -300,12 +305,17 @@
             nummer += 1;
             const ende = Math.min(offset + blockgroesse, datei.size);
             zeile(`Block ${nummer}: ${offset} … ${ende}`);
-            // Der entscheidende Unterschied: Ein *dateigestützter* Body geht in
-            // Safari zwar vollständig raus, aber die Antwort wird dem XHR nie
-            // zugestellt. Erst in den Speicher gelesen, läuft derselbe Block durch.
+            // Der entscheidende Unterschied liegt in der Body-Art. Gemessen in
+            // Safari 26.5.2, identische Strecke: Ein *dateigestützter* Body und
+            // ein *ArrayBuffer* gehen zwar vollständig raus, aber die Antwort
+            // wird dem XHR nie zugestellt. Nur ein im Speicher liegender Blob
+            // bekommt sie. Deshalb: lesen (löst die Datei-Bindung), dann wieder
+            // als Blob verpacken.
             const ausschnitt = datei.slice(offset, ende);
-            const nutzlast =
-              feldLesen.value === 'direkt' ? ausschnitt : await ausschnitt.arrayBuffer();
+            let nutzlast;
+            if (feldLesen.value === 'direkt') nutzlast = ausschnitt;
+            else if (feldLesen.value === 'arraybuffer') nutzlast = await ausschnitt.arrayBuffer();
+            else nutzlast = new Blob([await ausschnitt.arrayBuffer()]);
             offset = await sendeBlock(sitzung.location, nutzlast, offset);
           }
 
