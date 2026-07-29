@@ -214,6 +214,16 @@ button {
   font-size: 14px;
 }
 
+/*
+ * Und für Hinweise, die weder Fehler noch Erfolg sind – „noch keine
+ * Endfassung" etwa ist eine Einordnung, kein Alarm (Phase 17).
+ */
+.notice--warn {
+  border-color: color-mix(in srgb, #e2b341 45%, transparent);
+  background: color-mix(in srgb, #e2b341 12%, transparent);
+  color: #f0d08a;
+}
+
 /* Dieselbe Form für gute Nachrichten – rot umrandet wäre eine Falschmeldung. */
 .notice--ok {
   border-color: color-mix(in srgb, var(--klappe-success) 45%, transparent);
@@ -466,6 +476,12 @@ button {
   grid-template-columns: minmax(0, 1fr) 380px;
   gap: 0;
   height: calc(100vh - var(--klappe-header-height));
+  /*
+   * `dvh` zählt die ein- und ausfahrende Adressleiste mobiler Browser mit;
+   * `vh` tut das nicht und schiebt das Bild unter den Bildschirmrand. Die
+   * `vh`-Zeile darüber bleibt als Rückfall für Browser ohne `dvh`.
+   */
+  height: calc(100dvh - var(--klappe-header-height));
 }
 
 @media (max-width: 1000px) {
@@ -753,6 +769,8 @@ button {
   position: relative;
   height: 24px;
   cursor: pointer;
+  /* Ohne dies rollt beim Wischen die Seite mit, statt zu scrubben. */
+  touch-action: none;
 }
 
 .timeline__rail {
@@ -810,7 +828,10 @@ button {
   background: var(--klappe-success);
 }
 
+/* Am Rand geklemmt, damit die 160-px-Kachel nicht aus dem Schirm ragt. */
 .timeline__preview {
+  max-width: calc(100vw - 24px);
+
   position: absolute;
   bottom: 38px;
   transform: translateX(-50%);
@@ -1875,4 +1896,256 @@ a.badge:hover {
   flex-wrap: wrap;
   gap: 4px 14px;
   margin-top: 2px;
+}
+
+/* ---------- Einstellungen mit senkrechtem Menü (Phase 17) ---------- */
+
+.settingspage {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+  max-width: 1100px;
+}
+
+.settingsnav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: calc(var(--klappe-header-height) + 20px);
+}
+
+.settingsnav__title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.settingsnav__item {
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--klappe-radius-sm);
+  background: none;
+  color: var(--klappe-text-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.settingsnav__item:hover {
+  background: var(--klappe-surface-hover);
+  color: var(--klappe-text);
+}
+
+.settingsnav__item[data-active='true'] {
+  background: var(--klappe-surface-raised);
+  color: var(--klappe-text);
+  font-weight: 600;
+}
+
+.settingspage__body {
+  min-width: 0;
+}
+
+/*
+ * Tabellen bekommen einen eigenen Rollbereich, statt die Seite zu sprengen –
+ * die Benutzer- und Gästeliste sind auf einem Handy sonst nicht zu lesen.
+ */
+.tablewrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---------- Schmale Schirme (Phase 17) ---------- */
+
+@media (max-width: 860px) {
+  .settingspage {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  /* Waagerecht und rollbar, statt eine halbe Seite Menü vor dem Inhalt. */
+  .settingsnav {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+    padding-bottom: 4px;
+  }
+
+  .settingsnav__title {
+    display: none;
+  }
+
+  .settingsnav__item {
+    white-space: nowrap;
+  }
+}
+
+/*
+ * ---------- Handy: Player, Kopfzeile, Leisten (Phase 17) ----------
+ *
+ * Grundsatz: nichts läuft nach rechts hinaus, Fingerziele sind mindestens
+ * 44 px, und die Zeitleiste nimmt so wenig Höhe wie möglich – auf einem
+ * Handy ist das Bild das Wichtigste.
+ */
+
+@media (max-width: 860px) {
+  /* Die Kopfzeile quetschte sich bisher in starre 56 px. */
+  .shell__header {
+    height: auto;
+    min-height: var(--klappe-header-height);
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding: 8px 14px;
+  }
+
+  .shell__nav {
+    margin-left: 0;
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .shell__nav a {
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+
+  .page {
+    padding: 18px 14px 80px;
+  }
+
+  .page__header {
+    flex-wrap: wrap;
+  }
+
+  /* Feste Feldbreiten aus den Kopfzeilen aufheben. */
+  .page__header .input {
+    width: 100% !important;
+    flex: 1 1 180px;
+  }
+
+  .review__main {
+    padding: 12px 14px 16px;
+  }
+
+  /* Untereinander ist eine linke Kante falsch. */
+  .review__side {
+    border-left: none;
+    border-top: 1px solid var(--klappe-border);
+  }
+
+  .dialog-backdrop {
+    padding: 12px;
+    /* Ein langer Dialog muss rollbar sein, sonst ist sein Fuß unerreichbar. */
+    place-items: start center;
+    overflow-y: auto;
+  }
+
+  .dialog {
+    padding: 16px;
+  }
+
+  .dialog__actions {
+    flex-wrap: wrap;
+  }
+
+  .uploadjob__name {
+    max-width: none;
+  }
+}
+
+@media (max-width: 700px) {
+  /*
+   * `dvh` statt `vh`: Auf iOS zählt `vh` die ausgefahrene Adressleiste mit,
+   * das Bild wäre dann teils unter dem Bildschirmrand.
+   */
+  .review {
+    height: auto;
+  }
+
+  .player {
+    max-height: none;
+  }
+
+  /* Die Steuerleiste brach in drei bis vier Reihen um. */
+  .player__controls {
+    gap: 6px;
+    padding: 6px 8px;
+    justify-content: center;
+  }
+
+  .player__counter {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .player__rate {
+    min-width: 32px;
+  }
+
+  /* Was am Handy nicht trägt, verschwindet: Shuttle und Stiftbreiten. */
+  .player__controls [data-mobil='aus'] {
+    display: none;
+  }
+
+  .timeline {
+    padding: 6px 10px 2px;
+  }
+
+  /* Trefferfläche fürs Antippen, ohne mehr Höhe zu verbrauchen als nötig. */
+  .timeline__track {
+    height: 32px;
+  }
+
+  .timeline__rail {
+    top: 14px;
+  }
+
+  .timeline__playhead {
+    top: 8px;
+    height: 16px;
+  }
+
+  .timeline__marker {
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+  }
+
+  .timeline__scale {
+    font-size: 10px;
+  }
+}
+
+/*
+ * Grobe Zeiger (Finger, Stift): Aktionen an Kommentaren dürfen nicht am
+ * Zeigen hängen – dort gibt es kein Hover.
+ */
+@media (hover: none) {
+  .comment__actions {
+    opacity: 1;
+  }
+
+  .iconbutton {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/*
+ * iOS zoomt in jedes Eingabefeld unter 16 px hinein. Das gilt für Touch-
+ * Geräte; am Schreibtisch bleibt die kompaktere Schrift.
+ */
+@media (hover: none) and (max-width: 860px) {
+  .input,
+  .textarea,
+  .select {
+    font-size: 16px;
+  }
 }

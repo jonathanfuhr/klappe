@@ -31,6 +31,11 @@ class UpdateVersionDto {
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Das Datum muss im Format JJJJ-MM-TT stehen.' })
   fileDate?: string;
+
+  /** Endfassung (Phase 17) – ohne Haken sieht der Kunde einen Hinweis. */
+  @IsOptional()
+  @IsBoolean()
+  isFinal?: boolean;
 }
 
 @Controller('v1/versions')
@@ -64,6 +69,7 @@ export class VersionsController {
         label: dto.label === undefined ? undefined : dto.label.trim() || null,
         downloadEnabled: dto.downloadEnabled,
         fileDate: dto.fileDate,
+        isFinal: dto.isFinal,
       },
       scope,
     );

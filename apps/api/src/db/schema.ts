@@ -120,6 +120,14 @@ export const videoVersions = pgTable(
     uploadedById: uuid('uploaded_by_id').references(() => users.id, { onDelete: 'set null' }),
     /** Schalter für diese eine Fassung, z. B. wenn nur v3 raus darf. */
     downloadEnabled: boolean('download_enabled').notNull().default(true),
+    /**
+     * Endfassung (Phase 17). Solange der Haken fehlt, warnt die Oberfläche
+     * Gäste, dass sie eine Vorschau sehen, und der Downloadname trägt es mit.
+     * Bewusst der Standard: Eine Fassung ist beim Hochladen erst einmal
+     * Zwischenstand – final wird sie durch eine Entscheidung, nicht durch
+     * Vergesslichkeit.
+     */
+    isFinal: boolean('is_final').notNull().default(false),
 
     // Original – wird für Downloads immer unverändert ausgeliefert.
     originalFilename: text('original_filename').notNull(),

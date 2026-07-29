@@ -44,6 +44,7 @@ export class EmbedController {
       title: ziel.videoName,
       versionId: ziel.version.id,
       versionLabel: versionLabel(Number(ziel.version.versionNumber)),
+      isFinal: ziel.version.isFinal,
       width: ziel.version.proxyWidth ?? ziel.version.width,
       height: ziel.version.proxyHeight ?? ziel.version.height,
       durationSeconds: ziel.version.durationSeconds,

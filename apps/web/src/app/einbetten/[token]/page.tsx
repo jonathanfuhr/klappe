@@ -81,6 +81,9 @@ export default function EmbedPage() {
           {daten.title}
         </span>
         <span className="embed__version">{daten.versionLabel}</span>
+        {/* Auch hier, wo sonst nichts steht: Wer eine Zwischenfassung
+            eingebettet sieht, soll sie nicht für das Ergebnis halten. */}
+        {!daten.isFinal ? <span className="embed__version">Vorschau</span> : null}
         <span className="embed__spacer" />
         <span className="embed__brand">{daten.brandTitle}</span>
       </div>

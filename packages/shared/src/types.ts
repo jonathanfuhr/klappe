@@ -172,6 +172,8 @@ export interface VersionDto {
   commentCount: number;
   /** Schalter für diese Fassung. */
   downloadEnabled: boolean;
+  /** Endfassung (Phase 17)? Ohne Haken warnt die Oberfläche Gäste. */
+  isFinal: boolean;
   /** Darf der anfragende Benutzer diese Fassung herunterladen? */
   canDownload: boolean;
   /** Wie die Abspielfassung entstanden ist – `null`, solange sie fehlt. */
@@ -432,6 +434,8 @@ export interface EmbedDto {
   versionId: string;
   /** `v2` oder `v2.5`, für die dezente Beschriftung. */
   versionLabel: string;
+  /** Endfassung (Phase 17)? Ohne Haken steht „Vorschau" in der Leiste. */
+  isFinal: boolean;
   width: number | null;
   height: number | null;
   durationSeconds: number | null;

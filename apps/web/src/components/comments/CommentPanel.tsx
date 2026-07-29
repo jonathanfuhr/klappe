@@ -28,6 +28,8 @@ interface CommentPanelProps {
 }
 
 type Filter = 'alle' | 'offen' | 'erledigt';
+/** Standard ist der Timecode – so liest man ein Video, nicht nach Uhrzeit. */
+type Sortierung = 'timecode' | 'erstellt';
 
 export function CommentPanel({
   comments,
@@ -46,14 +48,38 @@ export function CommentPanel({
   canComment = true,
 }: CommentPanelProps) {
   const [filter, setFilter] = useState<Filter>('alle');
+  const [sortierung, setSortierung] = useState<Sortierung>('timecode');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
 
   const visible = useMemo(() => {
-    if (filter === 'offen') return comments.filter((comment) => !comment.resolvedAt);
-    if (filter === 'erledigt') return comments.filter((comment) => comment.resolvedAt);
-    return comments;
-  }, [comments, filter]);
+    const gefiltert =
+      filter === 'offen'
+        ? comments.filter((comment) => !comment.resolvedAt)
+        : filter === 'erledigt'
+          ? comments.filter((comment) => comment.resolvedAt)
+          : comments;
+
+    // Nur die obersten Kommentare werden umsortiert (Phase 17). Antworten
+    // bleiben in ihrem Faden chronologisch – ein Gespräch nach Timecode zu
+    // ordnen ergäbe keinen Sinn.
+    if (sortierung === 'erstellt') {
+      return [...gefiltert].sort((links, rechts) =>
+        links.createdAt.localeCompare(rechts.createdAt),
+      );
+    }
+    return [...gefiltert].sort((links, rechts) => {
+      // Dieselbe Ordnung wie in der API (`comments.service.ts`): nach Frame,
+      // und allgemeine Anmerkungen ohne Zeitbezug hängen sich hinten an.
+      if (links.frame === null && rechts.frame === null) {
+        return links.createdAt.localeCompare(rechts.createdAt);
+      }
+      if (links.frame === null) return 1;
+      if (rechts.frame === null) return -1;
+      if (links.frame !== rechts.frame) return links.frame - rechts.frame;
+      return links.createdAt.localeCompare(rechts.createdAt);
+    });
+  }, [comments, filter, sortierung]);
 
   const openCount = comments.filter((comment) => !comment.resolvedAt).length;
 
@@ -73,6 +99,16 @@ export function CommentPanel({
           <option value="alle">Alle</option>
           <option value="offen">Offen</option>
           <option value="erledigt">Erledigt</option>
+        </select>
+        <select
+          className="select"
+          style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
+          value={sortierung}
+          onChange={(event) => setSortierung(event.target.value as Sortierung)}
+          aria-label="Sortierung"
+        >
+          <option value="timecode">nach Timecode</option>
+          <option value="erstellt">nach Zeitpunkt</option>
         </select>
       </div>
 

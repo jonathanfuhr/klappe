@@ -187,7 +187,7 @@ export const api = {
   getVersion: (id: string) => request<VersionDto>(`/v1/versions/${id}`),
   updateVersion: (
     id: string,
-    input: { label?: string; downloadEnabled?: boolean; fileDate?: string },
+    input: { label?: string; downloadEnabled?: boolean; fileDate?: string; isFinal?: boolean },
   ) =>
     request<VersionDto>(`/v1/versions/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteVersion: (id: string) => request<void>(`/v1/versions/${id}`, { method: 'DELETE' }),

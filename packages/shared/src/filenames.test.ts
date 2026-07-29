@@ -115,3 +115,31 @@ describe('extensionOf', () => {
     expect(extensionOf('seltsam.endung-mit-strich')).toBeNull();
   });
 });
+
+describe('buildDownloadFilename – Endfassung', () => {
+  const basis = {
+    date: '260304',
+    customer: 'THD',
+    projectName: 'Kampagne',
+    videoName: 'Teaser',
+    versionNumber: 1,
+    resolution: '1080p25',
+    extension: 'mov',
+  };
+
+  it('schreibt „Vorschau“ hinter die Nummer, solange die Fassung nicht final ist', () => {
+    expect(buildDownloadFilename({ ...basis, isFinal: false })).toBe(
+      '260304_THD_Kampagne_Teaser_v1_Vorschau_1080p25.mov',
+    );
+  });
+
+  it('lässt den Namen bei einer Endfassung unverändert', () => {
+    expect(buildDownloadFilename({ ...basis, isFinal: true })).toBe(
+      '260304_THD_Kampagne_Teaser_v1_1080p25.mov',
+    );
+  });
+
+  it('schweigt, wenn niemand nach der Endfassung fragt – alte Aufrufer bleiben gültig', () => {
+    expect(buildDownloadFilename(basis)).toBe('260304_THD_Kampagne_Teaser_v1_1080p25.mov');
+  });
+});

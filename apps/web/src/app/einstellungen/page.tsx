@@ -5,60 +5,78 @@ import { AppShell } from '@/components/AppShell';
 import { AuthPanel } from '@/components/settings/AuthPanel';
 import { BrandingPanel } from '@/components/settings/BrandingPanel';
 import { FieldsPanel } from '@/components/settings/FieldsPanel';
+import { GuestsPanel } from '@/components/settings/GuestsPanel';
 import { SmtpPanel } from '@/components/settings/SmtpPanel';
+import { UsersPanel } from '@/components/settings/UsersPanel';
 import { useSession } from '@/lib/session';
 
-const TABS = [
-  { id: 'branding', label: 'Erscheinungsbild' },
-  { id: 'auth', label: 'Anmeldung' },
-  { id: 'mail', label: 'E-Mail-Versand' },
-  { id: 'felder', label: 'Benutzerdefinierte Felder' },
+/**
+ * Die Bereiche der Einstellungen (Phase 17). Senkrecht statt waagerecht, weil
+ * die Liste weiter wächst – Reiter in einer Zeile wären längst umgebrochen.
+ *
+ * `team: true` heißt: auch Mitglieder dürfen hinein. Alles andere ist
+ * Admin-Sache.
+ */
+const BEREICHE = [
+  { id: 'gaeste', label: 'Gäste', team: true },
+  { id: 'benutzer', label: 'Benutzer', team: false },
+  { id: 'felder', label: 'Benutzerdefinierte Felder', team: false },
+  { id: 'branding', label: 'Erscheinungsbild', team: false },
+  { id: 'auth', label: 'Anmeldung', team: false },
+  { id: 'mail', label: 'E-Mail-Versand', team: false },
 ] as const;
 
-type TabId = (typeof TABS)[number]['id'];
+type BereichId = (typeof BEREICHE)[number]['id'];
 
-/** Einstellungen des Workspace – alles, was nur Administratoren angeht. */
+/** Einstellungen des Workspace – Verwaltung und alles Workspace-Weite. */
 export default function SettingsPage() {
   const { user, loading } = useSession();
-  const [tab, setTab] = useState<TabId>('branding');
+  const istAdmin = user?.role === 'ADMIN';
+  const istTeam = istAdmin || user?.role === 'MEMBER';
+  const sichtbar = BEREICHE.filter((bereich) => (istAdmin ? true : bereich.team));
+  // Mitglieder landen auf dem ersten Bereich, den sie sehen dürfen.
+  const [bereich, setBereich] = useState<BereichId>(istAdmin ? 'branding' : 'gaeste');
 
-  if (!loading && user && user.role !== 'ADMIN') {
+  if (!loading && !istTeam) {
     return (
       <AppShell>
         <div className="page">
-          <div className="empty">Diese Seite ist Administratoren vorbehalten.</div>
+          <div className="empty">Diese Seite ist dem Team vorbehalten.</div>
         </div>
       </AppShell>
     );
   }
 
+  const gewaehlt = sichtbar.some((eintrag) => eintrag.id === bereich)
+    ? bereich
+    : (sichtbar[0]?.id ?? 'gaeste');
+
   return (
     <AppShell>
-      <div className="page" style={{ maxWidth: 760 }}>
-        <div className="page__header">
-          <div>
-            <h1 className="page__title">Einstellungen</h1>
-          </div>
-        </div>
-
-        <div className="tabs">
-          {TABS.map((entry) => (
+      <div className="page settingspage">
+        <nav className="settingsnav" aria-label="Einstellungen">
+          <span className="settingsnav__title">Einstellungen</span>
+          {sichtbar.map((eintrag) => (
             <button
-              key={entry.id}
+              key={eintrag.id}
               type="button"
-              className="tabs__tab"
-              data-active={tab === entry.id}
-              onClick={() => setTab(entry.id)}
+              className="settingsnav__item"
+              data-active={gewaehlt === eintrag.id}
+              onClick={() => setBereich(eintrag.id)}
             >
-              {entry.label}
+              {eintrag.label}
             </button>
           ))}
-        </div>
+        </nav>
 
-        {tab === 'branding' ? <BrandingPanel /> : null}
-        {tab === 'auth' ? <AuthPanel /> : null}
-        {tab === 'mail' ? <SmtpPanel /> : null}
-        {tab === 'felder' ? <FieldsPanel /> : null}
+        <div className="settingspage__body">
+          {gewaehlt === 'gaeste' ? <GuestsPanel /> : null}
+          {gewaehlt === 'benutzer' ? <UsersPanel /> : null}
+          {gewaehlt === 'felder' ? <FieldsPanel /> : null}
+          {gewaehlt === 'branding' ? <BrandingPanel /> : null}
+          {gewaehlt === 'auth' ? <AuthPanel /> : null}
+          {gewaehlt === 'mail' ? <SmtpPanel /> : null}
+        </div>
       </div>
     </AppShell>
   );

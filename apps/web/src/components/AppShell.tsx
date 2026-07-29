@@ -33,20 +33,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href="/projekte" data-active={pathname.startsWith('/projekte')}>
             Projekte
           </Link>
+          {/* Gäste und Benutzer stehen seit Phase 17 in den Einstellungen –
+              die Kopfzeile trägt nur noch, was täglich gebraucht wird. */}
           {user?.role === 'ADMIN' || user?.role === 'MEMBER' ? (
-            <Link href="/gaeste" data-active={pathname.startsWith('/gaeste')}>
-              Gäste
+            <Link href="/einstellungen" data-active={pathname.startsWith('/einstellungen')}>
+              Einstellungen
             </Link>
-          ) : null}
-          {user?.role === 'ADMIN' ? (
-            <>
-              <Link href="/benutzer" data-active={pathname.startsWith('/benutzer')}>
-                Benutzer
-              </Link>
-              <Link href="/einstellungen" data-active={pathname.startsWith('/einstellungen')}>
-                Einstellungen
-              </Link>
-            </>
           ) : null}
         </nav>
 

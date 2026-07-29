@@ -279,8 +279,31 @@ export default function ReviewPage() {
             ) : null}
           </div>
 
+          {/* Solange keine Endfassung markiert ist, sagt es die Seite – zuerst
+              dem Kunden, der sonst eine Zwischenfassung für das Ergebnis
+              hält. Das Team sieht denselben Hinweis samt Schalter. */}
+          {selectedVersion && !selectedVersion.isFinal ? (
+            <div className="notice notice--warn">
+              <strong>Noch keine Endfassung.</strong> Diese Fassung ist ein Zwischenstand zur
+              Abstimmung – Bild, Ton und Schnitt können sich noch ändern.
+              {isTeam ? ' Setz den Haken unten, sobald sie final ist.' : ''}
+            </div>
+          ) : null}
+
           {isTeam && video && selectedVersion ? (
             <div className="toolbar card" style={{ padding: '8px 14px' }}>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={selectedVersion.isFinal}
+                  onChange={(event) => {
+                    void api
+                      .updateVersion(selectedVersion.id, { isFinal: event.target.checked })
+                      .then(loadVideo);
+                  }}
+                />
+                Endfassung
+              </label>
               <span className="muted" style={{ fontSize: 13 }}>
                 Download für Gäste:
               </span>

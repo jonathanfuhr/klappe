@@ -322,7 +322,12 @@ export class VersionsService {
 
   async update(
     versionId: string,
-    changes: { label?: string | null; downloadEnabled?: boolean; fileDate?: string },
+    changes: {
+      label?: string | null;
+      downloadEnabled?: boolean;
+      fileDate?: string;
+      isFinal?: boolean;
+    },
     scope: AccessScope,
   ): Promise<VersionDto> {
     const [row] = await this.db
@@ -331,6 +336,7 @@ export class VersionsService {
         label: changes.label,
         downloadEnabled: changes.downloadEnabled,
         fileDate: changes.fileDate,
+        isFinal: changes.isFinal,
         updatedAt: new Date(),
       })
       .where(eq(videoVersions.id, versionId))
@@ -422,6 +428,7 @@ export class VersionsService {
           : null,
       commentCount: row.commentCount,
       downloadEnabled: version.downloadEnabled,
+      isFinal: version.isFinal,
       canDownload,
       playbackMode: version.playbackMode,
       playbackReason: version.playbackReason,
@@ -433,6 +440,7 @@ export class VersionsService {
         projectName: row.projectName ?? 'Projekt',
         videoName: row.videoName ?? 'Video',
         versionNumber: Number(version.versionNumber),
+        isFinal: version.isFinal,
         resolution: resolutionLabel(version.width, version.height, frameRate),
         extension: extensionOf(version.originalFilename),
       }),

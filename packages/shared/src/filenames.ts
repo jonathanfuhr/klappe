@@ -18,6 +18,11 @@ export interface DownloadNameInput {
   projectName: string;
   videoName: string;
   versionNumber: number;
+  /**
+   * Endfassung (Phase 17)? Ist sie es nicht, steht `Vorschau` im Namen –
+   * damit eine Datei auch außerhalb von Klappe noch sagt, was sie ist.
+   */
+  isFinal?: boolean;
   /** `2160p25`, `1080p50` – siehe `resolutionLabel` in der API. */
   resolution: string | null;
   /** Endung der Originaldatei, ohne Punkt. */
@@ -66,6 +71,9 @@ export function buildDownloadFilename(input: DownloadNameInput): string {
     versionForFilename(
       Number.isFinite(input.versionNumber) && input.versionNumber > 0 ? input.versionNumber : 1,
     ),
+    // Direkt hinter der Nummer, wo man es liest, bevor der Blick zur Auflösung
+    // wandert. `isFinal` fehlt bei älteren Aufrufern – dann bleibt es weg.
+    input.isFinal === false ? 'Vorschau' : null,
     input.resolution ? sanitizeNamePart(input.resolution) : null,
   ].filter((part): part is string => Boolean(part));
 

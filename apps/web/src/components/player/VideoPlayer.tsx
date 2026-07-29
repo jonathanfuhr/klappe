@@ -225,6 +225,27 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
     setDrawingMode(true);
   }, [stopTransport]);
 
+  /**
+   * Dreht man das Handy quer, geht der Player ins Vollbild; zurück ins
+   * Hochformat verlässt es wieder (Phase 17). Bewusst nur beim **Wechsel**
+   * und nur bei grobem Zeiger: Ein Laptop im Querformat soll nicht plötzlich
+   * Vollbild anzeigen, und ungefragtes Vollbild beim ersten Laden wäre
+   * übergriffig.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const quer = window.matchMedia('(orientation: landscape) and (hover: none) and (max-height: 560px)');
+    const wechsel = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        void toggleFullscreen(containerRef.current, videoRef.current);
+      } else if (document.fullscreenElement) {
+        void document.exitFullscreen().catch(() => undefined);
+      }
+    };
+    quer.addEventListener('change', wechsel);
+    return () => quer.removeEventListener('change', wechsel);
+  }, []);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -314,7 +335,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         case 'f':
         case 'F':
           event.preventDefault();
-          void toggleFullscreen(containerRef.current);
+          void toggleFullscreen(containerRef.current, videoRef.current);
           break;
         case 'c':
         case 'C':
@@ -465,6 +486,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         <button
           type="button"
           className="iconbutton"
+          data-mobil="aus"
           onClick={() => shuttle(-1)}
           disabled={!hasProxy}
           title="Rückwärts (J)"
@@ -506,6 +528,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         <button
           type="button"
           className="iconbutton"
+          data-mobil="aus"
           onClick={() => shuttle(1)}
           disabled={!hasProxy}
           title="Vorwärts (L)"
@@ -514,7 +537,9 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           ▶▶
         </button>
 
-        <span className="player__rate mono">{rate === 0 ? '–' : `${rate > 0 ? '' : '−'}${Math.abs(rate)}×`}</span>
+        <span className="player__rate mono" data-mobil="aus">
+          {rate === 0 ? '–' : `${rate > 0 ? '' : '−'}${Math.abs(rate)}×`}
+        </span>
 
         <div className="player__counter">
           <span className="player__timecode mono">
@@ -552,7 +577,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         <button
           type="button"
           className="iconbutton"
-          onClick={() => void toggleFullscreen(containerRef.current)}
+          onClick={() => void toggleFullscreen(containerRef.current, videoRef.current)}
           disabled={!hasProxy}
           title="Vollbild (F)"
           aria-label="Vollbild"
@@ -587,11 +612,27 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   );
 });
 
-async function toggleFullscreen(element: HTMLElement | null): Promise<void> {
-  if (!element) return;
+/**
+ * Vollbild – mit eigenem Weg für iPhone und iPad.
+ *
+ * Dort kennt Safari `requestFullscreen()` auf einem `div` nicht; nur das
+ * `video`-Element selbst kann über `webkitEnterFullscreen()` groß werden.
+ * Das kostet zwar die eigenen Leisten (iOS zeigt seine eigenen), ist aber der
+ * einzige Weg, auf dem der Knopf dort überhaupt etwas tut – vorher blieb er
+ * wirkungslos.
+ */
+async function toggleFullscreen(
+  element: HTMLElement | null,
+  video: HTMLVideoElement | null,
+): Promise<void> {
   if (document.fullscreenElement) {
     await document.exitFullscreen().catch(() => undefined);
     return;
   }
-  await element.requestFullscreen().catch(() => undefined);
+  if (element?.requestFullscreen) {
+    await element.requestFullscreen().catch(() => undefined);
+    return;
+  }
+  const iosVideo = video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+  iosVideo?.webkitEnterFullscreen?.();
 }
