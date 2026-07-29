@@ -28,6 +28,7 @@ export function SmtpPanel() {
     password: '',
     fromName: 'Klappe',
     fromEmail: '',
+    digestMinutes: 5,
   });
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export function SmtpPanel() {
         password: '',
         fromName: current.fromName ?? 'Klappe',
         fromEmail: current.fromEmail ?? '',
+        digestMinutes: current.digestMinutes,
       });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
@@ -86,6 +88,7 @@ export function SmtpPanel() {
         ...(form.password ? { password: form.password } : {}),
         fromName: form.fromName,
         fromEmail: form.fromEmail,
+        digestMinutes: form.digestMinutes,
       });
       setSettings(saved);
       setForm((current) => ({ ...current, password: '' }));
@@ -260,6 +263,36 @@ export function SmtpPanel() {
           Damit Codes und Benachrichtigungen nicht im Spam landen, sollte die Absender-Domain SPF und
           DKIM gesetzt haben.
         </p>
+
+        <div className="section">
+          <div className="section__head">
+            <h2 className="section__title">Sammelmails</h2>
+          </div>
+          <div className="field">
+            <label className="field__label" htmlFor="digest-minutes">
+              Ruhezeit in Minuten
+            </label>
+            <input
+              id="digest-minutes"
+              className="input"
+              type="number"
+              min={0}
+              max={120}
+              style={{ maxWidth: 160 }}
+              value={form.digestMinutes}
+              onChange={(event) =>
+                setForm({ ...form, digestMinutes: Number(event.target.value) || 0 })
+              }
+            />
+            <p className="hint">
+              Wer ein Video durchsieht, hinterlässt selten nur eine Anmerkung. Statt jede sofort zu
+              verschicken, wartet Klappe, bis so viele Minuten lang kein neuer Kommentar mehr kam,
+              und schickt dann eine Mail mit allen – je Empfänger und Video.{' '}
+              <strong>0</strong> verschickt sofort, also eine Mail je Kommentar. Erwähnungen
+              stehen auch in der Sammelmail im Betreff.
+            </p>
+          </div>
+        </div>
 
         <div className="toolbar" style={{ marginTop: 18 }}>
           {settings ? (

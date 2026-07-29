@@ -375,6 +375,7 @@ export const api = {
     password?: string;
     fromName?: string;
     fromEmail?: string;
+    digestMinutes?: number;
   }) => request<SmtpSettingsDto>('/v1/settings/smtp', { method: 'PUT', body: JSON.stringify(input) }),
   smtpPresets: () => request<SmtpProviderPresetDto[]>('/v1/settings/smtp/presets'),
 

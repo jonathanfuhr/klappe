@@ -99,6 +99,13 @@
       "when": 1785262370399,
       "tag": "0013_endfassung",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785262430399,
+      "tag": "0014_mailbuendel",
+      "breakpoints": true
     }
   ]
 }

@@ -545,8 +545,51 @@ export const appSettings = pgTable('app_settings', {
    */
   tagsEnabled: boolean('tags_enabled').notNull().default(true),
 
+  // ---------- Benachrichtigungen (Phase 18) ----------
+  /**
+   * Ruhezeit vor dem Versand: Erst wenn so viele Minuten lang kein neuer
+   * Kommentar mehr kam, geht eine Sammelmail raus. `0` schaltet das Bündeln
+   * ab und schickt wie früher sofort.
+   */
+  mailDigestMinutes: integer('mail_digest_minutes').notNull().default(5),
+
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Wartende Benachrichtigungen (Phase 18).
+ *
+ * Ein Kommentar landet hier je Empfänger, statt sofort eine Mail auszulösen.
+ * Der Worker schaut nach der Ruhezeit noch einmal her und macht aus allem,
+ * was zu einem Empfänger und einem Video wartet, genau eine Mail. Die Zeile
+ * verschwindet mit dem Versand – und mit dem Kommentar, falls der vorher
+ * gelöscht wird.
+ */
+export const pendingNotifications = pgTable(
+  'pending_notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    commentId: uuid('comment_id')
+      .notNull()
+      .references(() => comments.id, { onDelete: 'cascade' }),
+    /** Sammelpunkt: eine Mail je Video, nicht je Fassung. */
+    videoId: uuid('video_id')
+      .notNull()
+      .references(() => videos.id, { onDelete: 'cascade' }),
+    /** Wurde der Empfänger namentlich erwähnt? Steht dann auch im Betreff. */
+    mentioned: boolean('mentioned').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Derselbe Kommentar darf nicht zweimal für dieselbe Person warten –
+    // sonst stünde er nach einem wiederholten Job doppelt in der Mail.
+    uniqueIndex('pending_notifications_user_comment_idx').on(table.userId, table.commentId),
+    index('pending_notifications_user_video_idx').on(table.userId, table.videoId),
+  ],
+);
 
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
@@ -617,3 +660,4 @@ export type AppSettingsRow = typeof appSettings.$inferSelect;
 export type TagRow = typeof tags.$inferSelect;
 export type ProjectFieldDefRow = typeof projectFieldDefs.$inferSelect;
 export type ProjectFolderRow = typeof projectFolders.$inferSelect;
+export type PendingNotificationRow = typeof pendingNotifications.$inferSelect;

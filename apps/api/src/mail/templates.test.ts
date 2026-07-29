@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  renderCommentDigestMail,
   renderCommentMail,
   renderGuestCodeMail,
   renderProjectFileMail,
@@ -75,6 +76,103 @@ describe('renderCommentMail', () => {
   it('maskiert auch Anführungszeichen in Links', () => {
     const mail = renderCommentMail({ ...basis, url: 'https://x.example/"onmouseover="alert(1)' });
     expect(mail.html).not.toContain('"onmouseover="');
+  });
+});
+
+describe('renderCommentDigestMail', () => {
+  const sammel = {
+    recipientName: 'Anna Meier',
+    projectName: 'THD Imagefilm',
+    videoName: 'Schnittfassung',
+    url: 'https://klappe.example/videos/abc',
+    unsubscribeUrl: 'https://klappe.example/abmelden?token=xyz',
+    entries: [
+      {
+        authorName: 'Jonathan Fuhr',
+        versionLabel: 'v2',
+        timecode: '10:00:04:00',
+        body: 'Ab hier wackelt die Kamera.',
+        mentioned: false,
+      },
+      {
+        authorName: 'Jonathan Fuhr',
+        versionLabel: 'v2',
+        timecode: '10:00:12:03',
+        body: 'Ton setzt zu spät ein.',
+        mentioned: false,
+      },
+      {
+        authorName: 'Kunde GmbH',
+        versionLabel: 'v3',
+        timecode: null,
+        body: 'Sonst passt alles.',
+        mentioned: false,
+      },
+    ],
+  };
+
+  it('zählt die Kommentare im Betreff', () => {
+    expect(renderCommentDigestMail(sammel).subject).toBe(
+      '3 neue Kommentare zu „Schnittfassung“',
+    );
+  });
+
+  it('nennt jeden Autor genau einmal', () => {
+    const mail = renderCommentDigestMail(sammel);
+    expect(mail.text).toContain('Jonathan Fuhr und Kunde GmbH haben');
+    // Im Fließtext steht der Name einmal, dazu je Kommentar in der Kopfzeile.
+    expect(mail.text.match(/Jonathan Fuhr/g)).toHaveLength(3);
+  });
+
+  it('führt jeden Kommentar mit Fassung und Timecode auf', () => {
+    const mail = renderCommentDigestMail(sammel);
+    for (const wert of [
+      'v2',
+      'v3',
+      '10:00:04:00',
+      '10:00:12:03',
+      'Ab hier wackelt die Kamera.',
+      'Ton setzt zu spät ein.',
+      'Sonst passt alles.',
+    ]) {
+      expect(mail.text).toContain(wert);
+      expect(mail.html).toContain(wert);
+    }
+    expect(mail.text).toContain('[ohne Zeitbezug]');
+  });
+
+  // Der Grund, warum jemand sofort hineinschaut – das darf nicht untergehen.
+  it('hebt eine Erwähnung im Betreff hervor', () => {
+    const mail = renderCommentDigestMail({
+      ...sammel,
+      entries: [sammel.entries[0], { ...sammel.entries[1], mentioned: true }],
+    });
+    expect(mail.subject).toBe('Du wurdest erwähnt – 2 neue Kommentare zu „Schnittfassung“');
+    expect(mail.html).toContain('dich erwähnt');
+  });
+
+  it('formuliert bei einem einzelnen Kommentar im Singular', () => {
+    const mail = renderCommentDigestMail({ ...sammel, entries: [sammel.entries[0]] });
+    expect(mail.subject).toBe('Ein neuer Kommentar zu „Schnittfassung“');
+    expect(mail.text).toContain('Jonathan Fuhr hat');
+  });
+
+  it('maskiert HTML aus Text und Namen', () => {
+    const mail = renderCommentDigestMail({
+      ...sammel,
+      entries: [
+        { ...sammel.entries[0], body: '<img src=x onerror="alert(1)">', authorName: 'Böse<script>' },
+      ],
+    });
+    expect(mail.html).not.toContain('<img src=x');
+    expect(mail.html).not.toContain('<script>');
+  });
+
+  it('enthält den Link zum Player und zum Abbestellen', () => {
+    const mail = renderCommentDigestMail(sammel);
+    expect(mail.html).toContain(sammel.url);
+    expect(mail.html).toContain(sammel.unsubscribeUrl);
+    expect(mail.text).toContain(sammel.unsubscribeUrl);
   });
 });
 

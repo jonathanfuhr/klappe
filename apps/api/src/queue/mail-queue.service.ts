@@ -13,9 +13,9 @@ export class MailQueueService {
    * Ein fehlgeschlagener Versand darf die auslösende Aktion nie umwerfen:
    * Ein Kommentar ist gespeichert, auch wenn Redis gerade klemmt.
    */
-  async enqueue(data: MailJobData): Promise<void> {
+  async enqueue(data: MailJobData, delayMs = 0): Promise<void> {
     try {
-      await this.queue.add(MAIL_JOB, data);
+      await this.queue.add(MAIL_JOB, data, delayMs > 0 ? { delay: Math.round(delayMs) } : undefined);
     } catch (error) {
       this.logger.error(`Benachrichtigung konnte nicht eingereiht werden: ${String(error)}`);
     }

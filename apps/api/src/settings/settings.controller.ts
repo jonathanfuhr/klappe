@@ -14,7 +14,7 @@ import { CurrentUser, Public, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
 import { MailService } from '../mail/mail.service';
 import { AuthSettingsService } from './auth-settings.service';
-import { SettingsService } from './settings.service';
+import { MAX_MAIL_DIGEST_MINUTES, SettingsService } from './settings.service';
 import { SMTP_PRESETS } from './smtp-presets';
 
 class UpdateSmtpDto {
@@ -62,6 +62,13 @@ class UpdateSmtpDto {
   @IsEmail()
   @MaxLength(320)
   fromEmail?: string;
+
+  /** Ruhezeit vor der Sammelmail; `0` verschickt sofort (Phase 18). */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_MAIL_DIGEST_MINUTES)
+  digestMinutes?: number;
 }
 
 class TestMailDto {
@@ -139,6 +146,7 @@ export class SettingsController {
       password: dto.password === undefined ? undefined : dto.password || null,
       fromName: dto.fromName,
       fromEmail: dto.fromEmail,
+      digestMinutes: dto.digestMinutes,
     });
   }
 

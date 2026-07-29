@@ -190,6 +190,95 @@ export function renderCommentMail(input: CommentMailInput): RenderedMail {
   };
 }
 
+// ---------- Sammelmail für Kommentare (Phase 18) ----------
+
+export interface CommentDigestEntry {
+  authorName: string;
+  versionLabel: string;
+  timecode: string | null;
+  body: string;
+  /** Der Empfänger wurde in genau diesem Kommentar erwähnt. */
+  mentioned: boolean;
+}
+
+export interface CommentDigestMailInput {
+  recipientName: string;
+  projectName: string;
+  videoName: string;
+  /** In der Reihenfolge, in der sie geschrieben wurden. */
+  entries: CommentDigestEntry[];
+  url: string;
+  unsubscribeUrl: string;
+  brand?: MailBrand;
+}
+
+/** „Anna, Bernd und Clara“ – Aufzählung, wie man sie spricht. */
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} und ${names[names.length - 1]}`;
+}
+
+/**
+ * Ein Block je Kommentar: Wer, zu welcher Fassung, an welcher Stelle. Die
+ * Fassung steht dabei, weil eine Sammelmail durchaus Kommentare zu v1 und v2
+ * enthalten kann.
+ */
+function digestEntry(entry: CommentDigestEntry): string {
+  const kopf = `${entry.authorName} · ${entry.versionLabel}${entry.mentioned ? ' · dich erwähnt' : ''}`;
+  return `<div style="margin:0 0 18px"><div style="font-size:13px;color:#6b7482;margin-bottom:5px">${escapeHtml(kopf)}</div>${quote(entry.body, entry.timecode)}</div>`;
+}
+
+export function renderCommentDigestMail(input: CommentDigestMailInput): RenderedMail {
+  const anzahl = input.entries.length;
+  const erwaehnt = input.entries.some((entry) => entry.mentioned);
+  const autoren = joinNames([...new Set(input.entries.map((entry) => entry.authorName))]);
+
+  const kern =
+    anzahl === 1
+      ? `Ein neuer Kommentar zu „${input.videoName}“`
+      : `${anzahl} neue Kommentare zu „${input.videoName}“`;
+  // Eine Erwähnung gehört in den Betreff – sonst geht sie in der Sammelmail
+  // unter, und genau die ist der Grund, warum jemand sofort hineinschaut.
+  const subject = erwaehnt
+    ? `Du wurdest erwähnt – ${kern.charAt(0).toLowerCase()}${kern.slice(1)}`
+    : kern;
+
+  const intro = `${autoren} ${anzahl === 1 ? 'hat' : 'haben'} „${input.videoName}“ kommentiert.`;
+
+  const text = [
+    `Hallo ${input.recipientName},`,
+    '',
+    intro,
+    `Projekt: ${input.projectName}`,
+    '',
+    ...input.entries.flatMap((entry) => [
+      `${entry.authorName} · ${entry.versionLabel}${entry.mentioned ? ' · dich erwähnt' : ''}`,
+      entry.timecode ? `[${entry.timecode}]` : '[ohne Zeitbezug]',
+      entry.body,
+      '',
+    ]),
+    `Ansehen: ${input.url}`,
+    '',
+    `Keine solchen Mails mehr: ${input.unsubscribeUrl}`,
+  ].join('\n');
+
+  return {
+    subject,
+    text,
+    html: layout({
+      brand: input.brand,
+      title: intro,
+      body: [
+        paragraph(`Projekt: ${input.projectName}`),
+        input.entries.map(digestEntry).join(''),
+      ].join(''),
+      buttonLabel: 'Im Player ansehen',
+      buttonUrl: input.url,
+      unsubscribeUrl: input.unsubscribeUrl,
+    }),
+  };
+}
+
 // ---------- Kunden-Upload ----------
 
 export function renderProjectFileMail(input: {

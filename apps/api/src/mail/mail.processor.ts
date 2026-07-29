@@ -25,6 +25,10 @@ export class MailProcessor extends WorkerHost {
         if (sent > 0) this.logger.log(`${sent} Benachrichtigung(en) zu Kommentar ${data.commentId}`);
         break;
       }
+      case 'digest': {
+        await this.notifications.flushDigest(data.userId, data.videoId);
+        break;
+      }
       case 'project-file': {
         const sent = await this.notifications.notifyProjectFile(data.projectFileId);
         if (sent > 0) this.logger.log(`${sent} Hinweis(e) zu Kunden-Upload ${data.projectFileId}`);

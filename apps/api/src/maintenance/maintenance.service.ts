@@ -14,7 +14,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { and, isNotNull, lt, or } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
-import { loginCodes, projectFiles, videoVersions } from '../db/schema';
+import { loginCodes, pendingNotifications, projectFiles, videoVersions } from '../db/schema';
 import { StorageService } from '../storage/storage.service';
 
 /** Einmal am Tag genügt; der erste Lauf kommt kurz nach dem Start. */
@@ -28,10 +28,18 @@ const FIRST_RUN_DELAY_MS = 5 * 60 * 1000;
  */
 const ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * So lange darf eine Benachrichtigung auf ihre Sammelmail warten. Bleibt sie
+ * länger liegen, hat der Versand dauerhaft nicht geklappt – dann ist der
+ * Hinweis ohnehin überholt und die Zeile kann weg (Phase 18).
+ */
+const PENDING_NOTIFICATION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 export interface CleanupReport {
   loginCodes: number;
   orphanFiles: number;
   freedBytes: number;
+  pendingNotifications: number;
 }
 
 @Injectable()
@@ -60,18 +68,38 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
   async runAll(): Promise<CleanupReport> {
     try {
       const codes = await this.cleanupLoginCodes();
+      const hinweise = await this.cleanupPendingNotifications();
       const dateien = await this.cleanupOrphanFiles();
 
-      if (codes > 0 || dateien.count > 0) {
+      if (codes > 0 || dateien.count > 0 || hinweise > 0) {
         this.logger.log(
-          `Aufgeräumt: ${codes} Anmeldecodes, ${dateien.count} verwaiste Dateien (${Math.round(dateien.bytes / 1024 / 1024)} MB).`,
+          `Aufgeräumt: ${codes} Anmeldecodes, ${hinweise} liegengebliebene Benachrichtigungen, ${dateien.count} verwaiste Dateien (${Math.round(dateien.bytes / 1024 / 1024)} MB).`,
         );
       }
-      return { loginCodes: codes, orphanFiles: dateien.count, freedBytes: dateien.bytes };
+      return {
+        loginCodes: codes,
+        orphanFiles: dateien.count,
+        freedBytes: dateien.bytes,
+        pendingNotifications: hinweise,
+      };
     } catch (error) {
       this.logger.error(`Aufräumen fehlgeschlagen: ${String(error)}`);
-      return { loginCodes: 0, orphanFiles: 0, freedBytes: 0 };
+      return { loginCodes: 0, orphanFiles: 0, freedBytes: 0, pendingNotifications: 0 };
     }
+  }
+
+  /**
+   * Vorgemerkte Benachrichtigungen, die nie zugestellt werden konnten. Die
+   * Warteschlange gibt nach ein paar Versuchen auf; ohne diesen Kehraus
+   * blieben die Zeilen für immer stehen.
+   */
+  async cleanupPendingNotifications(): Promise<number> {
+    const grenze = new Date(Date.now() - PENDING_NOTIFICATION_MAX_AGE_MS);
+    const rows = await this.db
+      .delete(pendingNotifications)
+      .where(lt(pendingNotifications.createdAt, grenze))
+      .returning({ id: pendingNotifications.id });
+    return rows.length;
   }
 
   /**

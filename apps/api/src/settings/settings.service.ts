@@ -28,9 +28,20 @@ export interface UpdateSmtpInput {
   password?: string | null;
   fromName?: string | null;
   fromEmail?: string | null;
+  digestMinutes?: number;
 }
 
 const SETTINGS_ID = 1;
+
+/**
+ * Ruhezeit vor dem Versand (Phase 18). Fünf Minuten sind der Vorschlag: Wer
+ * ein Video durchsieht, setzt seine Anmerkungen in kürzeren Abständen – die
+ * landen also in einer Mail –, und wer beiläufig etwas nachträgt, wartet
+ * nicht spürbar lange auf die Zustellung.
+ */
+export const DEFAULT_MAIL_DIGEST_MINUTES = 5;
+/** Länger als zwei Stunden zu sammeln hilft niemandem mehr. */
+export const MAX_MAIL_DIGEST_MINUTES = 120;
 
 @Injectable()
 export class SettingsService {
@@ -76,8 +87,21 @@ export class SettingsService {
       hasPassword: Boolean(row.smtpPasswordEncrypted),
       fromName: row.smtpFromName,
       fromEmail: row.smtpFromEmail,
+      digestMinutes: row.mailDigestMinutes,
       updatedAt: row.updatedAt.toISOString(),
     };
+  }
+
+  /**
+   * Ruhezeit in Minuten. `0` heißt: sofort verschicken. Ein unsinniger Wert
+   * in der Datenbank fällt auf den Standard zurück, statt den Versand
+   * lahmzulegen.
+   */
+  async digestMinutes(): Promise<number> {
+    const row = await this.getRow();
+    const minutes = row.mailDigestMinutes;
+    if (!Number.isFinite(minutes) || minutes < 0) return DEFAULT_MAIL_DIGEST_MINUTES;
+    return Math.min(minutes, MAX_MAIL_DIGEST_MINUTES);
   }
 
   async updateSmtp(input: UpdateSmtpInput): Promise<SmtpSettingsDto> {
@@ -101,6 +125,10 @@ export class SettingsService {
         smtpFromName: input.fromName === undefined ? undefined : input.fromName?.trim() || null,
         smtpFromEmail:
           input.fromEmail === undefined ? undefined : input.fromEmail?.trim().toLowerCase() || null,
+        mailDigestMinutes:
+          input.digestMinutes === undefined
+            ? undefined
+            : Math.max(0, Math.min(MAX_MAIL_DIGEST_MINUTES, Math.round(input.digestMinutes))),
         updatedAt: new Date(),
       })
       .where(eq(appSettings.id, SETTINGS_ID));

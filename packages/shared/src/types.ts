@@ -370,6 +370,12 @@ export interface SmtpSettingsDto {
   hasPassword: boolean;
   fromName: string | null;
   fromEmail: string | null;
+  /**
+   * Ruhezeit in Minuten, bevor eine Sammelmail rausgeht (Phase 18): Erst
+   * wenn so lange kein neuer Kommentar mehr kam, wird zugestellt. `0` heißt
+   * sofort – dann kommt wie früher eine Mail je Kommentar.
+   */
+  digestMinutes: number;
   updatedAt: string;
 }
 
