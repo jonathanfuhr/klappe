@@ -16,5 +16,18 @@
 
 :80 {
 	encode zstd gzip
+
+	# Eine Zeile je Anfrage, mit Kopfzeilen, Statuscode und Dauer.
+	#
+	# Das ist das Mittelstück, das bei der Safari-Suche gefehlt hat: Browser und
+	# API allein sagen nur, dass etwas nicht ankommt – erst der Blick von hier
+	# aus trennt „die Antwort wurde nie geschrieben" von „sie wurde geschrieben
+	# und kam trotzdem nicht an". Genau diese Unterscheidung hat den Fehler
+	# gefunden. Wem es zu geschwätzig ist, nimmt den Block heraus.
+	log {
+		output stdout
+		format json
+	}
+
 	import klappe-routen.caddy
 }

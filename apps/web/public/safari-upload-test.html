@@ -59,6 +59,11 @@
         <option value="4194304" selected>4 MiB (wie die App)</option>
         <option value="8388608">8 MiB (wie früher)</option>
       </select>
+      <label for="lesen" style="margin-top: 12px">Wie der Block verschickt wird</label>
+      <select id="lesen">
+        <option value="speicher" selected>Erst in den Speicher lesen (wie die App)</option>
+        <option value="direkt">Den Datei-Ausschnitt direkt senden (hängt in Safari)</option>
+      </select>
       <p style="margin: 14px 0 0">
         <button id="los">Test starten</button>
         <button id="stopp" class="leise" disabled>Abbrechen</button>
@@ -73,6 +78,7 @@
       const feldDatei = document.getElementById('datei');
       const feldGroesse = document.getElementById('groesse');
       const feldBlock = document.getElementById('block');
+      const feldLesen = document.getElementById('lesen');
       const knopfLos = document.getElementById('los');
       const knopfStopp = document.getElementById('stopp');
       const knopfKopieren = document.getElementById('kopieren');
@@ -119,7 +125,8 @@
        * Block genauso aus wie ein langsamer, und die vier Minuten bis
        * `xhr.timeout` verraten nichts über die Ursache.
        */
-      function sendeBlock(location_, blob, offset) {
+      function sendeBlock(location_, nutzlast, offset) {
+        const groesse = nutzlast.byteLength ?? nutzlast.size;
         return new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           laufenderXhr = xhr;
@@ -137,7 +144,7 @@
               return;
             }
             zeile(
-              `   … seit ${seit}s: ${letzterFortschritt} von ${blob.size} Byte abgegeben ` +
+              `   … seit ${seit}s: ${letzterFortschritt} von ${groesse} Byte abgegeben ` +
                 `(letzte Regung vor ${stille}s, ${anzahlFortschritt} Ereignisse)`,
               stille >= 6 ? 'warn' : 'dim',
             );
@@ -150,7 +157,7 @@
           xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
           xhr.setRequestHeader('Upload-Offset', String(offset));
           xhr.setRequestHeader('Tus-Resumable', '1.0.0');
-          xhr.timeout = 60000 + Math.ceil(blob.size / (20 * 1024)) * 1000;
+          xhr.timeout = 60000 + Math.ceil(groesse / (20 * 1024)) * 1000;
 
           xhr.upload.onprogress = (e) => {
             anzahlFortschritt += 1;
@@ -166,12 +173,12 @@
           };
           xhr.onerror = () => {
             beenden();
-            reject(new Error(`Netzwerkfehler (onerror) nach ${((performance.now() - t0) / 1000).toFixed(1)}s, zuletzt ${letzterFortschritt} von ${blob.size} Byte abgegeben`));
+            reject(new Error(`Netzwerkfehler (onerror) nach ${((performance.now() - t0) / 1000).toFixed(1)}s, zuletzt ${letzterFortschritt} von ${groesse} Byte abgegeben`));
           };
           xhr.ontimeout = () => {
             beenden();
             reject(new Error(
-              `Zeitüberschreitung nach ${Math.round(xhr.timeout / 1000)}s – zuletzt ${letzterFortschritt} von ${blob.size} Byte abgegeben, ` +
+              `Zeitüberschreitung nach ${Math.round(xhr.timeout / 1000)}s – zuletzt ${letzterFortschritt} von ${groesse} Byte abgegeben, ` +
                 (bodyFertigNach !== null
                   ? 'der Body war vollständig draußen, die Antwort kam nie.'
                   : 'der Body kam nicht heraus: Die Gegenstelle hat die Daten nicht abgeholt.'),
@@ -188,7 +195,7 @@
             zeile(`   HTTP ${xhr.status} nach ${dauer}s, ${anzahlFortschritt} Fortschrittsereignisse`, 'ok');
             resolve(Number(xhr.getResponseHeader('Upload-Offset')));
           };
-          xhr.send(blob);
+          xhr.send(nutzlast);
         });
       }
 
@@ -293,7 +300,13 @@
             nummer += 1;
             const ende = Math.min(offset + blockgroesse, datei.size);
             zeile(`Block ${nummer}: ${offset} … ${ende}`);
-            offset = await sendeBlock(sitzung.location, datei.slice(offset, ende), offset);
+            // Der entscheidende Unterschied: Ein *dateigestützter* Body geht in
+            // Safari zwar vollständig raus, aber die Antwort wird dem XHR nie
+            // zugestellt. Erst in den Speicher gelesen, läuft derselbe Block durch.
+            const ausschnitt = datei.slice(offset, ende);
+            const nutzlast =
+              feldLesen.value === 'direkt' ? ausschnitt : await ausschnitt.arrayBuffer();
+            offset = await sendeBlock(sitzung.location, nutzlast, offset);
           }
 
           if (abbrechen) {
