@@ -1,34 +1,20 @@
-# Reverse Proxy für den Betrieb mit eigener Domain.
+# Reverse Proxy für den Betrieb ohne TLS – der Standardfall aus
+# `docker-compose.yml`. Nach außen zeigt nur dieser Dienst.
 #
-# Caddy holt und erneuert das Zertifikat von selbst; außer der Domain ist
-# nichts einzustellen. Wird über docker-compose.https.yml eingebunden.
+# Er steht hier nicht der Bequemlichkeit halber davor, sondern weil `/v1/*` an
+# Nexts eigener Weiterleitung vorbeigeführt werden **muss**: Die Begründung
+# steht in `klappe-routen.caddy`.
+#
+# Für den Betrieb mit eigener Domain und Zertifikat siehe `Caddyfile.https`
+# und `docker-compose.https.yml`.
 
 {
-	email {$ACME_EMAIL}
+	# Ohne Domain gibt es nichts zu verschlüsseln; das spart Caddy den
+	# vergeblichen Versuch, ein Zertifikat zu holen.
+	auto_https off
 }
 
-{$KLAPPE_DOMAIN} {
+:80 {
 	encode zstd gzip
-
-	# Große Uploads dürfen nicht am Proxy scheitern – die eigentliche Grenze
-	# setzt UPLOAD_MAX_BYTES in der API.
-	request_body {
-		max_size 0
-	}
-
-	reverse_proxy web:3000 {
-		# Ohne diese Weitergabe hält die API die Verbindung für unverschlüsselt
-		# und setzt das Sitzungs-Cookie ohne `Secure`.
-		header_up X-Forwarded-Proto {scheme}
-		header_up X-Forwarded-Host {host}
-
-		# Video-Streaming verträgt kein Zwischenspeichern der Antwort.
-		flush_interval -1
-	}
-
-	header {
-		Strict-Transport-Security "max-age=31536000"
-		X-Content-Type-Options "nosniff"
-		Referrer-Policy "strict-origin-when-cross-origin"
-	}
+	import klappe-routen.caddy
 }

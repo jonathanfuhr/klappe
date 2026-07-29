@@ -27,6 +27,13 @@ export interface AppConfig {
     maxBytes: number;
     /** Nach dieser Zeit ohne Fortschritt wird eine Upload-Sitzung aufgeräumt. */
     ttlSeconds: number;
+    /**
+     * Schreibt jeden Block-Aufruf mit: Eintreffen, Byteposition im Stillstand,
+     * Abschluss. Im Normalbetrieb aus – ein 40-GB-Upload erzeugt sonst
+     * zehntausend Zeilen. Angeschaltet wird sie, um einem hängenden Upload
+     * zuzusehen.
+     */
+    trace: boolean;
   };
   bootstrapAdmin: {
     email: string | null;
@@ -130,6 +137,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     uploads: {
       maxBytes: readInt(env, 'UPLOAD_MAX_BYTES', 200 * 1024 * 1024 * 1024),
       ttlSeconds: readInt(env, 'UPLOAD_TTL_SECONDS', 60 * 60 * 24 * 2),
+      trace: readBool(env, 'UPLOAD_TRACE', false),
     },
     bootstrapAdmin: {
       email: env.ADMIN_EMAIL?.trim().toLowerCase() || null,

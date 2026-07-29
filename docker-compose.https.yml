@@ -2,6 +2,10 @@
 #
 #   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
 #
+# Der Reverse Proxy steht schon im Grundstapel – diese Datei gibt ihm nur eine
+# Domain, ein Zertifikat und die Ports 80/443. Die Wegeverteilung bleibt
+# dieselbe (siehe `docker/klappe-routen.caddy`).
+#
 # Wer stattdessen einen Cloudflared-Tunnel benutzt, braucht diese Datei nicht:
 # Der Tunnel bringt TLS mit und verbindet sich von innen nach außen, sodass
 # am Router kein Port offen sein muss. Diese Ergänzung ist für den anderen
@@ -17,25 +21,14 @@
 
 services:
   caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
     environment:
       KLAPPE_DOMAIN: ${KLAPPE_DOMAIN:?KLAPPE_DOMAIN muss gesetzt sein}
       ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL muss gesetzt sein}
-    ports:
+    ports: !override
       - '80:80'
       - '443:443'
-    volumes:
-      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+    volumes: !override
+      - ./docker/Caddyfile.https:/etc/caddy/Caddyfile:ro
+      - ./docker/klappe-routen.caddy:/etc/caddy/klappe-routen.caddy:ro
       - caddy-data:/data
       - caddy-config:/config
-    depends_on:
-      - web
-
-  web:
-    # Hinter dem Reverse Proxy wird der Dienst nicht mehr direkt veröffentlicht.
-    ports: !override []
-
-volumes:
-  caddy-data:
-  caddy-config:

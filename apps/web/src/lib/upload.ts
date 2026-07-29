@@ -129,10 +129,13 @@ function runUpload(
   const promise = (async () => {
     const session = await createSession();
 
-    let offset = session.offsetBytes;
     let attempt = 0;
     let letzteMeldung = 0;
     let entstandeneVersion: string | null = session.versionId;
+
+    // Vor dem ersten Block einmal `HEAD` – nicht wegen des Standes, sondern
+    // wegen der *Verbindung*. Siehe `aufwaermen`.
+    let offset = await aufwaermen(session.location, session.offsetBytes, controller.signal);
 
     report(input.onProgress, offset, input.file.size);
 
@@ -217,6 +220,16 @@ function sendChunk(input: {
   return new Promise<{ offset: number; versionId: string | null }>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let erledigt = false;
+    /**
+     * Zwei Zahlen, die aus „es hängt“ eine Diagnose machen: wie viel der Browser
+     * abgegeben hat, und ob er damit fertig wurde. Ein Block, der stehen bleibt,
+     * **bevor** der Body draußen ist, wird am anderen Ende nicht abgeholt; einer,
+     * der **danach** stehen bleibt, wartet auf die Antwort des Servers. Ohne
+     * diese Unterscheidung sieht beides gleich aus – und genau daran ist die
+     * Safari-Suche bisher gescheitert.
+     */
+    let abgegeben = 0;
+    let bodyDraussen = false;
 
     const aufraeumen = () => {
       erledigt = true;
@@ -249,25 +262,36 @@ function sendChunk(input: {
     // Safari, deren Fortschrittsmeldungen unterwegs versiegen.
     xhr.timeout = chunkTimeoutMs(input.blob.size);
 
-    // Nur noch für die Anzeige – aus diesen Ereignissen wird **keine**
-    // Entscheidung mehr abgeleitet. In WebKit versiegen sie mitten in einer
-    // laufenden Übertragung, und wer daran einen Abbruch hängt, killt genau
-    // das, was gerade funktioniert.
+    // Nur für die Anzeige und für die Fehlermeldung – aus diesen Ereignissen
+    // wird **keine** Entscheidung abgeleitet, insbesondere kein Abbruch. In
+    // WebKit versiegen sie mitten in einer laufenden Übertragung, und wer daran
+    // einen Abbruch hängt, killt genau das, was gerade auf das Weiterlesen der
+    // Gegenstelle wartet.
     xhr.upload.onprogress = (event) => {
+      abgegeben = event.loaded;
       input.onPartial?.(input.offset + event.loaded);
+    };
+    xhr.upload.onload = () => {
+      bodyDraussen = true;
+      abgegeben = input.blob.size;
     };
 
     xhr.onerror = () =>
       scheitern(
         new Error(
-          'Die Verbindung brach während der Übertragung ab (kein Kontakt zum Server).',
+          'Die Verbindung brach während der Übertragung ab (kein Kontakt zum Server) – ' +
+            `nach ${abgegeben} von ${input.blob.size} Byte dieses Blocks.`,
         ),
       );
     xhr.ontimeout = () =>
       scheitern(
         new Error(
           `Der Block kam in ${Math.round(chunkTimeoutMs(input.blob.size) / 1000)} Sekunden ` +
-            'nicht durch und wurde abgebrochen.',
+            'nicht durch und wurde abgebrochen. ' +
+            (bodyDraussen
+              ? 'Die Daten waren vollständig abgegeben, die Antwort des Servers blieb aus.'
+              : `Es kamen nur ${abgegeben} von ${input.blob.size} Byte heraus – die Gegenstelle ` +
+                'hat sie nicht abgeholt.'),
         ),
       );
     xhr.onabort = () => {
@@ -294,6 +318,42 @@ function sendChunk(input: {
 
     xhr.send(input.blob);
   });
+}
+
+/**
+ * Warmlaufen vor dem ersten Block – gegen tote Verbindungen im Pool.
+ *
+ * Node schließt eine Keep-Alive-Verbindung nach kurzer Ruhe von sich aus. Der
+ * Browser bekommt davon nichts mit und hält sie weiter für benutzbar. Schickt
+ * Safari den ersten Block auf so eine Verbindung, **verschwindet die Anfrage
+ * spurlos**: Das Schreiben gelingt (die Bytes landen im Sendepuffer, daher der
+ * Balken bei 128 KB), eine Antwort kommt nie, ein Fehler auch nicht. Erst
+ * `xhr.timeout` beendet das – nach über vier Minuten. Chrome fällt das nicht
+ * auf, weil es eine auf einer wiederverwendeten Verbindung abgerissene Anfrage
+ * selbst wiederholt; WebKit tut das bei `PATCH` nicht, und darf es auch nicht:
+ * Es kann nicht wissen, ob der Server den Block schon geschrieben hat.
+ *
+ * `HEAD` darf es dagegen jederzeit wiederholen. Diese eine billige Anfrage
+ * räumt die tote Verbindung aus dem Pool, bevor der teure Block sie erwischt.
+ * Nach einem Fehlversuch passiert dasselbe ohnehin schon – nur eben zu spät.
+ *
+ * Die Gegenseite gehört trotzdem repariert: `KEEP_ALIVE_TIMEOUT` am Web-Dienst
+ * hoch, sonst bleibt das hier Symptombekämpfung.
+ */
+async function aufwaermen(
+  location: string,
+  ersatz: number,
+  signal: AbortSignal,
+): Promise<number> {
+  try {
+    return await fetchOffset(location, signal);
+  } catch (error) {
+    if (signal.aborted) throw error;
+    // Das Warmlaufen ist die Vorsichtsmaßnahme, nicht der Upload. Scheitert
+    // sie, wird trotzdem übertragen – der Stand aus dem Anlegen der Sitzung
+    // stimmt bei einer frischen Sitzung ohnehin.
+    return ersatz;
+  }
 }
 
 async function fetchOffset(location: string, signal: AbortSignal): Promise<number> {

@@ -7,6 +7,7 @@ import express from 'express';
 import { AppModule } from './app.module';
 import { AuthService } from './auth/auth.service';
 import { CONFIG, type AppConfig } from './config/configuration';
+import { uploadTrace } from './uploads/upload-trace';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -22,6 +23,13 @@ async function bootstrap(): Promise<void> {
   // und Client-Adresse in den X-Forwarded-Headern. Ohne dieses Vertrauen
   // hielte Express jede Anfrage für unverschlüsselt.
   app.set('trust proxy', 1);
+
+  // Vor allen Parsern: Die Mitschrift soll auch die Anfragen sehen, die weiter
+  // unten abgewiesen werden.
+  if (config.uploads.trace) {
+    app.use(uploadTrace());
+    logger.log('UPLOAD_TRACE ist an – jeder Block-Aufruf wird mitgeschrieben.');
+  }
 
   const json = express.json({ limit: '1mb' });
   /**
@@ -65,6 +73,16 @@ async function bootstrap(): Promise<void> {
         'bleibt stehen. Zum Testen ohne TLS: SESSION_COOKIE_SECURE=0 setzen.',
     );
   }
+
+  // Dieselbe Falle wie beim Web-Dienst: Nodes Standard von 5 Sekunden macht
+  // ruhende Keep-Alive-Verbindungen so früh zu, dass ein Browser sie noch für
+  // benutzbar hält und den nächsten Upload-Block hineinschreibt – der
+  // verschwindet dann spurlos, ohne Antwort und ohne Fehler. Heute steht nur
+  // `web` nach außen; wer die API direkt veröffentlicht, um die Weiterleitung
+  // auszuklammern (siehe docs/safari-upload-uebergabe.md), tappt ohne diese
+  // Zeile in genau denselben Fehler und hält ihn für einen Beweis gegen die
+  // Weiterleitung. 59 s, weil Nodes `headersTimeout` bei 60 s steht.
+  app.getHttpServer().keepAliveTimeout = 59_000;
 
   await app.listen(config.port, '0.0.0.0');
   logger.log(`Klappe-API läuft auf Port ${config.port} (${config.nodeEnv}).`);

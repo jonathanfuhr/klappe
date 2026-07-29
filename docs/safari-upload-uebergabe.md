@@ -1,195 +1,133 @@
-# Übergabe: Safari lädt nicht hoch
+# Safari lädt nicht hoch – gefunden und behoben
 
-Für einen lokalen Durchgang **auf einem Rechner mit Safari**. Die bisherige
-Sitzung lief in einer Containerumgebung ohne WebKit – Safari konnte dort nicht
-nachgestellt werden, und genau daran ist die Fehlersuche bisher gescheitert.
+Aufgeklärt am 29.07.2026 auf dem Betriebsrechner (Unraid, `docker compose`,
+Zugriff über Tailscale auf `http://fuhrserver…:3000`). Diese Datei war die
+Übergabe für die Suche; sie steht jetzt hier, damit der Fehler beim nächsten
+Mal in Minuten statt in Tagen erkannt wird.
 
-- Repository: `klappe`, Branch `claude/klappe-projekt-phase-0-4-h9i1lp`
-- Stand bei Übergabe: `431e306`
-- Betrieb beim Melder: Synology-NAS, `docker compose`, Zugriff über
-  `http://<NAS>:3000` (kein HTTPS, kein Reverse Proxy davor)
+## Das Symptom
 
-## Symptom
+Der Upload einer Videodatei blieb in Safari bei **128 KB** stehen: kein Fehler,
+keine Meldung, Zustand „Lädt". In Chrome lief dieselbe Datei über denselben
+Server vollständig durch.
 
-**Der Upload einer Videodatei schlägt in Safari fehl. In Chrome läuft dieselbe
-Datei auf demselben Server vollständig durch.**
+## Die Ursache
 
-Verlauf der Beobachtungen (dieselbe Datei, ~92 MB, 1080p):
+**Nexts eigene Weiterleitung setzt `Connection: close` auf jede Antwort unter
+`/v1/*`.** Sie benutzt intern `http-proxy` ohne Agent, und der erzwingt diesen
+Header; er landet unverändert beim Browser.
 
-| Stand | Verhalten in Safari |
-| --- | --- |
-| Blöcke per `fetch` | Balken bleibt bei **48 MB** stehen, kein Fehler, Zustand „Lädt" |
-| Blöcke per XHR + Fortschritts-Wachhund | Balken bleibt bei **128 KB** stehen |
-| aktuell (`431e306`), Wachhund entfernt | **weiterhin fehlerhaft**, Ausprägung unbekannt |
+Damit ist die Verbindung nach **jedem** Block tot. Der Client bekommt `204` und
+schickt im selben Atemzug den nächsten Block – der fällt in die gerade
+sterbende Verbindung. Das Schreiben gelingt noch (die Bytes landen im
+Sendepuffer des Rechners, **daher die 128 KB**), eine Antwort kommt nie, ein
+Fehler auch nicht.
 
-Wichtig für die Deutung: Seit dem Wechsel auf XHR zeigt der Balken den
-Fortschritt **innerhalb** eines Blocks. Eine stehende Zahl bedeutet also nicht
-mehr „so viele Blöcke sind durch", sondern „bis hierhin kam die aktuelle
-Anfrage". Die 48 MB von früher waren 6 vollständige 8-MiB-Blöcke plus ein
-hängender siebter; die 128 KB waren ein Hänger im *ersten* Block.
+Gemessen, alles am laufenden Betrieb:
 
-## Was bereits ausgeschlossen ist – und womit
+| Weg | Antwortkopf | Zweiter `PATCH` auf derselben Verbindung |
+| --- | --- | --- |
+| direkt an `api:3001` | `Connection: keep-alive` | läuft |
+| über Nexts `/v1`-Weiterleitung | **`connection: close`** | `BrokenPipeError` |
+| normale Next-Seite (`/login`) | `Connection: keep-alive` | läuft |
 
-Bitte nicht erneut prüfen, außer die Messung wird angezweifelt:
+**Warum Chrome nichts merkte:** Es wiederholt eine Anfrage, die auf einer
+wiederverwendeten Verbindung vor dem ersten Antwortbyte abriss, von selbst –
+auch bei `PATCH`. WebKit tut das nicht, und es darf es auch nicht: Es kann
+nicht wissen, ob der Server den Block schon geschrieben hat. Also hing der XHR,
+bis nach 4½ Minuten `xhr.timeout` zuschlug. Danach holte der Client per `HEAD`
+den Stand und wiederholte – **dieser eine Block kam durch**, und das Spiel
+begann von vorn. Ein Upload kroch so mit einem Block pro Zeitgrenze voran.
 
-1. **Kein fehlendes `100 Continue`.** Vermutet wurde, dass Safari nach den
-   Kopfzeilen auf die Zwischenantwort wartet und die Next-Weiterleitung sie
-   verschluckt. Gemessen mit `curl -H 'Expect: 100-continue'` gegen beide
-   Wege – direkt an die API (Port 3001) *und* über die Next-Weiterleitung
-   (Port 3000): beide antworten `HTTP/1.1 100 Continue`, danach `204`.
-2. **Kein serverseitiger Schreibfehler.** Nachgestellt mit einem 40 MB großen
-   Dateisystem als Ablage: Der Upload bricht dann reproduzierbar mit
-   `ENOSPC` ab, sichtbar in der Oberfläche und im Log. Beim Melder erscheint
-   diese Meldung nicht.
-3. **Keine Ratenbremse.** Die Bremsen aus Phase 13 hängen an Anmeldung,
-   Passwortwechsel, Gastcode, Abmeldelink und M365-Start – nicht am Upload.
-4. **Die Next-Weiterleitung an sich ist nicht das Problem.** 92 MB laufen in
-   Chromium über denselben Weg (`web:3000` → `api:3001`) vollständig durch,
-   im Skript wie in der echten Oberfläche.
-5. **Das Sitzungs-Cookie ist nicht die Ursache.** Das war ein *getrennter*
-   Fehler (`Secure` über `http://`), behoben in `5f2fbe6`. Die Anmeldung
-   funktioniert.
+Ein zweiter, kleinerer Fund derselben Art: Node schließt ruhende
+Keep-Alive-Verbindungen nach **5 Sekunden**. Gemessen: FIN nach 6,00 s, und eine
+danach wiederverwendete Verbindung verschluckte die Anfrage genauso spurlos.
+Das betraf alles außer `/v1/*` und erklärt den allerersten Hänger.
 
-## Was der Code heute tut
+## Was geändert wurde
 
-Alles Relevante steht in **`apps/web/src/lib/upload.ts`**:
+**Ein Reverse Proxy vor dem Stapel.** `caddy` nimmt Port 3000 entgegen und
+verteilt `/v1/*` direkt an `api:3001`, alles andere an `web:3000`. Next ist
+damit aus dem Uploadweg raus. Die Herkunft bleibt dieselbe – das Sitzungs-Cookie
+greift weiter, CORS wird nicht gebraucht. **Der Proxy ist nicht optional**; die
+Begründung steht in `docker/klappe-routen.caddy`. Die HTTPS-Variante benutzt
+dieselbe Wegeverteilung.
 
-- Blöcke gehen über **`XMLHttpRequest`**, nicht `fetch` (WebKit-Fehler bei
-  `fetch` mit Datei-Body – Anfrage ohne Antwort und ohne Fehler; aus
-  demselben Grund setzen `tus-js-client` und Uppy hier auf XHR).
-- Blockgröße: **4 MiB** (`DEFAULT_CHUNK_SIZE`), war vorher 8 MiB.
-- Zeitgrenze pro Block: **`xhr.timeout`**, berechnet als
-  `60_000 + Bytes / 20 kB/s` – für 4 MiB gut vier Minuten.
-- **Es gibt keinen Fortschritts-Wachhund mehr.** Der frühere brach ab, wenn
-  60 Sekunden kein `upload.onprogress` kam; in WebKit versiegen diese
-  Ereignisse mitten in gesunden Übertragungen, wodurch er funktionierende
-  Uploads abgeräumt hat. `upload.onprogress` dient jetzt **nur** der Anzeige.
-- **5 Wiederholungen** mit wachsender Pause (1, 2, 4, 8, 16 s). Nach jedem
-  Fehlversuch fragt der Client per `HEAD` den Stand des Servers ab und setzt
-  dort an. Ein endgültiger Fehler braucht also **gut 30 Sekunden**, bis er in
-  der Oberfläche steht – vorher nicht aufgeben.
+**`KEEP_ALIVE_TIMEOUT=59000` am Web-Dienst und `keepAliveTimeout` in der API.**
+Gegen den zweiten Fund. 59 s, weil Nodes `headersTimeout` bei 60 s steht. Die
+Regel dahinter: Ein Proxy darf eine Verbindung nie länger für gültig halten, als
+der Server dahinter sie offen hält – sonst wandert der Fehler nur eine Etage
+tiefer.
 
-Serverseite (`apps/api/src/uploads/`):
+**Ein `HEAD` vor dem ersten Block** (`aufwaermen` in
+`apps/web/src/lib/upload.ts`). Idempotent, also wiederholt WebKit es notfalls
+selbst und räumt dabei tote Verbindungen aus dem Pool, bevor der teure Block
+sie erwischt. Gürtel und Hosenträger – die Ursache liegt auf der Serverseite.
 
-- `POST /v1/uploads` – Sitzung **ohne Ziel**; `POST /v1/videos/:id/uploads` –
-  mit Ziel (Altweg).
-- `HEAD /v1/uploads/:id` – Stand. `PATCH /v1/uploads/:id` – Block anhängen.
-- `PATCH /v1/uploads/:id/ziel` – Zuordnung nachreichen; legt bei
-  vollständiger Datei die Fassung an.
-- `DELETE /v1/uploads/:id` – abbrechen.
-- Ein abgerissener Client wird als **Warnung mit Byteposition** protokolliert
-  (`Verbindung bei N von M Byte abgerissen (ECONNRESET)`). Alles andere –
-  volle Platte, fehlende Rechte – als `ERROR` mit Fehlercode.
+**`UPLOAD_TRACE=1`** (`apps/api/src/uploads/upload-trace.ts`, standardmäßig
+aus). Schreibt pro Block: Eintreffen, alle 10 Sekunden die Byteposition im
+Stillstand, Abschluss mit der Angabe, ob der Body vollständig war. Genau das
+fehlte am Anfang: Die API schwieg bei einem gelungenen Block wie bei einem, der
+nie ankam, und „nichts im Log" ließ sich deshalb nicht deuten.
 
-## Zu prüfen, in dieser Reihenfolge
+**Die Testseite** unter `/safari-upload-test.html` meldet jetzt alle zwei
+Sekunden, wie viele Bytes abgegeben wurden und wie lange die letzte Regung her
+ist, unterscheidet Stillstand vor und nach dem vollständigen Abgeben des Bodys,
+kann sich die Testdatei selbst erzeugen und startet auf Wunsch von allein
+(`?auto=1&mb=92`). Ohne sie dauert es 27 Minuten, bis überhaupt eine
+Fehlermeldung erscheint.
 
-### 1. Zuerst: Wo genau bleibt es stehen, und was sagen beide Seiten?
+**`MEDIA_DIR`.** Die Nutzdaten lagen in einem benannten Docker-Volume und damit
+in Unraids `docker.img` – 30 GB, geteilt mit allen anderen Containern. Ein
+einziges 40-GB-Kameraband hätte den Host lahmgelegt. Liegt jetzt auf dem Array.
 
-Mit **Safari → Entwickler → Web-Inspector**, Reiter *Netzwerk*, und parallel
-`docker compose logs -f api` auf der NAS.
+## Wenn so etwas wiederkommt
 
-Festhalten:
+Die Frage ist fast nie „warum schickt der Browser nicht", sondern **„wer holt
+die Daten nicht ab"**. Drei Messungen, in dieser Reihenfolge:
 
-- Erscheint die `PATCH`-Anfrage im Netzwerk-Reiter überhaupt?
-- Welchen Status hat sie – bleibt sie „ausstehend", oder kommt ein Code?
-- Die Zeitaufschlüsselung: hängt sie in *Stalled*, *Request*, oder *Waiting*?
-- Bleibt es bei einer **festen** Byte-Zahl (gleiche Stelle bei jedem
-  Versuch) oder bei wechselnden? Das trennt „harte Grenze im Weg" von
-  „Verbindung wackelt".
-- Steht im API-Log zeitgleich eine `ECONNRESET`-Warnung mit Byteposition?
-  **Ja** heißt: Die Bytes kamen bis dorthin an, Safari hat die Verbindung
-  fallen lassen. **Nein** heißt: Die Anfrage ist nie beim Server angekommen
-  oder hängt vor ihm fest.
-- Nach 30+ Sekunden: Erscheint eine Fehlermeldung im Upload-Fenster? Wenn ja,
-  **wortwörtlich** notieren – sie enthält Grund, Byteposition und
-  Versuchszahl.
-
-### 2. Safari von der Anwendung trennen
-
-Der wichtigste Schnitt. Die Testseite liegt schon im Repository:
-
-**`apps/web/public/safari-upload-test.html`**, erreichbar unter
-`http://<NAS>:3000/safari-upload-test.html` – gleicher Ursprung wie die
-Anwendung, das Sitzungs-Cookie gilt also. **Vorher anmelden**, sonst leitet
-die Weiche auf `/login` um.
-
-Sie macht *nur* XHR-`PATCH` mit Blobs – kein React, kein Zustandshalter, keine
-Warteschlange – und protokolliert je Block Dauer, Statuscode und die **Zahl
-der Fortschrittsereignisse**. Vorher liest sie testweise den ersten Block aus
-der Datei, damit ein hängender Datei-Zugriff sofort auffällt.
-
-Sie ist in Chromium gegen dieselbe Instanz geprüft: 92 MB, 23 Blöcke, alle
-`204`, 8,8 Sekunden. Wenn sie in Safari scheitert, liegt es also nicht an ihr.
-
-Beobachtenswert: In Chromium meldet ein 4-MiB-Block über schnelle Leitung nur
-**ein einziges** Fortschrittsereignis. Wer in Safari null oder eins sieht, hat
-damit noch keinen Befund – die Zahl ist nur im Vergleich zur Blockdauer
-aussagekräftig.
-
-Damit lässt sich beantworten:
-
-- Scheitert schon ein einzelner XHR-`PATCH` mit 4 MiB Blob? → Der Fehler
-  liegt zwischen Safari und Server, nicht in unserem Code.
-- Läuft der Einzelversuch durch? → Der Fehler steckt in unserer Schleife,
-  im Zustandshalter oder in der Blockzerlegung.
-
-Zusätzlich in der Safari-Konsole prüfen, ob das Lesen der Datei selbst
-klemmt:
-
-```js
-const f = document.querySelector('input[type=file]').files[0];
-console.time('slice'); await f.slice(0, 4 * 1024 * 1024).arrayBuffer(); console.timeEnd('slice');
-```
-
-Hängt das schon, ist es ein Datei-Lesefehler in Safari (kommt bei Dateien auf
-Netzlaufwerken und externen Volumes vor) und hat mit dem Server nichts zu tun.
-
-### 3. Blockgröße gegenprüfen
-
-`DEFAULT_CHUNK_SIZE` in `apps/web/src/lib/upload.ts` testweise auf **256 KiB**
-setzen, neu bauen, erneut versuchen.
-
-- Läuft es damit durch → die Anfrage*größe* oder ‑*dauer* ist der Auslöser.
-  Dann ist die richtige Lösung eine dauerhaft kleinere Blockgröße (ggf. nur
-  für WebKit) und **nicht** ein weiterer Wiederholungsmechanismus.
-- Bleibt es stehen → die Größe ist unschuldig, weiter mit Punkt 4.
-
-### 4. Die Weiterleitung ausklammern
-
-Bisher läuft alles über Next (`web:3000` → `api:3001`). Zum Ausschließen die
-API direkt veröffentlichen und den Browser darauf zeigen lassen:
-
-- in `docker-compose.yml` beim Dienst `api` `ports: ['3001:3001']` ergänzen,
-- beim Bauen des Web-Images `NEXT_PUBLIC_API_BASE=http://<NAS>:3001` setzen
-  (die Adresse wird zur Bauzeit fest eingebacken),
-- `SESSION_COOKIE_SECURE` bleibt aus, und die API muss dieselbe Herkunft
-  bekommen oder CORS erlauben – ohne das schlägt die Anmeldung fehl, was
-  **nicht** mit dem Uploadfehler verwechselt werden darf.
-
-Läuft es direkt gegen die API durch, liegt es an der Next-Weiterleitung.
-
-### 5. Umfeld festhalten
-
-- Safari-Version und macOS-Version; iOS oder macOS?
-- Privates Fenster? Inhaltsblocker aktiv? „Cross-Site-Tracking verhindern"?
-- Ist die Datei lokal oder auf einem Netzlaufwerk/externen Volume?
-- Tritt es auch bei einer **kleinen** Datei auf (z. B. 5 MB)? Damit steht
-  fest, ob es überhaupt größenabhängig ist.
+1. **Steht überhaupt eine Verbindung?** Auf dem Host, während es hängt:
+   `nsenter -t $(docker inspect -f '{{.State.Pid}}' klappe-caddy-1) -n ss -tn state established`.
+   Keine Verbindung heißt: Die Anfrage verlässt den Rechner nicht – sie ist in
+   einer toten Verbindung verschwunden. Eine Verbindung mit vollem `Recv-Q`
+   heißt: Sie kommt an, wird aber nicht gelesen.
+2. **Was steht in den Antwortköpfen?** `curl -D - -X PATCH …` gegen beide Wege.
+   Ein `Connection: close` unter `/v1/*` ist der Rückfall in genau diesen
+   Fehler.
+3. **Sieht die API den Block?** `UPLOAD_TRACE=1` und `docker compose logs -f api`.
 
 ## Fallstricke
 
-- **Nicht zu früh aufgeben.** Fünf Wiederholungen mit wachsender Pause
-  brauchen gut 30 Sekunden bis zur Fehlermeldung.
 - **Die Zahl im Balken ist kein Byte-Zähler des Servers.** Sie kommt aus
-  `xhr.upload.onprogress` und sagt nur, was Safari abgegeben hat.
-- **Keinen neuen Wachhund auf Fortschrittsereignisse bauen.** Genau das war
-  der vorige Fehler.
-- **Nicht mit dem Cookie-Problem verwechseln.** Wenn die Anmeldung selbst
-  scheitert, ist es Punkt 5 der ausgeschlossenen Liste – nicht dieser Fehler.
+  `xhr.upload.onprogress` und sagt nur, was der Browser abgegeben hat – und der
+  gibt in 128-KiB-Schritten ab. „Bleibt bei 128 KB stehen" heißt: **ein
+  einziges Fortschrittsereignis, danach nichts**, also niemand holt ab.
+- **Keinen Wachhund auf Fortschrittsereignisse bauen.** Ein früherer Versuch
+  brach ab, wenn 60 s kein `upload.onprogress` kam – und damit genau die
+  Wiederholungen, die noch auf das Weiterlesen der Gegenstelle warteten.
+- **Nicht zu früh aufgeben.** Ein hängender Block braucht `xhr.timeout` von
+  265 s, sechs Versuche plus Pausen sind **27 Minuten** bis zur Meldung. Wer nur
+  wissen will, *ob* es hängt, nimmt die Standmeldung der Testseite.
+- **Nicht mit dem Cookie-Problem verwechseln.** Scheitert schon die Anmeldung,
+  ist es der getrennte Fehler aus `5f2fbe6` (`Secure` über `http://`).
 
-## Wann es als behoben gilt
+## Was unterwegs ausgeschlossen wurde
 
-Eine Datei von ~90 MB läuft in Safari vollständig durch, die Fassung
-erscheint am Video und geht in die Verarbeitung – und in Chrome funktioniert
-weiterhin dasselbe. Beides prüfen: Die letzte Änderung hat Safari
-verschlechtert, während Chrome unauffällig blieb.
+Alles gemessen, nicht vermutet – bitte nicht erneut prüfen:
+
+1. **Der Upload-Client in Safari.** 92 MB in 4-MiB-XHR-Blöcken laufen in Safari
+   26.5.2 gegen eine saubere Gegenstelle fehlerfrei durch – dateigestützt wie
+   aus dem Speicher, gedrosselt wie ungedrosselt.
+2. **Die Anfrage-Kopfzeilen.** Safari und Chrome schicken dasselbe: kein
+   `Expect`, kein `Transfer-Encoding: chunked`, beide mit `Content-Length`.
+3. **Die Blockgröße.** 4 MiB, 8 MiB und 256 KiB verhalten sich gleich.
+4. **Die Platte.** 329 MB/s mit `fsync` ins Medienverzeichnis.
+5. **Ein serverseitiger Schreibfehler.** Mit einem 40-MB-Dateisystem als Ablage
+   bricht der Upload reproduzierbar mit `ENOSPC` ab, sichtbar in Oberfläche und
+   Log. Diese Meldung kam nie.
+6. **Die Ratenbremsen aus Phase 13.** Sie hängen an Anmeldung, Passwortwechsel,
+   Gastcode, Abmeldelink und M365-Start – nicht am Upload.
+7. **Die Next-Middleware.** Ihr Matcher schließt `v1/` aus, Upload-Blöcke gehen
+   nicht durch sie hindurch.
+8. **`100 Continue`.** Beide Wege beantworten `Expect: 100-continue` sauber –
+   und Safari schickt den Header ohnehin nicht.

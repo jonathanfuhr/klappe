@@ -1,0 +1,43 @@
+# Die Wegeverteilung, gemeinsam für Betrieb mit und ohne TLS.
+#
+# **Warum `/v1/*` nicht über Next läuft.** Next kann `/v1/*` selbst an die API
+# weiterreichen (`rewrites()` in `next.config.mjs`), und genau daran ist der
+# Upload in Safari gescheitert: Nexts Weiterleitung benutzt intern `http-proxy`
+# ohne Agent, und der setzt zwingend `Connection: close`. Der Header landet
+# unverändert beim Browser, die Verbindung ist nach **jedem** Block tot, und der
+# nächste Block fällt in die gerade sterbende Verbindung – ohne Antwort, ohne
+# Fehler. Chrome fängt das ab, indem es solche Anfragen selbst wiederholt;
+# WebKit darf das bei `PATCH` nicht, weil es nicht wissen kann, ob der Server
+# den Block schon geschrieben hat. Der Upload hing dann bis zur Zeitgrenze.
+#
+# Direkt an die API gibt es das nicht: dort bleibt `Connection: keep-alive`
+# stehen und mehrere Blöcke laufen über dieselbe Verbindung. Die Herkunft
+# bleibt dabei dieselbe – das Sitzungs-Cookie greift weiter, CORS wird nicht
+# gebraucht.
+
+# Große Uploads dürfen nicht am Proxy scheitern – die eigentliche Grenze setzt
+# UPLOAD_MAX_BYTES in der API.
+request_body {
+	max_size 0
+}
+
+handle /v1/* {
+	reverse_proxy api:3001 {
+		# Ohne diese Weitergabe hält die API die Verbindung für unverschlüsselt
+		# und setzt das Sitzungs-Cookie ohne `Secure`.
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+
+		# Video-Streaming verträgt kein Zwischenspeichern der Antwort, und ein
+		# Upload soll nicht erst am Stück im Proxy landen.
+		flush_interval -1
+	}
+}
+
+handle {
+	reverse_proxy web:3000 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+		flush_interval -1
+	}
+}

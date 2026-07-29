@@ -1,0 +1,22 @@
+# Reverse Proxy für den Betrieb mit eigener Domain.
+#
+# Caddy holt und erneuert das Zertifikat von selbst; außer der Domain ist
+# nichts einzustellen. Wird über `docker-compose.https.yml` eingebunden.
+#
+# Die Wegeverteilung ist dieselbe wie ohne TLS – warum `/v1/*` nicht über Next
+# läuft, steht in `klappe-routen.caddy`.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$KLAPPE_DOMAIN} {
+	encode zstd gzip
+	import klappe-routen.caddy
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
