@@ -54,8 +54,21 @@ export interface ProjectFieldDefDto {
   id: string;
   name: string;
   sortOrder: number;
+  /** Tippvorschläge aus den Werten der anderen Projekte (Phase 16)? */
+  suggest: boolean;
   /** An wie vielen Projekten das Feld belegt ist – für die Löschwarnung. */
   projectCount: number;
+}
+
+/** Ein Wert einer Filter-Dimension samt Projektzahl (Phase 16). */
+export interface FieldValueCountDto {
+  value: string;
+  projectCount: number;
+}
+
+/** Einstellungen rund um Felder und Schlagworte (Phase 16). */
+export interface ProjectFieldSettingsDto {
+  tagsEnabled: boolean;
 }
 
 /** Ein belegtes Feld am Projekt. */

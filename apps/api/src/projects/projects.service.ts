@@ -29,14 +29,17 @@ type ProjectQueryRow = {
   fields: { fieldId: string; name: string; value: string }[] | null;
 };
 
-/** Wie die Projektliste gefiltert und sortiert werden soll (Phase 12/15). */
+/** Wie die Projektliste gefiltert und sortiert werden soll (Phase 12/15/16). */
 export interface ProjectListOptions {
   tagIds?: string[];
   /** `all` verlangt sämtliche gewählten Tags, `any` genügt eines. */
   tagMatch?: 'any' | 'all';
-  sort?: 'updated' | 'created' | 'name' | 'customer';
-  /** Exakter Kundenname; Groß-/Kleinschreibung spielt keine Rolle. */
-  customer?: string;
+  /** `field:<uuid>` sortiert nach einem benutzerdefinierten Feld. */
+  sort?: 'updated' | 'created' | 'name' | 'customer' | `field:${string}`;
+  /** Exakte Kundennamen (mehrere = eines genügt); Schreibweise egal. */
+  customers?: string[];
+  /** Je Feld: gewählte Werte (mehrere = eines genügt); Felder untereinander UND. */
+  fieldFilters?: { fieldId: string; values: string[] }[];
 }
 
 @Injectable()
@@ -101,15 +104,33 @@ export class ProjectsService {
       );
     }
 
-    if (options.customer) {
+    const kunden = (options.customers ?? []).map((name) => name.toLowerCase());
+    if (kunden.length > 0) {
+      // Mehrere gewählte Kunden heißt: einer davon genügt.
+      bedingungen.push(sql`lower(coalesce(${projects.customer}, '')) in ${kunden}`);
+    }
+
+    // Je gewähltem Feld genügt einer der Werte; verschiedene Felder müssen
+    // alle passen – dieselbe Logik wie „alle gewählten" bei den Schlagworten.
+    for (const filter of options.fieldFilters ?? []) {
+      if (filter.values.length === 0) continue;
+      const werte = filter.values.map((wert) => wert.toLowerCase());
       bedingungen.push(
-        sql`lower(coalesce(${projects.customer}, '')) = ${options.customer.toLowerCase()}`,
+        sql`exists (
+          select 1 from ${projectFieldValues} v
+          where v.project_id = ${projects.id}
+            and v.field_id = ${filter.fieldId}
+            and lower(v.value) in ${werte}
+        )`,
       );
     }
 
     const query = this.baseQuery();
     const gefiltert = bedingungen.length > 0 ? query.where(and(...bedingungen)) : query;
 
+    const feldSortierung = options.sort?.startsWith('field:')
+      ? options.sort.slice('field:'.length)
+      : null;
     const sortiert =
       options.sort === 'name'
         ? gefiltert.orderBy(sql`lower(${projects.name})`)
@@ -123,7 +144,15 @@ export class ProjectsService {
                 sql`lower(coalesce(${projects.customer}, ''))`,
                 sql`lower(${projects.name})`,
               )
-            : gefiltert.orderBy(desc(projects.updatedAt));
+            : feldSortierung
+              ? // Nach einem benutzerdefinierten Feld – Projekte ohne Wert ans
+                // Ende, dieselbe Ordnung wie beim Kunden.
+                gefiltert.orderBy(
+                  sql`(select v.value from ${projectFieldValues} v where v.project_id = ${projects.id} and v.field_id = ${feldSortierung}) is null`,
+                  sql`lower((select v.value from ${projectFieldValues} v where v.project_id = ${projects.id} and v.field_id = ${feldSortierung}))`,
+                  sql`lower(${projects.name})`,
+                )
+              : gefiltert.orderBy(desc(projects.updatedAt));
 
     const rows = await sortiert;
     return rows.map((row) => this.toDto(row, scope));

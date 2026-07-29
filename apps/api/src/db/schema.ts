@@ -449,6 +449,12 @@ export const projectFieldDefs = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
     sortOrder: integer('sort_order').notNull().default(0),
+    /**
+     * Tippvorschläge aus den Werten der anderen Projekte (Phase 16)? Für einen
+     * Kundennamen hilfreich, für eine einmalige Projektnummer sinnlos – darum
+     * je Feld schaltbar und vorsichtshalber aus.
+     */
+    suggest: boolean('suggest').notNull().default(false),
     ...timestamps,
   },
   // Zwei Felder mit gleichem Namen wären im Formular nicht zu unterscheiden.
@@ -514,6 +520,14 @@ export const appSettings = pgTable('app_settings', {
   oidcAllowedDomains: text('oidc_allowed_domains'),
   /** Beschriftung der Schaltfläche auf der Anmeldeseite. */
   oidcButtonLabel: text('oidc_button_label'),
+
+  // ---------- Projektliste (Phase 16) ----------
+  /**
+   * Schlagworte im Workspace verwenden? Wer nur mit den benutzerdefinierten
+   * Feldern arbeitet, blendet sie damit überall aus – Filter, Kacheln,
+   * Projektseite. Die Daten bleiben erhalten.
+   */
+  tagsEnabled: boolean('tags_enabled').notNull().default(true),
 
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

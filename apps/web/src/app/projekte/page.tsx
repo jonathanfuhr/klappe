@@ -1,29 +1,31 @@
 'use client';
 
-import type { CustomerDto, ProjectDto, TagDto } from '@klappe/shared';
+import type {
+  CustomerDto,
+  FieldValueCountDto,
+  ProjectDto,
+  ProjectFieldDefDto,
+  TagDto,
+} from '@klappe/shared';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { TagChip } from '@/components/TagChip';
 import { TagManager } from '@/components/TagManager';
 import { Dialog } from '@/components/ui/Dialog';
+import { FilterSelect } from '@/components/ui/FilterSelect';
 import { Menu, MenuItem } from '@/components/ui/Menu';
 import { DeleteProjectDialog, EditProjectDialog } from '@/components/ProjectDialogs';
 import { api } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
-type SortId = 'updated' | 'created' | 'name' | 'customer';
-
-const SORTS: { id: SortId; label: string }[] = [
+const BASIS_SORTS = [
   { id: 'updated', label: 'Zuletzt bearbeitet' },
   { id: 'created', label: 'Zuletzt angelegt' },
   { id: 'name', label: 'Name' },
   { id: 'customer', label: 'Kunde' },
 ];
-
-/** Sammelname für Projekte ohne Kundeneintrag – nur Anzeige, kein Wert. */
-const OHNE_KUNDE = 'Ohne Kunde';
 
 export default function ProjectsPage() {
   const { user } = useSession();
@@ -31,7 +33,10 @@ export default function ProjectsPage() {
 
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [tags, setTags] = useState<TagDto[]>([]);
+  const [tagsEnabled, setTagsEnabled] = useState(true);
   const [customers, setCustomers] = useState<CustomerDto[]>([]);
+  const [fieldDefs, setFieldDefs] = useState<ProjectFieldDefDto[]>([]);
+  const [fieldValues, setFieldValues] = useState<Record<string, FieldValueCountDto[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -40,9 +45,12 @@ export default function ProjectsPage() {
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagMatch, setTagMatch] = useState<'any' | 'all'>('any');
-  const [sort, setSort] = useState<SortId>('updated');
-  const [customerFilter, setCustomerFilter] = useState('');
-  const [grouped, setGrouped] = useState(false);
+  const [sort, setSort] = useState('updated');
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
+  /** Je Feld-ID die gewählten Werte – die Dimensionen der Filterleiste. */
+  const [selectedFieldValues, setSelectedFieldValues] = useState<Record<string, string[]>>({});
+  /** `''` = nicht gruppieren, `customer` oder eine Feld-ID. */
+  const [groupBy, setGroupBy] = useState('');
 
   const [editing, setEditing] = useState<ProjectDto | null>(null);
   const [deleting, setDeleting] = useState<ProjectDto | null>(null);
@@ -56,9 +64,12 @@ export default function ProjectsPage() {
         await api.listProjects({
           tagIds: selectedTags,
           tagMatch,
-          // Gruppiert wird nach Kunde – die Sortierung stellt die Gruppen her.
-          sort: grouped ? 'customer' : sort,
-          customer: customerFilter || undefined,
+          // Gruppieren heißt: Die Sortierung stellt die Gruppen her.
+          sort: groupBy === 'customer' ? 'customer' : groupBy ? `field:${groupBy}` : sort,
+          customers: selectedCustomers,
+          fieldFilters: Object.entries(selectedFieldValues)
+            .filter(([, values]) => values.length > 0)
+            .map(([fieldId, values]) => ({ fieldId, values })),
         }),
       );
       setError(null);
@@ -67,48 +78,49 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTags, tagMatch, sort, customerFilter, grouped]);
+  }, [selectedTags, tagMatch, sort, selectedCustomers, selectedFieldValues, groupBy]);
 
-  const loadTags = useCallback(async () => {
+  /**
+   * Die Filter-Dimensionen: Kunden, Felddefinitionen samt vorkommender Werte,
+   * Schlagworte und der Schalter, ob es Schlagworte überhaupt gibt (Phase 16).
+   */
+  const loadMeta = useCallback(async () => {
     if (!isTeam) return;
     try {
-      setTags(await api.listTags());
+      const [kunden, defs, einstellungen] = await Promise.all([
+        api.listCustomers(),
+        api.listProjectFields(),
+        api.getProjectFieldSettings(),
+      ]);
+      setCustomers(kunden);
+      setFieldDefs(defs);
+      setTagsEnabled(einstellungen.tagsEnabled);
+      if (einstellungen.tagsEnabled) {
+        setTags(await api.listTags());
+      } else {
+        setTags([]);
+        setSelectedTags([]);
+      }
+      const wertePaare = await Promise.all(
+        defs.map(async (def) => [def.id, await api.listProjectFieldValues(def.id)] as const),
+      );
+      setFieldValues(Object.fromEntries(wertePaare));
     } catch {
-      // Ohne Schlagworte bleibt die Liste einfach ungefiltert.
-      setTags([]);
+      // Ohne Metadaten fehlt nur die Filterleiste – die Liste läuft weiter.
     }
   }, [isTeam]);
-
-  const loadCustomers = useCallback(async () => {
-    try {
-      setCustomers(await api.listCustomers());
-    } catch {
-      // Ohne Kundenliste fehlt nur das Filter-Dropdown.
-      setCustomers([]);
-    }
-  }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
-    void loadTags();
-  }, [loadTags]);
-
-  useEffect(() => {
-    void loadCustomers();
-  }, [loadCustomers]);
+    void loadMeta();
+  }, [loadMeta]);
 
   const alles = useCallback(async () => {
-    await Promise.all([load(), loadCustomers()]);
-  }, [load, loadCustomers]);
-
-  const toggleTag = (id: string) => {
-    setSelectedTags((current) =>
-      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id],
-    );
-  };
+    await Promise.all([load(), loadMeta()]);
+  }, [load, loadMeta]);
 
   const term = search.trim().toLowerCase();
   const visible = term
@@ -123,16 +135,31 @@ export default function ProjectsPage() {
       )
     : projects;
 
+  const gruppenLabel =
+    groupBy === 'customer'
+      ? 'Kunde'
+      : (fieldDefs.find((def) => def.id === groupBy)?.name ?? 'Feld');
+
+  /** Wert eines Projekts in der Gruppier-Dimension. */
+  const gruppenWert = useCallback(
+    (project: ProjectDto): string => {
+      if (groupBy === 'customer') return project.customer?.trim() || `Ohne ${gruppenLabel}`;
+      const feld = project.fields.find((eintrag) => eintrag.fieldId === groupBy);
+      return feld?.value.trim() || `Ohne ${gruppenLabel}`;
+    },
+    [groupBy, gruppenLabel],
+  );
+
   /**
    * Gruppen in der Reihenfolge, in der der Server sortiert hat – Projekte ohne
-   * Kunden stehen dadurch am Ende, nicht als erste namenlose Gruppe.
+   * Wert stehen dadurch am Ende, nicht als erste namenlose Gruppe.
    */
   const gruppen = useMemo(() => {
-    if (!grouped) return null;
+    if (!groupBy) return null;
     const reihenfolge: string[] = [];
     const zuordnung = new Map<string, ProjectDto[]>();
     for (const project of visible) {
-      const schluessel = project.customer?.trim() || OHNE_KUNDE;
+      const schluessel = gruppenWert(project);
       if (!zuordnung.has(schluessel)) {
         zuordnung.set(schluessel, []);
         reihenfolge.push(schluessel);
@@ -140,7 +167,12 @@ export default function ProjectsPage() {
       zuordnung.get(schluessel)?.push(project);
     }
     return reihenfolge.map((name) => ({ name, projekte: zuordnung.get(name) ?? [] }));
-  }, [grouped, visible]);
+  }, [groupBy, visible, gruppenWert]);
+
+  const filterAktiv =
+    selectedTags.length > 0 ||
+    selectedCustomers.length > 0 ||
+    Object.values(selectedFieldValues).some((values) => values.length > 0);
 
   const kachel = (project: ProjectDto) => (
     <Link key={project.id} href={`/projekte/${project.id}`} className="card tile">
@@ -168,7 +200,7 @@ export default function ProjectsPage() {
             {project.description}
           </span>
         ) : null}
-        {project.tags.length > 0 ? (
+        {tagsEnabled && project.tags.length > 0 ? (
           <div className="tile__tags">
             {project.tags.map((tag) => (
               <TagChip key={tag.id} tag={tag} small />
@@ -194,7 +226,7 @@ export default function ProjectsPage() {
             <h1 className="page__title">Projekte</h1>
             <p className="page__subtitle">
               {projects.length} {projects.length === 1 ? 'Projekt' : 'Projekte'}
-              {selectedTags.length > 0 || customerFilter ? ' im Filter' : ' im Workspace'}
+              {filterAktiv ? ' im Filter' : ' im Workspace'}
             </p>
           </div>
           <div className="shell__spacer" />
@@ -218,26 +250,49 @@ export default function ProjectsPage() {
 
         {isTeam ? (
           <div className="filterbar">
-            <div className="filterbar__tags">
-              {tags.map((tag) => (
-                <TagChip
-                  key={tag.id}
-                  tag={tag}
-                  active={selectedTags.includes(tag.id)}
-                  count={tag.projectCount}
-                  onClick={() => toggleTag(tag.id)}
-                />
-              ))}
-              {tags.length === 0 ? (
-                <span className="faint" style={{ fontSize: 13 }}>
-                  Noch keine Schlagworte.
-                </span>
-              ) : null}
-            </div>
+            {/* Jede Dimension ein Mehrfachauswahl-Filter – Kunde, jedes
+                benutzerdefinierte Feld und (wenn eingeschaltet) die
+                Schlagworte. Keine Sonderrolle mehr für einzelne (Phase 16). */}
+            <FilterSelect
+              label="Kunde"
+              options={customers.map((kunde) => ({
+                value: kunde.name,
+                label: kunde.name,
+                count: kunde.projectCount,
+              }))}
+              selected={selectedCustomers}
+              onChange={setSelectedCustomers}
+            />
+            {fieldDefs.map((def) => (
+              <FilterSelect
+                key={def.id}
+                label={def.name}
+                options={(fieldValues[def.id] ?? []).map((wert) => ({
+                  value: wert.value,
+                  label: wert.value,
+                  count: wert.projectCount,
+                }))}
+                selected={selectedFieldValues[def.id] ?? []}
+                onChange={(values) =>
+                  setSelectedFieldValues((current) => ({ ...current, [def.id]: values }))
+                }
+              />
+            ))}
+            {tagsEnabled ? (
+              <FilterSelect
+                label="Schlagworte"
+                options={tags.map((tag) => ({
+                  value: tag.id,
+                  label: tag.name,
+                  count: tag.projectCount,
+                  color: tag.color,
+                }))}
+                selected={selectedTags}
+                onChange={setSelectedTags}
+              />
+            ) : null}
 
-            <div className="shell__spacer" />
-
-            {selectedTags.length > 1 ? (
+            {tagsEnabled && selectedTags.length > 1 ? (
               <label className="switch">
                 <input
                   type="checkbox"
@@ -248,64 +303,64 @@ export default function ProjectsPage() {
               </label>
             ) : null}
 
-            {selectedTags.length > 0 || customerFilter ? (
+            {filterAktiv ? (
               <button
                 type="button"
                 className="button button--ghost"
                 onClick={() => {
                   setSelectedTags([]);
-                  setCustomerFilter('');
+                  setSelectedCustomers([]);
+                  setSelectedFieldValues({});
                 }}
               >
                 Filter zurücksetzen
               </button>
             ) : null}
 
-            {customers.length > 0 ? (
-              <select
-                className="select"
-                style={{ width: 'auto' }}
-                value={customerFilter}
-                onChange={(event) => setCustomerFilter(event.target.value)}
-                aria-label="Nach Kunde filtern"
-              >
-                <option value="">Alle Kunden</option>
-                {customers.map((customer) => (
-                  <option key={customer.name} value={customer.name}>
-                    {customer.name} ({customer.projectCount})
-                  </option>
-                ))}
-              </select>
-            ) : null}
+            <div className="shell__spacer" />
 
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={grouped}
-                onChange={(event) => setGrouped(event.target.checked)}
-              />
-              nach Kunde gruppieren
-            </label>
+            <select
+              className="select"
+              style={{ width: 'auto' }}
+              value={groupBy}
+              onChange={(event) => setGroupBy(event.target.value)}
+              aria-label="Gruppieren"
+            >
+              <option value="">Nicht gruppieren</option>
+              <option value="customer">Nach Kunde</option>
+              {fieldDefs.map((def) => (
+                <option key={def.id} value={def.id}>
+                  Nach {def.name}
+                </option>
+              ))}
+            </select>
 
-            {grouped ? null : (
+            {groupBy ? null : (
               <select
                 className="select"
                 style={{ width: 'auto' }}
                 value={sort}
-                onChange={(event) => setSort(event.target.value as SortId)}
+                onChange={(event) => setSort(event.target.value)}
                 aria-label="Sortierung"
               >
-                {SORTS.map((entry) => (
+                {BASIS_SORTS.map((entry) => (
                   <option key={entry.id} value={entry.id}>
                     {entry.label}
+                  </option>
+                ))}
+                {fieldDefs.map((def) => (
+                  <option key={def.id} value={`field:${def.id}`}>
+                    {def.name}
                   </option>
                 ))}
               </select>
             )}
 
-            <button type="button" className="button" onClick={() => setManagingTags(true)}>
-              Schlagworte
-            </button>
+            {tagsEnabled ? (
+              <button type="button" className="button" onClick={() => setManagingTags(true)}>
+                Schlagworte
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -314,7 +369,7 @@ export default function ProjectsPage() {
 
         {!loading && visible.length === 0 ? (
           <div className="empty">
-            {projects.length === 0 && (selectedTags.length > 0 || customerFilter)
+            {projects.length === 0 && filterAktiv
               ? 'Kein Projekt passt zu diesem Filter.'
               : projects.length === 0
                 ? 'Noch keine Projekte. Leg das erste an, um Videos hochzuladen.'
@@ -330,7 +385,7 @@ export default function ProjectsPage() {
                 <span className="faint" style={{ fontSize: 13 }}>
                   {gruppe.projekte.length}
                 </span>
-                {isTeam && gruppe.name !== OHNE_KUNDE ? (
+                {isTeam && groupBy === 'customer' && !gruppe.name.startsWith('Ohne ') ? (
                   <Menu label={`Aktionen für Kunde ${gruppe.name}`}>
                     <MenuItem onSelect={() => setRenamingCustomer(gruppe.name)}>
                       Kunde umbenennen …
@@ -348,6 +403,7 @@ export default function ProjectsPage() {
 
       {creating ? (
         <CreateProjectDialog
+          customers={customers}
           onClose={() => setCreating(false)}
           onCreated={async () => {
             setCreating(false);
@@ -394,7 +450,7 @@ export default function ProjectsPage() {
         <TagManager
           onClose={() => setManagingTags(false)}
           onChanged={async () => {
-            await loadTags();
+            await loadMeta();
             await load();
           }}
         />
@@ -404,9 +460,11 @@ export default function ProjectsPage() {
 }
 
 function CreateProjectDialog({
+  customers,
   onClose,
   onCreated,
 }: {
+  customers: CustomerDto[];
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
@@ -457,9 +515,16 @@ function CreateProjectDialog({
           <input
             id="project-customer"
             className="input"
+            list="project-customer-vorschlaege"
             value={customer}
             onChange={(event) => setCustomer(event.target.value)}
           />
+          {/* Tippvorschläge aus den vorhandenen Kunden (Phase 16). */}
+          <datalist id="project-customer-vorschlaege">
+            {customers.map((eintrag) => (
+              <option key={eintrag.name} value={eintrag.name} />
+            ))}
+          </datalist>
           <p className="hint">
             Steht im Download-Dateinamen und hilft beim Zuordnen hochgeladener Dateien.
           </p>

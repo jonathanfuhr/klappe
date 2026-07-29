@@ -12,7 +12,7 @@ const TABS = [
   { id: 'branding', label: 'Erscheinungsbild' },
   { id: 'auth', label: 'Anmeldung' },
   { id: 'mail', label: 'E-Mail-Versand' },
-  { id: 'felder', label: 'Felder' },
+  { id: 'felder', label: 'Benutzerdefinierte Felder' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];

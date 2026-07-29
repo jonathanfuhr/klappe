@@ -47,14 +47,18 @@ export class ProjectsController {
     @Query('tags') tags?: string,
     @Query('tagMatch') tagMatch?: string,
     @Query('sort') sort?: string,
-    @Query('customer') customer?: string,
+    @Query('customer') customer?: string | string[],
+    @Query('field') field?: string | string[],
   ): Promise<ProjectDto[]> {
     const scope = await this.accessService.loadScope(user);
     return this.projectsService.list(scope, {
       tagIds: parseIdList(tags),
       tagMatch: tagMatch === 'all' ? 'all' : 'any',
-      sort: sort === 'name' || sort === 'created' || sort === 'customer' ? sort : 'updated',
-      customer: customer?.trim() || undefined,
+      sort: parseSort(sort),
+      customers: alsListe(customer)
+        .map((eintrag) => eintrag.trim())
+        .filter(Boolean),
+      fieldFilters: parseFieldFilters(alsListe(field)),
     });
   }
 
@@ -133,6 +137,45 @@ export class ProjectsController {
     // Der leere Projektordner der Kunden-Dateien soll nicht liegen bleiben.
     await this.storage.remove(this.storage.keyForProjectFilesDir(id));
   }
+}
+
+/** Ein wiederholter Query-Parameter kommt mal einzeln, mal als Feld an. */
+function alsListe(value: string | string[] | undefined): string[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+const uuidForm = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Auch `field:<uuid>` ist eine gültige Sortierung (Phase 16). */
+function parseSort(
+  sort: string | undefined,
+): 'updated' | 'created' | 'name' | 'customer' | `field:${string}` {
+  if (sort === 'name' || sort === 'created' || sort === 'customer') return sort;
+  if (sort?.startsWith('field:') && uuidForm.test(sort.slice('field:'.length))) {
+    return sort as `field:${string}`;
+  }
+  return 'updated';
+}
+
+/**
+ * `field=<uuid>:<wert>`, beliebig oft wiederholt. Mehrere Werte desselben
+ * Felds sammeln sich zu einer Oder-Gruppe; Unfug fällt still heraus – ein
+ * Filter soll eine Liste erzeugen, keine Fehlermeldung.
+ */
+function parseFieldFilters(eintraege: string[]): { fieldId: string; values: string[] }[] {
+  const gruppen = new Map<string, string[]>();
+  for (const eintrag of eintraege) {
+    const trenner = eintrag.indexOf(':');
+    if (trenner <= 0) continue;
+    const fieldId = eintrag.slice(0, trenner);
+    const wert = eintrag.slice(trenner + 1).trim();
+    if (!uuidForm.test(fieldId) || !wert) continue;
+    const liste = gruppen.get(fieldId) ?? [];
+    liste.push(wert);
+    gruppen.set(fieldId, liste);
+  }
+  return [...gruppen.entries()].map(([fieldId, values]) => ({ fieldId, values }));
 }
 
 /** `"a,b , c"` → `['a','b','c']`, ohne Leeres und ohne Unfug. */

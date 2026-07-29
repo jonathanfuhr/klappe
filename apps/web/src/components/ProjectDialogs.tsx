@@ -1,7 +1,7 @@
 'use client';
 
-import type { ProjectDto } from '@klappe/shared';
-import { useState } from 'react';
+import type { CustomerDto, ProjectDto } from '@klappe/shared';
+import { useEffect, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
 
@@ -17,6 +17,15 @@ export function EditProjectDialog({
 }) {
   const [name, setName] = useState(project.name);
   const [customer, setCustomer] = useState(project.customer ?? '');
+  const [kunden, setKunden] = useState<CustomerDto[]>([]);
+
+  // Tippvorschläge aus den vorhandenen Kunden (Phase 16).
+  useEffect(() => {
+    api
+      .listCustomers()
+      .then(setKunden)
+      .catch(() => setKunden([]));
+  }, []);
   const [description, setDescription] = useState(project.description ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,9 +67,15 @@ export function EditProjectDialog({
           <input
             id="edit-project-customer"
             className="input"
+            list="edit-project-customer-vorschlaege"
             value={customer}
             onChange={(event) => setCustomer(event.target.value)}
           />
+          <datalist id="edit-project-customer-vorschlaege">
+            {kunden.map((eintrag) => (
+              <option key={eintrag.name} value={eintrag.name} />
+            ))}
+          </datalist>
           <p className="hint">Leer lassen, um den Kundeneintrag zu entfernen.</p>
         </div>
         <div className="field">

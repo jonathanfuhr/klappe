@@ -20,6 +20,15 @@ export function ProjectTags({
   assigned: TagRefDto[];
   onChanged: () => Promise<void>;
 }) {
+  const [sichtbar, setSichtbar] = useState(true);
+  useEffect(() => {
+    // Schlagworte lassen sich workspace-weit abschalten (Phase 16).
+    api
+      .getProjectFieldSettings()
+      .then((einstellungen) => setSichtbar(einstellungen.tagsEnabled))
+      .catch(() => setSichtbar(true));
+  }, []);
+
   const [all, setAll] = useState<TagDto[]>([]);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
@@ -71,6 +80,9 @@ export function ProjectTags({
       setBusy(false);
     }
   };
+
+  // Nach allen Hooks, damit die Hook-Reihenfolge stabil bleibt.
+  if (!sichtbar) return null;
 
   return (
     <div className="projecttags">

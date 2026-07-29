@@ -17,10 +17,16 @@ export function FieldsPanel() {
   const [busy, setBusy] = useState(false);
   const [umbenennen, setUmbenennen] = useState<ProjectFieldDefDto | null>(null);
   const [loeschen, setLoeschen] = useState<ProjectFieldDefDto | null>(null);
+  const [tagsEnabled, setTagsEnabled] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      setFields(await api.listProjectFields());
+      const [defs, einstellungen] = await Promise.all([
+        api.listProjectFields(),
+        api.getProjectFieldSettings(),
+      ]);
+      setFields(defs);
+      setTagsEnabled(einstellungen.tagsEnabled);
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
@@ -99,6 +105,22 @@ export function FieldsPanel() {
                     ? 'unbenutzt'
                     : `an ${field.projectCount} ${field.projectCount === 1 ? 'Projekt' : 'Projekten'}`}
                 </span>
+                <label
+                  className="switch"
+                  title="Beim Eintippen Werte aus den anderen Projekten vorschlagen – für einen Kundennamen hilfreich, für eine einmalige Projektnummer sinnlos."
+                >
+                  <input
+                    type="checkbox"
+                    checked={field.suggest}
+                    onChange={(event) => {
+                      void api
+                        .updateProjectField(field.id, { suggest: event.target.checked })
+                        .then(load)
+                        .catch(() => setError('Speichern fehlgeschlagen.'));
+                    }}
+                  />
+                  Vorschläge
+                </label>
                 <button type="button" className="button" onClick={() => setUmbenennen(field)}>
                   Umbenennen
                 </button>
@@ -114,6 +136,26 @@ export function FieldsPanel() {
           </div>
         )}
       </form>
+
+      <div className="card" style={{ padding: 20, marginTop: 16 }}>
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={tagsEnabled}
+            onChange={(event) => {
+              void api
+                .updateProjectFieldSettings({ tagsEnabled: event.target.checked })
+                .then((einstellungen) => setTagsEnabled(einstellungen.tagsEnabled))
+                .catch(() => setError('Speichern fehlgeschlagen.'));
+            }}
+          />
+          Schlagworte verwenden
+        </label>
+        <p className="hint" style={{ marginBottom: 0 }}>
+          Aus heißt: Schlagworte verschwinden aus Filterleiste, Projektkacheln und Projektseiten.
+          Die Zuordnungen bleiben gespeichert und kommen beim Wiedereinschalten zurück.
+        </p>
+      </div>
 
       {umbenennen ? (
         <RenameFieldDialog

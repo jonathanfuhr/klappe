@@ -1,6 +1,6 @@
 'use client';
 
-import type { ProjectDto, ProjectFieldDefDto } from '@klappe/shared';
+import type { FieldValueCountDto, ProjectDto, ProjectFieldDefDto } from '@klappe/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 
@@ -22,6 +22,7 @@ export function ProjectFieldValues({
   onChanged: () => Promise<void> | void;
 }) {
   const [defs, setDefs] = useState<ProjectFieldDefDto[]>([]);
+  const [vorschlaege, setVorschlaege] = useState<Record<string, FieldValueCountDto[]>>({});
   const [werte, setWerte] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +37,15 @@ export function ProjectFieldValues({
   const load = useCallback(async () => {
     if (!isTeam) return;
     try {
-      setDefs(await api.listProjectFields());
+      const defs = await api.listProjectFields();
+      setDefs(defs);
+      // Vorschläge nur für Felder, die es wollen (Phase 16).
+      const paare = await Promise.all(
+        defs
+          .filter((def) => def.suggest)
+          .map(async (def) => [def.id, await api.listProjectFieldValues(def.id)] as const),
+      );
+      setVorschlaege(Object.fromEntries(paare));
     } catch {
       // Ohne Definitionen fehlt nur der Abschnitt.
       setDefs([]);
@@ -99,11 +108,19 @@ export function ProjectFieldValues({
           <input
             id={`projekt-feld-${def.id}`}
             className="input"
+            list={def.suggest ? `projekt-feld-vorschlaege-${def.id}` : undefined}
             value={werte[def.id] ?? ''}
             onChange={(event) =>
               setWerte((current) => ({ ...current, [def.id]: event.target.value }))
             }
           />
+          {def.suggest ? (
+            <datalist id={`projekt-feld-vorschlaege-${def.id}`}>
+              {(vorschlaege[def.id] ?? []).map((wert) => (
+                <option key={wert.value} value={wert.value} />
+              ))}
+            </datalist>
+          ) : null}
         </div>
       ))}
       {geaendert ? (

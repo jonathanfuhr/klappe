@@ -4,6 +4,7 @@ import type {
   BrandingDto,
   CommentDto,
   CustomerDto,
+  FieldValueCountDto,
   GuestAccessDto,
   GuestLoginResponseDto,
   GuestOverviewDto,
@@ -11,6 +12,7 @@ import type {
   LoginResponseDto,
   ProjectDto,
   ProjectFieldDefDto,
+  ProjectFieldSettingsDto,
   ProjectFileDto,
   ProjectFolderDto,
   ShareGuestDto,
@@ -109,14 +111,20 @@ export const api = {
       tagIds?: string[];
       tagMatch?: 'any' | 'all';
       sort?: string;
-      customer?: string;
+      /** Mehrere Kunden = einer genügt (Phase 16). */
+      customers?: string[];
+      /** Je Feld die gewählten Werte; Felder untereinander UND. */
+      fieldFilters?: { fieldId: string; values: string[] }[];
     } = {},
   ) => {
     const query = new URLSearchParams();
     if (options.tagIds?.length) query.set('tags', options.tagIds.join(','));
     if (options.tagMatch) query.set('tagMatch', options.tagMatch);
     if (options.sort) query.set('sort', options.sort);
-    if (options.customer) query.set('customer', options.customer);
+    for (const kunde of options.customers ?? []) query.append('customer', kunde);
+    for (const filter of options.fieldFilters ?? []) {
+      for (const wert of filter.values) query.append('field', `${filter.fieldId}:${wert}`);
+    }
     const suffix = query.toString();
     return request<ProjectDto[]>(`/v1/projects${suffix ? `?${suffix}` : ''}`);
   },
@@ -127,7 +135,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name }),
     }),
-  updateProjectField: (id: string, input: { name?: string; sortOrder?: number }) =>
+  listProjectFieldValues: (fieldId: string) =>
+    request<FieldValueCountDto[]>(`/v1/project-fields/${fieldId}/values`),
+  getProjectFieldSettings: () =>
+    request<ProjectFieldSettingsDto>('/v1/project-fields/settings'),
+  updateProjectFieldSettings: (input: { tagsEnabled?: boolean }) =>
+    request<ProjectFieldSettingsDto>('/v1/project-fields/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  updateProjectField: (id: string, input: { name?: string; sortOrder?: number; suggest?: boolean }) =>
     request<ProjectFieldDefDto>(`/v1/project-fields/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(input),

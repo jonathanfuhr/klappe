@@ -1,8 +1,8 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { ProjectFieldDefDto } from '@klappe/shared';
+import type { FieldValueCountDto, ProjectFieldDefDto, ProjectFieldSettingsDto } from '@klappe/shared';
 import { asc, eq, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
-import { projectFieldDefs, projectFieldValues, projects } from '../db/schema';
+import { appSettings, projectFieldDefs, projectFieldValues, projects } from '../db/schema';
 
 /**
  * Benutzerdefinierte Projekt-Felder (Phase 15).
@@ -29,6 +29,50 @@ export class ProjectFieldsService {
     return rows.map((row) => this.toDto(row.def, row.projectCount));
   }
 
+  /** Der Schalter „Schlagworte verwenden" hängt an der Workspace-Zeile. */
+  async getSettings(): Promise<ProjectFieldSettingsDto> {
+    const [row] = await this.db
+      .select({ tagsEnabled: appSettings.tagsEnabled })
+      .from(appSettings)
+      .limit(1);
+    return { tagsEnabled: row?.tagsEnabled ?? true };
+  }
+
+  async updateSettings(input: { tagsEnabled?: boolean }): Promise<ProjectFieldSettingsDto> {
+    if (input.tagsEnabled !== undefined) {
+      await this.db
+        .insert(appSettings)
+        .values({ id: 1, tagsEnabled: input.tagsEnabled })
+        .onConflictDoUpdate({
+          target: appSettings.id,
+          set: { tagsEnabled: input.tagsEnabled, updatedAt: new Date() },
+        });
+    }
+    return this.getSettings();
+  }
+
+  /**
+   * Die vorkommenden Werte eines Felds samt Projektzahl – Grundlage für
+   * Filter-Dropdown und Tippvorschläge (Phase 16).
+   */
+  async listValues(fieldId: string): Promise<FieldValueCountDto[]> {
+    const [def] = await this.db
+      .select({ id: projectFieldDefs.id })
+      .from(projectFieldDefs)
+      .where(eq(projectFieldDefs.id, fieldId))
+      .limit(1);
+    if (!def) throw new NotFoundException('Feld nicht gefunden.');
+    return this.db
+      .select({
+        value: projectFieldValues.value,
+        projectCount: sql<number>`count(*)::int`,
+      })
+      .from(projectFieldValues)
+      .where(eq(projectFieldValues.fieldId, fieldId))
+      .groupBy(projectFieldValues.value)
+      .orderBy(sql`lower(${projectFieldValues.value})`);
+  }
+
   async create(name: string): Promise<ProjectFieldDefDto> {
     // Ans Ende der Reihenfolge, nicht mittenrein.
     const [{ max }] = await this.db
@@ -44,12 +88,16 @@ export class ProjectFieldsService {
     return this.toDto(row, 0);
   }
 
-  async update(id: string, input: { name?: string; sortOrder?: number }): Promise<ProjectFieldDefDto> {
+  async update(
+    id: string,
+    input: { name?: string; sortOrder?: number; suggest?: boolean },
+  ): Promise<ProjectFieldDefDto> {
     const [row] = await this.db
       .update(projectFieldDefs)
       .set({
         name: input.name === undefined ? undefined : input.name.trim(),
         sortOrder: input.sortOrder,
+        suggest: input.suggest,
         updatedAt: new Date(),
       })
       .where(eq(projectFieldDefs.id, id))
@@ -116,6 +164,7 @@ export class ProjectFieldsService {
       id: row.id,
       name: row.name,
       sortOrder: row.sortOrder,
+      suggest: row.suggest,
       projectCount,
     };
   }

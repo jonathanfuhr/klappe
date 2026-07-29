@@ -9,8 +9,8 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import type { ProjectFieldDefDto } from '@klappe/shared';
-import { IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import type { FieldValueCountDto, ProjectFieldDefDto, ProjectFieldSettingsDto } from '@klappe/shared';
+import { IsBoolean, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { Roles } from '../auth/auth.decorators';
 import { ProjectFieldsService } from './project-fields.service';
 
@@ -32,6 +32,16 @@ class UpdateFieldDto {
   @IsInt()
   @Min(0)
   sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  suggest?: boolean;
+}
+
+class UpdateFieldSettingsDto {
+  @IsOptional()
+  @IsBoolean()
+  tagsEnabled?: boolean;
 }
 
 /**
@@ -47,6 +57,26 @@ export class ProjectFieldsController {
   @Get()
   list(): Promise<ProjectFieldDefDto[]> {
     return this.projectFieldsService.list();
+  }
+
+  /** Muss vor `:id` stehen, sonst frisst die UUID-Pipe das Wort „settings". */
+  @Roles('ADMIN', 'MEMBER')
+  @Get('settings')
+  getSettings(): Promise<ProjectFieldSettingsDto> {
+    return this.projectFieldsService.getSettings();
+  }
+
+  @Roles('ADMIN')
+  @Patch('settings')
+  updateSettings(@Body() dto: UpdateFieldSettingsDto): Promise<ProjectFieldSettingsDto> {
+    return this.projectFieldsService.updateSettings(dto);
+  }
+
+  /** Vorkommende Werte eines Felds – für Filter und Tippvorschläge. */
+  @Roles('ADMIN', 'MEMBER')
+  @Get(':id/values')
+  listValues(@Param('id', new ParseUUIDPipe()) id: string): Promise<FieldValueCountDto[]> {
+    return this.projectFieldsService.listValues(id);
   }
 
   @Roles('ADMIN')
