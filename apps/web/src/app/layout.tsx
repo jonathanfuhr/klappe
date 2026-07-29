@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { UploadPanel } from '@/components/UploadPanel';
 import { BrandingProvider } from '@/lib/branding';
+import { LiveProvider } from '@/lib/live';
 import { SessionProvider } from '@/lib/session';
 import { UploadsProvider } from '@/lib/uploads-context';
 import './globals.css';
@@ -32,12 +33,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             Anmeldeseite – deshalb ganz außen. */}
         <BrandingProvider>
           <SessionProvider>
-            {/* Die Warteschlange liegt im Wurzel-Layout, damit Uploads beim
-                Wechsel zwischen Projekten weiterlaufen. */}
-            <UploadsProvider>
-              {children}
-              <UploadPanel />
-            </UploadsProvider>
+            {/* Eine Live-Verbindung für die ganze Anwendung (Phase 18):
+                Was sich ändert, kommt von selbst an, statt im Sekundentakt
+                erfragt zu werden. */}
+            <LiveProvider>
+              {/* Die Warteschlange liegt im Wurzel-Layout, damit Uploads beim
+                  Wechsel zwischen Projekten weiterlaufen. */}
+              <UploadsProvider>
+                {children}
+                <UploadPanel />
+              </UploadsProvider>
+            </LiveProvider>
           </SessionProvider>
         </BrandingProvider>
       </body>

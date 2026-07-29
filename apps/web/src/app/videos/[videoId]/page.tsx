@@ -25,6 +25,7 @@ import { SharePanel } from '@/components/SharePanel';
 import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
+import { useFallbackInterval, useLiveTopic } from '@/lib/live';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 
@@ -110,14 +111,26 @@ export default function ReviewPage() {
     if (completedCount > 0) void loadVideo();
   }, [completedCount, loadVideo]);
 
-  // Während der Verarbeitung den Fortschritt nachladen.
+  /**
+   * Live: Kommentare anderer und der Stand der Verarbeitung kommen von selbst
+   * an (Phase 18, Zusatz).
+   */
+  useLiveTopic('video', videoId, () => {
+    void loadVideo();
+    void loadComments();
+  });
+
+  // Der alte Takt bleibt als Sicherheitsnetz: Steht die Live-Verbindung
+  // nicht – etwa hinter einem Proxy, der SSE kappt –, wird wie früher
+  // nachgeladen, sonst nur noch selten.
   const processing =
     selectedVersion?.status === 'PROCESSING' || selectedVersion?.status === 'UPLOADING';
+  const takt = useFallbackInterval(processing ? 3000 : null);
   useEffect(() => {
-    if (!processing) return;
-    const timer = setInterval(() => void loadVideo(), 3000);
+    if (takt === null) return;
+    const timer = setInterval(() => void loadVideo(), takt);
     return () => clearInterval(timer);
-  }, [processing, loadVideo]);
+  }, [takt, loadVideo]);
 
   const timecodeContext = useMemo(
     () => ({

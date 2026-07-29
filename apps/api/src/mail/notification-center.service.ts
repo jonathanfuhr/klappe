@@ -8,6 +8,7 @@ import {
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { comments, notifications, projects, users, videoVersions, videos } from '../db/schema';
+import { EventsService } from '../events/events.service';
 
 /** So viel Kommentartext steht in der Liste; der Rest steht im Player. */
 const EXCERPT_LENGTH = 160;
@@ -23,7 +24,10 @@ const EXCERPT_LENGTH = 160;
  */
 @Injectable()
 export class NotificationCenterService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly events: EventsService,
+  ) {}
 
   /**
    * Legt die Einträge für einen Kommentar an. Doppelte werden still
@@ -46,6 +50,12 @@ export class NotificationCenterService {
         })),
       )
       .onConflictDoNothing();
+
+    // Das Glöckchen springt sofort um, statt auf den Minutentakt zu warten
+    // (Phase 18, Zusatz).
+    for (const recipient of recipients) {
+      this.events.publish({ topic: 'notification', id: recipient.id, userId: recipient.id });
+    }
   }
 
   async list(userId: string, limit = 50): Promise<NotificationDto[]> {

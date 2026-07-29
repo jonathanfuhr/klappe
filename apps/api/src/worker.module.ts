@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AccessModule } from './access/access.module';
+import { EventsModule } from './events/events.module';
 import { AppConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
 import { MailModule } from './mail/mail.module';
@@ -21,6 +22,7 @@ import { VersionsModule } from './versions/versions.module';
     DbModule,
     StorageModule,
     AccessModule,
+    EventsModule,
     QueueModule,
     VersionsModule,
     TranscodeModule,

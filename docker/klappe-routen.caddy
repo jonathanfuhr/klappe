@@ -29,7 +29,10 @@ handle /v1/* {
 		header_up X-Forwarded-Host {host}
 
 		# Video-Streaming verträgt kein Zwischenspeichern der Antwort, und ein
-		# Upload soll nicht erst am Stück im Proxy landen.
+		# Upload soll nicht erst am Stück im Proxy landen. Seit Phase 18 hängt
+		# auch die Live-Aktualisierung daran: `/v1/events` ist ein
+		# Server-Sent-Events-Strom, der nie endet – gepuffert käme kein
+		# einziges Ereignis an.
 		flush_interval -1
 	}
 }

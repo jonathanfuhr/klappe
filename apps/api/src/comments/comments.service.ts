@@ -26,6 +26,7 @@ import {
   videoVersions,
   videos,
 } from '../db/schema';
+import { EventsService } from '../events/events.service';
 import { MailQueueService } from '../queue/mail-queue.service';
 import type { CreateCommentDto, UpdateCommentDto } from './comments.dto';
 
@@ -42,6 +43,7 @@ export class CommentsService {
     @Inject(DB) private readonly db: Database,
     private readonly accessService: AccessService,
     private readonly mailQueue: MailQueueService,
+    private readonly events: EventsService,
   ) {}
 
   /**
@@ -167,6 +169,9 @@ export class CommentsService {
 
     await this.syncMentions(row.id, row.body);
     await this.mailQueue.enqueue({ kind: 'comment', commentId: row.id });
+    // Alle, die dieses Video offen haben, sehen den Kommentar sofort – ohne
+    // den Sekundentakt von früher (Phase 18).
+    this.events.publish({ topic: 'video', id: access.videoId, projectId: access.projectId });
     return this.findOneOrFail(row.id);
   }
 
@@ -197,6 +202,7 @@ export class CommentsService {
       .returning();
 
     await this.syncMentions(updated.id, updated.body);
+    await this.meldeAenderung(updated.versionId);
     return this.findOneOrFail(updated.id);
   }
 
@@ -212,6 +218,18 @@ export class CommentsService {
       .update(comments)
       .set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(comments.id, id));
+    await this.meldeAenderung(row.versionId);
+  }
+
+  /** Video und Projekt zur Fassung heraussuchen und die Änderung melden. */
+  private async meldeAenderung(versionId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ videoId: videos.id, projectId: videos.projectId })
+      .from(videoVersions)
+      .innerJoin(videos, eq(videoVersions.videoId, videos.id))
+      .where(eq(videoVersions.id, versionId))
+      .limit(1);
+    if (row) this.events.publish({ topic: 'video', id: row.videoId, projectId: row.projectId });
   }
 
   async setResolved(
@@ -233,6 +251,7 @@ export class CommentsService {
         updatedAt: new Date(),
       })
       .where(eq(comments.id, id));
+    await this.meldeAenderung(row.versionId);
     return this.findOneOrFail(id);
   }
 

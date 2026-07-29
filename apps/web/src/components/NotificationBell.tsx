@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { api } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
+import { useFallbackInterval, useLive } from '@/lib/live';
 
 /** Wie oft nach neuen Einträgen gesehen wird, solange die Seite offen ist. */
 const POLL_MS = 60_000;
@@ -40,11 +41,24 @@ export function NotificationBell() {
     }
   }, []);
 
+  // Live: Das Glöckchen springt um, sobald etwas eintrifft (Phase 18).
+  const { subscribe } = useLive();
+  useEffect(
+    () => subscribe((event) => {
+      if (event.topic === 'notification') void zaehlen();
+    }),
+    [subscribe, zaehlen],
+  );
+
+  // Der Takt bleibt als Sicherheitsnetz – nur deutlich seltener, wenn die
+  // Live-Verbindung steht.
+  const takt = useFallbackInterval(POLL_MS);
   useEffect(() => {
     void zaehlen();
-    const timer = setInterval(() => void zaehlen(), POLL_MS);
+    if (takt === null) return;
+    const timer = setInterval(() => void zaehlen(), takt);
     return () => clearInterval(timer);
-  }, [zaehlen]);
+  }, [zaehlen, takt]);
 
   // Klick daneben schließt.
   useEffect(() => {

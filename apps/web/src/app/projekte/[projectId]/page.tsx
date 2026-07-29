@@ -22,6 +22,7 @@ import {
 import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
 import { formatFrameRate, formatRelative } from '@/lib/format';
+import { useFallbackInterval, useLive } from '@/lib/live';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 
@@ -71,12 +72,23 @@ export default function ProjectPage() {
     if (completedCount > 0) void load();
   }, [completedCount, load]);
 
-  // Solange etwas transcodiert wird, den Stand regelmäßig nachladen.
+  // Live: Was an einem der Videos passiert, kommt von selbst an.
+  const { subscribe } = useLive();
+  useEffect(() => {
+    const ids = new Set(videos.map((video) => video.id));
+    return subscribe((event) => {
+      if (event.projectId === projectId || (event.topic === 'video' && ids.has(event.id))) {
+        void load();
+      }
+    });
+  }, [subscribe, videos, projectId, load]);
+
+  // Der alte Takt als Sicherheitsnetz (siehe `useFallbackInterval`).
   const pending = videos.some(
     (video) =>
       video.latestVersion?.status === 'PROCESSING' || video.latestVersion?.status === 'UPLOADING',
   );
-  usePolling(load, pending ? 3000 : null);
+  usePolling(load, useFallbackInterval(pending ? 3000 : null));
 
   return (
     <AppShell>

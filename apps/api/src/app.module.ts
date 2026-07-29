@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { AccessModule } from './access/access.module';
+import { EventsModule } from './events/events.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { CommentsModule } from './comments/comments.module';
@@ -36,6 +37,7 @@ import { VideosModule } from './videos/videos.module';
     DbModule,
     StorageModule,
     AccessModule,
+    EventsModule,
     JwtModule.register({}),
     QueueModule,
     MailModule,

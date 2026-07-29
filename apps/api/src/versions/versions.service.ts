@@ -17,6 +17,7 @@ import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
 import { comments, projects, users, videoVersions, videos } from '../db/schema';
 import type { VideoVersionRow } from '../db/schema';
+import { EventsService } from '../events/events.service';
 import { SubscriptionsService } from '../mail/subscriptions.service';
 
 /** Heutiges Datum als `JJJJ-MM-TT` in Ortszeit. */
@@ -83,7 +84,23 @@ export class VersionsService {
     @Inject(DB) private readonly db: Database,
     private readonly accessService: AccessService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly events: EventsService,
   ) {}
+
+  /**
+   * Meldet, dass sich an einer Fassung etwas getan hat (Phase 18, Zusatz).
+   * Nur bei Statuswechseln, nicht bei jedem Fortschrittsschritt – sonst
+   * flackerte die Oberfläche im Sekundentakt für nichts.
+   */
+  private async meldeFassung(versionId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ videoId: videos.id, projectId: videos.projectId })
+      .from(videoVersions)
+      .innerJoin(videos, eq(videoVersions.videoId, videos.id))
+      .where(eq(videoVersions.id, versionId))
+      .limit(1);
+    if (row) this.events.publish({ topic: 'video', id: row.videoId, projectId: row.projectId });
+  }
 
   private baseQuery() {
     return this.db
@@ -320,6 +337,7 @@ export class VersionsService {
         updatedAt: new Date(),
       })
       .where(eq(videoVersions.id, versionId));
+    await this.meldeFassung(versionId);
   }
 
   async markFailed(versionId: string, message: string): Promise<void> {
@@ -332,6 +350,7 @@ export class VersionsService {
         updatedAt: new Date(),
       })
       .where(eq(videoVersions.id, versionId));
+    await this.meldeFassung(versionId);
   }
 
   async setStatus(versionId: string, status: VersionStatus): Promise<void> {
@@ -339,6 +358,7 @@ export class VersionsService {
       .update(videoVersions)
       .set({ status, updatedAt: new Date() })
       .where(eq(videoVersions.id, versionId));
+    await this.meldeFassung(versionId);
   }
 
   async update(
