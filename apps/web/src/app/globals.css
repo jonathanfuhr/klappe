@@ -1738,17 +1738,23 @@ a.badge:hover {
   line-height: 1;
 }
 
+/*
+ * Liegt per Portal am `body` und wird in Fensterkoordinaten gesetzt – sonst
+ * schnitten Vorfahren mit `overflow: hidden` es ab (siehe `Menu.tsx`).
+ * `.filterbar` benutzt dieselbe Optik, dort aber absolut im Container: Die
+ * Leiste beschneidet nichts, und ein mitwanderndes Panel ist dort angenehmer.
+ */
 .menu__panel {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
+  position: fixed;
   min-width: 200px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
   background: var(--klappe-surface-raised);
   border: 1px solid var(--klappe-border);
   border-radius: var(--klappe-radius-sm);
   box-shadow: var(--klappe-shadow);
-  overflow: hidden;
-  z-index: 30;
+  /* Über dem Upload-Fenster (40), unter den Dialogen (50). */
+  z-index: 45;
   display: flex;
   flex-direction: column;
   padding: 4px;
@@ -1793,6 +1799,13 @@ a.badge:hover {
 }
 
 /* ---------- Freigaben-Spalte (Phase 16) ---------- */
+
+/* Die Mehrfachauswahl der Filterleiste bleibt im Fluss ihres Knopfes. */
+.filterbar .menu__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+}
 
 .sidetabs {
   display: flex;
