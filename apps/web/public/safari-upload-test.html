@@ -41,7 +41,7 @@
       <label for="quelle">Woher die Daten kommen</label>
       <select id="quelle">
         <option value="datei" selected>Datei auswählen (wie im Alltag)</option>
-        <option value="opfs">Im Browser erzeugen, dateigestützt (kein Dateiauswahl-Dialog)</option>
+        <option value="opfs">Im Browser erzeugen, dateigestützt (nur über https/localhost)</option>
         <option value="speicher">Im Browser erzeugen, im Arbeitsspeicher</option>
       </select>
       <div id="feldDateiZeile">
@@ -192,10 +192,31 @@
         });
       }
 
+      /** Ist der dateigestützte Weg hier überhaupt möglich? */
+      function opfsMoeglich() {
+        // Der private Dateispeicher gibt es nur im „sicheren Kontext“: also
+        // über https oder auf localhost. Über `http://` auf einen Hostnamen –
+        // und genau so läuft Klappe im Hausnetz – fehlt `navigator.storage`
+        // komplett.
+        return Boolean(window.isSecureContext && navigator.storage?.getDirectory);
+      }
+
       /** Erzeugt eine Testdatei ohne Auswahl-Dialog – auf Wunsch dateigestützt. */
       async function erzeugeDatei(mb, dateigestuetzt) {
         const stueck = new Uint8Array(1024 * 1024);
         for (let i = 0; i < stueck.length; i += 1) stueck[i] = i & 0xff;
+
+        if (dateigestuetzt && !opfsMoeglich()) {
+          zeile(
+            'Dateigestützt geht hier nicht: Der private Dateispeicher braucht https ' +
+              'oder localhost. Es wird stattdessen aus dem Arbeitsspeicher geschickt – ' +
+              'für die Netzwerkstrecke macht das keinen Unterschied. Wer den Weg über ' +
+              'die Platte prüfen will, nimmt oben „Datei auswählen“.',
+            'warn',
+          );
+          dateigestuetzt = false;
+        }
+
         if (!dateigestuetzt) {
           return new Blob(Array.from({ length: mb }, () => stueck), { type: 'video/mp4' });
         }
