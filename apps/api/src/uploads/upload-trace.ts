@@ -70,18 +70,27 @@ export function uploadTrace(): (req: Request, res: Response, next: NextFunction)
       if (uhr) clearInterval(uhr);
 
       const dauer = (Date.now() - start) / 1000;
-      const bytes = empfangen();
-      const zeile =
-        `${kennung} beendet nach ${dauer.toFixed(1)}s – HTTP ${res.statusCode}, ` +
-        `${bytes} Byte empfangen (angekündigt ${angekuendigt || '-'})`;
 
       // `req.complete` ist die ehrliche Auskunft darüber, ob der Body ganz da
       // war. Fehlt er, hat der Client mittendrin losgelassen – oder wir.
+      //
+      // Nur dann wird die Byteposition gemeldet, und zwar bewusst: Der Zähler
+      // sitzt am Socket, und bei einer kleinen Anfrage liegt deren Body schon
+      // vollständig im Puffer, bevor diese Mitschrift überhaupt läuft. Die
+      // Differenz wäre dann 0 – ein „0 Byte empfangen" unter einem gelungenen
+      // `POST` schickt den Nächsten auf eine falsche Fährte. Wo die Zahl zählt,
+      // nämlich bei einem abgerissenen Block, stimmt sie.
       if (angekuendigt > 0 && !req.complete) {
-        logger.warn(`${zeile} – Body UNVOLLSTÄNDIG.`);
+        logger.warn(
+          `${kennung} abgebrochen nach ${dauer.toFixed(1)}s – HTTP ${res.statusCode}, ` +
+            `Body UNVOLLSTÄNDIG bei rund ${empfangen()} von ${angekuendigt} Byte.`,
+        );
         return;
       }
-      logger.log(zeile);
+      logger.log(
+        `${kennung} beendet nach ${dauer.toFixed(1)}s – HTTP ${res.statusCode}` +
+          (angekuendigt > 0 ? `, ${angekuendigt} Byte vollständig empfangen` : ''),
+      );
     };
 
     res.on('finish', abschluss);
