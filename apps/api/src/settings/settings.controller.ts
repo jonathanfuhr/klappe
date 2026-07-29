@@ -1,13 +1,30 @@
-import { Body, Controller, Delete, Get, HttpCode, Post, Put, Query } from '@nestjs/common';
-import type {
-  AuthSettingsDto,
-  MailFailureDto,
-  SmtpProviderPresetDto,
-  SmtpSettingsDto,
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
+import {
+  RENDITION_CONTAINERS,
+  X264_PRESETS,
+  type AuthSettingsDto,
+  type DownloadPresetDto,
+  type MailFailureDto,
+  type SmtpProviderPresetDto,
+  type SmtpSettingsDto,
+  type TranscodeSettingsDto,
 } from '@klappe/shared';
 import {
   IsBoolean,
   IsEmail,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -24,6 +41,13 @@ import {
   MAX_MAIL_DIGEST_MINUTES,
   SettingsService,
 } from './settings.service';
+import {
+  MAX_BITRATE_KBPS,
+  MAX_SHORT_EDGE,
+  MIN_BITRATE_KBPS,
+  MIN_SHORT_EDGE,
+  TranscodeSettingsService,
+} from './transcode-settings.service';
 import { SMTP_PRESETS } from './smtp-presets';
 
 class UpdateSmtpDto {
@@ -87,6 +111,134 @@ class UpdateSmtpDto {
   archiveRetentionDays?: number;
 }
 
+/** Verarbeitung (Phase 19). Leere Zeichenketten löschen das Zeitfenster. */
+class UpdateTranscodeDto {
+  @IsOptional()
+  @IsBoolean()
+  downloadFormatsEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  downloadPrebuild?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  downloadFinalOnly?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  windowStart?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  windowEnd?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  hlsEnabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(MIN_SHORT_EDGE)
+  @Max(MAX_SHORT_EDGE)
+  proxyShortEdge?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(MIN_BITRATE_KBPS)
+  @Max(MAX_BITRATE_KBPS)
+  proxyVideoBitrateKbps?: number;
+
+  @IsOptional()
+  @IsIn(X264_PRESETS)
+  proxyPreset?: string;
+}
+
+class PresetDto {
+  @IsString()
+  @MaxLength(80)
+  name!: string;
+
+  @IsInt()
+  @Min(MIN_SHORT_EDGE)
+  @Max(MAX_SHORT_EDGE)
+  shortEdge!: number;
+
+  @IsInt()
+  @Min(MIN_BITRATE_KBPS)
+  @Max(MAX_BITRATE_KBPS)
+  videoBitrateKbps!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(32)
+  @Max(512)
+  audioBitrateKbps?: number;
+
+  @IsOptional()
+  @IsIn(X264_PRESETS)
+  preset?: string;
+
+  @IsOptional()
+  @IsIn(RENDITION_CONTAINERS)
+  container?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(10_000)
+  sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+class UpdatePresetDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  name?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(MIN_SHORT_EDGE)
+  @Max(MAX_SHORT_EDGE)
+  shortEdge?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(MIN_BITRATE_KBPS)
+  @Max(MAX_BITRATE_KBPS)
+  videoBitrateKbps?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(32)
+  @Max(512)
+  audioBitrateKbps?: number;
+
+  @IsOptional()
+  @IsIn(X264_PRESETS)
+  preset?: string;
+
+  @IsOptional()
+  @IsIn(RENDITION_CONTAINERS)
+  container?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(10_000)
+  sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
 class TestMailDto {
   @IsOptional()
   @IsEmail()
@@ -140,6 +292,7 @@ export class SettingsController {
     private readonly settingsService: SettingsService,
     private readonly mailService: MailService,
     private readonly authSettings: AuthSettingsService,
+    private readonly transcodeSettings: TranscodeSettingsService,
   ) {}
 
   @Roles('ADMIN')
@@ -231,5 +384,55 @@ export class SettingsController {
       allowedDomains: dto.allowedDomains,
       buttonLabel: dto.buttonLabel,
     });
+  }
+
+  // ---------- Verarbeitung (Phase 19) ----------
+
+  @Roles('ADMIN')
+  @Get('transcode')
+  getTranscode(): Promise<TranscodeSettingsDto> {
+    return this.transcodeSettings.get();
+  }
+
+  @Roles('ADMIN')
+  @Put('transcode')
+  updateTranscode(@Body() dto: UpdateTranscodeDto): Promise<TranscodeSettingsDto> {
+    return this.transcodeSettings.update({
+      downloadFormatsEnabled: dto.downloadFormatsEnabled,
+      downloadPrebuild: dto.downloadPrebuild,
+      downloadFinalOnly: dto.downloadFinalOnly,
+      windowStart: dto.windowStart,
+      windowEnd: dto.windowEnd,
+      hlsEnabled: dto.hlsEnabled,
+      proxyShortEdge: dto.proxyShortEdge,
+      proxyVideoBitrateKbps: dto.proxyVideoBitrateKbps,
+      proxyPreset: dto.proxyPreset,
+    });
+  }
+
+  @Roles('ADMIN')
+  @Post('transcode/presets')
+  createPreset(@Body() dto: PresetDto): Promise<DownloadPresetDto> {
+    return this.transcodeSettings.createPreset(dto);
+  }
+
+  @Roles('ADMIN')
+  @Patch('transcode/presets/:id')
+  updatePreset(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdatePresetDto,
+  ): Promise<DownloadPresetDto> {
+    return this.transcodeSettings.updatePreset(id, dto);
+  }
+
+  /**
+   * Löschen nimmt die schon erzeugten Dateien mit. Wer nur die Auswahl
+   * loswerden will, schaltet das Format stattdessen aus.
+   */
+  @Roles('ADMIN')
+  @Delete('transcode/presets/:id')
+  @HttpCode(204)
+  removePreset(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    return this.transcodeSettings.removePreset(id);
   }
 }

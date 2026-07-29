@@ -477,6 +477,102 @@ export interface MailFailureDto {
   lastAt: string;
 }
 
+// ---------- Verarbeitung (Phase 19) ----------
+
+/** x264-Presets, langsamste zuletzt. Langsamer heißt kleiner bei gleichem Bild. */
+export const X264_PRESETS = [
+  'ultrafast',
+  'superfast',
+  'veryfast',
+  'faster',
+  'fast',
+  'medium',
+  'slow',
+  'slower',
+  'veryslow',
+] as const;
+export type X264Preset = (typeof X264_PRESETS)[number];
+
+export const RENDITION_CONTAINERS = ['mp4', 'mov'] as const;
+export type RenditionContainer = (typeof RENDITION_CONTAINERS)[number];
+
+/**
+ * Ein Download-Format, wie der Admin es angelegt hat (Phase 19). Wer nur
+ * herunterlädt, bekommt davon `id`, `name` und `shortEdge` zu sehen – Bitrate
+ * und Preset sind Sache der Einrichtung.
+ */
+export interface DownloadPresetDto {
+  id: string;
+  name: string;
+  /** Kurze Kante: 1080 ist quer 1920×1080 und hoch 1080×1920. */
+  shortEdge: number;
+  videoBitrateKbps: number;
+  audioBitrateKbps: number;
+  preset: X264Preset;
+  container: RenditionContainer;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export type RenditionStatus = 'QUEUED' | 'PROCESSING' | 'READY' | 'FAILED';
+
+/**
+ * Ein Format im Download-Fenster. `status` ist `null`, solange niemand es
+ * angefordert hat – dann entsteht die Datei erst beim Klick.
+ */
+export interface VersionRenditionDto {
+  presetId: string;
+  name: string;
+  shortEdge: number;
+  container: RenditionContainer;
+  status: RenditionStatus | null;
+  progress: number;
+  error: string | null;
+  sizeBytes: number | null;
+  width: number | null;
+  height: number | null;
+  /** Name, unter dem diese Fassung heruntergeladen wird. */
+  downloadFilename: string;
+}
+
+/** Was das Download-Fenster einer Fassung anbietet (Phase 19). */
+export interface VersionDownloadsDto {
+  /** Ist die Formatauswahl überhaupt eingeschaltet? */
+  formatsEnabled: boolean;
+  /** Darf der Fragende überhaupt herunterladen? */
+  canDownload: boolean;
+  /** Name, unter dem das Original heruntergeladen wird. */
+  originalFilename: string;
+  originalSizeBytes: number;
+  renditions: VersionRenditionDto[];
+}
+
+/**
+ * Verarbeitungseinstellungen des Workspace (Phase 19), nur für Admins.
+ *
+ * Die `…Effective`-Felder sagen, was gerade tatsächlich gilt: Solange in der
+ * Oberfläche nichts entschieden wurde, kommt der Wert aus der `.env` des
+ * Containers. `…FromEnv` markiert genau diesen Fall.
+ */
+export interface TranscodeSettingsDto {
+  downloadFormatsEnabled: boolean;
+  downloadPrebuild: boolean;
+  downloadFinalOnly: boolean;
+  /** `HH:MM` oder `null` – beide `null` heißt: jederzeit. */
+  windowStart: string | null;
+  windowEnd: string | null;
+  hlsEnabled: boolean;
+  hlsFromEnv: boolean;
+  proxyShortEdge: number;
+  proxyShortEdgeFromEnv: boolean;
+  proxyVideoBitrateKbps: number;
+  proxyVideoBitrateFromEnv: boolean;
+  proxyPreset: X264Preset;
+  proxyPresetFromEnv: boolean;
+  presets: DownloadPresetDto[];
+  updatedAt: string;
+}
+
 /** Vorbelegung der SMTP-Felder je Anbieter (nur Host, Port, TLS). */
 export interface SmtpProviderPresetDto {
   id: string;

@@ -51,6 +51,13 @@ export const uploadKindEnum = pgEnum('upload_kind', ['VERSION', 'PROJECT_FILE'])
 export const shareScopeEnum = pgEnum('share_scope', ['PROJECT', 'VIDEO']);
 /** Wie das Material fürs Abspielen bereitsteht (siehe `transcode/media-plan.ts`). */
 export const playbackModeEnum = pgEnum('playback_mode', ['ORIGINAL', 'REMUX', 'TRANSCODE']);
+/** Stand einer Download-Fassung aus einem Format-Preset (Phase 19). */
+export const renditionStatusEnum = pgEnum('rendition_status', [
+  'QUEUED',
+  'PROCESSING',
+  'READY',
+  'FAILED',
+]);
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -600,8 +607,112 @@ export const appSettings = pgTable('app_settings', {
    */
   archiveRetentionDays: integer('archive_retention_days').notNull().default(30),
 
+  // ---------- Verarbeitung (Phase 19) ----------
+  /**
+   * Bietet das Download-Fenster neben dem Original auch fertige Formate an?
+   * Aus heißt: Der Knopf lädt wie bisher direkt das Original.
+   */
+  downloadFormatsEnabled: boolean('download_formats_enabled').notNull().default(false),
+  /**
+   * Die Download-Fassungen schon beim Hochladen erzeugen, statt erst beim
+   * ersten Klick. Läuft mit niedrigem Vorrang – die Abspielfassung geht immer
+   * vor.
+   */
+  downloadPrebuild: boolean('download_prebuild').notNull().default(false),
+  /** Vorab nur für Endfassungen erzeugen, nicht für jeden Zwischenstand. */
+  downloadFinalOnly: boolean('download_final_only').notNull().default(false),
+
+  /**
+   * Zeitfenster für die aufwendige Nacharbeit, in Minuten seit Mitternacht
+   * (Ortszeit des Containers). Beide `null` heißt: kein Fenster. Ein Start
+   * hinter dem Ende meint die Nacht – 1320/360 ist 22:00 bis 6:00.
+   *
+   * Gilt nur für das, worauf niemand wartet: Vorab-Erzeugung und HLS-Leiter.
+   * Die Abspielfassung und ein angeforderter Download laufen immer sofort.
+   */
+  transcodeWindowStart: smallint('transcode_window_start'),
+  transcodeWindowEnd: smallint('transcode_window_end'),
+
+  /**
+   * Die folgenden Werte sind absichtlich nullbar: `null` heißt „in der
+   * Oberfläche nie entschieden – nimm, was in der `.env` steht". So läuft
+   * eine bestehende Anlage unverändert weiter, und der erste Klick übernimmt
+   * die Hoheit.
+   */
+  hlsEnabled: boolean('hls_enabled'),
+  proxyShortEdge: integer('proxy_short_edge'),
+  proxyVideoBitrateKbps: integer('proxy_video_bitrate_kbps'),
+  proxyPreset: text('proxy_preset'),
+
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Die Formate, die beim Herunterladen zur Auswahl stehen (Phase 19).
+ *
+ * Angelegt werden sie nur vom Admin. Wer herunterlädt, sieht nur den Namen
+ * und die Größe – nicht Bitrate und Preset.
+ */
+export const downloadPresets = pgTable(
+  'download_presets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    /** Kurze Kante, wie überall: 1080 ist quer 1920×1080 und hoch 1080×1920. */
+    shortEdge: integer('short_edge').notNull(),
+    videoBitrateKbps: integer('video_bitrate_kbps').notNull(),
+    audioBitrateKbps: integer('audio_bitrate_kbps').notNull().default(192),
+    /** x264-Preset (`ultrafast` … `veryslow`). */
+    preset: text('preset').notNull().default('veryfast'),
+    container: text('container').notNull().default('mp4'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    /** Ausschalten statt löschen – erzeugte Dateien bleiben, die Auswahl geht weg. */
+    isActive: boolean('is_active').notNull().default(true),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('download_presets_name_idx').on(sql`lower(${table.name})`),
+    index('download_presets_order_idx').on(table.sortOrder, table.createdAt),
+  ],
+);
+
+/**
+ * Eine erzeugte Download-Fassung: ein Preset, angewendet auf eine Version.
+ *
+ * `signature` hält fest, mit welchen Werten die Datei entstanden ist. Ändert
+ * der Admin das Preset später, passt die Unterschrift nicht mehr und die
+ * Fassung wird neu erzeugt – statt still eine Datei auszuliefern, die mit dem
+ * gewählten Format nichts mehr zu tun hat.
+ */
+export const versionRenditions = pgTable(
+  'version_renditions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    versionId: uuid('version_id')
+      .notNull()
+      .references(() => videoVersions.id, { onDelete: 'cascade' }),
+    presetId: uuid('preset_id')
+      .notNull()
+      .references(() => downloadPresets.id, { onDelete: 'cascade' }),
+    status: renditionStatusEnum('status').notNull().default('QUEUED'),
+    progress: smallint('progress').notNull().default(0),
+    error: text('error'),
+    signature: text('signature').notNull(),
+    storageKey: text('storage_key'),
+    sizeBytes: bigint('size_bytes', { mode: 'number' }),
+    width: integer('width'),
+    height: integer('height'),
+    /** Wer sie angefordert hat – `null` bei der Vorab-Erzeugung. */
+    requestedById: uuid('requested_by_id').references(() => users.id, { onDelete: 'set null' }),
+    ...timestamps,
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('version_renditions_version_preset_idx').on(table.versionId, table.presetId),
+    index('version_renditions_status_idx').on(table.status),
+  ],
+);
 
 /**
  * Wer will über einen Film Bescheid wissen? (Phase 18)
@@ -804,3 +915,5 @@ export type PendingNotificationRow = typeof pendingNotifications.$inferSelect;
 export type NotificationSubscriptionRow = typeof notificationSubscriptions.$inferSelect;
 export type NotificationRow = typeof notifications.$inferSelect;
 export type MailFailureRow = typeof mailFailures.$inferSelect;
+export type DownloadPresetRow = typeof downloadPresets.$inferSelect;
+export type VersionRenditionRow = typeof versionRenditions.$inferSelect;

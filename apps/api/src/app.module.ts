@@ -16,7 +16,9 @@ import { MediaModule } from './media/media.module';
 import { ProjectFilesModule } from './project-files/project-files.module';
 import { ProjectsModule } from './projects/projects.module';
 import { QueueModule } from './queue/queue.module';
+import { RenditionsModule } from './renditions/renditions.module';
 import { SettingsModule } from './settings/settings.module';
+import { TranscodeSettingsModule } from './settings/transcode-settings.module';
 import { EmbedModule } from './embed/embed.module';
 import { SharesModule } from './shares/shares.module';
 import { StorageModule } from './storage/storage.module';
@@ -38,6 +40,7 @@ import { VideosModule } from './videos/videos.module';
     StorageModule,
     AccessModule,
     EventsModule,
+    TranscodeSettingsModule,
     JwtModule.register({}),
     QueueModule,
     MailModule,
@@ -48,6 +51,7 @@ import { VideosModule } from './videos/videos.module';
     VersionsModule,
     UploadsModule,
     MediaModule,
+    RenditionsModule,
     CommentsModule,
     SharesModule,
     EmbedModule,
