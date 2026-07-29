@@ -3,6 +3,7 @@
 import {
   type Annotation,
   type CommentDto,
+  type VersionDownloadsDto,
   type VersionDto,
   type VideoDto,
   frameToDisplayTimecode,
@@ -23,6 +24,7 @@ import { Menu, MenuItem } from '@/components/ui/Menu';
 import { IconButton } from '@/components/ui/Icon';
 import { SharePanel } from '@/components/SharePanel';
 import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
+import { DownloadDialog } from '@/components/DownloadDialog';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
 import { useFallbackInterval, useLiveTopic } from '@/lib/live';
@@ -55,6 +57,8 @@ export default function ReviewPage() {
   /** Nachfrage vor dem Löschen – eine Fassung ist samt Kommentaren weg. */
   const [versionToDelete, setVersionToDelete] = useState<VersionDto | null>(null);
   const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
+  /** Offenes Download-Fenster samt der Auskunft, die den Knopf ausgelöst hat. */
+  const [downloads, setDownloads] = useState<VersionDownloadsDto | null>(null);
 
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
   const router = useRouter();
@@ -68,6 +72,25 @@ export default function ReviewPage() {
     () => versions.find((version) => version.id === selectedVersionId) ?? null,
     [versions, selectedVersionId],
   );
+
+  /**
+   * Der Herunterladen-Knopf (Phase 19). Sind Formate eingerichtet, öffnet sich
+   * das Auswahlfenster; sonst geht es wie bisher direkt aufs Original. Die
+   * Auskunft wird beim Klick geholt und ins Fenster durchgereicht – so muss
+   * die Fassung sie nicht dauernd mit sich herumtragen.
+   */
+  const starteDownload = useCallback(async (versionId: string) => {
+    try {
+      const auskunft = await api.listDownloads(versionId);
+      if (auskunft.formatsEnabled && auskunft.renditions.length > 0) {
+        setDownloads(auskunft);
+        return;
+      }
+    } catch {
+      // Antwortet die Auskunft nicht, bleibt der gewohnte Weg offen.
+    }
+    window.location.href = mediaUrl.original(versionId);
+  }, []);
 
   const loadVideo = useCallback(async () => {
     try {
@@ -271,12 +294,15 @@ export default function ReviewPage() {
               </>
             ) : null}
 
+            {/* Sind Download-Formate eingerichtet, öffnet der Knopf ein
+                Fenster mit der Auswahl (Phase 19); sonst bleibt es beim
+                Direktlink aufs Original. Entschieden wird das an der Antwort,
+                statt die Auskunft an jeder Fassung mitzuschleppen. */}
             {selectedVersion?.status === 'READY' && selectedVersion.canDownload ? (
               <IconButton
                 icon="download"
-                label="Original herunterladen (nie der Proxy)"
-                href={mediaUrl.original(selectedVersion.id)}
-                download
+                label="Herunterladen"
+                onClick={() => void starteDownload(selectedVersion.id)}
               />
             ) : null}
 
@@ -482,6 +508,15 @@ export default function ReviewPage() {
           videoId={video.id}
           targetLabel={video.name}
           onClose={() => setSharing(false)}
+        />
+      ) : null}
+
+      {downloads && selectedVersion && video ? (
+        <DownloadDialog
+          versionId={selectedVersion.id}
+          videoId={video.id}
+          initial={downloads}
+          onClose={() => setDownloads(null)}
         />
       ) : null}
 

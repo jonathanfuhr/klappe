@@ -4,6 +4,7 @@ import type {
   BrandingDto,
   CommentDto,
   CustomerDto,
+  DownloadPresetDto,
   FieldValueCountDto,
   GuestAccessDto,
   GuestCandidateDto,
@@ -26,11 +27,14 @@ import type {
   SmtpProviderPresetDto,
   SmtpSettingsDto,
   TagDto,
+  TranscodeSettingsDto,
   UploadSessionDto,
   UserDto,
   UserRole,
   UserSummaryDto,
+  VersionDownloadsDto,
   VersionDto,
+  VersionRenditionDto,
   VideoDto,
 } from '@klappe/shared';
 
@@ -493,6 +497,67 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(to ? { to } : {}),
     }),
+
+  // ---------- Verarbeitung (Phase 19) ----------
+  getTranscodeSettings: () => request<TranscodeSettingsDto>('/v1/settings/transcode'),
+  updateTranscodeSettings: (input: {
+    downloadFormatsEnabled?: boolean;
+    downloadPrebuild?: boolean;
+    downloadFinalOnly?: boolean;
+    /** `HH:MM`; ein leerer String löscht das Zeitfenster. */
+    windowStart?: string;
+    windowEnd?: string;
+    hlsEnabled?: boolean;
+    proxyShortEdge?: number;
+    proxyVideoBitrateKbps?: number;
+    proxyPreset?: string;
+  }) =>
+    request<TranscodeSettingsDto>('/v1/settings/transcode', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  createDownloadPreset: (input: {
+    name: string;
+    shortEdge: number;
+    videoBitrateKbps: number;
+    audioBitrateKbps?: number;
+    preset?: string;
+    container?: string;
+    sortOrder?: number;
+    isActive?: boolean;
+  }) =>
+    request<DownloadPresetDto>('/v1/settings/transcode/presets', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  updateDownloadPreset: (
+    id: string,
+    input: {
+      name?: string;
+      shortEdge?: number;
+      videoBitrateKbps?: number;
+      audioBitrateKbps?: number;
+      preset?: string;
+      container?: string;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+  ) =>
+    request<DownloadPresetDto>(`/v1/settings/transcode/presets/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  deleteDownloadPreset: (id: string) =>
+    request<void>(`/v1/settings/transcode/presets/${id}`, { method: 'DELETE' }),
+
+  /** Was im Download-Fenster einer Fassung zur Auswahl steht (Phase 19). */
+  listDownloads: (versionId: string) =>
+    request<VersionDownloadsDto>(`/v1/versions/${versionId}/downloads`),
+  /** Ein Format anfordern; ist es schon da, kommt es unverändert zurück. */
+  requestDownload: (versionId: string, presetId: string) =>
+    request<VersionRenditionDto>(`/v1/versions/${versionId}/downloads/${presetId}`, {
+      method: 'POST',
+    }),
 };
 
 export const mediaUrl = {
@@ -506,4 +571,7 @@ export const mediaUrl = {
     `${API_BASE}/v1/projects/${projectId}/files.zip${folderId ? `?folder=${folderId}` : ''}`,
   /** Master-Playlist der adaptiven Wiedergabe (Phase 13). */
   hls: (versionId: string) => `${API_BASE}/v1/versions/${versionId}/hls/master.m3u8`,
+  /** Eine fertige Download-Fassung aus einem Format-Preset (Phase 19). */
+  rendition: (versionId: string, presetId: string) =>
+    `${API_BASE}/v1/versions/${versionId}/downloads/${presetId}/datei`,
 };

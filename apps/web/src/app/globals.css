@@ -2383,3 +2383,37 @@ a.badge:hover {
   margin-bottom: 3px;
   font-size: 13px;
 }
+
+/*
+ * Download-Fenster (Phase 19). Eine Zeile je Angebot: links Name, Größe und
+ * – solange erzeugt wird – der Balken, rechts der Knopf. Der Knopf bleibt
+ * damit immer an derselben Stelle, auch wenn die Zeile darunter wächst.
+ */
+.downloadrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--klappe-border);
+  border-radius: var(--klappe-radius-sm);
+  margin-bottom: 8px;
+}
+
+.downloadrow__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.downloadrow__text strong {
+  font-size: 14px;
+}
+
+/* Die Tabelle der Formate in den Einstellungen wird breiter als die Seite –
+   scrollen soll sie, nicht die Seite. */
+.settingspage__body .table {
+  display: block;
+  overflow-x: auto;
+}

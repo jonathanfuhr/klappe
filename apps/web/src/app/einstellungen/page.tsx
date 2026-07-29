@@ -7,6 +7,7 @@ import { BrandingPanel } from '@/components/settings/BrandingPanel';
 import { FieldsPanel } from '@/components/settings/FieldsPanel';
 import { GuestsPanel } from '@/components/settings/GuestsPanel';
 import { SmtpPanel } from '@/components/settings/SmtpPanel';
+import { TranscodePanel } from '@/components/settings/TranscodePanel';
 import { UsersPanel } from '@/components/settings/UsersPanel';
 import { useSession } from '@/lib/session';
 
@@ -24,6 +25,7 @@ const BEREICHE = [
   { id: 'branding', label: 'Erscheinungsbild', team: false },
   { id: 'auth', label: 'Anmeldung', team: false },
   { id: 'mail', label: 'E-Mail-Versand', team: false },
+  { id: 'transcode', label: 'Transcode', team: false },
 ] as const;
 
 type BereichId = (typeof BEREICHE)[number]['id'];
@@ -76,6 +78,7 @@ export default function SettingsPage() {
           {gewaehlt === 'branding' ? <BrandingPanel /> : null}
           {gewaehlt === 'auth' ? <AuthPanel /> : null}
           {gewaehlt === 'mail' ? <SmtpPanel /> : null}
+          {gewaehlt === 'transcode' ? <TranscodePanel /> : null}
         </div>
       </div>
     </AppShell>
