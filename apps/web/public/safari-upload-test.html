@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Klappe – Upload-Einzeltest</title>
+    <style>
+      body { font: 15px/1.5 system-ui, sans-serif; margin: 0; padding: 24px; background: #121316; color: #e8e9ec; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      p.hint { color: #9aa0a8; margin-top: 0; }
+      fieldset { border: 1px solid #2b2d33; border-radius: 8px; margin: 16px 0; padding: 12px 14px; }
+      legend { color: #9aa0a8; font-size: 13px; padding: 0 6px; }
+      label { display: block; margin: 8px 0 4px; font-size: 13px; color: #9aa0a8; }
+      input, select, button { font: inherit; padding: 7px 10px; border-radius: 6px; border: 1px solid #2b2d33; background: #1a1c21; color: inherit; }
+      button { background: #4c8dff; border-color: #4c8dff; color: #fff; cursor: pointer; font-weight: 600; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      #log { white-space: pre-wrap; font: 12px/1.45 ui-monospace, monospace; background: #0d0e10; border: 1px solid #2b2d33; border-radius: 8px; padding: 12px; max-height: 60vh; overflow: auto; }
+      .ok { color: #7fd396; } .bad { color: #ff8f93; } .dim { color: #6d737c; }
+    </style>
+  </head>
+  <body>
+    <h1>Upload-Einzeltest</h1>
+    <p class="hint">
+      Schickt eine Datei Block für Block per <code>XMLHttpRequest</code> an die
+      Upload-Schnittstelle – ohne React, ohne die Warteschlange der Anwendung.
+      Damit lässt sich trennen, ob der Browser oder unser Code klemmt.
+      <strong>Vorher in derselben Sitzung anmelden</strong> (Tab auf
+      <code>/login</code>), das Cookie wird mitgeschickt.
+    </p>
+
+    <fieldset>
+      <legend>Einstellungen</legend>
+      <label for="datei">Datei</label>
+      <input id="datei" type="file" accept="video/*" />
+      <label for="block">Blockgröße</label>
+      <select id="block">
+        <option value="262144">256 KiB</option>
+        <option value="1048576">1 MiB</option>
+        <option value="4194304" selected>4 MiB (wie die App)</option>
+        <option value="8388608">8 MiB (wie früher)</option>
+      </select>
+      <p style="margin: 14px 0 0">
+        <button id="los" disabled>Test starten</button>
+        <button id="stopp" disabled style="background: #2b2d33; border-color: #2b2d33">Abbrechen</button>
+      </p>
+    </fieldset>
+
+    <div id="log" class="dim">Noch nichts gelaufen.</div>
+
+    <script>
+      const feldDatei = document.getElementById('datei');
+      const feldBlock = document.getElementById('block');
+      const knopfLos = document.getElementById('los');
+      const knopfStopp = document.getElementById('stopp');
+      const log = document.getElementById('log');
+
+      let abbrechen = false;
+      let start = 0;
+
+      function zeile(text, klasse) {
+        const t = ((performance.now() - start) / 1000).toFixed(1).padStart(6);
+        const span = document.createElement('div');
+        if (klasse) span.className = klasse;
+        span.textContent = `${t}s  ${text}`;
+        if (log.classList.contains('dim')) { log.textContent = ''; log.classList.remove('dim'); }
+        log.appendChild(span);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      feldDatei.addEventListener('change', () => {
+        knopfLos.disabled = !feldDatei.files?.length;
+      });
+      knopfStopp.addEventListener('click', () => { abbrechen = true; zeile('Abbruch angefordert.', 'dim'); });
+
+      /** Ein Block per XHR – bewusst dieselbe Mechanik wie in der Anwendung. */
+      function sendeBlock(location, blob, offset) {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          const t0 = performance.now();
+          let letzterFortschritt = -1;
+          let anzahlFortschritt = 0;
+
+          xhr.open('PATCH', location, true);
+          xhr.withCredentials = true;
+          xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
+          xhr.setRequestHeader('Upload-Offset', String(offset));
+          xhr.setRequestHeader('Tus-Resumable', '1.0.0');
+          xhr.timeout = 60000 + Math.ceil(blob.size / (20 * 1024)) * 1000;
+
+          xhr.upload.onprogress = (e) => {
+            anzahlFortschritt += 1;
+            letzterFortschritt = e.loaded;
+          };
+          xhr.upload.onload = () => zeile(`   Body abgegeben (${anzahlFortschritt} Fortschrittsereignisse)`, 'dim');
+          xhr.onerror = () => reject(new Error('Netzwerkfehler (onerror) – keine Antwort erhalten'));
+          xhr.ontimeout = () =>
+            reject(new Error(`Zeitüberschreitung nach ${Math.round(xhr.timeout / 1000)}s, zuletzt ${letzterFortschritt} Byte abgegeben`));
+          xhr.onabort = () => reject(new Error('Abgebrochen'));
+          xhr.onload = () => {
+            const dauer = ((performance.now() - t0) / 1000).toFixed(1);
+            if (xhr.status < 200 || xhr.status >= 300) {
+              reject(new Error(`HTTP ${xhr.status} – ${xhr.responseText.slice(0, 200)}`));
+              return;
+            }
+            zeile(`   HTTP ${xhr.status} nach ${dauer}s, ${anzahlFortschritt} Fortschrittsereignisse`, 'ok');
+            resolve(Number(xhr.getResponseHeader('Upload-Offset')));
+          };
+          xhr.send(blob);
+        });
+      }
+
+      knopfLos.addEventListener('click', async () => {
+        const datei = feldDatei.files[0];
+        const blockgroesse = Number(feldBlock.value);
+        abbrechen = false;
+        start = performance.now();
+        log.textContent = '';
+        log.classList.remove('dim');
+        knopfLos.disabled = true;
+        knopfStopp.disabled = false;
+
+        try {
+          zeile(`Datei: ${datei.name}, ${(datei.size / 1048576).toFixed(1)} MB, Blöcke à ${(blockgroesse / 1024).toFixed(0)} KiB`);
+
+          // Zuerst das reine Lesen prüfen – hängt Safari schon hier, liegt es
+          // nicht am Server.
+          const tLesen = performance.now();
+          await datei.slice(0, Math.min(blockgroesse, datei.size)).arrayBuffer();
+          zeile(`Erster Block aus der Datei gelesen (${((performance.now() - tLesen) / 1000).toFixed(2)}s)`, 'ok');
+
+          const antwort = await fetch('/v1/uploads', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: datei.name, sizeBytes: datei.size, mimeType: datei.type || undefined }),
+          });
+          if (!antwort.ok) throw new Error(`Sitzung anlegen: HTTP ${antwort.status} – ${(await antwort.text()).slice(0, 200)}`);
+          const sitzung = await antwort.json();
+          zeile(`Sitzung ${sitzung.id} angelegt`, 'ok');
+
+          let offset = 0;
+          let nummer = 0;
+          while (offset < datei.size && !abbrechen) {
+            nummer += 1;
+            const ende = Math.min(offset + blockgroesse, datei.size);
+            zeile(`Block ${nummer}: ${offset} … ${ende}`);
+            offset = await sendeBlock(sitzung.location, datei.slice(offset, ende), offset);
+          }
+
+          if (abbrechen) {
+            zeile('Abgebrochen. Die Sitzung bleibt liegen und läuft von selbst ab.', 'dim');
+          } else {
+            zeile(`FERTIG – ${offset} von ${datei.size} Byte übertragen.`, 'ok');
+            zeile('Die Datei liegt jetzt ohne Zuordnung im Zwischenspeicher; das ist für diesen Test richtig so.', 'dim');
+          }
+        } catch (fehler) {
+          zeile(`GESCHEITERT: ${fehler.message}`, 'bad');
+          zeile('Bitte diese Zeile samt der Blocknummer darüber weitergeben.', 'dim');
+        } finally {
+          knopfLos.disabled = false;
+          knopfStopp.disabled = true;
+        }
+      });
+    </script>
+  </body>
+</html>
