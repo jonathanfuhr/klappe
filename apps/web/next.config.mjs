@@ -27,6 +27,19 @@ const nextConfig = {
   async rewrites() {
     return [{ source: '/v1/:path*', destination: `${apiUrl}/v1/:path*` }];
   },
+  /**
+   * Benutzer und Gäste stehen seit Phase 17 in den Einstellungen. Die
+   * Weiterleitung steht hier und nicht als Seite mit `router.replace`: So
+   * greift sie schon in der Antwort des Servers, statt erst zu laden und dann
+   * weiterzuspringen. Dauerhaft (308), weil die alten Adressen nicht
+   * wiederkommen.
+   */
+  async redirects() {
+    return [
+      { source: '/benutzer', destination: '/einstellungen', permanent: true },
+      { source: '/gaeste', destination: '/einstellungen', permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

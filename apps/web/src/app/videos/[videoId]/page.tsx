@@ -188,6 +188,10 @@ export default function ReviewPage() {
   return (
     <AppShell>
       <div className="review">
+        {/* Die Hülle scrollt am Schreibtisch als eine Spalte. Auf schmalem
+            Schirm löst sie sich auf (`display: contents`), damit Player,
+            Kommentare und Kennwerte einzeln geordnet werden können. */}
+        <div className="review__col">
         <div className="review__main">
           <div className="breadcrumb">
             <Link href="/projekte">Projekte</Link>
@@ -366,8 +370,9 @@ export default function ReviewPage() {
                 }}
               />
 
-              <VersionDetails version={selectedVersion} />
-              <ShortcutHelp />
+              {/* Steht **nach** der Kommentarspalte, sobald gestapelt wird –
+                  siehe `.review` im Stylesheet. Wer auf dem Handy scrollt,
+                  will unter dem Bild die Kommentare, nicht die Kennwerte. */}
             </>
           ) : (
             !loading && (
@@ -379,6 +384,14 @@ export default function ReviewPage() {
               </div>
             )
           )}
+        </div>
+
+        {selectedVersion ? (
+          <div className="review__details">
+            <VersionDetails version={selectedVersion} />
+            <ShortcutHelp />
+          </div>
+        ) : null}
         </div>
 
         <aside className="review__side">

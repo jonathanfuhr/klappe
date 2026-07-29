@@ -24,6 +24,7 @@ import {
 } from 'react';
 import { mediaUrl } from '@/lib/api';
 import { useHlsSource } from './useHlsSource';
+import { Icon } from '@/components/ui/Icon';
 import { AnnotationCanvas } from './AnnotationCanvas';
 import { Timeline } from './Timeline';
 import { useFrameClock } from './useFrameClock';
@@ -466,6 +467,9 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         </div>
       ) : null}
 
+      {/* Die laufende Frame-Nummer steht in der Skala der Zeitleiste, zwischen
+          Start und Ende – dort, wo man sie sucht, und ohne eine eigene Kachel
+          in der Steuerleiste zu belegen. */}
       <Timeline
         version={version}
         frame={frame}
@@ -545,13 +549,9 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           <span className="player__timecode mono">
             {frameRate ? frameToDisplayTimecode(frame, timecodeContext) : '--:--:--:--'}
           </span>
-          <span className="player__frame mono">
-            Frame {frame}
-            {totalFrames > 0 ? ` / ${totalFrames - 1}` : ''}
-          </span>
         </div>
 
-        <span className="muted mono" style={{ fontSize: 12 }}>
+        <span className="muted mono" style={{ fontSize: 12 }} data-mobil="aus">
           {formatDuration(framesToSeconds(frame, frameRate ?? { num: 25, den: 1 }))} /{' '}
           {formatDuration(durationSeconds)}
         </span>
@@ -597,15 +597,16 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         </button>
         <button
           type="button"
-          className="button"
+          className="iconbutton"
           onClick={() => {
             stopTransport();
             onRequestComment?.(frame);
           }}
           disabled={!hasProxy || !canComment}
           title="Kommentar am aktuellen Bild (C)"
+          aria-label="Kommentar am aktuellen Bild setzen"
         >
-          Kommentar setzen
+          <Icon name="comment" />
         </button>
       </div>
     </div>

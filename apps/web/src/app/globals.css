@@ -484,23 +484,33 @@ button {
   height: calc(100dvh - var(--klappe-header-height));
 }
 
-@media (max-width: 1000px) {
-  .review {
-    grid-template-columns: minmax(0, 1fr);
-    height: auto;
-  }
+/*
+ * Am Schreibtisch scrollt die linke Seite als **eine** Spalte: Player oben,
+ * Kennwerte darunter. Auf schmalem Schirm löst sich diese Hülle auf, damit
+ * die Kommentare zwischen beide rutschen können – siehe die Regel weiter
+ * unten.
+ */
+.review__col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.review__details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 20px 20px;
 }
 
 .review__main {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 16px 20px 20px;
+  padding: 16px 20px 12px;
   gap: 12px;
-  overflow-y: auto;
-  /* Die Spalte darf nur senkrecht scrollen – ein waagerechter Balken unter
-     dem Player wäre beim Scrubben im Weg. */
-  overflow-x: hidden;
 }
 
 .review__side {
@@ -510,6 +520,37 @@ button {
   flex-direction: column;
   min-height: 0;
 }
+
+@media (max-width: 1000px) {
+  /*
+   * Gestapelt gehören die Kommentare direkt unter das Bild – dort sucht man
+   * sie. Die Kennwerte und die Tastenhilfe rutschen dahinter; wer sie braucht,
+   * scrollt ohnehin.
+   */
+  .review {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+
+  .review__col {
+    display: contents;
+  }
+
+  .review__main {
+    order: 1;
+  }
+
+  .review__side {
+    order: 2;
+  }
+
+  .review__details {
+    order: 3;
+    padding: 12px 14px 40px;
+  }
+}
+
 
 .player {
   display: flex;
@@ -2148,4 +2189,10 @@ a.badge:hover {
   .select {
     font-size: 16px;
   }
+}
+
+/* Die laufende Frame-Nummer in der Skala der Zeitleiste (Phase 17). */
+.timeline__frame {
+  color: var(--klappe-text);
+  font-variant-numeric: tabular-nums;
 }

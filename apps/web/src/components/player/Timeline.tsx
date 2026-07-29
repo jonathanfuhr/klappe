@@ -177,10 +177,11 @@ export function Timeline({
 
       <div className="timeline__scale mono">
         <span>{frameRate ? frameToDisplayTimecode(0, timecodeContext) : '00:00:00:00'}</span>
-        <span>
-          {version.media.frameCount
-            ? `${version.media.frameCount} Frames`
-            : formatDuration(durationSeconds)}
+        {/* Die laufende Nummer sitzt zwischen Start und Ende – dort steht sie
+            im Zusammenhang, statt in der Steuerleiste eine Kachel zu belegen. */}
+        <span className="timeline__frame">
+          Frame {frame}
+          {lastFrame > 0 ? ` / ${lastFrame}` : ''}
         </span>
         <span>
           {frameRate
