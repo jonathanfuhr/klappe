@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { FieldValueCountDto, ProjectFieldDefDto, ProjectFieldSettingsDto } from '@klappe/shared';
 import { asc, eq, sql } from 'drizzle-orm';
+import { uniqueViolation } from '../common/db-errors';
 import { DB, type Database } from '../db/db.module';
 import { appSettings, projectFieldDefs, projectFieldValues, projects } from '../db/schema';
 
@@ -170,9 +171,14 @@ export class ProjectFieldsService {
   }
 }
 
-/** Der eindeutige Index meldet sich als Postgres-Fehler 23505. */
+/**
+ * Der eindeutige Index meldet sich als Postgres-Fehler 23505 – allerdings
+ * eingepackt in einen `DrizzleQueryError`, weshalb er nicht auf der obersten
+ * Ebene steht. Ohne den Blick in die `cause`-Kette wurde aus dem Hinweis ein
+ * nacktes 500 (bemerkt in Phase 19).
+ */
 function duplikatOderWeiter(error: unknown, name: string): unknown {
-  if ((error as { code?: string } | undefined)?.code === '23505') {
+  if (uniqueViolation(error) !== null) {
     return new BadRequestException(`Ein Feld namens „${name.trim()}“ gibt es schon.`);
   }
   return error;
