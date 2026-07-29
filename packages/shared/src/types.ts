@@ -248,6 +248,12 @@ export interface ShareLinkDto {
   allowComments: boolean;
   /** Einbetten auf fremden Seiten – ohne Anmeldung, ohne Code, ohne Cookie. */
   embedEnabled: boolean;
+  /**
+   * Direktfreigabe (Phase 18): entstanden, weil ein vorhandener Gast mit einem
+   * Klick erweitert wurde. Die Adresse verschickt niemand – die Oberfläche
+   * blendet sie deshalb aus.
+   */
+  isDirect: boolean;
   expiresAt: string | null;
   revokedAt: string | null;
   isActive: boolean;
@@ -275,7 +281,20 @@ export interface GuestAccessLinkDto {
   shareLinkId: string;
   label: string | null;
   scope: ShareScope;
+  /**
+   * Name des Ziels. In der Projektansicht steht dahinter, dass jemand nur
+   * *dieses eine* Video sieht – sonst sähe die Zeile aus wie ein voller
+   * Projektzugang (Phase 18).
+   */
   targetName: string;
+  /**
+   * Kennung des Ziels – bei `scope: 'VIDEO'` das Video, sonst das Projekt.
+   * Damit lässt sich am Projekt ausrechnen, welche Videos einem Gast noch
+   * fehlen (Phase 18); über den Namen zu gehen wäre bei Doppelungen falsch.
+   */
+  targetId: string;
+  /** Über eine Direktfreigabe hereingekommen, nicht über einen Link. */
+  isDirect: boolean;
   allowComments: boolean;
   allowDownload: boolean;
   allowUpload: boolean;

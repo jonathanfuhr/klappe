@@ -10,13 +10,28 @@ import {
   Post,
 } from '@nestjs/common';
 import type { GuestAccessDto, GuestOverviewDto } from '@klappe/shared';
-import { IsBoolean, IsOptional } from 'class-validator';
-import { Roles } from '../auth/auth.decorators';
+import { IsArray, IsBoolean, IsIn, IsOptional, IsUUID } from 'class-validator';
+import { CurrentUser, Roles } from '../auth/auth.decorators';
+import type { RequestUser } from '../auth/auth.types';
 import { GuestsService } from './guests.service';
 
 class SetGuestActiveDto {
   @IsBoolean()
   isActive!: boolean;
+}
+
+/**
+ * Erweitern eines vorhandenen Gastes (Phase 18): entweder aufs ganze Projekt
+ * oder auf einzelne weitere Videos daraus.
+ */
+class ExtendGuestDto {
+  @IsIn(['PROJECT', 'VIDEO'])
+  scope!: 'PROJECT' | 'VIDEO';
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  videoIds?: string[];
 }
 
 /** `null` setzt das Recht zurück auf „wie der Link". */
@@ -70,6 +85,27 @@ export class GuestsController {
     @Param('userId', new ParseUUIDPipe()) userId: string,
   ): Promise<GuestAccessDto[]> {
     return this.guestsService.setProjectAccessRevoked(projectId, userId, true);
+  }
+
+  /**
+   * Einen vorhandenen Gast erweitern – aufs ganze Projekt oder auf einzelne
+   * weitere Videos. Ohne neuen Link, ohne neue Mail (Phase 18).
+   */
+  @Post('projects/:projectId/guests/:userId/erweitern')
+  extend(
+    @Param('projectId', new ParseUUIDPipe()) projectId: string,
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @Body() dto: ExtendGuestDto,
+    @CurrentUser() actor: RequestUser,
+  ): Promise<GuestAccessDto[]> {
+    return this.guestsService.extendAccess(
+      projectId,
+      userId,
+      dto.scope === 'PROJECT'
+        ? { scope: 'PROJECT' }
+        : { scope: 'VIDEO', videoIds: dto.videoIds ?? [] },
+      actor.id,
+    );
   }
 
   @Post('projects/:projectId/guests/:userId')

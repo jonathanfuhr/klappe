@@ -329,6 +329,19 @@ export const api = {
     request<GuestAccessDto[]>(`/v1/projects/${projectId}/guests/${userId}`, {
       method: revoked ? 'DELETE' : 'POST',
     }),
+  /**
+   * Einen vorhandenen Gast erweitern – aufs ganze Projekt oder auf weitere
+   * Videos. Ohne neuen Link, ohne neue Mail (Phase 18).
+   */
+  extendProjectGuest: (
+    projectId: string,
+    userId: string,
+    input: { scope: 'PROJECT' } | { scope: 'VIDEO'; videoIds: string[] },
+  ) =>
+    request<GuestAccessDto[]>(`/v1/projects/${projectId}/guests/${userId}/erweitern`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
   setGuestActive: (userId: string, isActive: boolean) =>
     request<GuestOverviewDto[]>(`/v1/guests/${userId}`, {
       method: 'PATCH',

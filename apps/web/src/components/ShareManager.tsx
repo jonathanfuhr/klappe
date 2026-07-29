@@ -150,6 +150,7 @@ function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Pr
       <div className="toolbar">
         <strong style={{ fontSize: 14 }}>{link.targetName}</strong>
         <span className="badge">{link.scope === 'PROJECT' ? 'Projekt' : 'Video'}</span>
+        {link.isDirect ? <span className="badge">direkt</span> : null}
         {link.isActive ? (
           <span className="badge badge--ready">aktiv</span>
         ) : (
@@ -161,12 +162,24 @@ function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Pr
         </span>
       </div>
 
-      <div className="share__url">
-        <input className="input" readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} />
-        <button type="button" className="button" onClick={() => void copy()}>
-          {copied ? 'Kopiert' : 'Kopieren'}
-        </button>
-      </div>
+      {/* Eine Direktfreigabe (Phase 18) entsteht durch einen Klick in der
+          Gästeliste, nicht durch Verschicken. Ihre Adresse gehört deshalb nicht
+          hierher – ein Link, den niemand versenden soll, braucht keinen
+          Kopierknopf. Zurückziehen und Rechte setzen geht wie bei jedem
+          anderen. */}
+      {link.isDirect ? (
+        <p className="hint" style={{ margin: '4px 0 10px' }}>
+          Direkt in der Gästeliste freigegeben – ohne Link zum Verschicken. Die eingetragenen Gäste
+          kommen mit ihrem bestehenden Zugang herein.
+        </p>
+      ) : (
+        <div className="share__url">
+          <input className="input" readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} />
+          <button type="button" className="button" onClick={() => void copy()}>
+            {copied ? 'Kopiert' : 'Kopieren'}
+          </button>
+        </div>
+      )}
 
       <div className="share__rights">
         <label className="switch">

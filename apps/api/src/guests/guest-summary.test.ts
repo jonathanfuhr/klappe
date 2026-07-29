@@ -11,6 +11,8 @@ function grant(overrides: Partial<GuestGrantRow> = {}): GuestGrantRow {
     label: 'Erste Runde',
     scope: 'PROJECT',
     targetName: 'Imagefilm',
+    targetId: 'projekt-1',
+    isDirect: false,
     allowComments: true,
     allowDownload: false,
     allowUpload: false,

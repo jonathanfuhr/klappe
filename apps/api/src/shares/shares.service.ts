@@ -392,6 +392,7 @@ export class SharesService {
       allowUpload: link.allowUpload,
       allowComments: link.allowComments,
       embedEnabled: link.embedEnabled,
+      isDirect: link.isDirect,
       expiresAt: link.expiresAt?.toISOString() ?? null,
       revokedAt: link.revokedAt?.toISOString() ?? null,
       isActive: isLinkActive(link),

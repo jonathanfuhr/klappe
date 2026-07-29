@@ -301,6 +301,14 @@ export const shareLinks = pgTable(
      * passieren.
      */
     embedEnabled: boolean('embed_enabled').notNull().default(false),
+    /**
+     * Direktfreigabe (Phase 18): entsteht, wenn ein vorhandener Gast mit einem
+     * Klick auf weitere Videos oder aufs ganze Projekt erweitert wird. Es gibt
+     * eine Adresse dazu, aber niemand verschickt sie – deshalb blendet die
+     * Oberfläche sie aus. Sonst ist es ein Link wie jeder andere: sichtbar in
+     * der Liste, zurückziehbar wie alle.
+     */
+    isDirect: boolean('is_direct').notNull().default(false),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),

@@ -6,11 +6,18 @@
  * Personen haben Zugriff und worüber". Nur so lässt sich der Zugang gezielt
  * entziehen, ohne einen Link zu killen, den andere noch brauchen.
  */
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import type { GuestAccessDto, GuestOverviewDto } from '@klappe/shared';
-import { and, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { projects, shareLinkGrants, shareLinks, users, videos } from '../db/schema';
+import { createShareToken } from '../shares/share-token';
 import { isLinkActive } from '../shares/shares.service';
 import { type GuestGrantRow, summarizeGuests } from './guest-summary';
 
@@ -163,6 +170,131 @@ export class GuestsService {
     return this.listForProject(projectId);
   }
 
+  /**
+   * Einen Gast, der bisher nur einzelne Videos sieht, auf weitere Videos oder
+   * aufs ganze Projekt erweitern (Phase 18).
+   *
+   * Der Umweg über einen neuen Link und eine neue Mail entfällt: Der Gast hat
+   * längst ein Konto und kommt schon herein, es fehlt ihm nur die Erlaubnis
+   * für das nächste Video. Technisch entsteht dabei eine **Direktfreigabe** –
+   * ein Freigabe-Link, den niemand verschickt und den die Oberfläche deshalb
+   * ohne Adresse zeigt. Damit bleibt alles Weitere, wie man es kennt: Der
+   * Zugang lässt sich einzeln entziehen, die Rechte einzeln setzen, und in der
+   * Übersicht steht, worüber jemand hereinkommt.
+   *
+   * Die Rechte werden von dem übernommen, was der Gast in diesem Projekt schon
+   * hat – wer bisher kommentieren durfte, darf es auch am nächsten Video.
+   */
+  async extendAccess(
+    projectId: string,
+    userId: string,
+    ziel: { scope: 'PROJECT' } | { scope: 'VIDEO'; videoIds: string[] },
+    actorId: string,
+  ): Promise<GuestAccessDto[]> {
+    const bisher = (await this.listForProject(projectId)).find(
+      (eintrag) => eintrag.user.id === userId,
+    );
+    // Nur erweitern, was es schon gibt. Wer hier noch nie war, bekommt einen
+    // richtigen Link – sonst würde diese Abkürzung zur Hintertür.
+    if (!bisher) {
+      throw new NotFoundException('Dieser Gast hat in diesem Projekt keinen Zugang.');
+    }
+
+    const rechte = {
+      allowComments: bisher.canComment,
+      allowDownload: bisher.canDownload,
+      // Hochladen hängt am Projekt; bei einer Erweiterung auf Videos bleibt es aus.
+      allowUpload: ziel.scope === 'PROJECT' ? bisher.canUpload : false,
+    };
+
+    const ziele: { scope: 'PROJECT' | 'VIDEO'; id: string }[] =
+      ziel.scope === 'PROJECT'
+        ? [{ scope: 'PROJECT', id: projectId }]
+        : await this.pruefeVideos(projectId, ziel.videoIds);
+
+    for (const eintrag of ziele) {
+      const linkId = await this.direktfreigabe(eintrag, actorId);
+      await this.db
+        .insert(shareLinkGrants)
+        .values({ shareLinkId: linkId, userId, ...rechte })
+        .onConflictDoUpdate({
+          target: [shareLinkGrants.shareLinkId, shareLinkGrants.userId],
+          // Ein früher entzogener Zugang wird damit ausdrücklich wieder geöffnet.
+          set: { revokedAt: null, ...rechte },
+        });
+    }
+
+    this.logger.log(
+      `Gast ${userId} erweitert auf ${ziel.scope === 'PROJECT' ? `Projekt ${projectId}` : `${ziele.length} Video(s)`}.`,
+    );
+    return this.listForProject(projectId);
+  }
+
+  /** Die Videos müssen zu diesem Projekt gehören – sonst wäre es ein Ausbruch. */
+  private async pruefeVideos(
+    projectId: string,
+    videoIds: string[],
+  ): Promise<{ scope: 'VIDEO'; id: string }[]> {
+    const eindeutig = [...new Set(videoIds)];
+    if (eindeutig.length === 0) {
+      throw new BadRequestException('Es wurde kein Video ausgewählt.');
+    }
+
+    const rows = await this.db
+      .select({ id: videos.id })
+      .from(videos)
+      .where(and(inArray(videos.id, eindeutig), eq(videos.projectId, projectId)));
+
+    if (rows.length !== eindeutig.length) {
+      throw new BadRequestException('Mindestens ein Video gehört nicht zu diesem Projekt.');
+    }
+    return rows.map((row) => ({ scope: 'VIDEO' as const, id: row.id }));
+  }
+
+  /**
+   * Sucht die Direktfreigabe für ein Ziel oder legt sie an. Eine je Ziel
+   * genügt: Was die einzelnen Gäste dürfen, steht an ihrem Eintrag, nicht am
+   * Link.
+   */
+  private async direktfreigabe(
+    ziel: { scope: 'PROJECT' | 'VIDEO'; id: string },
+    actorId: string,
+  ): Promise<string> {
+    const [vorhanden] = await this.db
+      .select({ id: shareLinks.id })
+      .from(shareLinks)
+      .where(
+        and(
+          eq(shareLinks.isDirect, true),
+          isNull(shareLinks.revokedAt),
+          ziel.scope === 'PROJECT'
+            ? eq(shareLinks.projectId, ziel.id)
+            : eq(shareLinks.videoId, ziel.id),
+          eq(shareLinks.scope, ziel.scope),
+        ),
+      )
+      .limit(1);
+    if (vorhanden) return vorhanden.id;
+
+    const [neu] = await this.db
+      .insert(shareLinks)
+      .values({
+        token: createShareToken(),
+        scope: ziel.scope,
+        projectId: ziel.scope === 'PROJECT' ? ziel.id : null,
+        videoId: ziel.scope === 'VIDEO' ? ziel.id : null,
+        label: 'Direktfreigabe',
+        isDirect: true,
+        // Am Link steht das Nötigste; was jemand darf, hängt an seinem Eintrag.
+        allowComments: false,
+        allowDownload: false,
+        allowUpload: false,
+        createdById: actorId,
+      })
+      .returning({ id: shareLinks.id });
+    return neu.id;
+  }
+
   /** Gastkonto sperren oder entsperren – wirkt über alle Projekte hinweg. */
   async setAccountActive(userId: string, isActive: boolean): Promise<GuestOverviewDto[]> {
     const [row] = await this.db
@@ -230,6 +362,9 @@ export class GuestsService {
         shareLinkId: shareLinks.id,
         label: shareLinks.label,
         scope: shareLinks.scope,
+        isDirect: shareLinks.isDirect,
+        linkProjectId: shareLinks.projectId,
+        linkVideoId: shareLinks.videoId,
         projectName: projects.name,
         videoName: videos.name,
         allowComments: shareLinks.allowComments,
@@ -260,6 +395,8 @@ export class GuestsService {
       label: row.label,
       scope: row.scope,
       targetName: row.scope === 'VIDEO' ? (row.videoName ?? 'Video') : (row.projectName ?? 'Projekt'),
+      targetId: (row.scope === 'VIDEO' ? row.linkVideoId : row.linkProjectId) ?? '',
+      isDirect: row.isDirect,
       // Eine Ausnahme an der Person ersetzt das Link-Recht (Phase 16) –
       // dieselbe Regel wie im AccessService, damit Anzeige und Wirkung
       // nicht auseinanderlaufen.

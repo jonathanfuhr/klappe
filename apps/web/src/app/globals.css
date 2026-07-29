@@ -2362,3 +2362,24 @@ a.badge:hover {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/*
+ * Zugriff erweitern (Phase 18) – der Kasten unter einem Gast in der Spalte
+ * „Freigaben“. Eingerückt und abgesetzt, damit klar ist, dass er zu genau
+ * dieser Person gehört und nicht zum nächsten Eintrag.
+ */
+.sharepanel__erweitern {
+  margin: 8px 0 2px;
+  padding: 10px;
+  border: 1px solid var(--klappe-border);
+  border-radius: var(--klappe-radius-sm);
+  background: var(--klappe-bg);
+}
+
+.sharepanel__erweitern .switch {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 3px;
+  font-size: 13px;
+}

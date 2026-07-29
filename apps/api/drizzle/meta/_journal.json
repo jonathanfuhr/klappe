@@ -120,6 +120,13 @@
       "when": 1785262550399,
       "tag": "0016_zentrale",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785262610399,
+      "tag": "0017_direktfreigabe",
+      "breakpoints": true
     }
   ]
 }

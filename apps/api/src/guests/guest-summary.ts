@@ -20,6 +20,10 @@ export interface GuestGrantRow {
   label: string | null;
   scope: ShareScope;
   targetName: string;
+  /** Kennung des Ziels: bei `VIDEO` das Video, sonst das Projekt (Phase 18). */
+  targetId: string;
+  /** Über eine Direktfreigabe hereingekommen, nicht über einen Link (Phase 18). */
+  isDirect: boolean;
   allowComments: boolean;
   allowDownload: boolean;
   allowUpload: boolean;
@@ -60,6 +64,8 @@ export function summarizeGuests(rows: GuestGrantRow[]): GuestAccessDto[] {
         label: row.label,
         scope: row.scope,
         targetName: row.targetName,
+        targetId: row.targetId,
+        isDirect: row.isDirect,
         allowComments: row.allowComments,
         allowDownload: row.allowDownload,
         allowUpload: row.allowUpload,
