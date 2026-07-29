@@ -1725,3 +1725,69 @@ a.badge:hover {
   border: 1px solid var(--klappe-border);
   background: var(--klappe-bg);
 }
+
+/* ---------- „…"-Menü (Phase 15) ---------- */
+
+.menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu__trigger {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.menu__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: var(--klappe-surface-raised);
+  border: 1px solid var(--klappe-border);
+  border-radius: var(--klappe-radius-sm);
+  box-shadow: var(--klappe-shadow);
+  overflow: hidden;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+
+.menu__item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-radius: calc(var(--klappe-radius-sm) - 2px);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--klappe-text);
+}
+
+.menu__item:hover {
+  background: var(--klappe-surface-hover);
+}
+
+.menu__item--danger {
+  color: var(--klappe-danger, #e5484d);
+}
+
+/* Gruppenkopf der nach Kunden gruppierten Projektliste (Phase 15). */
+.grouphead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 10px;
+}
+
+.grouphead__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.grouphead:first-child {
+  margin-top: 0;
+}

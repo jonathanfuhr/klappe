@@ -5,7 +5,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
-import { projectFiles, projectTags, projects, tags, users, videos } from '../db/schema';
+import { projectFiles, projectTags, projects, tags, users, videoVersions, videos } from '../db/schema';
 import type { CreateProjectDto, UpdateProjectDto } from './projects.dto';
 
 type ProjectQueryRow = {
@@ -18,12 +18,14 @@ type ProjectQueryRow = {
   tags: { id: string; name: string; color: string | null }[] | null;
 };
 
-/** Wie die Projektliste gefiltert und sortiert werden soll (Phase 12). */
+/** Wie die Projektliste gefiltert und sortiert werden soll (Phase 12/15). */
 export interface ProjectListOptions {
   tagIds?: string[];
   /** `all` verlangt sämtliche gewählten Tags, `any` genügt eines. */
   tagMatch?: 'any' | 'all';
-  sort?: 'updated' | 'created' | 'name';
+  sort?: 'updated' | 'created' | 'name' | 'customer';
+  /** Exakter Kundenname; Groß-/Kleinschreibung spielt keine Rolle. */
+  customer?: string;
 }
 
 @Injectable()
@@ -80,6 +82,12 @@ export class ProjectsService {
       );
     }
 
+    if (options.customer) {
+      bedingungen.push(
+        sql`lower(coalesce(${projects.customer}, '')) = ${options.customer.toLowerCase()}`,
+      );
+    }
+
     const query = this.baseQuery();
     const gefiltert = bedingungen.length > 0 ? query.where(and(...bedingungen)) : query;
 
@@ -88,10 +96,62 @@ export class ProjectsService {
         ? gefiltert.orderBy(sql`lower(${projects.name})`)
         : options.sort === 'created'
           ? gefiltert.orderBy(desc(projects.createdAt))
-          : gefiltert.orderBy(desc(projects.updatedAt));
+          : options.sort === 'customer'
+            ? // Projekte ohne Kunden ans Ende, sonst wäre die erste „Gruppe" die
+              // namenlose – innerhalb des Kunden entscheidet der Projektname.
+              gefiltert.orderBy(
+                sql`(${projects.customer} is null or ${projects.customer} = '')`,
+                sql`lower(coalesce(${projects.customer}, ''))`,
+                sql`lower(${projects.name})`,
+              )
+            : gefiltert.orderBy(desc(projects.updatedAt));
 
     const rows = await sortiert;
     return rows.map((row) => this.toDto(row, scope));
+  }
+
+  /**
+   * Alle Kundennamen samt Projektzahl – die Grundlage für Filter und
+   * Verwaltung. „Kunde" ist bewusst keine eigene Tabelle, sondern der
+   * Textwert am Projekt: Ein Workspace, überschaubare Mengen, und ein
+   * Tippfehler lässt sich mit `renameCustomer` über alle Projekte hinweg
+   * geraderücken. Gäste sehen nur die Kunden ihrer freigegebenen Projekte.
+   */
+  async listCustomers(scope: AccessScope): Promise<{ name: string; projectCount: number }[]> {
+    const bedingungen = [sql`${projects.customer} is not null and ${projects.customer} <> ''`];
+    if (!scope.unrestricted) {
+      const allowed = this.accessService.visibleProjects(scope);
+      if (allowed.length === 0) return [];
+      bedingungen.push(inArray(projects.id, allowed));
+    }
+    const rows = await this.db
+      .select({
+        name: sql<string>`${projects.customer}`,
+        projectCount: sql<number>`count(*)::int`,
+      })
+      .from(projects)
+      .where(and(...bedingungen))
+      .groupBy(projects.customer)
+      .orderBy(sql`lower(${projects.customer})`);
+    return rows;
+  }
+
+  /**
+   * Kunden umbenennen oder entfernen – wirkt über alle Projekte mit diesem
+   * Namen. `nach = null` leert das Feld („Kunde löschen“); die Projekte selbst
+   * bleiben unangetastet. Tragen zwei Schreibweisen denselben neuen Namen,
+   * verschmelzen sie dadurch von selbst.
+   */
+  async renameCustomer(von: string, nach: string | null): Promise<number> {
+    const rows = await this.db
+      .update(projects)
+      .set({ customer: nach, updatedAt: new Date() })
+      .where(sql`lower(coalesce(${projects.customer}, '')) = ${von.toLowerCase()}`)
+      .returning({ id: projects.id });
+    if (rows.length === 0) {
+      throw new NotFoundException('Kein Projekt trägt diesen Kundennamen.');
+    }
+    return rows.length;
   }
 
   async findOneOrFail(id: string, scope: AccessScope): Promise<ProjectDto> {
@@ -140,12 +200,39 @@ export class ProjectsService {
   }
 
   /**
-   * Löscht das Projekt samt Videos, Versionen und Kommentaren (per Kaskade).
-   * Die Dateien auf der Platte räumt der Aufrufer ab.
+   * Löscht das Projekt samt Videos, Versionen und Kommentaren (per Kaskade)
+   * und gibt die Ablage-Schlüssel zurück, damit der Aufrufer die Dateien
+   * löschen kann – dasselbe Muster wie beim Video.
+   *
+   * Die Schlüssel müssen **vor** dem Delete gesammelt werden: Danach sind die
+   * Zeilen weg, und die Dateien wären erst nach der 24-Stunden-Karenz des
+   * täglichen Aufräumers verschwunden. Genau so stand es hier lange nur im
+   * Kommentar – gelöscht hat der Aufrufer nie.
    */
-  async remove(id: string): Promise<void> {
+  async remove(id: string): Promise<string[]> {
+    const versionen = await this.db
+      .select({
+        originalKey: videoVersions.originalKey,
+        proxyKey: videoVersions.proxyKey,
+        posterKey: videoVersions.posterKey,
+        spriteKey: videoVersions.spriteKey,
+        hlsKey: videoVersions.hlsKey,
+      })
+      .from(videoVersions)
+      .innerJoin(videos, eq(videoVersions.videoId, videos.id))
+      .where(eq(videos.projectId, id));
+    const dateien = await this.db
+      .select({ storageKey: projectFiles.storageKey })
+      .from(projectFiles)
+      .where(eq(projectFiles.projectId, id));
+
     const [row] = await this.db.delete(projects).where(eq(projects.id, id)).returning();
     if (!row) throw new NotFoundException('Projekt nicht gefunden.');
+
+    return [
+      ...versionen.flatMap((v) => [v.originalKey, v.proxyKey, v.posterKey, v.spriteKey, v.hlsKey]),
+      ...dateien.map((d) => d.storageKey),
+    ].filter((key): key is string => Boolean(key));
   }
 
   /** Ein Schreibzugriff im Projekt hebt es in der Liste nach oben. */

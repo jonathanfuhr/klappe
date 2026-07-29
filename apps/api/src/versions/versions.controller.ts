@@ -74,7 +74,7 @@ export class VersionsController {
   @HttpCode(204)
   async remove(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
     const row = await this.versionsService.remove(id);
-    for (const key of [row.originalKey, row.proxyKey, row.posterKey, row.spriteKey]) {
+    for (const key of [row.originalKey, row.proxyKey, row.posterKey, row.spriteKey, row.hlsKey]) {
       if (key) await this.storage.remove(key);
     }
   }

@@ -3,6 +3,7 @@ import type {
   AuthSettingsDto,
   BrandingDto,
   CommentDto,
+  CustomerDto,
   GuestAccessDto,
   GuestLoginResponseDto,
   GuestOverviewDto,
@@ -101,14 +102,29 @@ export const api = {
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
 
-  listProjects: (options: { tagIds?: string[]; tagMatch?: 'any' | 'all'; sort?: string } = {}) => {
+  listProjects: (
+    options: {
+      tagIds?: string[];
+      tagMatch?: 'any' | 'all';
+      sort?: string;
+      customer?: string;
+    } = {},
+  ) => {
     const query = new URLSearchParams();
     if (options.tagIds?.length) query.set('tags', options.tagIds.join(','));
     if (options.tagMatch) query.set('tagMatch', options.tagMatch);
     if (options.sort) query.set('sort', options.sort);
+    if (options.customer) query.set('customer', options.customer);
     const suffix = query.toString();
     return request<ProjectDto[]>(`/v1/projects${suffix ? `?${suffix}` : ''}`);
   },
+  listCustomers: () => request<CustomerDto[]>('/v1/projects/customers'),
+  /** `nach` weglassen entfernt den Kundennamen von allen Projekten. */
+  renameCustomer: (von: string, nach?: string) =>
+    request<{ projectCount: number }>('/v1/projects/customers', {
+      method: 'PATCH',
+      body: JSON.stringify({ von, ...(nach ? { nach } : {}) }),
+    }),
   getProject: (id: string) => request<ProjectDto>(`/v1/projects/${id}`),
   createProject: (input: { name: string; customer?: string; description?: string }) =>
     request<ProjectDto>('/v1/projects', { method: 'POST', body: JSON.stringify(input) }),

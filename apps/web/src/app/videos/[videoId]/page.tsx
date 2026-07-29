@@ -9,7 +9,7 @@ import {
   versionLabel,
 } from '@klappe/shared';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { GuestAccess } from '@/components/GuestAccess';
@@ -19,6 +19,8 @@ import { VersionStatusBadge } from '@/components/VersionStatusBadge';
 import { CommentPanel } from '@/components/comments/CommentPanel';
 import { type CommentMarker, type PlayerHandle, VideoPlayer } from '@/components/player/VideoPlayer';
 import { Dialog } from '@/components/ui/Dialog';
+import { Menu, MenuItem } from '@/components/ui/Menu';
+import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -53,6 +55,9 @@ export default function ReviewPage() {
   const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
 
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
+  const router = useRouter();
+  const [editingVideo, setEditingVideo] = useState(false);
+  const [deletingVideo, setDeletingVideo] = useState(false);
 
   const selectedVersion = useMemo(
     () => versions.find((version) => version.id === selectedVersionId) ?? null,
@@ -256,15 +261,18 @@ export default function ReviewPage() {
               </a>
             ) : null}
 
-            {isTeam && selectedVersion ? (
-              <button
-                type="button"
-                className="button button--danger"
-                onClick={() => setVersionToDelete(selectedVersion)}
-                title="Diese Fassung mit allen Dateien und Kommentaren entfernen"
-              >
-                Fassung löschen
-              </button>
+            {isTeam ? (
+              <Menu label="Aktionen für dieses Video">
+                <MenuItem onSelect={() => setEditingVideo(true)}>Video umbenennen …</MenuItem>
+                {selectedVersion ? (
+                  <MenuItem danger onSelect={() => setVersionToDelete(selectedVersion)}>
+                    Fassung löschen …
+                  </MenuItem>
+                ) : null}
+                <MenuItem danger onSelect={() => setDeletingVideo(true)}>
+                  Video löschen …
+                </MenuItem>
+              </Menu>
             ) : null}
           </div>
 
@@ -438,6 +446,28 @@ export default function ReviewPage() {
             </button>
           </div>
         </Dialog>
+      ) : null}
+
+      {editingVideo && video ? (
+        <EditVideoDialog
+          video={video}
+          onClose={() => setEditingVideo(false)}
+          onSaved={async () => {
+            setEditingVideo(false);
+            await loadVideo();
+          }}
+        />
+      ) : null}
+
+      {deletingVideo && video ? (
+        <DeleteVideoDialog
+          video={video}
+          onClose={() => setDeletingVideo(false)}
+          onDeleted={async () => {
+            // Die Seite, auf der wir stehen, gibt es nicht mehr.
+            router.replace(`/projekte/${video.projectId}`);
+          }}
+        />
       ) : null}
     </AppShell>
   );

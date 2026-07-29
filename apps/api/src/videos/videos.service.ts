@@ -145,7 +145,13 @@ export class VideosService {
     await this.projectsService.touch(row.projectId);
 
     return versions
-      .flatMap((version) => [version.originalKey, version.proxyKey, version.posterKey, version.spriteKey])
+      .flatMap((version) => [
+        version.originalKey,
+        version.proxyKey,
+        version.posterKey,
+        version.spriteKey,
+        version.hlsKey,
+      ])
       .filter((key): key is string => Boolean(key));
   }
 

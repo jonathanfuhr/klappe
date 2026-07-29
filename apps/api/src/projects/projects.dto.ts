@@ -17,6 +17,22 @@ export class CreateProjectDto {
   description?: string;
 }
 
+/**
+ * Kunden umbenennen. `nach` weglassen heißt: den Namen von allen Projekten
+ * entfernen – die Projekte bleiben bestehen, nur das Kundenfeld wird leer.
+ */
+export class RenameCustomerDto {
+  @IsString()
+  @MinLength(1, { message: 'Bitte den bisherigen Kundennamen angeben.' })
+  @MaxLength(200)
+  von!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  nach?: string;
+}
+
 export class UpdateProjectDto {
   @IsOptional()
   @IsString()

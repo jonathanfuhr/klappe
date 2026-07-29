@@ -61,6 +61,11 @@ export class StorageService {
     return join('project-files', projectId, `${uploadId}-${filename}`);
   }
 
+  /** Der ganze Kunden-Ordner eines Projekts – zum Aufräumen beim Löschen. */
+  keyForProjectFilesDir(projectId: string): string {
+    return join('project-files', projectId);
+  }
+
   /**
    * Logo des Workspace. Die Endung steckt im Namen, damit beim Wechsel von
    * SVG auf PNG nicht die alte Datei liegen bleibt und ausgeliefert wird.

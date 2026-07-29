@@ -2,7 +2,7 @@
 
 import type { ProjectDto, VideoDto } from '@klappe/shared';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { GuestAccess } from '@/components/GuestAccess';
@@ -11,6 +11,9 @@ import { ProjectTags } from '@/components/ProjectTags';
 import { ShareManager } from '@/components/ShareManager';
 import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
+import { Menu, MenuItem } from '@/components/ui/Menu';
+import { DeleteProjectDialog, EditProjectDialog } from '@/components/ProjectDialogs';
+import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
 import { formatFrameRate, formatRelative } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -25,6 +28,11 @@ export default function ProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [editingVideo, setEditingVideo] = useState<VideoDto | null>(null);
+  const [deletingVideo, setDeletingVideo] = useState<VideoDto | null>(null);
+  const router = useRouter();
   const { user } = useSession();
   const { completedCount } = useUploads();
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
@@ -77,9 +85,17 @@ export default function ProjectPage() {
           </div>
           <div className="shell__spacer" />
           {isTeam ? (
-            <button type="button" className="button" onClick={() => setSharing(true)}>
-              Freigeben
-            </button>
+            <>
+              <button type="button" className="button" onClick={() => setSharing(true)}>
+                Freigeben
+              </button>
+              <Menu label="Aktionen für dieses Projekt">
+                <MenuItem onSelect={() => setEditing(true)}>Umbenennen …</MenuItem>
+                <MenuItem danger onSelect={() => setDeleting(true)}>
+                  Löschen …
+                </MenuItem>
+              </Menu>
+            </>
           ) : null}
         </div>
 
@@ -116,7 +132,19 @@ export default function ProjectPage() {
                   )}
                 </div>
                 <div className="tile__body">
-                  <span className="tile__title">{video.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <span className="tile__title" style={{ flex: 1 }}>
+                      {video.name}
+                    </span>
+                    {isTeam ? (
+                      <Menu label={`Aktionen für ${video.name}`}>
+                        <MenuItem onSelect={() => setEditingVideo(video)}>Umbenennen …</MenuItem>
+                        <MenuItem danger onSelect={() => setDeletingVideo(video)}>
+                          Löschen …
+                        </MenuItem>
+                      </Menu>
+                    ) : null}
+                  </div>
                   <div className="tile__meta">
                     {version ? <VersionStatusBadge version={version} /> : <span className="badge">leer</span>}
                     {version ? <span>v{version.versionNumber}</span> : null}
@@ -161,6 +189,50 @@ export default function ProjectPage() {
           projectId={projectId}
           targetLabel={project.name}
           onClose={() => setSharing(false)}
+        />
+      ) : null}
+
+      {editing && project ? (
+        <EditProjectDialog
+          project={project}
+          onClose={() => setEditing(false)}
+          onSaved={async () => {
+            setEditing(false);
+            await load();
+          }}
+        />
+      ) : null}
+
+      {deleting && project ? (
+        <DeleteProjectDialog
+          project={project}
+          onClose={() => setDeleting(false)}
+          onDeleted={async () => {
+            // Die Seite, auf der wir stehen, gibt es nicht mehr.
+            router.replace('/projekte');
+          }}
+        />
+      ) : null}
+
+      {editingVideo ? (
+        <EditVideoDialog
+          video={editingVideo}
+          onClose={() => setEditingVideo(null)}
+          onSaved={async () => {
+            setEditingVideo(null);
+            await load();
+          }}
+        />
+      ) : null}
+
+      {deletingVideo ? (
+        <DeleteVideoDialog
+          video={deletingVideo}
+          onClose={() => setDeletingVideo(null)}
+          onDeleted={async () => {
+            setDeletingVideo(null);
+            await load();
+          }}
         />
       ) : null}
     </AppShell>

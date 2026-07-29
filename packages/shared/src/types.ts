@@ -54,6 +54,15 @@ export interface TagRefDto {
   color: string;
 }
 
+/**
+ * Kunde, wie ihn die Projektliste kennt (Phase 15). Keine eigene Entität,
+ * sondern die verdichteten Textwerte aus den Projekten.
+ */
+export interface CustomerDto {
+  name: string;
+  projectCount: number;
+}
+
 export interface UserSummaryDto {
   id: string;
   name: string;
