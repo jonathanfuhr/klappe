@@ -127,6 +127,34 @@ Zwei Werte verzeihen keine Abweichung:
   SMTP-Passwort und signiert Abmeldelinks; mit einem anderen Schlüssel
   scheitert der Mailversand.
 
+### Erste Freigabe für den Medienordner (Wechselmedien-Berechtigung)
+
+macOS behandelt jedes Volume unter `/Volumes` – auch eine intern verbaute
+oder per USB/Thunderbolt angeschlossene SSD, wie oben für `MEDIA_DIR`
+empfohlen – datenschutzrechtlich als **Wechselmedium**. Sobald `node` zum
+ersten Mal wirklich in den Medienordner schreibt (also beim ersten
+Transcoding-Auftrag, nicht schon beim bloßen Start des Prozesses), blendet
+macOS einen Systemdialog ein ("„node" möchte auf ein Wechselmedium
+zugreifen" o. ä.). Ohne Bestätigung bleibt der Auftrag hängen – im Log
+steht dann nur der `ffprobe`-Aufruf, ohne dass je ein Ergebnis folgt, und
+die Fortschrittsanzeige verharrt bei den ersten Prozent. Das betrifft den
+manuellen Probelauf genauso wie den späteren launchd-Dienst.
+
+Freigabe erteilen:
+
+1. Erscheint der Dialog, **„Erlauben"** klicken.
+2. Nachträglich prüfen/setzen lässt sich das unter Systemeinstellungen →
+   Datenschutz & Sicherheit → Wechselmedien (dort muss `node` aktiviert
+   sein).
+
+Läuft der Worker schon als Dienst, danach einmal neu starten, damit ein
+frischer Prozess mit der erteilten Freigabe läuft – der bereits blockierte
+Prozess zieht sie nicht automatisch nach:
+
+```bash
+sudo launchctl kickstart -k system/de.fuhrzwei.klappe-worker
+```
+
 ## Als Dienst einrichten (launchd)
 
 Die Vorlage liegt unter `deploy/mac/de.fuhrzwei.klappe-worker.plist`. Alle
@@ -232,3 +260,8 @@ Domain die Portfreigabe auf den Mac umstellen.
 - Reicht die Hardware einmal nicht (viele parallele Sitzungen), rechnet
   Apples eingebauter Software-Encoder weiter, statt den Auftrag
   abzubrechen – dafür sorgt `-allow_sw` in den ffmpeg-Argumenten.
+- Beim allerersten Transcoding-Auftrag fragt macOS einmalig nach der
+  Freigabe für Wechselmedien, sobald der Worker in den Medienordner
+  schreibt – ohne Bestätigung bleibt der Auftrag hängen. Siehe
+  „Erste Freigabe für den Medienordner" im Abschnitt „Worker bauen und von
+  Hand probieren".
