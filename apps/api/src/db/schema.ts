@@ -832,6 +832,13 @@ export const pendingNotifications = pgTable(
       .references(() => videos.id, { onDelete: 'cascade' }),
     /** Wurde der Empfänger namentlich erwähnt? Steht dann auch im Betreff. */
     mentioned: boolean('mentioned').notNull().default(false),
+    /**
+     * Gesetzt, sobald ein Job diese Zeile für seine Mail beansprucht hat.
+     * Verhindert, dass zwei gleichzeitig fällige Jobs dieselbe Sammlung
+     * verschicken. Bleibt eine Beanspruchung liegen (Absturz mitten im
+     * Versand), gibt sie eine Viertelstunde später wieder frei.
+     */
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

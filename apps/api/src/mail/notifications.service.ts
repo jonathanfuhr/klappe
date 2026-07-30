@@ -4,7 +4,7 @@ import {
   framesToTimecode,
   versionLabel as versionNumberLabel,
 } from '@klappe/shared';
-import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import {
@@ -148,9 +148,44 @@ export class NotificationsService {
    * einer Mail. Kam in der Zwischenzeit ein neuer Kommentar, beginnt die
    * Ruhezeit von vorn – dann übernimmt der Job, der zu diesem Kommentar
    * gehört, und dieser hier geht wieder schlafen.
+   *
+   * Jeder Kommentar reiht einen eigenen Job ein. Werden mehrere zugleich
+   * fällig – der Normalfall, wenn in der Ruhezeit mehrfach kommentiert wurde –,
+   * kommen sie hier gleichzeitig an. Deshalb greift sich der Job seine Zeilen
+   * in **einer** Anweisung (`beanspruche`), bevor er irgendetwas verschickt.
+   * Ohne das gingen drei Kommentare als drei identische Mails raus; genau so
+   * ist es am 29.07.2026 passiert.
    */
   async flushDigest(userId: string, videoId: string): Promise<number> {
     if (!(await this.mailService.isReady())) return 0;
+
+    // Ist die Ruhezeit überhaupt vorbei? Dafür genügen die Zeitstempel der
+    // freien Zeilen – noch ohne etwas anzufassen, sonst müsste ein zu früher
+    // Job seine Beanspruchung gleich wieder zurückgeben.
+    const offen = await this.db
+      .select({ createdAt: pendingNotifications.createdAt })
+      .from(pendingNotifications)
+      .where(
+        and(
+          eq(pendingNotifications.userId, userId),
+          eq(pendingNotifications.videoId, videoId),
+          isNull(pendingNotifications.claimedAt),
+        ),
+      );
+    if (offen.length === 0) return 0;
+
+    const entscheidung = decideDigest({
+      newestAt: offen.reduce((max, eintrag) => Math.max(max, eintrag.createdAt.getTime()), 0),
+      now: Date.now(),
+      minutes: await this.settings.digestMinutes(),
+    });
+    if (!entscheidung.send) {
+      await this.mailQueue.enqueue({ kind: 'digest', userId, videoId }, entscheidung.retryInMs);
+      return 0;
+    }
+
+    const ids = await this.beanspruche(userId, videoId);
+    if (ids.length === 0) return 0;
 
     const wartend = await this.db
       .select({
@@ -170,26 +205,16 @@ export class NotificationsService {
       .innerJoin(comments, eq(pendingNotifications.commentId, comments.id))
       .innerJoin(users, eq(comments.authorId, users.id))
       .innerJoin(videoVersions, eq(comments.versionId, videoVersions.id))
-      .where(
-        and(eq(pendingNotifications.userId, userId), eq(pendingNotifications.videoId, videoId)),
-      )
+      .where(inArray(pendingNotifications.id, ids))
       .orderBy(asc(pendingNotifications.createdAt));
 
-    if (wartend.length === 0) return 0;
-
-    const entscheidung = decideDigest({
-      newestAt: wartend.reduce((max, eintrag) => Math.max(max, eintrag.createdAt.getTime()), 0),
-      now: Date.now(),
-      minutes: await this.settings.digestMinutes(),
-    });
-    if (!entscheidung.send) {
-      await this.mailQueue.enqueue({ kind: 'digest', userId, videoId }, entscheidung.retryInMs);
+    if (wartend.length === 0) {
+      await this.db.delete(pendingNotifications).where(inArray(pendingNotifications.id, ids));
       return 0;
     }
 
     const empfaenger = await this.loadRecipient(userId);
     const kopf = await this.loadVideoHead(videoId);
-    const ids = wartend.map((eintrag) => eintrag.id);
 
     // Gelöschte Kommentare fallen aus der Mail, ihre Vormerkung aber trotzdem
     // weg – sonst bliebe sie für immer liegen.
@@ -242,9 +267,17 @@ export class NotificationsService {
           });
 
     // Erst zustellen, dann die Vormerkung löschen: Scheitert der Versand,
-    // bleibt sie stehen und der nächste Versuch der Warteschlange bekommt
-    // dieselben Kommentare noch einmal zu fassen.
-    await this.mailService.send(empfaenger.email, mail);
+    // wird die Beanspruchung zurückgegeben und der nächste Versuch der
+    // Warteschlange bekommt dieselben Kommentare noch einmal zu fassen.
+    try {
+      await this.mailService.send(empfaenger.email, mail);
+    } catch (error) {
+      await this.db
+        .update(pendingNotifications)
+        .set({ claimedAt: null })
+        .where(inArray(pendingNotifications.id, ids));
+      throw error;
+    }
     await this.db.delete(pendingNotifications).where(inArray(pendingNotifications.id, ids));
 
     this.logger.log(
@@ -309,6 +342,36 @@ export class NotificationsService {
       }
     }
     return sent;
+  }
+
+  /**
+   * Greift sich alles, was für diesen Empfänger und dieses Video wartet – in
+   * einer einzigen Anweisung. Kommt ein zweiter Job gleichzeitig hier an,
+   * wartet er auf die Zeilensperre und prüft die Bedingung danach erneut:
+   * Dann ist `claimed_at` gesetzt und er bekommt nichts. So entsteht weder
+   * eine doppelte Mail noch eine zerrissene, bei der sich zwei Jobs die
+   * Kommentare teilen.
+   *
+   * Beansprucht wird auch, was vor einer Viertelstunde beansprucht und nie
+   * verschickt wurde – sonst bliebe eine Sammlung nach einem Absturz mitten
+   * im Versand für immer liegen.
+   */
+  private async beanspruche(userId: string, videoId: string): Promise<string[]> {
+    const zeilen = await this.db
+      .update(pendingNotifications)
+      .set({ claimedAt: sql`now()` })
+      .where(
+        and(
+          eq(pendingNotifications.userId, userId),
+          eq(pendingNotifications.videoId, videoId),
+          or(
+            isNull(pendingNotifications.claimedAt),
+            sql`${pendingNotifications.claimedAt} < now() - interval '15 minutes'`,
+          ),
+        ),
+      )
+      .returning({ id: pendingNotifications.id });
+    return zeilen.map((zeile) => zeile.id);
   }
 
   private async loadComment(commentId: string) {
