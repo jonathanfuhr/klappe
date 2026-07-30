@@ -27,6 +27,7 @@ unter [Umgesetzte Phasen](#umgesetzte-phasen).
 - [Betrieb](#betrieb)
 - [Entwicklung](#entwicklung)
 - [Umgesetzte Phasen](#umgesetzte-phasen)
+- [Lizenz](#lizenz)
 
 ---
 
@@ -869,3 +870,44 @@ HTTPS-Wege.
 | 21 | Rechtestufe **Externer Projektadmin** je Projektfreigabe (Videos anlegen, Fassungen hochladen und löschen, weiter freigeben, fremde Kommentare verwalten), Zeichnung heftet den Kommentar verlässlich an den Frame, Kommentarspalte im Vollbild, eigener Name unter *Mein Konto* änderbar (auch Gäste), GitHub-Link unter *Über diese Software*, kein Rollenwechsel Gast → Team mehr |
 | 22 | Stufenwahl im HLS-Player (Auto mit Anzeige der laufenden Stufe oder feste Wahl), Felder je einzeln filter-/sortier-/gruppierbar und auf der Kachel anzeigbar, Kunde groß auf der Projektkachel, Transcode-Seite ohne überlappenden Haken · **Nachtrag:** Einstellungsseite *Speicher* mit freiem Platz und Aufschlüsselung |
 | 23 | Download-Fenster immer mit Dateiname und Vorschau-Warnung, wählbares Tab-Symbol (Standard/Logo/eigenes), Einbetten als eigener Link im „…"-Menü (keine Anmeldung, nur Endfassungen, mit HLS), automatische Datenbanksicherung samt Wiederherstellen |
+
+---
+
+## Lizenz
+
+Klappe steht unter der **GNU Affero General Public License, Version 3**
+(AGPL-3.0-only). Der vollständige Text liegt in [`LICENSE`](LICENSE).
+
+Was das praktisch heißt:
+
+- **Selbst hosten und nutzen darf jeder, kostenlos, auch gewerblich.** Genau
+  dafür ist das Tool gebaut. Wer es aus diesem Repository nimmt, in den eigenen
+  Docker-Stack stellt und damit arbeitet, hat mit der Lizenz nichts weiter zu
+  tun.
+- **Ändern darf jeder.** Solange die geänderte Fassung im eigenen Haus bleibt,
+  entsteht keine Pflicht.
+- **Wer eine geänderte Fassung über das Netz für andere zugänglich macht, muss
+  den Quellcode dieser Fassung herausgeben** – auch ohne sie zu verteilen.
+  Das ist §13 der AGPL und der einzige Unterschied zur gewöhnlichen GPL. Ein
+  gehosteter Dienst auf Basis von Klappe ist also möglich, aber nicht als
+  geschlossener Fork.
+
+Die Lizenz bindet nur andere, nicht den Rechteinhaber. Eine abweichende,
+kommerzielle Lizenz für Dritte bleibt jederzeit möglich.
+
+Die Abhängigkeiten (NestJS, Next.js, React, BullMQ, Drizzle, Express) stehen
+unter MIT beziehungsweise Apache-2.0 und sind damit verträglich. `ffmpeg` wird
+als eigener Prozess aufgerufen, nicht eingebunden.
+
+```
+Copyright (C) 2026 Jonathan Fuhr
+
+Dieses Programm ist freie Software: Sie können es unter den Bedingungen der
+GNU Affero General Public License, Version 3, wie von der Free Software
+Foundation veröffentlicht, weitergeben und/oder verändern.
+
+Die Veröffentlichung erfolgt in der Hoffnung, dass es von Nutzen sein wird,
+aber OHNE JEDE GEWÄHRLEISTUNG – sogar ohne die implizite Gewährleistung der
+MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK. Details in der
+GNU Affero General Public License.
+```
