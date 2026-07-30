@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SettingsService } from '../settings/settings.service';
 import { MailService } from './mail.service';
+import { Ms365OauthService } from './ms365-oauth.service';
 import { NotificationCenterController } from './notification-center.controller';
 import { NotificationCenterService } from './notification-center.service';
 import { SubscriptionsController } from './subscriptions.controller';
@@ -16,7 +17,13 @@ import { SubscriptionsService } from './subscriptions.service';
  */
 @Module({
   controllers: [SubscriptionsController, NotificationCenterController],
-  providers: [SettingsService, MailService, SubscriptionsService, NotificationCenterService],
+  providers: [
+    SettingsService,
+    MailService,
+    Ms365OauthService,
+    SubscriptionsService,
+    NotificationCenterService,
+  ],
   exports: [SettingsService, MailService, SubscriptionsService, NotificationCenterService],
 })
 export class MailModule {}

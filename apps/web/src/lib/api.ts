@@ -464,8 +464,12 @@ export const api = {
     host?: string;
     port?: number;
     secure?: boolean;
+    authMethod?: string;
     user?: string;
     password?: string;
+    oauthTenantId?: string;
+    oauthClientId?: string;
+    oauthClientSecret?: string;
     fromName?: string;
     fromEmail?: string;
     digestMinutes?: number;
