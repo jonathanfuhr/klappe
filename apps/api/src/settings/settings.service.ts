@@ -7,8 +7,9 @@ import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import { type AppSettingsRow, appSettings } from '../db/schema';
 
-/** Vollständige SMTP-Angaben inklusive Klartext-Passwort – nur serverintern. */
-export interface SmtpCredentials {
+/** SMTP AUTH mit Benutzername und Kennwort. */
+export interface SmtpCredentialsPassword {
+  authMethod: 'password';
   host: string;
   port: number;
   secure: boolean;
@@ -18,15 +19,42 @@ export interface SmtpCredentials {
   fromEmail: string;
 }
 
+/**
+ * Client-Credentials-Fluss gegen Entra ID. Nötig für Microsoft 365, sobald
+ * der Tenant Mehrfaktor-Anmeldung erzwingt – dann lehnt der Server ein
+ * Kennwort ab, auch ein App-Kennwort hilft nicht mehr.
+ */
+export interface SmtpCredentialsOAuth2 {
+  authMethod: 'oauth2';
+  host: string;
+  port: number;
+  secure: boolean;
+  /** Das sendende Postfach, z. B. `versand@contoso.de`. */
+  user: string;
+  oauthTenantId: string;
+  oauthClientId: string;
+  oauthClientSecret: string;
+  fromName: string;
+  fromEmail: string;
+}
+
+/** Vollständige SMTP-Angaben inklusive Klartext-Geheimnissen – nur serverintern. */
+export type SmtpCredentials = SmtpCredentialsPassword | SmtpCredentialsOAuth2;
+
 export interface UpdateSmtpInput {
   enabled?: boolean;
   provider?: string | null;
   host?: string | null;
   port?: number | null;
   secure?: boolean;
+  authMethod?: string;
   user?: string | null;
   /** `undefined` = unverändert, `null` = löschen, sonst neues Passwort. */
   password?: string | null;
+  oauthTenantId?: string | null;
+  oauthClientId?: string | null;
+  /** `undefined` = unverändert, `null` = löschen, sonst neues Secret. */
+  oauthClientSecret?: string | null;
   fromName?: string | null;
   fromEmail?: string | null;
   digestMinutes?: number;
@@ -93,8 +121,12 @@ export class SettingsService {
       host: row.smtpHost,
       port: row.smtpPort,
       secure: row.smtpSecure,
+      authMethod: row.smtpAuthMethod === 'oauth2' ? 'oauth2' : 'password',
       user: row.smtpUser,
       hasPassword: Boolean(row.smtpPasswordEncrypted),
+      oauthTenantId: row.smtpOauthTenantId,
+      oauthClientId: row.smtpOauthClientId,
+      hasOauthClientSecret: Boolean(row.smtpOauthClientSecretEncrypted),
       fromName: row.smtpFromName,
       fromEmail: row.smtpFromEmail,
       digestMinutes: row.mailDigestMinutes,
@@ -194,12 +226,23 @@ export class SettingsService {
         smtpHost: input.host === undefined ? undefined : input.host?.trim() || null,
         smtpPort: input.port === undefined ? undefined : input.port,
         smtpSecure: input.secure,
+        smtpAuthMethod: input.authMethod === undefined ? undefined : input.authMethod,
         smtpUser: input.user === undefined ? undefined : input.user?.trim() || null,
         smtpPasswordEncrypted:
           input.password === undefined
             ? undefined
             : input.password
               ? encryptSecret(input.password, this.config.jwt.secret)
+              : null,
+        smtpOauthTenantId:
+          input.oauthTenantId === undefined ? undefined : input.oauthTenantId?.trim() || null,
+        smtpOauthClientId:
+          input.oauthClientId === undefined ? undefined : input.oauthClientId?.trim() || null,
+        smtpOauthClientSecretEncrypted:
+          input.oauthClientSecret === undefined
+            ? undefined
+            : input.oauthClientSecret
+              ? encryptSecret(input.oauthClientSecret, this.config.jwt.secret)
               : null,
         smtpFromName: input.fromName === undefined ? undefined : input.fromName?.trim() || null,
         smtpFromEmail:
@@ -225,14 +268,37 @@ export class SettingsService {
     if (!row.smtpEnabled) return null;
     if (!row.smtpHost || !row.smtpPort || !row.smtpFromEmail) return null;
 
+    const fromName = row.smtpFromName?.trim() || 'Klappe';
+    const fromEmail = row.smtpFromEmail;
+
+    if (row.smtpAuthMethod === 'oauth2') {
+      if (!row.smtpUser || !row.smtpOauthTenantId || !row.smtpOauthClientId) return null;
+      const clientSecret = decryptSecret(row.smtpOauthClientSecretEncrypted, this.config.jwt.secret);
+      if (!clientSecret) return null;
+
+      return {
+        authMethod: 'oauth2',
+        host: row.smtpHost,
+        port: row.smtpPort,
+        secure: row.smtpSecure,
+        user: row.smtpUser,
+        oauthTenantId: row.smtpOauthTenantId,
+        oauthClientId: row.smtpOauthClientId,
+        oauthClientSecret: clientSecret,
+        fromName,
+        fromEmail,
+      };
+    }
+
     return {
+      authMethod: 'password',
       host: row.smtpHost,
       port: row.smtpPort,
       secure: row.smtpSecure,
       user: row.smtpUser,
       password: decryptSecret(row.smtpPasswordEncrypted, this.config.jwt.secret),
-      fromName: row.smtpFromName?.trim() || 'Klappe',
-      fromEmail: row.smtpFromEmail,
+      fromName,
+      fromEmail,
     };
   }
 

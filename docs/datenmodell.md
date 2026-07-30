@@ -207,7 +207,11 @@ Workspace-weite Einstellungen – genau eine Zeile. Drei Gruppen:
 - **Mailversand** (Phase 8): Host, Port, TLS, Benutzer, Absender. Das Passwort
   liegt mit AES-256-GCM verschlüsselt darin (`v1.<nonce>.<ct>.<tag>`), der
   Schlüssel wird aus `JWT_SECRET` abgeleitet. Die API gibt es nie heraus, sie
-  meldet nur, ob eines gesetzt ist.
+  meldet nur, ob eines gesetzt ist. `smtp_auth_method` wählt zwischen
+  `password` und `oauth2`; bei `oauth2` stehen `smtp_oauth_tenant_id` und
+  `smtp_oauth_client_id` dazu, das Client-Secret liegt genauso verschlüsselt
+  in `smtp_oauth_client_secret_encrypted`. Nötig für Microsoft 365, sobald der
+  Tenant Mehrfaktor-Anmeldung erzwingt – dann lehnt der Server ein Kennwort ab.
 - **Erscheinungsbild** (Phase 10): `brand_title`, `brand_accent` und die
   Angaben zum Logo. Aus der einen Farbe werden Hover-Ton und Schriftfarbe
   berechnet, nicht gespeichert. `brand_logo_updated_at` wandert in die

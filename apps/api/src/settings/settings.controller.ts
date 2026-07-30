@@ -15,6 +15,7 @@ import {
   HLS_MODES,
   MAX_ENVIRONMENT_NOTES_LENGTH,
   RENDITION_CONTAINERS,
+  SMTP_AUTH_METHODS,
   TRANSCODE_TIMINGS,
   X264_PRESETS,
   type AboutDto,
@@ -81,6 +82,10 @@ class UpdateSmtpDto {
   secure?: boolean;
 
   @IsOptional()
+  @IsIn(SMTP_AUTH_METHODS)
+  authMethod?: string;
+
+  @IsOptional()
   @IsString()
   @MaxLength(320)
   user?: string;
@@ -90,6 +95,24 @@ class UpdateSmtpDto {
   @IsString()
   @MaxLength(512)
   password?: string;
+
+  /** Nur bei `oauth2`: Verzeichnis-ID (Tenant) der App-Registrierung. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  oauthTenantId?: string;
+
+  /** Nur bei `oauth2`: Anwendungs-ID (Client) der App-Registrierung. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  oauthClientId?: string;
+
+  /** Leer lassen heißt „unverändert“; ein leerer String löscht das Secret. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  oauthClientSecret?: string;
 
   @IsOptional()
   @IsString()
@@ -336,9 +359,13 @@ export class SettingsController {
       host: dto.host,
       port: dto.port,
       secure: dto.secure,
+      authMethod: dto.authMethod,
       user: dto.user,
-      // Ein weggelassenes Feld lässt das gespeicherte Passwort in Ruhe.
+      // Ein weggelassenes Feld lässt das gespeicherte Passwort bzw. Secret in Ruhe.
       password: dto.password === undefined ? undefined : dto.password || null,
+      oauthTenantId: dto.oauthTenantId,
+      oauthClientId: dto.oauthClientId,
+      oauthClientSecret: dto.oauthClientSecret === undefined ? undefined : dto.oauthClientSecret || null,
       fromName: dto.fromName,
       fromEmail: dto.fromEmail,
       digestMinutes: dto.digestMinutes,

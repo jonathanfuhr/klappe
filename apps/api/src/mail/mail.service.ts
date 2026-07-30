@@ -7,6 +7,7 @@ import { DB, type Database } from '../db/db.module';
 import { mailFailures } from '../db/schema';
 import type { MailFailureDto } from '@klappe/shared';
 import { SettingsService, type SmtpCredentials } from '../settings/settings.service';
+import { Ms365OauthService } from './ms365-oauth.service';
 import { createUnsubscribeToken } from './unsubscribe-token';
 import { DEFAULT_MAIL_BRAND, type MailBrand, type RenderedMail, renderTestMail } from './templates';
 
@@ -24,6 +25,7 @@ export class MailService {
 
   constructor(
     private readonly settingsService: SettingsService,
+    private readonly ms365Oauth: Ms365OauthService,
     @Inject(CONFIG) private readonly config: AppConfig,
     @Inject(DB) private readonly db: Database,
   ) {}
@@ -45,7 +47,7 @@ export class MailService {
       );
     }
 
-    const transporter = this.getTransporter(credentials);
+    const transporter = await this.getTransporter(credentials);
     try {
       await transporter.sendMail({
         from: { name: credentials.fromName, address: credentials.fromEmail },
@@ -175,7 +177,28 @@ export class MailService {
     return `${this.config.publicUrl}/abmelden?token=${encodeURIComponent(token)}`;
   }
 
-  private getTransporter(credentials: SmtpCredentials): Transporter {
+  private async getTransporter(credentials: SmtpCredentials): Promise<Transporter> {
+    if (credentials.authMethod === 'oauth2') {
+      const accessToken = await this.ms365Oauth.getAccessToken(
+        credentials.oauthTenantId,
+        credentials.oauthClientId,
+        credentials.oauthClientSecret,
+      );
+      // Das Zugriffstoken läuft nach etwa einer Stunde ab; anders als unten
+      // wird hier deshalb nie zwischengehalten, sondern bei jedem Versand neu
+      // mit dem gerade gültigen Token aufgebaut (der Ms365OauthService hält
+      // seinerseits das Token vor, bis es fast abgelaufen ist).
+      return createTransport({
+        host: credentials.host,
+        port: credentials.port,
+        secure: credentials.secure,
+        auth: { type: 'OAuth2', user: credentials.user, accessToken },
+        connectionTimeout: 15_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
+      });
+    }
+
     const key = JSON.stringify([
       credentials.host,
       credentials.port,

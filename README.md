@@ -518,6 +518,34 @@ archivierte Projekte und ganz oben die Liste der unzustellbaren Mails.
 Für die Zustellbarkeit gehört zur Absender-Domain SPF und DKIM – sonst landen
 Anmeldecodes im Spam.
 
+#### OAuth2 für Microsoft 365 (bei erzwungener Mehrfaktor-Anmeldung)
+
+Erzwingt der Tenant Mehrfaktor-Anmeldung, lehnt `smtp.office365.com` ein
+Kennwort ab – auch ein App-Kennwort hilft dabei nicht zuverlässig. Klappe
+unterstützt deshalb zusätzlich den Client-Credentials-Fluss (App-only, ohne
+Anmeldefenster):
+
+1. Im Entra Admin Center eine App-Registrierung anlegen (kann dieselbe sein
+   wie für die Anmeldung, muss es aber nicht).
+2. Unter *API-Berechtigungen* die **Microsoft-Graph-Anwendungsberechtigung**
+   `SMTP.SendAsApp` hinzufügen und die Admin-Zustimmung erteilen.
+3. Unter *Zertifikate & Geheimnisse* einen geheimen Clientschlüssel erzeugen.
+4. Per Exchange Online PowerShell die App auf das sendende Postfach
+   einschränken – ohne diesen Schritt dürfte sie tenant-weit als jedes
+   Postfach senden:
+   ```powershell
+   New-ApplicationAccessPolicy -AppId "<Anwendungs-ID>" `
+     -PolicyScopeGroupId "versand@contoso.de" -AccessRight RestrictAccess `
+     -Description "Nur Klappe darf als dieses Postfach senden"
+   ```
+5. In den Einstellungen unter *Authentifizierung* auf **OAuth2** umstellen und
+   Verzeichnis-ID, Anwendungs-ID, Client-Secret sowie das absendende Postfach
+   eintragen.
+
+Klappe holt sich das Zugriffstoken bei Bedarf selbst (Gültigkeit rund eine
+Stunde) und hält es bis kurz vor Ablauf vor – ein Neustart ist dafür nicht
+nötig.
+
 ### Anmeldung über Microsoft 365
 
 1. Im Entra Admin Center eine App-Registrierung anlegen.

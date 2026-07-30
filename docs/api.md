@@ -207,13 +207,16 @@ Hochgeladen wird über `POST /v1/projects/:projectId/uploads` (siehe oben).
 | Route | Rolle |
 | --- | --- |
 | `GET /v1/settings/mail-status` | ohne Anmeldung – nur `{ ready }`, damit die Anmeldeseite weiß, ob Codes verschickt werden können |
-| `GET /v1/settings/smtp` | Admin – Einstellungen ohne Passwort, dafür `hasPassword` |
-| `PUT /v1/settings/smtp` | Admin – `{ enabled, preset, host, port, secure, user, password?, fromName, fromAddress }` |
+| `GET /v1/settings/smtp` | Admin – Einstellungen ohne Passwort/Secret, dafür `hasPassword`/`hasOauthClientSecret` |
+| `PUT /v1/settings/smtp` | Admin – `{ enabled, preset, host, port, secure, authMethod, user, password?, oauthTenantId?, oauthClientId?, oauthClientSecret?, fromName, fromAddress }` |
 | `POST /v1/settings/smtp/test` | Admin – Testmail an die eigene Adresse |
 | `GET /v1/settings/smtp/presets` | Admin – Vorlagen (Brevo, Mailgun, Postmark, SES, Microsoft 365) |
 
-Das Passwort wird verschlüsselt gespeichert und nie wieder herausgegeben; ohne
-`password` im Rumpf bleibt das gespeicherte bestehen.
+`authMethod` ist `password` (SMTP AUTH mit Benutzername und Kennwort) oder
+`oauth2` (Client-Credentials-Fluss gegen Entra ID – nötig für Microsoft 365,
+sobald der Tenant Mehrfaktor-Anmeldung erzwingt). Das Passwort bzw. Client-Secret
+wird verschlüsselt gespeichert und nie wieder herausgegeben; ohne `password`
+bzw. `oauthClientSecret` im Rumpf bleibt das gespeicherte bestehen.
 
 Benachrichtigt wird bei @-Mention und bei Antworten im eigenen Thread, nie an
 den Verfasser selbst und nie an Konten mit abgeschalteten Benachrichtigungen.

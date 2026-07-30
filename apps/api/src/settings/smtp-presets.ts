@@ -46,7 +46,9 @@ export const SMTP_PRESETS: SmtpProviderPresetDto[] = [
     host: 'smtp.office365.com',
     port: 587,
     secure: false,
-    hint: 'Das Postfach braucht SMTP AUTH; mit MFA ist ein App-Kennwort nötig.',
+    hint:
+      'Das Postfach braucht SMTP AUTH. Erzwingt der Tenant Mehrfaktor-Anmeldung, lehnt ' +
+      'der Server ein Kennwort ab – dann unten die Authentifizierung auf OAuth2 umstellen.',
   },
   // Die drei folgenden sind gewöhnliche Postfächer, keine Versanddienste. Alle
   // drei verlangen ein eigens erzeugtes Kennwort – das normale Anmeldekennwort

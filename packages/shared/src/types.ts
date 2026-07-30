@@ -444,15 +444,30 @@ export interface NotificationSubscriberDto {
   inherited: boolean;
 }
 
+/**
+ * Authentifizierung beim Mailversand. `password` ist SMTP AUTH mit
+ * Benutzername und Kennwort; `oauth2` der Client-Credentials-Fluss gegen
+ * Entra ID – nötig für Microsoft 365, sobald der Tenant Mehrfaktor-Anmeldung
+ * erzwingt und ein Kennwort (auch ein App-Kennwort) nicht mehr reicht.
+ */
+export const SMTP_AUTH_METHODS = ['password', 'oauth2'] as const;
+export type SmtpAuthMethod = (typeof SMTP_AUTH_METHODS)[number];
+
 export interface SmtpSettingsDto {
   enabled: boolean;
   provider: string | null;
   host: string | null;
   port: number | null;
   secure: boolean;
+  authMethod: SmtpAuthMethod;
   user: string | null;
   /** Das Passwort verlässt den Server nie; hier steht nur, ob eines hinterlegt ist. */
   hasPassword: boolean;
+  /** Nur bei `oauth2`: Tenant- und Anwendungs-ID der App-Registrierung. */
+  oauthTenantId: string | null;
+  oauthClientId: string | null;
+  /** Das Client-Secret verlässt den Server nie; hier steht nur, ob eines hinterlegt ist. */
+  hasOauthClientSecret: boolean;
   fromName: string | null;
   fromEmail: string | null;
   /**

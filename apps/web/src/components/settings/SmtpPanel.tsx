@@ -1,6 +1,11 @@
 'use client';
 
-import type { MailFailureDto, SmtpProviderPresetDto, SmtpSettingsDto } from '@klappe/shared';
+import type {
+  MailFailureDto,
+  SmtpAuthMethod,
+  SmtpProviderPresetDto,
+  SmtpSettingsDto,
+} from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
@@ -24,8 +29,12 @@ export function SmtpPanel() {
     host: '',
     port: 587,
     secure: false,
+    authMethod: 'password' as SmtpAuthMethod,
     user: '',
     password: '',
+    oauthTenantId: '',
+    oauthClientId: '',
+    oauthClientSecret: '',
     fromName: 'Klappe',
     fromEmail: '',
     digestMinutes: 5,
@@ -51,8 +60,12 @@ export function SmtpPanel() {
         host: current.host ?? '',
         port: current.port ?? 587,
         secure: current.secure,
+        authMethod: current.authMethod,
         user: current.user ?? '',
         password: '',
+        oauthTenantId: current.oauthTenantId ?? '',
+        oauthClientId: current.oauthClientId ?? '',
+        oauthClientSecret: '',
         fromName: current.fromName ?? 'Klappe',
         fromEmail: current.fromEmail ?? '',
         digestMinutes: current.digestMinutes,
@@ -88,16 +101,25 @@ export function SmtpPanel() {
         host: form.host,
         port: form.port,
         secure: form.secure,
+        authMethod: form.authMethod,
         user: form.user,
         // Leeres Feld heißt „unverändert“ – sonst würde ein Speichern das
-        // hinterlegte Passwort löschen, nur weil es nicht angezeigt wird.
-        ...(form.password ? { password: form.password } : {}),
+        // hinterlegte Passwort bzw. Secret löschen, nur weil es nicht
+        // angezeigt wird.
+        ...(form.authMethod === 'password' && form.password ? { password: form.password } : {}),
+        ...(form.authMethod === 'oauth2'
+          ? {
+              oauthTenantId: form.oauthTenantId,
+              oauthClientId: form.oauthClientId,
+              ...(form.oauthClientSecret ? { oauthClientSecret: form.oauthClientSecret } : {}),
+            }
+          : {}),
         fromName: form.fromName,
         fromEmail: form.fromEmail,
         digestMinutes: form.digestMinutes,
       });
       setSettings(saved);
-      setForm((current) => ({ ...current, password: '' }));
+      setForm((current) => ({ ...current, password: '', oauthClientSecret: '' }));
       setInfo('Gespeichert.');
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
@@ -266,35 +288,122 @@ export function SmtpPanel() {
           Implizites TLS (Port 465). Bei 587 aus lassen – dort greift STARTTLS.
         </label>
 
-        <div className="grid-two">
-          <div className="field">
-            <label className="field__label" htmlFor="smtp-user">
-              Benutzername
-            </label>
-            <input
-              id="smtp-user"
-              className="input"
-              autoComplete="off"
-              value={form.user}
-              onChange={(event) => setForm({ ...form, user: event.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor="smtp-password">
-              Passwort
-            </label>
-            <input
-              id="smtp-password"
-              className="input"
-              type="password"
-              autoComplete="new-password"
-              placeholder={settings?.hasPassword ? '•••••••• (gespeichert)' : ''}
-              value={form.password}
-              onChange={(event) => setForm({ ...form, password: event.target.value })}
-            />
-            <p className="hint">Leer lassen behält das gespeicherte Passwort.</p>
-          </div>
+        <div className="field">
+          <label className="field__label" htmlFor="auth-method">
+            Authentifizierung
+          </label>
+          <select
+            id="auth-method"
+            className="select"
+            value={form.authMethod}
+            onChange={(event) =>
+              setForm({ ...form, authMethod: event.target.value as SmtpAuthMethod })
+            }
+          >
+            <option value="password">Benutzername und Passwort</option>
+            <option value="oauth2">OAuth2 (Microsoft 365, App-Registrierung)</option>
+          </select>
+          {form.authMethod === 'oauth2' ? (
+            <p className="hint">
+              Nötig, sobald Microsoft 365 Mehrfaktor-Anmeldung erzwingt – dann lehnt der Server ein
+              Passwort ab, auch ein App-Passwort hilft nicht mehr zuverlässig. Die App-Registrierung
+              in Entra ID braucht die Microsoft-Graph-Anwendungsberechtigung{' '}
+              <strong>SMTP.SendAsApp</strong> mit Admin-Zustimmung sowie eine per
+              Exchange-Online-PowerShell angelegte <strong>New-ApplicationAccessPolicy</strong>, die
+              die App auf das Absender-Postfach einschränkt.
+            </p>
+          ) : null}
         </div>
+
+        {form.authMethod === 'oauth2' ? (
+          <>
+            <div className="grid-two">
+              <div className="field">
+                <label className="field__label" htmlFor="oauth-tenant">
+                  Verzeichnis-ID (Tenant)
+                </label>
+                <input
+                  id="oauth-tenant"
+                  className="input"
+                  autoComplete="off"
+                  value={form.oauthTenantId}
+                  onChange={(event) => setForm({ ...form, oauthTenantId: event.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label className="field__label" htmlFor="oauth-client">
+                  Anwendungs-ID (Client)
+                </label>
+                <input
+                  id="oauth-client"
+                  className="input"
+                  autoComplete="off"
+                  value={form.oauthClientId}
+                  onChange={(event) => setForm({ ...form, oauthClientId: event.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid-two">
+              <div className="field">
+                <label className="field__label" htmlFor="smtp-user">
+                  Absendendes Postfach
+                </label>
+                <input
+                  id="smtp-user"
+                  className="input"
+                  autoComplete="off"
+                  value={form.user}
+                  onChange={(event) => setForm({ ...form, user: event.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label className="field__label" htmlFor="oauth-secret">
+                  Client-Secret
+                </label>
+                <input
+                  id="oauth-secret"
+                  className="input"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder={settings?.hasOauthClientSecret ? '•••••••• (gespeichert)' : ''}
+                  value={form.oauthClientSecret}
+                  onChange={(event) => setForm({ ...form, oauthClientSecret: event.target.value })}
+                />
+                <p className="hint">Leer lassen behält das gespeicherte Secret.</p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="grid-two">
+            <div className="field">
+              <label className="field__label" htmlFor="smtp-user">
+                Benutzername
+              </label>
+              <input
+                id="smtp-user"
+                className="input"
+                autoComplete="off"
+                value={form.user}
+                onChange={(event) => setForm({ ...form, user: event.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor="smtp-password">
+                Passwort
+              </label>
+              <input
+                id="smtp-password"
+                className="input"
+                type="password"
+                autoComplete="new-password"
+                placeholder={settings?.hasPassword ? '•••••••• (gespeichert)' : ''}
+                value={form.password}
+                onChange={(event) => setForm({ ...form, password: event.target.value })}
+              />
+              <p className="hint">Leer lassen behält das gespeicherte Passwort.</p>
+            </div>
+          </div>
+        )}
 
         <div className="grid-two">
           <div className="field">

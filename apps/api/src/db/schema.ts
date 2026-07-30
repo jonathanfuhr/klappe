@@ -563,6 +563,18 @@ export const appSettings = pgTable('app_settings', {
   smtpUser: text('smtp_user'),
   /** Verschlüsselt abgelegt, siehe `common/secret-box.ts`. */
   smtpPasswordEncrypted: text('smtp_password_encrypted'),
+  /**
+   * Authentifizierung beim Versand: `password` (Benutzername und Kennwort)
+   * oder `oauth2` (Client-Credentials-Fluss gegen Entra ID). Microsoft 365
+   * lehnt SMTP AUTH mit Kennwort ab, sobald der Tenant Mehrfaktor-Anmeldung
+   * erzwingt – dann bleibt nur OAuth2.
+   */
+  smtpAuthMethod: text('smtp_auth_method').notNull().default('password'),
+  /** Nur bei `oauth2`: Tenant- und Anwendungs-ID der App-Registrierung. */
+  smtpOauthTenantId: text('smtp_oauth_tenant_id'),
+  smtpOauthClientId: text('smtp_oauth_client_id'),
+  /** Verschlüsselt abgelegt, siehe `common/secret-box.ts`. */
+  smtpOauthClientSecretEncrypted: text('smtp_oauth_client_secret_encrypted'),
   smtpFromName: text('smtp_from_name'),
   smtpFromEmail: text('smtp_from_email'),
 
