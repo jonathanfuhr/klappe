@@ -8,8 +8,15 @@ import { NotificationsService } from './notifications.service';
  * Verschickt die eingereihten Benachrichtigungen. Mehrere gleichzeitig, weil
  * hier nur auf den Mailserver gewartet wird – anders als beim Transcoding
  * kostet das keine Rechenzeit.
+ *
+ * Zwei und nicht mehr (Phase 20): Der Versand läuft ohne Verbindungspool,
+ * jede Mail öffnet also ihre eigene SMTP-Verbindung. Anbieter begrenzen, wie
+ * viele davon gleichzeitig offen sein dürfen. Schöpft die Sammelpost dieses
+ * Kontingent aus, trifft die Absage ausgerechnet den Anmeldecode, den jemand
+ * gerade anfordert – und der ist der einzige, auf den wirklich jemand wartet.
+ * Ein paar Sekunden später fertig zu sein kostet hier nichts.
  */
-@Processor(MAIL_QUEUE, { concurrency: 4 })
+@Processor(MAIL_QUEUE, { concurrency: 2 })
 export class MailProcessor extends WorkerHost {
   private readonly logger = new Logger(MailProcessor.name);
 

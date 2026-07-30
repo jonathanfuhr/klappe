@@ -49,3 +49,25 @@ export type MailJobData =
   | { kind: 'comment'; commentId: string }
   | { kind: 'digest'; userId: string; videoId: string }
   | { kind: 'project-file'; projectFileId: string };
+
+/**
+ * Vorrang in der Mail-Warteschlange (Phase 20).
+ *
+ * Alles, was hier landet, ist Vorratsarbeit: Auf eine Benachrichtigung wartet
+ * niemand vor dem Bildschirm. Ein Anmeldecode dagegen entscheidet darüber, ob
+ * jemand gerade hereinkommt – der geht deshalb gar nicht erst durch die
+ * Warteschlange, sondern direkt aus dem API-Prozess raus (siehe
+ * `SharesService`). Diese Trennung ist die eigentliche Priorisierung.
+ *
+ * Die niedrige Priorität hier ist die Absicherung dafür: Sollte je eine
+ * dringende Mail eingereiht werden, steht sie vor der Sammelpost, statt sich
+ * hinter fünfzig Kommentarhinweisen anzustellen. Wie in der
+ * Transcode-Warteschlange gilt: BullMQ liest `0` als „keine Priorität" und
+ * arbeitet solche Aufträge **vor** allen priorisierten ab.
+ */
+export const MAIL_PRIORITY = {
+  /** Worauf jemand wartet – bislang nichts, absichtlich vorgesehen. */
+  dringend: 1,
+  /** Benachrichtigungen und Sammelmails. */
+  sammel: 10,
+} as const;
