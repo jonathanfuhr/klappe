@@ -479,7 +479,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   const hasProxy = version.hasProxy && version.status === 'READY';
 
   // Adaptive Wiedergabe, wenn für diese Fassung eine Leiter erzeugt wurde.
-  const playbackSource = useHlsSource(videoRef, version, hasProxy);
+  const hlsPlayback = useHlsSource(videoRef, version, hasProxy);
+  const playbackSource = hlsPlayback.source;
 
   const onProgress = useCallback(() => {
     const video = videoRef.current;
@@ -660,6 +661,33 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         </span>
 
         <div className="shell__spacer" />
+
+        {/* Stufenwahl der HLS-Leiter (Phase 22). Nur wenn hls.js spielt –
+            beim progressiven Proxy gibt es nichts zu wählen, und Safaris
+            natives HLS bietet keine Schnittstelle dafür. In der Automatik
+            steht die gerade gespielte Stufe in Klammern dabei, damit eine
+            stille Herabstufung nicht wie ein Materialfehler aussieht. */}
+        {playbackSource === 'hls' && hlsPlayback.qualities.length > 0 ? (
+          <select
+            className="select player__quality"
+            value={hlsPlayback.selectedLevel}
+            onChange={(event) => hlsPlayback.setLevel(Number(event.target.value))}
+            title="Wiedergabequalität"
+            aria-label="Wiedergabequalität"
+          >
+            <option value={-1}>
+              Auto
+              {hlsPlayback.selectedLevel === -1 && hlsPlayback.activeLabel
+                ? ` (${hlsPlayback.activeLabel})`
+                : ''}
+            </option>
+            {hlsPlayback.qualities.map((stufe) => (
+              <option key={stufe.index} value={stufe.index}>
+                {stufe.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
 
         <button
           type="button"

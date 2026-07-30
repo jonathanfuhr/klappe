@@ -11,8 +11,8 @@ Abo pro Kopf, und das Kameramaterial verlässt das Haus nicht.
 Ein Container-Stack trägt genau **einen Workspace** mit eigenem Logo, Titel und
 eigener Farbe. Wer zwei Firmen strikt trennen will, betreibt zwei Stapel.
 
-**Stand: Phasen 0–20 sind gebaut, geprüft und im Einsatz.** Der grobe Umfang
-steht unten unter [Umgesetzte Phasen](#umgesetzte-phasen).
+**Stand: Phasen 0–22 sind gebaut und geprüft.** Der grobe Umfang steht unten
+unter [Umgesetzte Phasen](#umgesetzte-phasen).
 
 ---
 
@@ -91,7 +91,10 @@ Kunde einen Hinweis, und der Dateiname trägt `Vorschau`.
 Projekte tragen einen Kunden und beliebige **benutzerdefinierte Felder** (etwa
 eine Projektnummer), die in den Einstellungen angelegt werden. Nach jedem Feld
 lässt sich filtern, sortieren und gruppieren – Kunde und Schlagworte sind dabei
-ganz normale Dimensionen, keine Sonderfälle.
+ganz normale Dimensionen, keine Sonderfälle. Je Feld ist einstellbar, ob es in
+der Sortier- und Gruppier-Auswahl steht und ob sein Wert auf der Projektkachel
+erscheint. Der Kunde steht dort groß über dem Projektnamen – wer viele Projekte
+hat, sucht zuerst nach dem Kunden.
 
 Projekte lassen sich **archivieren**: Sie bleiben sichtbar und abspielbar,
 zeigen je Video aber nur noch die neueste fertige Fassung, und kommentieren
@@ -137,7 +140,9 @@ Standbild, an denselben Frame geheftet wie der Kommentar. Die Koordinaten sind
 relativ, also unabhängig von Fenster- und Videogröße.
 
 Am Telefon im Querformat läuft der Player im passenden Layout; wird es eng,
-weicht die Frame-Nummer und der Timecode bleibt.
+weicht die Frame-Nummer und der Timecode bleibt. Im **Vollbild** fährt die
+Kommentarspalte auf Knopfdruck von rechts ein – kommentieren geht also auch
+dort, ohne das Vollbild zu verlassen.
 
 | Taste | Wirkung |
 | --- | --- |
@@ -176,6 +181,13 @@ Beim Freigeben schlägt Klappe **bekannte Gäste desselben Kunden** vor – am
 Projekt wie am einzelnen Video. Ein Klick nimmt sie auf, ohne neuen Link; auf
 Wunsch (Standard) bekommen sie einen kurzen Hinweis per Mail, dass etwas Neues
 für sie offensteht.
+
+Für die Zusammenarbeit mit Agenturen gibt es den **Externen Projektadmin**:
+ein Häkchen an der Projektfreigabe eines Gastes. Damit darf er in genau diesem
+Projekt Videos anlegen, Fassungen hochladen und löschen, weiter freigeben und
+fremde Kommentare verwalten – Projekt und Videos umbenennen oder löschen
+bleibt dem Team vorbehalten, ebenso das Ändern und Zurückziehen bestehender
+Freigabe-Links.
 
 Entzug wirkt sofort und trifft nur die eine Person – der Link bleibt für alle
 anderen bestehen. Wer entzogen wurde, kommt mit dem alten Link auch **nicht
@@ -241,12 +253,16 @@ zu sichern vergisst.
 ### Verwaltung
 
 Rollen sind **Admin**, **Team-Mitglied** und **Gast**. Team-Mitglieder sehen
-alle Projekte des Workspace, Gäste nur, wozu sie eingeladen wurden.
+alle Projekte des Workspace, Gäste nur, wozu sie eingeladen wurden. Einen Weg
+vom Gast ins Team gibt es bewusst nicht – die beiden melden sich grundsätzlich
+verschieden an (Code gegen Passwort/Microsoft 365); für einen echten Kollegen
+entsteht ein eigenes Konto unter *Benutzer*.
 
 Unter *Einstellungen* stehen Gästeliste, Benutzerverwaltung, benutzerdefinierte
-Felder, Erscheinungsbild, Anmeldung, E-Mail-Versand und Transcode. Jeder ändert
-sein Passwort selbst unter **Mein Konto** – nach dem ersten Wechsel darf
-`ADMIN_PASSWORD` aus der `.env` verschwinden.
+Felder, Erscheinungsbild, Anmeldung, E-Mail-Versand, Projekte und Transcode.
+Jeder – Team wie Gast – ändert seinen Namen selbst unter **Mein Konto**; das
+Team dort auch sein Passwort. Nach dem ersten Wechsel darf `ADMIN_PASSWORD`
+aus der `.env` verschwinden.
 
 ### Handbuch und „Über diese Software“
 
@@ -472,6 +488,13 @@ hergibt. Der Player nimmt sie automatisch, wo der Browser sie abspielt – Safar
 von Haus aus, Chrome und Firefox über `hls.js`, das erst bei Bedarf nachgeladen
 wird.
 
+Die Stufe wählt normalerweise die Automatik nach der gemessenen Bandbreite; in
+der Steuerleiste steht dann **Auto** samt der gerade gespielten Stufe in
+Klammern. Wer eine bestimmte Stufe sehen will – etwa garantiert 1080p für die
+Abnahme –, wählt sie im selben Dropdown fest; *Auto* gibt die Wahl zurück.
+Unter Safari entfällt der Umschalter, dessen natives HLS bietet dafür keine
+Schnittstelle.
+
 Sie kostet einen zweiten vollen Durchlauf über das Original und läuft deshalb
 als Nacharbeit: Die Fassung ist vorher schon fertig und abspielbar. Der
 progressive Proxy bleibt in jedem Fall die Grundlage fürs frame-genaue
@@ -590,9 +613,11 @@ bleibt immer.
 ### Benutzerdefinierte Felder
 
 Felder anlegen, umbenennen, löschen (mit Warnung, wie viele Projekte betroffen
-sind). Je Feld einstellbar, ob beim Tippen Vorschläge aus bestehenden Projekten
-kommen sollen – sinnvoll beim Kunden, sinnlos bei einer Projektnummer. Auch die
-Schlagworte lassen sich hier workspace-weit abschalten.
+sind). Je Feld einstellbar: ob beim Tippen Vorschläge aus bestehenden Projekten
+kommen (sinnvoll beim Kunden, sinnlos bei einer Projektnummer), ob es in der
+Sortier- bzw. Gruppier-Auswahl der Projektliste steht, und ob sein Wert auf der
+Projektkachel erscheint. Auch die Schlagworte lassen sich hier workspace-weit
+abschalten.
 
 ---
 
@@ -718,7 +743,7 @@ Prüfen:
 
 ```bash
 npm run typecheck    # alle Workspaces
-npm test             # 428 Tests
+npm test             # 457 Tests
 npm run build        # shared + API + Web
 ```
 
@@ -789,9 +814,5 @@ HTTPS-Wege.
 | 18 | Gebündelte Mails mit Ruhezeit, Spalte *Benachrichtigungen* je Projekt und Video, Benachrichtigungszentrale, Video-Gäste sichtbar und erweiterbar, Freigabe an bekannte Gäste desselben Kunden, Verarbeitung parallel zur Eingabe · **Zusatz:** Projekte archivieren, Live-Aktualisierung statt Nachladen, unzustellbare Mails sichtbar |
 | 19 | Einstellungsseite *Transcode*: Download in verschiedenen Formaten mit Fortschritt, Format-Presets, Vorab-Erzeugung mit Vorrangregel, Zeitfenster für die Nacharbeit, HLS-Schalter und Proxy-Werte aus der Datenbank statt aus der `.env` |
 | 20 | Gast-Anmeldung auf Mail und Code verkürzt (Name nur beim ersten Mal, Sitzung führt direkt durch), *Gastzugang* auf der Anmeldeseite ohne Selbstregistrierung, entzogene Zugänge entwerten den Link, Firmenkürzel hinter Team-Namen, bekannte Gäste auch am Video mit Hinweis-Mail, Transcode-Seite nach Aufgaben gegliedert mit je eigenem Zeitplan, eigene Seite *Projekte*, Gäste getrennt von Benutzern, Zeichnungen in Fahrt ein-/ausblendbar |
-
-Offen aus Phase 20: die Rechtestufe **Externer Projektadmin** (ein Gast, der in
-einem Projekt Videos und Fassungen anlegen, weiter freigeben und Kommentare
-verwalten darf). Bewusst nicht angefangen: Sie öffnet elf verändernde Endpunkte
-in fünf Controllern für Gäste, die dann einzeln wieder abgesichert werden
-müssen – halb gebaut wäre das schlimmer als gar nicht.
+| 21 | Rechtestufe **Externer Projektadmin** je Projektfreigabe (Videos anlegen, Fassungen hochladen und löschen, weiter freigeben, fremde Kommentare verwalten), Zeichnung heftet den Kommentar verlässlich an den Frame, Kommentarspalte im Vollbild, eigener Name unter *Mein Konto* änderbar (auch Gäste), GitHub-Link unter *Über diese Software*, kein Rollenwechsel Gast → Team mehr |
+| 22 | Stufenwahl im HLS-Player (Auto mit Anzeige der laufenden Stufe oder feste Wahl), Felder je einzeln sortier-/gruppierbar und auf der Kachel anzeigbar, Kunde groß auf der Projektkachel, Transcode-Seite ohne überlappenden Haken |

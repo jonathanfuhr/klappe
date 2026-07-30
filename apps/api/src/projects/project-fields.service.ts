@@ -91,7 +91,14 @@ export class ProjectFieldsService {
 
   async update(
     id: string,
-    input: { name?: string; sortOrder?: number; suggest?: boolean },
+    input: {
+      name?: string;
+      sortOrder?: number;
+      suggest?: boolean;
+      sortable?: boolean;
+      groupable?: boolean;
+      showOnTile?: boolean;
+    },
   ): Promise<ProjectFieldDefDto> {
     const [row] = await this.db
       .update(projectFieldDefs)
@@ -99,6 +106,9 @@ export class ProjectFieldsService {
         name: input.name === undefined ? undefined : input.name.trim(),
         sortOrder: input.sortOrder,
         suggest: input.suggest,
+        sortable: input.sortable,
+        groupable: input.groupable,
+        showOnTile: input.showOnTile,
         updatedAt: new Date(),
       })
       .where(eq(projectFieldDefs.id, id))
@@ -166,6 +176,9 @@ export class ProjectFieldsService {
       name: row.name,
       sortOrder: row.sortOrder,
       suggest: row.suggest,
+      sortable: row.sortable,
+      groupable: row.groupable,
+      showOnTile: row.showOnTile,
       projectCount,
     };
   }

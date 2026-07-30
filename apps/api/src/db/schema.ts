@@ -536,6 +536,18 @@ export const projectFieldDefs = pgTable(
      * je Feld schaltbar und vorsichtshalber aus.
      */
     suggest: boolean('suggest').notNull().default(false),
+    /**
+     * Steht das Feld in der Sortier- bzw. Gruppier-Auswahl der Projektliste
+     * (Phase 22)? Ab Werk an – das war bis dahin das Verhalten für jedes Feld,
+     * und ein Feld, nach dem niemand sortieren will, schaltet man gezielt ab.
+     */
+    sortable: boolean('sortable').notNull().default(true),
+    groupable: boolean('groupable').notNull().default(true),
+    /**
+     * Wert auf der Projektkachel anzeigen (Phase 22)? Ab Werk aus – die Kachel
+     * ist klein, und bis dahin stand dort auch nichts davon.
+     */
+    showOnTile: boolean('show_on_tile').notNull().default(false),
     ...timestamps,
   },
   // Zwei Felder mit gleichem Namen wären im Formular nicht zu unterscheiden.

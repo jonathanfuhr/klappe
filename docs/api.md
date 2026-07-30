@@ -29,7 +29,10 @@ sich vorhandene Konten nicht abfragen lassen.
 | `PATCH /v1/me` | alle – `{ name?, notificationsEnabled? }` |
 | `GET /v1/mentionable-users?q=` | alle – Vorschläge für @-Mentions |
 
-Passwörter: mindestens 10 Zeichen, Buchstaben und Ziffern.
+Passwörter: mindestens 10 Zeichen, Buchstaben und Ziffern. Ein Gast lässt
+sich über `role` **nicht** ins Team heben (Phase 21) – Gäste melden sich per
+Code an, das Team mit Passwort oder Microsoft 365; für einen Kollegen entsteht
+ein eigenes Konto.
 
 ## Projekte und Videos
 
@@ -181,6 +184,10 @@ Zeichnung wird als „keine“ gespeichert.
 (genau ein Video, `videoId` nötig). Hochladen in die Kunden-Ablage geht nur
 mit `PROJECT`-Freigaben – ein einzelnes Video hat keinen Ordner.
 
+Anlegen und Einsehen dürfen seit Phase 21 auch **externe Projektadmins** für
+ihr eigenes Projekt; Ändern, Löschen und die Gäste eines Links bleiben dem
+Team vorbehalten.
+
 Ohne Anmeldung erreichbar (`@Public()`):
 
 | Route | Zweck |
@@ -242,9 +249,17 @@ noch am Projekt sitzt.
 
 Der Entzug gilt für **diese eine Person** an allen Links ins Projekt; der Link
 selbst bleibt für die anderen bestehen. `canView` / `canComment` /
-`canDownload` / `canUpload` in der Antwort sind die Summe über alle gültigen
-Links – ein Link zählt nur mit, wenn er selbst gilt, dem Gast nicht entzogen
-wurde und das Konto nicht gesperrt ist.
+`canDownload` / `canUpload` / `isProjectAdmin` in der Antwort sind die Summe
+über alle gültigen Links – ein Link zählt nur mit, wenn er selbst gilt, dem
+Gast nicht entzogen wurde und das Konto nicht gesperrt ist.
+
+Über `PATCH /v1/shares/:shareLinkId/guests/:userId/rechte` setzt das Team
+Rechte je Person (`{ allowComments?, allowDownload?, allowUpload?,
+projectAdmin? }`; `null` heißt „wie der Link"). `projectAdmin` – der
+**Externe Projektadmin** (Phase 21) – geht nur an einer Projektfreigabe und
+erlaubt dem Gast in diesem Projekt: Videos anlegen, Fassungen hochladen und
+löschen, Freigabe-Links anlegen und einsehen, fremde Kommentare bearbeiten
+und löschen.
 
 ## Erscheinungsbild (Phase 10)
 

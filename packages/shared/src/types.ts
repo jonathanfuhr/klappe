@@ -67,6 +67,12 @@ export interface ProjectFieldDefDto {
   sortOrder: number;
   /** Tippvorschläge aus den Werten der anderen Projekte (Phase 16)? */
   suggest: boolean;
+  /** Steht das Feld in der Sortier-Auswahl der Projektliste (Phase 22)? */
+  sortable: boolean;
+  /** Steht das Feld in der Gruppier-Auswahl der Projektliste (Phase 22)? */
+  groupable: boolean;
+  /** Wert auf der Projektkachel anzeigen (Phase 22)? */
+  showOnTile: boolean;
   /** An wie vielen Projekten das Feld belegt ist – für die Löschwarnung. */
   projectCount: number;
 }

@@ -160,7 +160,17 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
-  updateProjectField: (id: string, input: { name?: string; sortOrder?: number; suggest?: boolean }) =>
+  updateProjectField: (
+    id: string,
+    input: {
+      name?: string;
+      sortOrder?: number;
+      suggest?: boolean;
+      sortable?: boolean;
+      groupable?: boolean;
+      showOnTile?: boolean;
+    },
+  ) =>
     request<ProjectFieldDefDto>(`/v1/project-fields/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(input),

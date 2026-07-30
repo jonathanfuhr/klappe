@@ -174,9 +174,18 @@ export default function ProjectsPage() {
     selectedCustomers.length > 0 ||
     Object.values(selectedFieldValues).some((values) => values.length > 0);
 
+  /** Felder, deren Wert laut Einstellung auf die Kachel gehört (Phase 22). */
+  const kachelFeldIds = useMemo(
+    () => new Set(fieldDefs.filter((def) => def.showOnTile).map((def) => def.id)),
+    [fieldDefs],
+  );
+
   const kachel = (project: ProjectDto) => (
     <Link key={project.id} href={`/projekte/${project.id}`} className="card tile">
       <div className="tile__body">
+        {/* Der Kunde steht groß über dem Projektnamen (Phase 22) – wer viele
+            Projekte hat, sucht zuerst nach dem Kunden, dann nach dem Titel. */}
+        {project.customer ? <span className="tile__customer">{project.customer}</span> : null}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           <span className="tile__title" style={{ flex: 1 }}>
             {project.name}
@@ -190,15 +199,22 @@ export default function ProjectsPage() {
             </Menu>
           ) : null}
         </div>
-        {project.customer ? (
-          <span className="faint" style={{ fontSize: 12 }}>
-            {project.customer}
-          </span>
-        ) : null}
         {project.description ? (
           <span className="muted" style={{ fontSize: 13 }}>
             {project.description}
           </span>
+        ) : null}
+        {project.fields.some((feld) => kachelFeldIds.has(feld.fieldId)) ? (
+          <div className="tile__fields">
+            {project.fields
+              .filter((feld) => kachelFeldIds.has(feld.fieldId))
+              .map((feld) => (
+                <span key={feld.fieldId}>
+                  <span className="faint">{feld.name}: </span>
+                  {feld.value}
+                </span>
+              ))}
+          </div>
         ) : null}
         {tagsEnabled && project.tags.length > 0 ? (
           <div className="tile__tags">
@@ -331,11 +347,14 @@ export default function ProjectsPage() {
             >
               <option value="">Nicht gruppieren</option>
               <option value="customer">Nach Kunde</option>
-              {fieldDefs.map((def) => (
-                <option key={def.id} value={def.id}>
-                  Nach {def.name}
-                </option>
-              ))}
+              {/* Nur Felder, die laut Einstellung gruppierbar sind (Phase 22). */}
+              {fieldDefs
+                .filter((def) => def.groupable)
+                .map((def) => (
+                  <option key={def.id} value={def.id}>
+                    Nach {def.name}
+                  </option>
+                ))}
             </select>
 
             {groupBy ? null : (
@@ -351,11 +370,13 @@ export default function ProjectsPage() {
                     {entry.label}
                   </option>
                 ))}
-                {fieldDefs.map((def) => (
-                  <option key={def.id} value={`field:${def.id}`}>
-                    {def.name}
-                  </option>
-                ))}
+                {fieldDefs
+                  .filter((def) => def.sortable)
+                  .map((def) => (
+                    <option key={def.id} value={`field:${def.id}`}>
+                      {def.name}
+                    </option>
+                  ))}
               </select>
             )}
 
