@@ -391,6 +391,16 @@ export const shareLinkGrants = pgTable(
     allowDownload: boolean('allow_download'),
     allowUpload: boolean('allow_upload'),
     allowComments: boolean('allow_comments'),
+    /**
+     * „Externer Projektadmin" (Phase 21): Der Gast darf im Projekt Videos
+     * anlegen, Fassungen hochladen und löschen, weiter freigeben und fremde
+     * Kommentare verwalten – gedacht für Agenturen, die eigenes Material
+     * einstellen. Anders als die drei Rechte oben kein „wie der Link", weil
+     * ein Link selbst kein Projektadmin-Recht kennt: immer eine bewusste
+     * Einzelentscheidung, deshalb nicht nullbar und ab Werk aus. Nur an einer
+     * Projektfreigabe sinnvoll, nicht an einer einzelnen Videofreigabe.
+     */
+    projectAdmin: boolean('project_admin').notNull().default(false),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

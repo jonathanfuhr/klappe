@@ -84,10 +84,21 @@ export class VersionsController {
     return aktualisiert;
   }
 
-  @Roles('ADMIN', 'MEMBER')
+  /**
+   * Team oder externer Projektadmin (Phase 21) – die Prüfung hängt am
+   * Projekt der Fassung, deshalb kein `@Roles` hier, sondern die übliche
+   * Zugriffsprüfung.
+   */
   @Delete(':id')
   @HttpCode(204)
-  async remove(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+  async remove(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
+    const scope = await this.accessService.loadScope(user);
+    const access = await this.accessService.requireVersion(scope, id);
+    this.accessService.assertCanManageProject(scope, access.projectId);
+
     const row = await this.versionsService.remove(id);
     for (const key of [row.originalKey, row.proxyKey, row.posterKey, row.spriteKey, row.hlsKey]) {
       if (key) await this.storage.remove(key);

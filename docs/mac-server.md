@@ -140,6 +140,24 @@ automatisch **installieren**; nur Sicherheitsmaßnahmen dürfen sofort.
 Updates dann bewusst einspielen, wenn gerade nichts rechnet – danach kommt
 alles von selbst wieder hoch, das ist ja der Sinn dieser Seite.
 
+Wer den Mac ohnehin per SSH einrichtet, muss dafür nicht ins
+Systemeinstellungen-UI wechseln – dieselbe Empfehlung als Kommandozeile:
+
+```bash
+# Laden bleibt an, das automatische Neustarten zum Installieren aber aus.
+# Sicherheitsmaßnahmen und Konfigurationsdaten (z. B. XProtect, MRT)
+# nimmt macOS trotzdem sofort, das ist beabsichtigt und unkritisch.
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool true
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool false
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall -bool true
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall -bool true
+```
+
+Kontrolle: `defaults read /Library/Preferences/com.apple.SoftwareUpdate`.
+Rückgängig macht es derselbe Befehl mit `-bool true` statt `-bool false` bei
+`AutomaticallyInstallMacOSUpdates` – oder einfach wieder über die
+Systemeinstellungen, beide Wege schreiben in dieselbe Datei.
+
 Nach einem `brew upgrade ffmpeg` gilt weiterhin: einmal ins Worker-Log
 schauen bzw. eine Probedatei hochladen (siehe
 [apple-silicon.md](apple-silicon.md)).

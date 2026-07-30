@@ -68,6 +68,14 @@ class SetGuestRightsDto {
   @IsOptional()
   @IsBoolean()
   allowUpload?: boolean | null;
+
+  /**
+   * Externer Projektadmin (Phase 21). Anders als die drei Rechte oben kein
+   * „wie der Link" – ein Link kennt dieses Recht selbst nicht.
+   */
+  @IsOptional()
+  @IsBoolean()
+  projectAdmin?: boolean;
 }
 
 /**
@@ -178,7 +186,12 @@ export class GuestsController {
     @Param('userId', new ParseUUIDPipe()) userId: string,
     @Body() dto: SetGuestRightsDto,
   ): Promise<void> {
-    await this.guestsService.setGuestRights(shareLinkId, userId, dto);
+    await this.guestsService.setGuestRights(shareLinkId, userId, {
+      allowComments: dto.allowComments,
+      allowDownload: dto.allowDownload,
+      allowUpload: dto.allowUpload,
+      projectAdmin: dto.projectAdmin,
+    });
   }
 
   @Roles('ADMIN')

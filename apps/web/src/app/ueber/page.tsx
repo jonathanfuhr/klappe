@@ -91,6 +91,13 @@ export default function AboutPage() {
               Fragen, Fehlermeldungen oder Wünsche zur Weiterentwicklung:{' '}
               <a href="mailto:jonathan@fuhrzwei.de">jonathan@fuhrzwei.de</a>
             </p>
+            <p>
+              Quellcode auf GitHub:{' '}
+              <a href="https://github.com/jonathanfuhr/klappe" target="_blank" rel="noreferrer">
+                github.com/jonathanfuhr/klappe
+              </a>{' '}
+              – frei nutzbar für alle, die selbst einen Klappe-Stack betreiben wollen.
+            </p>
           </section>
 
           <section className="card manual__section">

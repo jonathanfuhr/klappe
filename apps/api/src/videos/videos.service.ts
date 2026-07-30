@@ -100,6 +100,7 @@ export class VideosService {
     scope: AccessScope,
   ): Promise<VideoDto> {
     await this.projectsService.assertExists(projectId);
+    this.accessService.assertCanManageProject(scope, projectId);
 
     const [{ nextOrder }] = await this.db
       .select({ nextOrder: sql<number>`coalesce(max(${videos.sortOrder}), -1)::int + 1` })
@@ -195,6 +196,7 @@ export class VideosService {
       latestVersion: latestByVideo.get(row.video.id)?.latest ?? null,
       downloadsEnabled: row.video.downloadsEnabled,
       canComment: this.accessService.canCommentOn(scope, row.video),
+      canManage: this.accessService.canManageProject(scope, row.video.projectId),
     };
   }
 

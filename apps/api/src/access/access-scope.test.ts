@@ -8,6 +8,8 @@ import {
   canViewProject,
   canViewVideo,
   guestScope,
+  isProjectAdmin,
+  isProjectAdminAnywhere,
   teamScope,
   visibleProjectIds,
   visibleVideoIdsForProject,
@@ -26,6 +28,7 @@ const share = (overrides: Partial<GrantedShare> = {}): GrantedShare => ({
   allowDownload: false,
   allowUpload: false,
   allowComments: true,
+  projectAdmin: false,
   ...overrides,
 });
 
@@ -199,5 +202,33 @@ describe('Gast ohne jede Freigabe', () => {
     expect(visibleProjectIds(scope)).toEqual([]);
     expect(visibleVideoIdsForProject(scope, PROJEKT_A)).toEqual([]);
     expect(canListAllProjectFiles(scope)).toBe(false);
+  });
+});
+
+describe('Externer Projektadmin (Phase 21)', () => {
+  it('Team ist überall Projektadmin', () => {
+    expect(isProjectAdmin(teamScope('MEMBER'), PROJEKT_A)).toBe(true);
+    expect(isProjectAdminAnywhere(teamScope('ADMIN'))).toBe(true);
+  });
+
+  it('gilt nur für das Projekt der Projektfreigabe, an der es gesetzt ist', () => {
+    const scope = guestScope([share({ projectAdmin: true })]);
+    expect(isProjectAdmin(scope, PROJEKT_A)).toBe(true);
+    expect(isProjectAdmin(scope, PROJEKT_B)).toBe(false);
+    expect(isProjectAdminAnywhere(scope)).toBe(true);
+  });
+
+  it('eine Videofreigabe gibt kein Projektadmin-Recht', () => {
+    const scope = guestScope([
+      { ...share({ scope: 'VIDEO', videoId: VIDEO_1, projectAdmin: true }), projectId: PROJEKT_A },
+    ]);
+    expect(isProjectAdmin(scope, PROJEKT_A)).toBe(false);
+    expect(isProjectAdminAnywhere(scope)).toBe(false);
+  });
+
+  it('ein normaler Gast ist nirgends Projektadmin', () => {
+    const scope = guestScope([share({ projectAdmin: false })]);
+    expect(isProjectAdmin(scope, PROJEKT_A)).toBe(false);
+    expect(isProjectAdminAnywhere(scope)).toBe(false);
   });
 });

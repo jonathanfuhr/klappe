@@ -197,6 +197,13 @@
       "when": 1785410940581,
       "tag": "0027_smtp_oauth2",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1785418135233,
+      "tag": "0028_externer_projektadmin",
+      "breakpoints": true
     }
   ]
 }

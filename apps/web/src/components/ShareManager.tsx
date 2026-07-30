@@ -13,6 +13,14 @@ interface ShareManagerProps {
   videoId?: string;
   targetLabel: string;
   onClose: () => void;
+  /**
+   * Ohne Team-Rechte (externer Projektadmin, Phase 21) gibt es nur die
+   * Kurzfassung: Liste ansehen, neuen Link anlegen und kopieren. Rechte
+   * umstellen, zurückziehen, löschen und „Bekannte Gäste“ bleiben dem Team
+   * vorbehalten – die zugehörigen Endpunkte weisen einen Projektadmin ohnehin
+   * ab, das hier erspart nur den fehlgeschlagenen Versuch.
+   */
+  canManage?: boolean;
 }
 
 /**
@@ -25,6 +33,7 @@ export function ShareManager({
   videoId,
   targetLabel,
   onClose,
+  canManage = true,
 }: ShareManagerProps) {
   const [links, setLinks] = useState<ShareLinkDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +92,7 @@ export function ShareManager({
 
       <div className="list" style={{ maxHeight: 420, overflowY: 'auto' }}>
         {links.map((link) => (
-          <ShareRow key={link.id} link={link} onChanged={load} />
+          <ShareRow key={link.id} link={link} onChanged={load} canManage={canManage} />
         ))}
         {!loading && links.length === 0 ? (
           <p className="muted" style={{ fontSize: 13 }}>
@@ -94,8 +103,10 @@ export function ShareManager({
 
       {/* Freigeben ohne neuen Link – an Gäste, die den Kunden schon kennen
           (Phase 18, seit Phase 20 auch am einzelnen Video). Braucht das
-          Projekt, weil der Kunde daran hängt. */}
-      {projectId ? (
+          Projekt, weil der Kunde daran hängt. Nur fürs Team: Der Kreis
+          zieht workspace-weit Gästedaten heran, die ein Projektadmin nicht
+          zu sehen bekommt. */}
+      {projectId && canManage ? (
         <BekannteGaeste
           projectId={projectId}
           videoId={scope === 'VIDEO' ? videoId : undefined}
@@ -120,7 +131,15 @@ export function ShareManager({
   );
 }
 
-function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Promise<void> }) {
+function ShareRow({
+  link,
+  onChanged,
+  canManage,
+}: {
+  link: ShareLinkDto;
+  onChanged: () => Promise<void>;
+  canManage: boolean;
+}) {
   const zeigeName = useUserName();
   const [copied, setCopied] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
@@ -194,46 +213,56 @@ function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Pr
         </div>
       )}
 
-      <div className="share__rights">
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={link.allowDownload}
-            disabled={busy}
-            onChange={(event) => void patch({ allowDownload: event.target.checked })}
-          />
-          Download erlaubt
-        </label>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={link.allowComments}
-            disabled={busy}
-            onChange={(event) => void patch({ allowComments: event.target.checked })}
-          />
-          Kommentieren erlaubt
-        </label>
-        {link.scope === 'PROJECT' ? (
+      {canManage ? (
+        <div className="share__rights">
           <label className="switch">
             <input
               type="checkbox"
-              checked={link.allowUpload}
+              checked={link.allowDownload}
               disabled={busy}
-              onChange={(event) => void patch({ allowUpload: event.target.checked })}
+              onChange={(event) => void patch({ allowDownload: event.target.checked })}
             />
-            Kunden-Upload erlaubt
+            Download erlaubt
           </label>
-        ) : null}
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={link.embedEnabled}
-            disabled={busy}
-            onChange={(event) => void patch({ embedEnabled: event.target.checked })}
-          />
-          Einbetten erlauben
-        </label>
-      </div>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={link.allowComments}
+              disabled={busy}
+              onChange={(event) => void patch({ allowComments: event.target.checked })}
+            />
+            Kommentieren erlaubt
+          </label>
+          {link.scope === 'PROJECT' ? (
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={link.allowUpload}
+                disabled={busy}
+                onChange={(event) => void patch({ allowUpload: event.target.checked })}
+              />
+              Kunden-Upload erlaubt
+            </label>
+          ) : null}
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={link.embedEnabled}
+              disabled={busy}
+              onChange={(event) => void patch({ embedEnabled: event.target.checked })}
+            />
+            Einbetten erlauben
+          </label>
+        </div>
+      ) : (
+        // Ohne Team-Rechte nur die Ansicht, kein Umstellen (Phase 21).
+        <div className="toolbar" style={{ gap: 6, flexWrap: 'wrap' }}>
+          {link.allowDownload ? <span className="badge">Download erlaubt</span> : null}
+          {link.allowComments ? <span className="badge">Kommentieren erlaubt</span> : null}
+          {link.allowUpload ? <span className="badge">Kunden-Upload erlaubt</span> : null}
+          {link.embedEnabled ? <span className="badge">Einbetten erlaubt</span> : null}
+        </div>
+      )}
 
       {link.embedEnabled ? (
         <div className="share__embed">
@@ -257,41 +286,43 @@ function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Pr
         </div>
       ) : null}
 
-      <div className="toolbar">
-        <button
-          type="button"
-          className="button button--ghost"
-          onClick={() => {
-            if (guests) {
-              setGuests(null);
-              return;
-            }
-            void api.listShareGuests(link.id).then(setGuests);
-          }}
-        >
-          {guests ? 'Gäste ausblenden' : `Gäste (${link.guestCount})`}
-        </button>
-        <div className="shell__spacer" />
-        <button
-          type="button"
-          className="button button--ghost"
-          disabled={busy}
-          onClick={() => void patch({ revoked: link.isActive })}
-        >
-          {link.isActive ? 'Zurückziehen' : 'Wieder freigeben'}
-        </button>
-        <button
-          type="button"
-          className="button button--danger"
-          disabled={busy}
-          onClick={() => {
-            if (!window.confirm('Diesen Freigabe-Link endgültig löschen?')) return;
-            void api.deleteShare(link.id).then(() => onChanged());
-          }}
-        >
-          Löschen
-        </button>
-      </div>
+      {canManage ? (
+        <div className="toolbar">
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => {
+              if (guests) {
+                setGuests(null);
+                return;
+              }
+              void api.listShareGuests(link.id).then(setGuests);
+            }}
+          >
+            {guests ? 'Gäste ausblenden' : `Gäste (${link.guestCount})`}
+          </button>
+          <div className="shell__spacer" />
+          <button
+            type="button"
+            className="button button--ghost"
+            disabled={busy}
+            onClick={() => void patch({ revoked: link.isActive })}
+          >
+            {link.isActive ? 'Zurückziehen' : 'Wieder freigeben'}
+          </button>
+          <button
+            type="button"
+            className="button button--danger"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm('Diesen Freigabe-Link endgültig löschen?')) return;
+              void api.deleteShare(link.id).then(() => onChanged());
+            }}
+          >
+            Löschen
+          </button>
+        </div>
+      ) : null}
 
       {guests ? (
         <div className="filelist">

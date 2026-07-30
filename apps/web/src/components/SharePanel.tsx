@@ -105,7 +105,7 @@ export function SharePanel({
   const setzeRecht = async (
     shareLinkId: string,
     userId: string,
-    recht: 'allowComments' | 'allowDownload' | 'allowUpload',
+    recht: 'allowComments' | 'allowDownload' | 'allowUpload' | 'projectAdmin',
     wert: boolean,
   ) => {
     try {
@@ -249,6 +249,30 @@ export function SharePanel({
                         </label>
                       ) : null}
                     </div>
+                    {/* Nur an einer Projektfreigabe – eine Videofreigabe hat
+                        keinen Projektrahmen, in dem sich das verwalten ließe. */}
+                    {link.scope === 'PROJECT' ? (
+                      <label
+                        className="switch"
+                        style={{ marginTop: 6 }}
+                        title="Darf im Projekt Videos anlegen, Fassungen hochladen und löschen, weiter freigeben und fremde Kommentare verwalten – für Agenturen, die eigenes Material einstellen."
+                      >
+                        <input
+                          type="checkbox"
+                          checked={link.projectAdmin}
+                          disabled={!aktiv}
+                          onChange={(event) =>
+                            void setzeRecht(
+                              link.shareLinkId,
+                              guest.user.id,
+                              'projectAdmin',
+                              event.target.checked,
+                            )
+                          }
+                        />
+                        Externer Projektadmin
+                      </label>
+                    ) : null}
                   </div>
                 );
               })}

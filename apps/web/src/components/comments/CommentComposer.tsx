@@ -255,10 +255,14 @@ export function CommentComposer({
         <label className="composer__pin">
           <input
             type="checkbox"
-            checked={pinned}
+            checked={pinned || Boolean(hasAnnotation)}
+            // Eine Zeichnung gehört zu genau einem Bild – ohne Zeitbezug wäre
+            // sie nicht mehr zu finden. Solange eine ansteht, bleibt der
+            // Haken deshalb gesetzt und lässt sich nicht abwählen.
+            disabled={hasAnnotation}
             onChange={(event) => onPinnedChange(event.target.checked)}
           />
-          {pinned && timecode ? (
+          {(pinned || hasAnnotation) && timecode ? (
             <>
               An <span className="mono">{timecode}</span> heften
               {frame !== null ? <span className="faint"> (Frame {frame})</span> : null}
