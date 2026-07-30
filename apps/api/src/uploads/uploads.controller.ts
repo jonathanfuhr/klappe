@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Head,
   Headers,
@@ -145,8 +146,11 @@ export class UploadsController {
    * Upload ohne Ziel: Die Übertragung beginnt sofort, Projekt und Video werden
    * später mit `PATCH /v1/uploads/:id` nachgereicht. So wartet die lange
    * Übertragung nicht auf die kurze Eingabe.
+   *
+   * Team oder externer Projektadmin (Phase 21) – welches Projekt es wird,
+   * steht hier noch nicht fest (das klärt erst `assign`), deshalb genügt die
+   * gröbere Frage „ist die Person irgendwo Projektadmin".
    */
-  @Roles('ADMIN', 'MEMBER')
   @Post('uploads')
   @HttpCode(201)
   async createUnassigned(
@@ -155,6 +159,11 @@ export class UploadsController {
     @CurrentUser() user: RequestUser,
     @Res({ passthrough: true }) response: Response,
   ): Promise<UploadSessionDto> {
+    const scope = await this.accessService.loadScope(user);
+    if (!this.accessService.canManageAnyProject(scope)) {
+      throw new ForbiddenException('Für das Hochladen neuer Videofassungen fehlen die Rechte.');
+    }
+
     const details = this.readUploadDetails(dto, headers);
     const session = await this.uploadsService.create({
       videoId: null,
@@ -174,8 +183,10 @@ export class UploadsController {
   /**
    * Die eigenen fertig übertragenen, noch unzugeordneten Sitzungen – die
    * Upload-Liste holt sie sich nach einem Seiten-Reload zurück (Phase 15).
+   *
+   * Ohne `@Roles`: `listUnassigned` liefert ohnehin nur die Sitzungen der
+   * anfragenden Person selbst.
    */
-  @Roles('ADMIN', 'MEMBER')
   @Get('uploads')
   listUnassigned(@CurrentUser() user: RequestUser): Promise<UploadSessionDto[]> {
     return this.uploadsService.listUnassigned(user);
@@ -185,8 +196,10 @@ export class UploadsController {
    * Eine einzelne Sitzung – vor allem wegen des Verarbeitungsfortschritts im
    * Zwischenspeicher (Phase 18). `HEAD` gibt nur den Byte-Stand zurück; hier
    * steht auch, wie weit ffmpeg schon ist.
+   *
+   * Ohne `@Roles`: `getWritableOrFail` weist für Gäste ohnehin ab, wenn die
+   * Sitzung nicht der anfragenden Person gehört.
    */
-  @Roles('ADMIN', 'MEMBER')
   @Get('uploads/:id')
   async getOne(
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -195,8 +208,12 @@ export class UploadsController {
     return this.uploadsService.toDto(await this.uploadsService.getWritableOrFail(id, user));
   }
 
-  /** Zuordnung nachreichen; ist die Datei schon durch, entsteht die Fassung. */
-  @Roles('ADMIN', 'MEMBER')
+  /**
+   * Zuordnung nachreichen; ist die Datei schon durch, entsteht die Fassung.
+   *
+   * Team oder externer Projektadmin (Phase 21) – geprüft am Projekt des
+   * Zielvideos, sobald eines feststeht.
+   */
   @Patch('uploads/:id/ziel')
   async assign(
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -204,6 +221,12 @@ export class UploadsController {
     @CurrentUser() user: RequestUser,
     @Res({ passthrough: true }) response: Response,
   ): Promise<UploadSessionDto> {
+    if (dto.videoId) {
+      const scope = await this.accessService.loadScope(user);
+      const video = await this.accessService.requireVideo(scope, dto.videoId);
+      this.accessService.assertCanManageProject(scope, video.projectId);
+    }
+
     const ergebnis = await this.uploadsService.assign(id, dto, user);
     if (ergebnis.versionId) response.setHeader('Klappe-Version-Id', ergebnis.versionId);
     return ergebnis.session;

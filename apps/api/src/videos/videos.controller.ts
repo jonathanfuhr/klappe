@@ -36,7 +36,10 @@ export class VideosController {
     return this.videosService.listForProject(projectId, scope);
   }
 
-  @Roles('ADMIN', 'MEMBER')
+  /**
+   * Team oder externer Projektadmin (Phase 21) – die eigentliche Prüfung
+   * steckt im Service, weil sie das Projekt kennen muss, nicht nur die Rolle.
+   */
   @Post('projects/:projectId/videos')
   async create(
     @Param('projectId', new ParseUUIDPipe()) projectId: string,

@@ -115,6 +115,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
+  /** Eigenen Namen und/oder Benachrichtigungseinstellung ändern – auch für Gäste. */
+  updateMe: (dto: { name?: string; notificationsEnabled?: boolean }) =>
+    request<UserDto>('/v1/me', {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    }),
 
   listProjects: (
     options: {
@@ -154,7 +160,17 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
-  updateProjectField: (id: string, input: { name?: string; sortOrder?: number; suggest?: boolean }) =>
+  updateProjectField: (
+    id: string,
+    input: {
+      name?: string;
+      sortOrder?: number;
+      suggest?: boolean;
+      sortable?: boolean;
+      groupable?: boolean;
+      showOnTile?: boolean;
+    },
+  ) =>
     request<ProjectFieldDefDto>(`/v1/project-fields/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(input),
@@ -327,6 +343,8 @@ export const api = {
       allowComments?: boolean | null;
       allowDownload?: boolean | null;
       allowUpload?: boolean | null;
+      /** Externer Projektadmin (Phase 21) – nur an einer Projektfreigabe. */
+      projectAdmin?: boolean;
     },
   ) =>
     request<void>(`/v1/shares/${shareLinkId}/guests/${userId}/rechte`, {

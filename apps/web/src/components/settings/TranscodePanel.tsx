@@ -500,7 +500,10 @@ export function TranscodePanel() {
             </button>
           )}
 
-          <label className="switch" style={{ margin: '18px 0 6px' }}>
+          {/* `display: flex` statt des inline-flex aus `.switch`: Sonst rückt
+              der Haken neben den „Format hinzufügen“-Knopf in dieselbe Zeile
+              und klebt halb an ihm (Phase 22). */}
+          <label className="switch" style={{ display: 'flex', margin: '18px 0 6px' }}>
             <input
               type="checkbox"
               checked={form.downloadFinalOnly}

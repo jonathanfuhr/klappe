@@ -537,14 +537,29 @@ export class GuestsService {
       allowComments?: boolean | null;
       allowDownload?: boolean | null;
       allowUpload?: boolean | null;
+      /** Externer Projektadmin (Phase 21) – kein „wie der Link", immer explizit. */
+      projectAdmin?: boolean;
     },
   ): Promise<void> {
+    if (rechte.projectAdmin) {
+      const link = await this.getLinkOrFail(shareLinkId);
+      // Eine einzelne Videofreigabe hat keinen Projektrahmen, in dem sich
+      // „Projektadmin" verwalten ließe – Videos anlegen, weiter freigeben
+      // usw. ergäbe dort keinen Sinn.
+      if (link.scope !== 'PROJECT') {
+        throw new BadRequestException(
+          'Externer Projektadmin geht nur über eine Projektfreigabe, nicht über eine einzelne Videofreigabe.',
+        );
+      }
+    }
+
     const [row] = await this.db
       .update(shareLinkGrants)
       .set({
         allowComments: rechte.allowComments,
         allowDownload: rechte.allowDownload,
         allowUpload: rechte.allowUpload,
+        projectAdmin: rechte.projectAdmin,
       })
       .where(
         and(
@@ -554,6 +569,16 @@ export class GuestsService {
       )
       .returning({ userId: shareLinkGrants.userId });
     if (!row) throw new NotFoundException('Dieser Gast kommt nicht über diesen Link herein.');
+  }
+
+  private async getLinkOrFail(shareLinkId: string): Promise<{ scope: 'PROJECT' | 'VIDEO' }> {
+    const [link] = await this.db
+      .select({ scope: shareLinks.scope })
+      .from(shareLinks)
+      .where(eq(shareLinks.id, shareLinkId))
+      .limit(1);
+    if (!link) throw new NotFoundException('Freigabe nicht gefunden.');
+    return link;
   }
 
   private async linkIdsForProject(projectId: string): Promise<string[]> {
@@ -588,6 +613,7 @@ export class GuestsService {
         grantAllowComments: shareLinkGrants.allowComments,
         grantAllowDownload: shareLinkGrants.allowDownload,
         grantAllowUpload: shareLinkGrants.allowUpload,
+        projectAdmin: shareLinkGrants.projectAdmin,
         linkRevokedAt: shareLinks.revokedAt,
         expiresAt: shareLinks.expiresAt,
         revokedAt: shareLinkGrants.revokedAt,
@@ -618,6 +644,8 @@ export class GuestsService {
       allowComments: row.grantAllowComments ?? row.allowComments,
       allowDownload: row.grantAllowDownload ?? row.allowDownload,
       allowUpload: row.grantAllowUpload ?? row.allowUpload,
+      // Nur an einer Projektfreigabe möglich – am Schreiben durchgesetzt.
+      projectAdmin: row.scope === 'PROJECT' && row.projectAdmin,
       /** Weicht diese Person vom Link ab? Für den Hinweis in der Oberfläche. */
       hasOverride:
         row.grantAllowComments !== null ||

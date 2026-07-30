@@ -46,6 +46,12 @@ export default function ProjectPage() {
   const { user } = useSession();
   const { completedCount } = useUploads();
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
+  /**
+   * Team oder externer Projektadmin (Phase 21): darf Videos anlegen und
+   * weiter freigeben – Projekt umbenennen/archivieren/löschen und einzelne
+   * Videos umbenennen/löschen bleiben dem Team vorbehalten.
+   */
+  const canManage = isTeam || (project?.canManage ?? false);
 
   const load = useCallback(async () => {
     try {
@@ -109,19 +115,25 @@ export default function ProjectPage() {
             {project?.description ? <p className="page__subtitle">{project.description}</p> : null}
           </div>
           <div className="shell__spacer" />
-          {isTeam ? (
+          {canManage ? (
             <>
               {/* Der große „Freigeben"-Knopf ist in die Spalte rechts gewandert
-                  (Phase 16) – dort steht er neben denen, die es betrifft. */}
+                  (Phase 16) – dort steht er neben denen, die es betrifft.
+                  Umbenennen, Archivieren und Löschen bleiben dem Team
+                  vorbehalten, auch für den externen Projektadmin (Phase 21). */}
               <Menu label="Aktionen für dieses Projekt">
                 <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
-                <MenuItem onSelect={() => setEditing(true)}>Umbenennen …</MenuItem>
-                <MenuItem onSelect={() => setArchiving(true)}>
-                  {project?.archivedAt ? 'Aus dem Archiv holen …' : 'Archivieren …'}
-                </MenuItem>
-                <MenuItem danger onSelect={() => setDeleting(true)}>
-                  Löschen …
-                </MenuItem>
+                {isTeam ? (
+                  <>
+                    <MenuItem onSelect={() => setEditing(true)}>Umbenennen …</MenuItem>
+                    <MenuItem onSelect={() => setArchiving(true)}>
+                      {project?.archivedAt ? 'Aus dem Archiv holen …' : 'Archivieren …'}
+                    </MenuItem>
+                    <MenuItem danger onSelect={() => setDeleting(true)}>
+                      Löschen …
+                    </MenuItem>
+                  </>
+                ) : null}
               </Menu>
             </>
           ) : null}
@@ -135,7 +147,7 @@ export default function ProjectPage() {
 
         {project ? <ProjectFieldValues project={project} isTeam={isTeam} onChanged={load} /> : null}
 
-        {isTeam ? <Uploader projectId={projectId} videos={videos} /> : null}
+        {canManage ? <Uploader projectId={projectId} videos={videos} /> : null}
 
         <h2 style={{ fontSize: 16, margin: '26px 0 12px' }}>
           Videos {videos.length > 0 ? <span className="faint">({videos.length})</span> : null}
@@ -247,6 +259,7 @@ export default function ProjectPage() {
           projectId={projectId}
           targetLabel={project.name}
           onClose={() => setSharing(false)}
+          canManage={isTeam}
         />
       ) : null}
 

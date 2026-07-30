@@ -63,10 +63,18 @@ export default function ReviewPage() {
   const [downloads, setDownloads] = useState<VersionDownloadsDto | null>(null);
 
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
+  /**
+   * Team oder externer Projektadmin (Phase 21): darf Fassungen hochladen und
+   * löschen, weiter freigeben – aber nicht das Video umbenennen oder löschen,
+   * das bleibt dem Team vorbehalten.
+   */
+  const canManage = isTeam || (video?.canManage ?? false);
   const router = useRouter();
   const [seitenTab, setSeitenTab] = useState<'kommentare' | 'freigaben' | 'benachrichtigungen'>(
     'kommentare',
   );
+  /** Im Vollbild lebt die Kommentarspalte im Player, nicht in der Seitenleiste. */
+  const [playerFullscreen, setPlayerFullscreen] = useState(false);
   const [editingVideo, setEditingVideo] = useState(false);
   const [deletingVideo, setDeletingVideo] = useState(false);
 
@@ -226,6 +234,37 @@ export default function ReviewPage() {
     [selectedVersionId, draftAnnotation, loadComments, loadVideo],
   );
 
+  /**
+   * Eine einzige Instanz, wahlweise in der Seitenleiste oder – im Vollbild,
+   * wo die Seitenleiste für den Browser unsichtbar ist – im Player selbst
+   * (siehe `fullscreenPanel` unten). Nie beide zugleich, sonst liefe der
+   * Kommentar-Editor doppelt.
+   */
+  const commentPanel = (
+    <CommentPanel
+      comments={comments}
+      currentUser={user}
+      canManageComments={canManage}
+      activeCommentId={activeCommentId}
+      composerFrame={composerFrame}
+      composerTimecode={composerTimecode}
+      pinned={pinned}
+      onPinnedChange={setPinned}
+      focusToken={focusToken}
+      onSelect={selectComment}
+      onChanged={async () => {
+        await loadComments();
+      }}
+      onCreate={createComment}
+      draftAnnotation={draftAnnotation}
+      onClearDraftAnnotation={() => {
+        setDraftAnnotation(null);
+        playerRef.current?.clearDrawing();
+      }}
+      canComment={canComment}
+    />
+  );
+
   return (
     <AppShell>
       <div className="review">
@@ -280,8 +319,10 @@ export default function ReviewPage() {
 
             {/* Symbole statt Textknöpfe – die Leiste war voll (Phase 16).
                 Was seltener gebraucht wird, steht im „…"-Menü daneben; wer
-                Zugriffe sehen will, nimmt den Reiter „Freigaben" rechts. */}
-            {isTeam ? (
+                Zugriffe sehen will, nimmt den Reiter „Freigaben" rechts.
+                Ab Phase 21 auch für den externen Projektadmin, nicht nur
+                fürs Team. */}
+            {canManage ? (
               <>
                 <IconButton
                   icon="plus"
@@ -308,21 +349,27 @@ export default function ReviewPage() {
               />
             ) : null}
 
-            {isTeam ? (
+            {canManage ? (
               <Menu label="Aktionen für dieses Video">
                 <MenuItem onSelect={() => setShowUploader((show) => !show)}>
                   Neue Version …
                 </MenuItem>
                 <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
-                <MenuItem onSelect={() => setEditingVideo(true)}>Video umbenennen …</MenuItem>
+                {/* Umbenennen und Löschen des Videos bleiben dem Team
+                    vorbehalten – „Videos anlegen" hieß nicht „verwalten". */}
+                {isTeam ? (
+                  <MenuItem onSelect={() => setEditingVideo(true)}>Video umbenennen …</MenuItem>
+                ) : null}
                 {selectedVersion ? (
                   <MenuItem danger onSelect={() => setVersionToDelete(selectedVersion)}>
                     Fassung löschen …
                   </MenuItem>
                 ) : null}
-                <MenuItem danger onSelect={() => setDeletingVideo(true)}>
-                  Video löschen …
-                </MenuItem>
+                {isTeam ? (
+                  <MenuItem danger onSelect={() => setDeletingVideo(true)}>
+                    Video löschen …
+                  </MenuItem>
+                ) : null}
               </Menu>
             ) : null}
           </div>
@@ -388,7 +435,7 @@ export default function ReviewPage() {
           {error ? <div className="notice">{error}</div> : null}
           {loading ? <p className="muted">Wird geladen …</p> : null}
 
-          {showUploader && video && isTeam ? (
+          {showUploader && video && canManage ? (
             <Uploader projectId={video.projectId} videoId={video.id} />
           ) : null}
 
@@ -401,7 +448,17 @@ export default function ReviewPage() {
                 activeCommentId={activeCommentId}
                 shownAnnotation={shownAnnotation}
                 canComment={canComment}
-                onDraftAnnotationChange={setDraftAnnotation}
+                onDraftAnnotationChange={(annotation) => {
+                  setDraftAnnotation(annotation);
+                  if (annotation) {
+                    // Eine Zeichnung braucht einen Frame – sonst würde sie beim
+                    // Absenden als „ohne Zeitbezug" stillschweigend verworfen
+                    // (Phase 21 Bugfix). Steht schon einer fest (via „C"),
+                    // bleibt der bestehen statt zu wandern.
+                    setPinned(true);
+                    setDraftFrame((current) => current ?? currentFrame);
+                  }
+                }}
                 onFrameChange={setCurrentFrame}
                 onMarkerClick={(commentId) => {
                   const comment = comments.find((entry) => entry.id === commentId);
@@ -412,6 +469,8 @@ export default function ReviewPage() {
                   setPinned(true);
                   setFocusToken((token) => token + 1);
                 }}
+                fullscreenPanel={commentPanel}
+                onFullscreenChange={setPlayerFullscreen}
               />
 
               {/* Steht **nach** der Kommentarspalte, sobald gestapelt wird –
@@ -478,28 +537,8 @@ export default function ReviewPage() {
             />
           ) : isTeam && seitenTab === 'benachrichtigungen' && video ? (
             <NotificationPanel scope="VIDEO" projectId={video.projectId} videoId={video.id} />
-          ) : (
-          <CommentPanel
-            comments={comments}
-            currentUser={user}
-            activeCommentId={activeCommentId}
-            composerFrame={composerFrame}
-            composerTimecode={composerTimecode}
-            pinned={pinned}
-            onPinnedChange={setPinned}
-            focusToken={focusToken}
-            onSelect={selectComment}
-            onChanged={async () => {
-              await loadComments();
-            }}
-            onCreate={createComment}
-            draftAnnotation={draftAnnotation}
-            onClearDraftAnnotation={() => {
-              setDraftAnnotation(null);
-              playerRef.current?.clearDrawing();
-            }}
-            canComment={canComment}
-          />
+          ) : playerFullscreen ? null : (
+            commentPanel
           )}
         </aside>
       </div>
@@ -511,6 +550,7 @@ export default function ReviewPage() {
           videoId={video.id}
           targetLabel={video.name}
           onClose={() => setSharing(false)}
+          canManage={isTeam}
         />
       ) : null}
 

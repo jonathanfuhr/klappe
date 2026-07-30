@@ -14,6 +14,7 @@ import {
   isAnnotationEmpty,
 } from '@klappe/shared';
 import {
+  type ReactNode,
   forwardRef,
   useCallback,
   useEffect,
@@ -58,6 +59,14 @@ interface VideoPlayerProps {
   onRequestComment?: (frame: number) => void;
   /** Meldet die gerade gezeichnete Skizze an die Review-Seite. */
   onDraftAnnotationChange?: (annotation: Annotation | null) => void;
+  /**
+   * Die Kommentarspalte, als von rechts einfahrende Leiste innerhalb des
+   * Vollbilds gerendert (Phase 21) – außerhalb des Vollbild-Elements sieht
+   * der Browser sie gar nicht, egal was `onRequestComment` auslöst.
+   */
+  fullscreenPanel?: ReactNode;
+  /** Meldet Ein-/Austritt aus dem Vollbild an die Review-Seite. */
+  onFullscreenChange?: (active: boolean) => void;
 }
 
 /** Stufen für J/K/L – wie im Schnittprogramm. */
@@ -77,6 +86,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
     onFrameChange,
     onRequestComment,
     onDraftAnnotationChange,
+    fullscreenPanel,
+    onFullscreenChange,
   },
   ref,
 ) {
@@ -109,6 +120,22 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   const [zeichnungBeiFahrt, setZeichnungBeiFahrt] = useState(true);
   const [scrubbing, setScrubbing] = useState(false);
   const scrubTimer = useRef<number | null>(null);
+
+  // ---------- Vollbild + Kommentarspalte (Phase 21) ----------
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => {
+      const active = document.fullscreenElement === containerRef.current;
+      setIsFullscreen(active);
+      if (!active) setPanelOpen(false);
+      onFullscreenChange?.(active);
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const frameRate: FrameRate | null = version.media.frameRate;
   const frame = useFrameClock(videoRef, frameRate, ready);
@@ -156,7 +183,17 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
 
   /** In Fahrt heißt: läuft, spult, oder wurde eben noch gescrubbt. */
   const inFahrt = rate !== 0 || scrubbing;
-  const sichtbareZeichnung = inFahrt && !zeichnungBeiFahrt ? null : (shownAnnotation ?? null);
+  /**
+   * Eine fertig gezeichnete, aber noch nicht abgeschickte Skizze bleibt auf
+   * dem Bild sichtbar, bis sie gesendet oder verworfen wird – sonst
+   * verschwindet sie mit „Fertig" scheinbar, obwohl sie weiterhin am
+   * Kommentar hängt (Phase 21 Bugfix).
+   */
+  const ausstehendeZeichnung =
+    !drawingMode && draftAnnotation && !isAnnotationEmpty(draftAnnotation) ? draftAnnotation : null;
+  const sichtbareZeichnung = inFahrt && !zeichnungBeiFahrt
+    ? null
+    : (ausstehendeZeichnung ?? shownAnnotation ?? null);
 
   const seekToFrame = useCallback(
     (target: number) => {
@@ -258,10 +295,21 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
     [onDraftAnnotationChange],
   );
 
+  /** Skizze verwerfen und den Zeichenmodus verlassen – nach dem Absenden oder beim bewussten Verwerfen. */
   const clearDrawing = useCallback(() => {
     setDraft(null);
     setDrawingMode(false);
   }, [setDraft]);
+
+  /**
+   * Zeichnen beenden, ohne die Skizze zu verwerfen (Phase 21 Bugfix). Vorher
+   * rief „Fertig" dieselbe Funktion wie das Verwerfen auf – die gerade
+   * gezeichnete Skizze war damit weg, noch bevor sie an einen Kommentar
+   * geheftet werden konnte.
+   */
+  const finishDrawing = useCallback(() => {
+    setDrawingMode(false);
+  }, []);
 
   const startDrawing = useCallback(() => {
     // Zeichnen auf einem laufenden Bild ergibt keinen Sinn – der Frame, auf
@@ -269,6 +317,17 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
     stopTransport();
     setDrawingMode(true);
   }, [stopTransport]);
+
+  /**
+   * Kommentar am aktuellen Bild anfordern. Im Vollbild fährt zusätzlich die
+   * Kommentarspalte von rechts ein – ohne das bliebe der Knopf dort wirkungslos,
+   * weil alles außerhalb des Vollbild-Elements für den Browser unsichtbar ist.
+   */
+  const requestComment = useCallback(() => {
+    stopTransport();
+    if (isFullscreen) setPanelOpen(true);
+    onRequestComment?.(frame);
+  }, [stopTransport, isFullscreen, onRequestComment, frame]);
 
   /**
    * Dreht man das Handy quer, geht der Player ins Vollbild; zurück ins
@@ -385,14 +444,13 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         case 'c':
         case 'C':
           event.preventDefault();
-          stopTransport();
-          onRequestComment?.(frame);
+          requestComment();
           break;
         case 'd':
         case 'D':
           if (!canComment) break;
           event.preventDefault();
-          if (drawingMode) clearDrawing();
+          if (drawingMode) finishDrawing();
           else startDrawing();
           break;
         default:
@@ -404,11 +462,11 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     canComment,
-    clearDrawing,
     drawingMode,
+    finishDrawing,
     frame,
     frameRate,
-    onRequestComment,
+    requestComment,
     shuttle,
     startDrawing,
     stepFrames,
@@ -421,7 +479,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   const hasProxy = version.hasProxy && version.status === 'READY';
 
   // Adaptive Wiedergabe, wenn für diese Fassung eine Leiter erzeugt wurde.
-  const playbackSource = useHlsSource(videoRef, version, hasProxy);
+  const hlsPlayback = useHlsSource(videoRef, version, hasProxy);
+  const playbackSource = hlsPlayback.source;
 
   const onProgress = useCallback(() => {
     const video = videoRef.current;
@@ -505,7 +564,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           >
             Leeren
           </button>
-          <button type="button" className="button button--ghost" onClick={clearDrawing}>
+          <button type="button" className="button button--ghost" onClick={finishDrawing}>
             Fertig
           </button>
         </div>
@@ -603,6 +662,33 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
 
         <div className="shell__spacer" />
 
+        {/* Stufenwahl der HLS-Leiter (Phase 22). Nur wenn hls.js spielt –
+            beim progressiven Proxy gibt es nichts zu wählen, und Safaris
+            natives HLS bietet keine Schnittstelle dafür. In der Automatik
+            steht die gerade gespielte Stufe in Klammern dabei, damit eine
+            stille Herabstufung nicht wie ein Materialfehler aussieht. */}
+        {playbackSource === 'hls' && hlsPlayback.qualities.length > 0 ? (
+          <select
+            className="select player__quality"
+            value={hlsPlayback.selectedLevel}
+            onChange={(event) => hlsPlayback.setLevel(Number(event.target.value))}
+            title="Wiedergabequalität"
+            aria-label="Wiedergabequalität"
+          >
+            <option value={-1}>
+              Auto
+              {hlsPlayback.selectedLevel === -1 && hlsPlayback.activeLabel
+                ? ` (${hlsPlayback.activeLabel})`
+                : ''}
+            </option>
+            {hlsPlayback.qualities.map((stufe) => (
+              <option key={stufe.index} value={stufe.index}>
+                {stufe.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
+
         <button
           type="button"
           className="iconbutton"
@@ -652,7 +738,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         <button
           type="button"
           className="iconbutton"
-          onClick={() => (drawingMode ? clearDrawing() : startDrawing())}
+          onClick={() => (drawingMode ? finishDrawing() : startDrawing())}
           disabled={!hasProxy || !canComment}
           title="Auf das Bild zeichnen (D)"
           aria-label="Zeichnen"
@@ -663,10 +749,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         <button
           type="button"
           className="iconbutton"
-          onClick={() => {
-            stopTransport();
-            onRequestComment?.(frame);
-          }}
+          onClick={requestComment}
           disabled={!hasProxy || !canComment}
           title="Kommentar am aktuellen Bild (C)"
           aria-label="Kommentar am aktuellen Bild setzen"
@@ -674,6 +757,26 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           <Icon name="comment" />
         </button>
       </div>
+
+      {/* Nur im Vollbild gemountet – sonst rendert das die Kommentarspalte
+          doppelt, einmal hier und einmal in der Seitenleiste der Review-Seite. */}
+      {fullscreenPanel && isFullscreen ? (
+        <div className="player__panel" data-open={panelOpen}>
+          <div className="player__panel-header">
+            <span className="player__panel-title">Kommentare</span>
+            <button
+              type="button"
+              className="iconbutton"
+              onClick={() => setPanelOpen(false)}
+              aria-label="Kommentarspalte schließen"
+              title="Schließen"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="player__panel-body">{fullscreenPanel}</div>
+        </div>
+      ) : null}
     </div>
   );
 });

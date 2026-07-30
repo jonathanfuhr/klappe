@@ -61,14 +61,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="avatar" title={user.email}>
               {initialsOf(user.name)}
             </span>
-            {/* Gäste haben kein Passwort – sie kommen über einen Code herein. */}
-            {user.role === 'GUEST' ? (
-              <span className="muted">{user.name}</span>
-            ) : (
-              <Link href="/konto" className="muted" data-active={pathname.startsWith('/konto')}>
-                {user.name}
-              </Link>
-            )}
+            {/* Gäste haben kein Passwort, aber seit Phase 21 trotzdem ein Konto
+                mit Namen – der Link führt beiden Rollen zur selben Seite. */}
+            <Link href="/konto" className="muted" data-active={pathname.startsWith('/konto')}>
+              {user.name}
+            </Link>
             {user.role === 'GUEST' ? <span className="badge">Gast</span> : null}
             <button type="button" className="button button--ghost" onClick={() => void logout()}>
               Abmelden

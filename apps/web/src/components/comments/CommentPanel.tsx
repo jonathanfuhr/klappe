@@ -11,6 +11,11 @@ import { CommentComposer } from './CommentComposer';
 interface CommentPanelProps {
   comments: CommentDto[];
   currentUser: UserDto | null;
+  /**
+   * Team oder externer Projektadmin (Phase 21) – darf auch fremde Kommentare
+   * bearbeiten und löschen, nicht nur die eigenen.
+   */
+  canManageComments?: boolean;
   activeCommentId: string | null;
   composerFrame: number | null;
   composerTimecode: string | null;
@@ -35,6 +40,7 @@ type Sortierung = 'timecode' | 'erstellt';
 export function CommentPanel({
   comments,
   currentUser,
+  canManageComments = false,
   activeCommentId,
   composerFrame,
   composerTimecode,
@@ -208,7 +214,7 @@ export function CommentPanel({
               >
                 {comment.resolvedAt ? 'Wieder öffnen' : 'Erledigt'}
               </button>
-              {canModify(comment, currentUser) ? (
+              {canModify(comment, currentUser, canManageComments) ? (
                 <>
                   <button
                     type="button"
@@ -257,7 +263,7 @@ export function CommentPanel({
                     ) : (
                       <CommentBody body={reply.body} />
                     )}
-                    {canModify(reply, currentUser) ? (
+                    {canModify(reply, currentUser, canManageComments) ? (
                       <div className="comment__actions">
                         <button
                           type="button"
@@ -316,7 +322,12 @@ export function CommentPanel({
           focusToken={focusToken}
           hasAnnotation={Boolean(draftAnnotation)}
           onClearAnnotation={onClearDraftAnnotation}
-          onSubmit={(body) => onCreate(body, { frame: pinned ? composerFrame : null })}
+          // Eine Zeichnung hängt an einem Frame – ohne Zeitbezug ginge sie
+          // beim Absenden verloren (Phase 21 Bugfix), unabhängig davon, ob
+          // der Haken „Ohne Zeitbezug" gerade gesetzt ist.
+          onSubmit={(body) =>
+            onCreate(body, { frame: pinned || draftAnnotation ? composerFrame : null })
+          }
         />
       ) : (
         <div className="composer">
@@ -373,7 +384,8 @@ function EditForm({
   );
 }
 
-function canModify(comment: CommentDto, user: UserDto | null): boolean {
+function canModify(comment: CommentDto, user: UserDto | null, canManageComments: boolean): boolean {
   if (!user) return false;
+  if (canManageComments) return true;
   return comment.author.id === user.id || user.role === 'ADMIN';
 }

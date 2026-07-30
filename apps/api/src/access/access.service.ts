@@ -12,6 +12,8 @@ import {
   canViewProject,
   canViewVideo,
   guestScope,
+  isProjectAdmin,
+  isProjectAdminAnywhere,
   teamScope,
   visibleProjectIds,
   visibleVideoIdsForProject,
@@ -62,6 +64,7 @@ export class AccessService {
         grantAllowDownload: shareLinkGrants.allowDownload,
         grantAllowUpload: shareLinkGrants.allowUpload,
         grantAllowComments: shareLinkGrants.allowComments,
+        projectAdmin: shareLinkGrants.projectAdmin,
       })
       .from(shareLinkGrants)
       .innerJoin(shareLinks, eq(shareLinkGrants.shareLinkId, shareLinks.id))
@@ -90,6 +93,9 @@ export class AccessService {
         allowDownload: row.grantAllowDownload ?? row.allowDownload,
         allowUpload: row.grantAllowUpload ?? row.allowUpload,
         allowComments: row.grantAllowComments ?? row.allowComments,
+        // Nur an einer Projektfreigabe möglich – am Schreiben (`setGuestRights`)
+        // durchgesetzt, hier nur noch übernommen.
+        projectAdmin: row.scope === 'PROJECT' && row.projectAdmin,
       });
     }
 
@@ -156,6 +162,31 @@ export class AccessService {
     if (!canUploadToProject(scope, projectId)) {
       throw new ForbiddenException('Für diese Freigabe ist das Hochladen nicht erlaubt.');
     }
+  }
+
+  /**
+   * Team oder externer Projektadmin (Phase 21) – für das, was sonst nur dem
+   * Team vorbehalten ist: Videos anlegen, Fassungen hochladen und löschen,
+   * weiter freigeben, fremde Kommentare verwalten.
+   */
+  canManageProject(scope: AccessScope, projectId: string): boolean {
+    return isProjectAdmin(scope, projectId);
+  }
+
+  assertCanManageProject(scope: AccessScope, projectId: string): void {
+    this.assertCanViewProject(scope, projectId);
+    if (!this.canManageProject(scope, projectId)) {
+      throw new ForbiddenException('Dafür fehlen in diesem Projekt die Rechte.');
+    }
+  }
+
+  /**
+   * Ist die Person irgendwo ein externer Projektadmin? Für Prüfungen ohne
+   * bekanntes Zielprojekt, etwa das Anlegen einer noch nicht zugeordneten
+   * Upload-Sitzung.
+   */
+  canManageAnyProject(scope: AccessScope): boolean {
+    return isProjectAdminAnywhere(scope);
   }
 
   /** Video samt Projektzugehörigkeit laden und Sichtbarkeit prüfen. */
