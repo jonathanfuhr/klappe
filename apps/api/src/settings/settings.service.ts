@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { SmtpSettingsDto } from '@klappe/shared';
+import type { ProjectSettingsDto, SmtpSettingsDto } from '@klappe/shared';
 import { eq } from 'drizzle-orm';
 import { decryptSecret, encryptSecret } from '../common/secret-box';
 import { AppConfig, CONFIG } from '../config/configuration';
@@ -29,7 +29,6 @@ export interface UpdateSmtpInput {
   fromName?: string | null;
   fromEmail?: string | null;
   digestMinutes?: number;
-  archiveRetentionDays?: number;
 }
 
 const SETTINGS_ID = 1;
@@ -98,9 +97,40 @@ export class SettingsService {
       fromName: row.smtpFromName,
       fromEmail: row.smtpFromEmail,
       digestMinutes: row.mailDigestMinutes,
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  /**
+   * Einstellungen rund um Projekte (Phase 20). Bis dahin hing die
+   * Aufbewahrungsfrist an den Mail-Einstellungen – dieselbe Zeile in der
+   * Datenbank, aber inhaltlich ohne Zusammenhang.
+   */
+  async getProjectSettings(): Promise<ProjectSettingsDto> {
+    const row = await this.getRow();
+    return {
       archiveRetentionDays: row.archiveRetentionDays,
       updatedAt: row.updatedAt.toISOString(),
     };
+  }
+
+  async updateProjectSettings(input: {
+    archiveRetentionDays?: number;
+  }): Promise<ProjectSettingsDto> {
+    await this.getRow();
+    if (input.archiveRetentionDays !== undefined) {
+      await this.db
+        .update(appSettings)
+        .set({
+          archiveRetentionDays: Math.max(
+            0,
+            Math.min(MAX_ARCHIVE_RETENTION_DAYS, Math.round(input.archiveRetentionDays)),
+          ),
+          updatedAt: new Date(),
+        })
+        .where(eq(appSettings.id, SETTINGS_ID));
+    }
+    return this.getProjectSettings();
   }
 
   /**
@@ -148,13 +178,6 @@ export class SettingsService {
           input.digestMinutes === undefined
             ? undefined
             : Math.max(0, Math.min(MAX_MAIL_DIGEST_MINUTES, Math.round(input.digestMinutes))),
-        archiveRetentionDays:
-          input.archiveRetentionDays === undefined
-            ? undefined
-            : Math.max(
-                0,
-                Math.min(MAX_ARCHIVE_RETENTION_DAYS, Math.round(input.archiveRetentionDays)),
-              ),
         updatedAt: new Date(),
       })
       .where(eq(appSettings.id, SETTINGS_ID));

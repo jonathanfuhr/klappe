@@ -29,7 +29,6 @@ export function SmtpPanel() {
     fromName: 'Klappe',
     fromEmail: '',
     digestMinutes: 5,
-    archiveRetentionDays: 30,
   });
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -57,7 +56,6 @@ export function SmtpPanel() {
         fromName: current.fromName ?? 'Klappe',
         fromEmail: current.fromEmail ?? '',
         digestMinutes: current.digestMinutes,
-        archiveRetentionDays: current.archiveRetentionDays,
       });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
@@ -97,7 +95,6 @@ export function SmtpPanel() {
         fromName: form.fromName,
         fromEmail: form.fromEmail,
         digestMinutes: form.digestMinutes,
-        archiveRetentionDays: form.archiveRetentionDays,
       });
       setSettings(saved);
       setForm((current) => ({ ...current, password: '' }));
@@ -356,35 +353,6 @@ export function SmtpPanel() {
               und schickt dann eine Mail mit allen – je Empfänger und Video.{' '}
               <strong>0</strong> verschickt sofort, also eine Mail je Kommentar. Erwähnungen
               stehen auch in der Sammelmail im Betreff.
-            </p>
-          </div>
-        </div>
-
-        <div className="section">
-          <div className="section__head">
-            <h2 className="section__title">Archivierte Projekte</h2>
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor="archive-days">
-              Alte Fassungen aufbewahren (Tage)
-            </label>
-            <input
-              id="archive-days"
-              className="input"
-              type="number"
-              min={0}
-              max={365}
-              style={{ maxWidth: 160 }}
-              value={form.archiveRetentionDays}
-              onChange={(event) =>
-                setForm({ ...form, archiveRetentionDays: Number(event.target.value) || 0 })
-              }
-            />
-            <p className="hint">
-              Wird ein Projekt archiviert, bleibt je Video nur die neueste Fassung sichtbar und
-              kommentieren ist aus. Die älteren Fassungen bleiben so viele Tage liegen – falls das
-              Archivieren ein Irrtum war – und werden dann gelöscht, um Platz zu schaffen.{' '}
-              <strong>0</strong> löscht sie beim nächsten nächtlichen Aufräumen.
             </p>
           </div>
         </div>

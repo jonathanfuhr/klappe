@@ -19,6 +19,7 @@ import {
   type AuthSettingsDto,
   type DownloadPresetDto,
   type MailFailureDto,
+  type ProjectSettingsDto,
   type SmtpProviderPresetDto,
   type SmtpSettingsDto,
   type TranscodeSettingsDto,
@@ -104,8 +105,11 @@ class UpdateSmtpDto {
   @Min(0)
   @Max(MAX_MAIL_DIGEST_MINUTES)
   digestMinutes?: number;
+}
 
-  /** Aufbewahrung alter Fassungen archivierter Projekte, in Tagen (Phase 18). */
+/** Projekte (Phase 20) – bis dahin hing das mit an den Mail-Einstellungen. */
+class UpdateProjectSettingsDto {
+  /** Aufbewahrung alter Fassungen archivierter Projekte, in Tagen. */
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -328,6 +332,19 @@ export class SettingsController {
       fromName: dto.fromName,
       fromEmail: dto.fromEmail,
       digestMinutes: dto.digestMinutes,
+    });
+  }
+
+  @Roles('ADMIN')
+  @Get('projects')
+  getProjectSettings(): Promise<ProjectSettingsDto> {
+    return this.settingsService.getProjectSettings();
+  }
+
+  @Roles('ADMIN')
+  @Put('projects')
+  updateProjectSettings(@Body() dto: UpdateProjectSettingsDto): Promise<ProjectSettingsDto> {
+    return this.settingsService.updateProjectSettings({
       archiveRetentionDays: dto.archiveRetentionDays,
     });
   }

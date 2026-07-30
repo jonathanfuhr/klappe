@@ -13,6 +13,7 @@ import type {
   LoginMethodsDto,
   LoginResponseDto,
   MailFailureDto,
+  ProjectSettingsDto,
   NotificationDto,
   NotificationSubscriberDto,
   ProjectDto,
@@ -438,9 +439,16 @@ export const api = {
     fromName?: string;
     fromEmail?: string;
     digestMinutes?: number;
-    archiveRetentionDays?: number;
   }) => request<SmtpSettingsDto>('/v1/settings/smtp', { method: 'PUT', body: JSON.stringify(input) }),
   smtpPresets: () => request<SmtpProviderPresetDto[]>('/v1/settings/smtp/presets'),
+
+  // ---------- Projekte (Phase 20) ----------
+  getProjectSettings: () => request<ProjectSettingsDto>('/v1/settings/projects'),
+  updateProjectSettings: (input: { archiveRetentionDays?: number }) =>
+    request<ProjectSettingsDto>('/v1/settings/projects', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
   /** Was nicht zugestellt werden konnte (Phase 18). */
   mailFailures: () => request<MailFailureDto[]>('/v1/settings/smtp/fehlversand'),
   clearMailFailures: (id?: string) =>

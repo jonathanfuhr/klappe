@@ -183,8 +183,10 @@ export function ArchiveProjectDialog({
 
   useEffect(() => {
     if (archiviert) return;
+    // Nur Admins dürfen die Einstellung lesen; für alle anderen bleibt die
+    // Frist hier ungenannt, statt dass der Dialog mit einem Fehler aufmacht.
     api
-      .getSmtpSettings()
+      .getProjectSettings()
       .then((einstellungen) => setTage(einstellungen.archiveRetentionDays))
       .catch(() => setTage(null));
   }, [archiviert]);

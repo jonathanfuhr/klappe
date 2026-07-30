@@ -455,9 +455,21 @@ export interface SmtpSettingsDto {
    * sofort – dann kommt wie früher eine Mail je Kommentar.
    */
   digestMinutes: number;
+  updatedAt: string;
+}
+
+/**
+ * Was den Umgang mit Projekten betrifft (Phase 20), nur für Admins.
+ *
+ * Bis Phase 19 hing die Aufbewahrungsfrist mit an den Mail-Einstellungen –
+ * technisch dieselbe Zeile in der Datenbank, inhaltlich aber ohne jeden
+ * Zusammenhang. Wer sie suchte, suchte lange.
+ */
+export interface ProjectSettingsDto {
   /**
-   * Wie lange die alten Fassungen eines archivierten Projekts liegen bleiben
-   * (Phase 18). Steht hier, weil es dieselbe Einstellungsseite ist.
+   * Wie lange die alten Fassungen eines archivierten Projekts liegen bleiben.
+   * `0` löscht sie beim nächsten nächtlichen Aufräumen; die neueste bleibt
+   * immer.
    */
   archiveRetentionDays: number;
   updatedAt: string;

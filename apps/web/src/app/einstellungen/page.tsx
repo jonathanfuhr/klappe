@@ -6,6 +6,7 @@ import { AuthPanel } from '@/components/settings/AuthPanel';
 import { BrandingPanel } from '@/components/settings/BrandingPanel';
 import { FieldsPanel } from '@/components/settings/FieldsPanel';
 import { GuestsPanel } from '@/components/settings/GuestsPanel';
+import { ProjectsPanel } from '@/components/settings/ProjectsPanel';
 import { SmtpPanel } from '@/components/settings/SmtpPanel';
 import { TranscodePanel } from '@/components/settings/TranscodePanel';
 import { UsersPanel } from '@/components/settings/UsersPanel';
@@ -22,6 +23,7 @@ const BEREICHE = [
   { id: 'gaeste', label: 'Gäste', team: true },
   { id: 'benutzer', label: 'Benutzer', team: false },
   { id: 'felder', label: 'Benutzerdefinierte Felder', team: false },
+  { id: 'projekte', label: 'Projekte', team: false },
   { id: 'branding', label: 'Erscheinungsbild', team: false },
   { id: 'auth', label: 'Anmeldung', team: false },
   { id: 'mail', label: 'E-Mail-Versand', team: false },
@@ -75,6 +77,7 @@ export default function SettingsPage() {
           {gewaehlt === 'gaeste' ? <GuestsPanel /> : null}
           {gewaehlt === 'benutzer' ? <UsersPanel /> : null}
           {gewaehlt === 'felder' ? <FieldsPanel /> : null}
+          {gewaehlt === 'projekte' ? <ProjectsPanel /> : null}
           {gewaehlt === 'branding' ? <BrandingPanel /> : null}
           {gewaehlt === 'auth' ? <AuthPanel /> : null}
           {gewaehlt === 'mail' ? <SmtpPanel /> : null}
