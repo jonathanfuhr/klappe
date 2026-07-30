@@ -1,0 +1,1 @@
+ALTER TABLE "project_field_defs" ADD COLUMN "filterable" boolean DEFAULT true NOT NULL;

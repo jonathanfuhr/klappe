@@ -355,6 +355,7 @@ export default function HandbuchPage() {
               <li><strong>Anmeldung</strong> – lokale Konten und/oder Microsoft 365.</li>
               <li><strong>E-Mail-Versand</strong> – SMTP-Einrichtung, Bündel-Zeitfenster, unzustellbare Mails.</li>
               <li><strong>Transcode</strong> – welche Download-Formate angeboten und wann sie erzeugt werden.</li>
+              <li><strong>Speicher</strong> – wie viel Platz auf der Platte noch frei ist und wie viel davon Klappe belegt.</li>
             </ul>
           </section>
 

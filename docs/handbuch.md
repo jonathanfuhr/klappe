@@ -309,6 +309,8 @@ Team-Mitglieder und Admins finden unter **Einstellungen** unter anderem:
   Mails.
 - **Transcode** – welche Download-Formate angeboten werden und wann sie
   erzeugt werden.
+- **Speicher** – wie viel Platz auf der Platte noch frei ist und wie viel
+  davon Klappe belegt.
 
 ---
 

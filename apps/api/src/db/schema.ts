@@ -537,10 +537,12 @@ export const projectFieldDefs = pgTable(
      */
     suggest: boolean('suggest').notNull().default(false),
     /**
-     * Steht das Feld in der Sortier- bzw. Gruppier-Auswahl der Projektliste
-     * (Phase 22)? Ab Werk an – das war bis dahin das Verhalten für jedes Feld,
-     * und ein Feld, nach dem niemand sortieren will, schaltet man gezielt ab.
+     * Steht das Feld in der Filter-, Sortier- bzw. Gruppier-Auswahl der
+     * Projektliste (Phase 22)? Ab Werk an – das war bis dahin das Verhalten
+     * für jedes Feld, und ein Feld, nach dem niemand filtern oder sortieren
+     * will, schaltet man gezielt ab.
      */
+    filterable: boolean('filterable').notNull().default(true),
     sortable: boolean('sortable').notNull().default(true),
     groupable: boolean('groupable').notNull().default(true),
     /**

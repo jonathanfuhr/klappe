@@ -447,6 +447,53 @@ button {
   white-space: nowrap;
 }
 
+/* ---------- Speicheranzeige (Phase 22) ---------- */
+
+.storagebar {
+  position: relative;
+  height: 22px;
+  border-radius: var(--klappe-radius-sm);
+  background: var(--klappe-surface-raised);
+  border: 1px solid var(--klappe-border);
+  overflow: hidden;
+  margin: 12px 0 8px;
+}
+
+.storagebar__used,
+.storagebar__klappe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  transition: width 0.2s ease;
+}
+
+/* Alles Belegte – gedeckt, solange Platz ist, deutlich, wenn nicht. */
+.storagebar__used {
+  background: var(--klappe-text-faint);
+}
+
+.storagebar__used[data-level='eng'] {
+  background: #d29a2b;
+}
+
+.storagebar__used[data-level='kritisch'] {
+  background: #c0483c;
+}
+
+/* Klappes Anteil daran, in der Keyfarbe und darüberliegend. */
+.storagebar__klappe {
+  background: var(--klappe-accent);
+  opacity: 0.85;
+}
+
+.storagebar__legend {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 /* Benutzerdefinierte Feldwerte auf der Kachel (Phase 22). */
 .tile__fields {
   display: flex;

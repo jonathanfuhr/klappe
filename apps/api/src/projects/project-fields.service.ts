@@ -95,6 +95,7 @@ export class ProjectFieldsService {
       name?: string;
       sortOrder?: number;
       suggest?: boolean;
+      filterable?: boolean;
       sortable?: boolean;
       groupable?: boolean;
       showOnTile?: boolean;
@@ -106,6 +107,7 @@ export class ProjectFieldsService {
         name: input.name === undefined ? undefined : input.name.trim(),
         sortOrder: input.sortOrder,
         suggest: input.suggest,
+        filterable: input.filterable,
         sortable: input.sortable,
         groupable: input.groupable,
         showOnTile: input.showOnTile,
@@ -176,6 +178,7 @@ export class ProjectFieldsService {
       name: row.name,
       sortOrder: row.sortOrder,
       suggest: row.suggest,
+      filterable: row.filterable,
       sortable: row.sortable,
       groupable: row.groupable,
       showOnTile: row.showOnTile,

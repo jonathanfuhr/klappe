@@ -49,7 +49,7 @@ Definition).
 | Spalte | Anmerkung |
 | --- | --- |
 | `suggest` | Tippvorschläge aus den Werten der anderen Projekte (Phase 16) |
-| `sortable`, `groupable` | steht das Feld in der Sortier- bzw. Gruppier-Auswahl der Projektliste (Phase 22)? Ab Werk an |
+| `filterable`, `sortable`, `groupable` | steht das Feld in der Filterleiste bzw. der Sortier- und Gruppier-Auswahl der Projektliste (Phase 22)? Ab Werk an |
 | `show_on_tile` | Wert auf der Projektkachel anzeigen (Phase 22)? Ab Werk aus |
 
 `customer` ist der Kundenname. Er steht im Download-Dateinamen und dient dem

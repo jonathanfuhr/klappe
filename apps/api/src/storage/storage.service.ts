@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, rename, rm, stat, statfs, writeFile } from 'node:fs/promises';
 import { dirname, join, normalize, resolve, sep } from 'node:path';
 import { AppConfig, CONFIG } from '../config/configuration';
 
@@ -121,6 +121,43 @@ export class StorageService {
       return info.size;
     } catch {
       return 0;
+    }
+  }
+
+  /**
+   * Platz auf dem Dateisystem, auf dem die Ablage liegt (Phase 22).
+   *
+   * Gemessen wird das **Dateisystem**, nicht der Ordner: Im Container ist das
+   * die Einhängung hinter `STORAGE_DIR`, also genau das Volume, das volllaufen
+   * kann. Ein rekursives Durchzählen des Baums wäre etwas anderes und viel
+   * teurer – bei HLS geht es um Zehntausende Segmentdateien.
+   *
+   * `null`, wenn das Betriebssystem keine Auskunft gibt. Der Aufrufer zeigt
+   * dann eben nichts an; ein Fehler ist es nicht.
+   */
+  async freeSpace(): Promise<{
+    path: string;
+    totalBytes: number;
+    freeBytes: number;
+    usedBytes: number;
+  } | null> {
+    try {
+      const info = await statfs(this.root);
+      const block = Number(info.bsize);
+      const blocks = Number(info.blocks);
+      return {
+        path: this.root,
+        totalBytes: blocks * block,
+        // `bavail`, nicht `bfree`: Ein Teil bleibt für root reserviert und
+        // steht dem Dienst nicht zur Verfügung. `df` zeigt aus demselben
+        // Grund „Avail" statt „Free" – und deshalb ergeben belegt und frei
+        // zusammen etwas weniger als die Gesamtgröße.
+        freeBytes: Number(info.bavail) * block,
+        usedBytes: (blocks - Number(info.bfree)) * block,
+      };
+    } catch (error) {
+      this.logger.warn(`Freier Platz für ${this.root} nicht abfragbar: ${String(error)}`);
+      return null;
     }
   }
 

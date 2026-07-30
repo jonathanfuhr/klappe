@@ -329,6 +329,23 @@ Fassung, Art und Person gebunden ist und nach sechs Stunden verfällt. Er
 schon vergebenen Link wertlos. Ein Token für den Proxy schaltet das Original
 nicht frei.
 
+## Speicher (Phase 22)
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/settings/storage` | Admin – freier Platz und was Klappe belegt |
+
+`totalBytes` / `freeBytes` / `usedBytes` kommen aus `statfs` und gelten für das
+ganze Dateisystem hinter `STORAGE_DIR`; `freeBytes` ist `bavail`, also ohne die
+für root reservierten Blöcke – belegt und frei ergeben zusammen deshalb etwas
+weniger als die Gesamtgröße, genau wie bei `df`. Gibt das Betriebssystem keine
+Auskunft, steht `available: false` und die drei Größen sind `null`.
+
+`usage` summiert dagegen aus der Datenbank, was **Klappe** belegt (Originale,
+Abspielfassungen, Download-Formate, Kundenmaterial, angefangene Uploads).
+Posterframes, Sprite-Streifen und HLS-Segmente führt Klappe ohne Größe und
+fehlen darin – die Summe ist eine Untergrenze.
+
 ## Verarbeitung und Download-Formate (Phase 19)
 
 | Route | Zweck |

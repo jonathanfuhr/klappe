@@ -28,6 +28,7 @@ import type {
   ShareScope,
   SmtpProviderPresetDto,
   SmtpSettingsDto,
+  StorageStatusDto,
   TagDto,
   TranscodeSettingsDto,
   UploadSessionDto,
@@ -166,6 +167,7 @@ export const api = {
       name?: string;
       sortOrder?: number;
       suggest?: boolean;
+      filterable?: boolean;
       sortable?: boolean;
       groupable?: boolean;
       showOnTile?: boolean;
@@ -495,6 +497,8 @@ export const api = {
   smtpPresets: () => request<SmtpProviderPresetDto[]>('/v1/settings/smtp/presets'),
 
   // ---------- Projekte (Phase 20) ----------
+  /** Wie voll die Ablage ist (Phase 22) – Admin. */
+  getStorageStatus: () => request<StorageStatusDto>('/v1/settings/storage'),
   getProjectSettings: () => request<ProjectSettingsDto>('/v1/settings/projects'),
   updateProjectSettings: (input: { archiveRetentionDays?: number }) =>
     request<ProjectSettingsDto>('/v1/settings/projects', {

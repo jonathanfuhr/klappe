@@ -60,6 +60,42 @@ export interface ProjectDto {
   fields: ProjectFieldValueDto[];
 }
 
+/**
+ * Wie viel Platz auf dem Dateisystem übrig ist, auf dem der Medienordner
+ * liegt (Phase 22).
+ *
+ * Zwei verschiedene Zahlen, die man leicht verwechselt: `totalBytes` und
+ * `freeBytes` gelten für das **ganze Dateisystem** – da liegt womöglich noch
+ * anderes darauf –, `usage` zählt nur, was **Klappe** selbst belegt.
+ */
+export interface StorageStatusDto {
+  /** Der Medienordner, wie ihn der API-Prozess sieht (im Container `/data`). */
+  path: string;
+  /**
+   * `false`, wenn das Betriebssystem keine Auskunft gibt. Dann stehen die
+   * drei Größen auf `null`, die Aufschlüsselung darunter gilt weiterhin.
+   */
+  available: boolean;
+  totalBytes: number | null;
+  /** Was ein gewöhnlicher Prozess noch schreiben kann (ohne die root-Reserve). */
+  freeBytes: number | null;
+  usedBytes: number | null;
+  /**
+   * Was Klappe belegt, aus der Datenbank summiert. Posterframes,
+   * Sprite-Streifen und die HLS-Segmente fehlen darin – für die hält Klappe
+   * keine Größe fest. Die Summe ist damit eine Untergrenze, kein `du`.
+   */
+  usage: {
+    originals: number;
+    proxies: number;
+    renditions: number;
+    projectFiles: number;
+    /** Angefangene Uploads im Zwischenspeicher. */
+    uploads: number;
+    total: number;
+  };
+}
+
 /** Definition eines benutzerdefinierten Projekt-Felds (Phase 15). */
 export interface ProjectFieldDefDto {
   id: string;
@@ -67,6 +103,8 @@ export interface ProjectFieldDefDto {
   sortOrder: number;
   /** Tippvorschläge aus den Werten der anderen Projekte (Phase 16)? */
   suggest: boolean;
+  /** Steht das Feld in der Filterleiste der Projektliste (Phase 22)? */
+  filterable: boolean;
   /** Steht das Feld in der Sortier-Auswahl der Projektliste (Phase 22)? */
   sortable: boolean;
   /** Steht das Feld in der Gruppier-Auswahl der Projektliste (Phase 22)? */

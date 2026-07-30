@@ -615,9 +615,22 @@ bleibt immer.
 Felder anlegen, umbenennen, löschen (mit Warnung, wie viele Projekte betroffen
 sind). Je Feld einstellbar: ob beim Tippen Vorschläge aus bestehenden Projekten
 kommen (sinnvoll beim Kunden, sinnlos bei einer Projektnummer), ob es in der
-Sortier- bzw. Gruppier-Auswahl der Projektliste steht, und ob sein Wert auf der
-Projektkachel erscheint. Auch die Schlagworte lassen sich hier workspace-weit
-abschalten.
+Filterleiste, der Sortier- und der Gruppier-Auswahl der Projektliste steht, und
+ob sein Wert auf der Projektkachel erscheint. Auch die Schlagworte lassen sich
+hier workspace-weit abschalten.
+
+### Speicher
+
+Wie voll das Dateisystem hinter `MEDIA_DIR` ist: frei, belegt, gesamt – und
+darunter, was davon auf Klappe entfällt, aufgeschlüsselt nach Originalen,
+Abspielfassungen, Download-Formaten, Kundenmaterial und angefangenen Uploads.
+Ab 90 % Belegung steht dort eine Warnung, ab 95 % ein deutlicher Hinweis: Läuft
+das Dateisystem voll, brechen Uploads mitten in der Übertragung ab.
+
+Gemessen wird das **Dateisystem**, nicht der Ordner – auf einer NAS liegt dort
+oft noch anderes, und genau das soll man sehen. Die Klappe-Summe stammt dagegen
+aus der Datenbank; Posterframes, Sprite-Streifen und HLS-Segmente führt Klappe
+ohne Größe und fehlen darin. Sie ist damit eine Untergrenze, kein `du`.
 
 ---
 
