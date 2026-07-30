@@ -1,10 +1,16 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  DEFAULT_TRANSCODE_WINDOW_END,
+  DEFAULT_TRANSCODE_WINDOW_START,
+  HLS_MODES,
   RENDITION_CONTAINERS,
+  TRANSCODE_TIMINGS,
   X264_PRESETS,
   type DownloadPresetDto,
+  type HlsMode,
   type RenditionContainer,
   type TranscodeSettingsDto,
+  type TranscodeTiming,
   type X264Preset,
 } from '@klappe/shared';
 import { asc, eq } from 'drizzle-orm';
@@ -30,10 +36,13 @@ const SETTINGS_ID = 1;
  */
 export interface EffectiveTranscode {
   downloadFormatsEnabled: boolean;
-  downloadPrebuild: boolean;
   downloadFinalOnly: boolean;
-  window: TranscodeWindow;
-  hlsEnabled: boolean;
+  downloadTiming: TranscodeTiming;
+  /** Nur bei `downloadTiming === 'schedule'` befüllt. */
+  downloadWindow: TranscodeWindow;
+  hlsMode: HlsMode;
+  /** Nur bei `hlsMode === 'schedule'` befüllt. */
+  hlsWindow: TranscodeWindow;
   proxyShortEdge: number;
   /** Fertige ffmpeg-Angaben, damit die Umrechnung an einer Stelle steht. */
   proxyVideoBitrate: string;
@@ -44,12 +53,14 @@ export interface EffectiveTranscode {
 
 export interface UpdateTranscodeInput {
   downloadFormatsEnabled?: boolean;
-  downloadPrebuild?: boolean;
   downloadFinalOnly?: boolean;
+  downloadTiming?: string;
   /** `HH:MM`; leerer String löscht das Fenster. */
-  windowStart?: string | null;
-  windowEnd?: string | null;
-  hlsEnabled?: boolean;
+  downloadWindowStart?: string | null;
+  downloadWindowEnd?: string | null;
+  hlsMode?: string;
+  hlsWindowStart?: string | null;
+  hlsWindowEnd?: string | null;
   proxyShortEdge?: number;
   proxyVideoBitrateKbps?: number;
   proxyPreset?: string;
@@ -125,15 +136,25 @@ export class TranscodeSettingsService {
           proxyBufsize: transcode.proxyBufsize,
         };
 
+    const hlsMode = toHlsMode(row.hlsMode, transcode.hlsEnabled);
+    const downloadTiming = toTiming(row.downloadTiming);
+
     return {
       downloadFormatsEnabled: row.downloadFormatsEnabled,
-      downloadPrebuild: row.downloadPrebuild,
       downloadFinalOnly: row.downloadFinalOnly,
-      window: {
-        startMinute: isValidMinute(row.transcodeWindowStart) ? row.transcodeWindowStart : null,
-        endMinute: isValidMinute(row.transcodeWindowEnd) ? row.transcodeWindowEnd : null,
-      },
-      hlsEnabled: row.hlsEnabled ?? transcode.hlsEnabled,
+      downloadTiming,
+      // Ein Zeitplan ohne Uhrzeiten wäre ein Schalter, der nichts tut. Es
+      // gilt dann die Vorbelegung 22:00–06:00, also genau das, was in der
+      // Oberfläche danebensteht.
+      downloadWindow:
+        downloadTiming === 'schedule'
+          ? fensterOderStandard(row.downloadWindowStart, row.downloadWindowEnd)
+          : KEIN_FENSTER,
+      hlsMode,
+      hlsWindow:
+        hlsMode === 'schedule'
+          ? fensterOderStandard(row.hlsWindowStart, row.hlsWindowEnd)
+          : KEIN_FENSTER,
       proxyShortEdge: row.proxyShortEdge ?? transcode.proxyShortEdge,
       ...bitraten,
       proxyPreset: row.proxyPreset ?? transcode.proxyPreset,
@@ -147,12 +168,14 @@ export class TranscodeSettingsService {
 
     return {
       downloadFormatsEnabled: row.downloadFormatsEnabled,
-      downloadPrebuild: row.downloadPrebuild,
       downloadFinalOnly: row.downloadFinalOnly,
-      windowStart: formatMinute(row.transcodeWindowStart),
-      windowEnd: formatMinute(row.transcodeWindowEnd),
-      hlsEnabled: row.hlsEnabled ?? transcode.hlsEnabled,
-      hlsFromEnv: row.hlsEnabled === null,
+      downloadTiming: toTiming(row.downloadTiming),
+      downloadWindowStart: formatMinute(row.downloadWindowStart),
+      downloadWindowEnd: formatMinute(row.downloadWindowEnd),
+      hlsMode: toHlsMode(row.hlsMode, transcode.hlsEnabled),
+      hlsModeFromEnv: row.hlsMode === null,
+      hlsWindowStart: formatMinute(row.hlsWindowStart),
+      hlsWindowEnd: formatMinute(row.hlsWindowEnd),
       proxyShortEdge: row.proxyShortEdge ?? transcode.proxyShortEdge,
       proxyShortEdgeFromEnv: row.proxyShortEdge === null,
       proxyVideoBitrateKbps: row.proxyVideoBitrateKbps ?? envBitrate,
@@ -167,26 +190,20 @@ export class TranscodeSettingsService {
   async update(input: UpdateTranscodeInput): Promise<TranscodeSettingsDto> {
     await this.getRow();
 
-    const fenster = {
-      start: input.windowStart === undefined ? undefined : parseMinute(input.windowStart),
-      ende: input.windowEnd === undefined ? undefined : parseMinute(input.windowEnd),
-    };
-    if (input.windowStart && fenster.start === null) {
-      throw new BadRequestException('Der Beginn des Zeitfensters ist keine Uhrzeit (HH:MM).');
-    }
-    if (input.windowEnd && fenster.ende === null) {
-      throw new BadRequestException('Das Ende des Zeitfensters ist keine Uhrzeit (HH:MM).');
-    }
+    const download = pruefeFenster(input.downloadWindowStart, input.downloadWindowEnd, 'Formate');
+    const hls = pruefeFenster(input.hlsWindowStart, input.hlsWindowEnd, 'Stufenleiter');
 
     await this.db
       .update(appSettings)
       .set({
         downloadFormatsEnabled: input.downloadFormatsEnabled,
-        downloadPrebuild: input.downloadPrebuild,
         downloadFinalOnly: input.downloadFinalOnly,
-        transcodeWindowStart: fenster.start,
-        transcodeWindowEnd: fenster.ende,
-        hlsEnabled: input.hlsEnabled,
+        downloadTiming: input.downloadTiming === undefined ? undefined : toTiming(input.downloadTiming),
+        downloadWindowStart: download.start,
+        downloadWindowEnd: download.ende,
+        hlsMode: input.hlsMode === undefined ? undefined : toHlsMode(input.hlsMode, false),
+        hlsWindowStart: hls.start,
+        hlsWindowEnd: hls.ende,
         proxyShortEdge:
           input.proxyShortEdge === undefined
             ? undefined
@@ -342,6 +359,58 @@ export class TranscodeSettingsService {
 
 function klemme(wert: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(wert)));
+}
+
+const KEIN_FENSTER: TranscodeWindow = { startMinute: null, endMinute: null };
+
+/**
+ * Steht der Zeitplan auf „schedule", aber keine Uhrzeit dabei, gilt die
+ * Vorbelegung aus der Oberfläche (22:00–06:00). Sonst wäre die Auswahl ein
+ * Schalter ohne Wirkung – und niemand käme darauf, warum.
+ */
+function fensterOderStandard(start: number | null, ende: number | null): TranscodeWindow {
+  if (isValidMinute(start) && isValidMinute(ende)) {
+    return { startMinute: start, endMinute: ende };
+  }
+  return {
+    startMinute: parseMinute(DEFAULT_TRANSCODE_WINDOW_START),
+    endMinute: parseMinute(DEFAULT_TRANSCODE_WINDOW_END),
+  };
+}
+
+/** `undefined` heißt unverändert, ein leerer String löscht die Uhrzeit. */
+function pruefeFenster(
+  start: string | null | undefined,
+  ende: string | null | undefined,
+  was: string,
+): { start: number | null | undefined; ende: number | null | undefined } {
+  const werte = {
+    start: start === undefined ? undefined : parseMinute(start),
+    ende: ende === undefined ? undefined : parseMinute(ende),
+  };
+  if (start && werte.start === null) {
+    throw new BadRequestException(`Der Beginn des Zeitfensters (${was}) ist keine Uhrzeit (HH:MM).`);
+  }
+  if (ende && werte.ende === null) {
+    throw new BadRequestException(`Das Ende des Zeitfensters (${was}) ist keine Uhrzeit (HH:MM).`);
+  }
+  return werte;
+}
+
+function toTiming(value: string | null | undefined): TranscodeTiming {
+  return (TRANSCODE_TIMINGS as readonly string[]).includes(value ?? '')
+    ? (value as TranscodeTiming)
+    : 'on-demand';
+}
+
+/**
+ * `null` in der Datenbank heißt „nie in der Oberfläche entschieden": Dann
+ * entscheidet `HLS_ENABLED` aus der `.env`, ob die Leiter nach dem Upload
+ * läuft oder gar nicht.
+ */
+function toHlsMode(value: string | null | undefined, envEnabled: boolean): HlsMode {
+  if (value === null || value === undefined) return envEnabled ? 'upload' : 'off';
+  return (HLS_MODES as readonly string[]).includes(value) ? (value as HlsMode) : 'off';
 }
 
 function toX264Preset(value: string): X264Preset {

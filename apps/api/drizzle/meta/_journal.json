@@ -162,6 +162,13 @@
       "when": 1785262910399,
       "tag": "0022_sammelmail_einmal",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1785262970399,
+      "tag": "0023_zeitplan",
+      "breakpoints": true
     }
   ]
 }

@@ -2008,6 +2008,24 @@ a.badge:hover {
   -webkit-overflow-scrolling: touch;
 }
 
+/*
+ * Ein Abschnitt, der an einem Schalter darüber hängt (Phase 20). Als
+ * `fieldset` statt als `div`, weil `fieldset[disabled]` alle Bedienelemente
+ * darin von selbst sperrt – auch die, die später dazukommen. Der Browser
+ * nimmt dann auch die Tastatur-Navigation heraus; ein `pointer-events: none`
+ * täte das nicht.
+ */
+.abschnitt {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0; /* sonst sprengt eine breite Tabelle das Raster */
+}
+
+.abschnitt:disabled {
+  opacity: 0.5;
+}
+
 /* ---------- Schmale Schirme (Phase 17) ---------- */
 
 @media (max-width: 860px) {

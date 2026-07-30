@@ -210,7 +210,7 @@ export class TranscodeProcessor extends WorkerHost {
     if (version.hlsKey) return;
 
     const einstellungen = await this.settings.effective();
-    if (!einstellungen.hlsEnabled) {
+    if (einstellungen.hlsMode === 'off') {
       this.logger.log(`HLS-Leiter übersprungen (${versionId}): inzwischen abgeschaltet.`);
       return;
     }

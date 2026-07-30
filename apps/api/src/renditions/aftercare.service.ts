@@ -32,9 +32,12 @@ export class AftercareService {
 
   async schedule(versionId: string): Promise<void> {
     const einstellungen = await this.settings.effective();
-    const delayMs = delayUntilWindow(new Date(), einstellungen.window);
 
-    if (einstellungen.hlsEnabled) {
+    // Seit Phase 20 hat die Stufenleiter ihren eigenen Zeitplan – sie ist
+    // eine andere Sorte Arbeit als ein Download-Format und soll nicht an
+    // dessen Einstellung hängen.
+    if (einstellungen.hlsMode !== 'off') {
+      const delayMs = delayUntilWindow(new Date(), einstellungen.hlsWindow);
       const [version] = await this.db
         .select({ hlsKey: videoVersions.hlsKey, status: videoVersions.status })
         .from(videoVersions)

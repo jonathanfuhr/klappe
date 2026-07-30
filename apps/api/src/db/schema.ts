@@ -613,25 +613,34 @@ export const appSettings = pgTable('app_settings', {
    * Aus heißt: Der Knopf lädt wie bisher direkt das Original.
    */
   downloadFormatsEnabled: boolean('download_formats_enabled').notNull().default(false),
-  /**
-   * Die Download-Fassungen schon beim Hochladen erzeugen, statt erst beim
-   * ersten Klick. Läuft mit niedrigem Vorrang – die Abspielfassung geht immer
-   * vor.
-   */
-  downloadPrebuild: boolean('download_prebuild').notNull().default(false),
   /** Vorab nur für Endfassungen erzeugen, nicht für jeden Zwischenstand. */
   downloadFinalOnly: boolean('download_final_only').notNull().default(false),
+  /**
+   * Wann die Formate entstehen (Phase 20): `on-demand` beim ersten Klick,
+   * `upload` gleich nach dem Hochladen, `schedule` erst im Zeitfenster.
+   * Löst den früheren Haken „direkt beim Upload erstellen" ab, der sich mit
+   * dem Zeitfenster daneben widersprechen konnte.
+   */
+  downloadTiming: text('download_timing').notNull().default('on-demand'),
 
   /**
-   * Zeitfenster für die aufwendige Nacharbeit, in Minuten seit Mitternacht
-   * (Ortszeit des Containers). Beide `null` heißt: kein Fenster. Ein Start
-   * hinter dem Ende meint die Nacht – 1320/360 ist 22:00 bis 6:00.
-   *
-   * Gilt nur für das, worauf niemand wartet: Vorab-Erzeugung und HLS-Leiter.
-   * Die Abspielfassung und ein angeforderter Download laufen immer sofort.
+   * Zeitfenster für die Formate, in Minuten seit Mitternacht (Ortszeit des
+   * Containers). Ein Start hinter dem Ende meint die Nacht – 1320/360 ist
+   * 22:00 bis 6:00. Nur von Belang, wenn `downloadTiming` auf `schedule`
+   * steht.
    */
-  transcodeWindowStart: smallint('transcode_window_start'),
-  transcodeWindowEnd: smallint('transcode_window_end'),
+  downloadWindowStart: smallint('download_window_start'),
+  downloadWindowEnd: smallint('download_window_end'),
+
+  /**
+   * Die HLS-Stufenleiter hat seit Phase 20 ihren eigenen Zeitplan – sie ist
+   * eine andere Sorte Arbeit als ein Download-Format und soll nicht an
+   * dessen Einstellung hängen. `null` heißt wie unten: nie in der Oberfläche
+   * entschieden, es gilt `HLS_ENABLED` aus der `.env`.
+   */
+  hlsMode: text('hls_mode'),
+  hlsWindowStart: smallint('hls_window_start'),
+  hlsWindowEnd: smallint('hls_window_end'),
 
   /**
    * Die folgenden Werte sind absichtlich nullbar: `null` heißt „in der
@@ -639,7 +648,6 @@ export const appSettings = pgTable('app_settings', {
    * eine bestehende Anlage unverändert weiter, und der erste Klick übernimmt
    * die Hoheit.
    */
-  hlsEnabled: boolean('hls_enabled'),
   proxyShortEdge: integer('proxy_short_edge'),
   proxyVideoBitrateKbps: integer('proxy_video_bitrate_kbps'),
   proxyPreset: text('proxy_preset'),

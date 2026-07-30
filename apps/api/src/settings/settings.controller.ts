@@ -12,7 +12,9 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  HLS_MODES,
   RENDITION_CONTAINERS,
+  TRANSCODE_TIMINGS,
   X264_PRESETS,
   type AuthSettingsDto,
   type DownloadPresetDto,
@@ -119,25 +121,35 @@ class UpdateTranscodeDto {
 
   @IsOptional()
   @IsBoolean()
-  downloadPrebuild?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
   downloadFinalOnly?: boolean;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(5)
-  windowStart?: string;
+  @IsIn(TRANSCODE_TIMINGS)
+  downloadTiming?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(5)
-  windowEnd?: string;
+  downloadWindowStart?: string;
 
   @IsOptional()
-  @IsBoolean()
-  hlsEnabled?: boolean;
+  @IsString()
+  @MaxLength(5)
+  downloadWindowEnd?: string;
+
+  @IsOptional()
+  @IsIn(HLS_MODES)
+  hlsMode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  hlsWindowStart?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  hlsWindowEnd?: string;
 
   @IsOptional()
   @IsInt()
@@ -399,11 +411,13 @@ export class SettingsController {
   updateTranscode(@Body() dto: UpdateTranscodeDto): Promise<TranscodeSettingsDto> {
     return this.transcodeSettings.update({
       downloadFormatsEnabled: dto.downloadFormatsEnabled,
-      downloadPrebuild: dto.downloadPrebuild,
       downloadFinalOnly: dto.downloadFinalOnly,
-      windowStart: dto.windowStart,
-      windowEnd: dto.windowEnd,
-      hlsEnabled: dto.hlsEnabled,
+      downloadTiming: dto.downloadTiming,
+      downloadWindowStart: dto.downloadWindowStart,
+      downloadWindowEnd: dto.downloadWindowEnd,
+      hlsMode: dto.hlsMode,
+      hlsWindowStart: dto.hlsWindowStart,
+      hlsWindowEnd: dto.hlsWindowEnd,
       proxyShortEdge: dto.proxyShortEdge,
       proxyVideoBitrateKbps: dto.proxyVideoBitrateKbps,
       proxyPreset: dto.proxyPreset,

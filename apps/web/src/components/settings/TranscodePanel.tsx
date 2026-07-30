@@ -1,12 +1,14 @@
 'use client';
 
 import {
+  DEFAULT_TRANSCODE_WINDOW_END,
+  DEFAULT_TRANSCODE_WINDOW_START,
   RENDITION_CONTAINERS,
   X264_PRESETS,
   type DownloadPresetDto,
   type TranscodeSettingsDto,
 } from '@klappe/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
 import { api } from '@/lib/api';
 
 /** Leerer Entwurf für ein neues Format. */
@@ -20,22 +22,32 @@ const NEUES_FORMAT = {
 };
 
 /**
- * Verarbeitung (Phase 19).
+ * Verarbeitung (Phase 19, neu gegliedert in Phase 20).
  *
- * Alles, was früher nur in der `.env` stand: die Formate zum Herunterladen,
- * die adaptive Wiedergabe und die Werte der Abspielfassung. Gelesen wird das
- * vor jedem Auftrag frisch aus der Datenbank – eine Änderung greift also ab
- * dem nächsten Video, ohne dass der Container neu startet.
+ * Drei Abschnitte, die drei verschiedene Dinge betreffen: die Formate zum
+ * Herunterladen, die adaptive Stufenleiter und die Abspielfassung. Jeder
+ * bringt seinen eigenen Zeitplan mit.
+ *
+ * Vorher stand „Wann gerechnet wird" als eigener Block dazwischen und galt
+ * für zwei der drei zugleich – wofür genau, musste man raten. Dazu ein Haken
+ * „direkt beim Upload erstellen", der sich mit dem Zeitfenster daneben
+ * widersprechen konnte. Beides ist jetzt je eine Auswahl aus sich
+ * ausschließenden Möglichkeiten, dort, wo sie hingehört.
+ *
+ * Gelesen wird das vor jedem Auftrag frisch aus der Datenbank – eine Änderung
+ * greift also ab dem nächsten Video, ohne dass der Container neu startet.
  */
 export function TranscodePanel() {
   const [settings, setSettings] = useState<TranscodeSettingsDto | null>(null);
   const [form, setForm] = useState({
     downloadFormatsEnabled: false,
-    downloadPrebuild: false,
     downloadFinalOnly: false,
-    windowStart: '',
-    windowEnd: '',
-    hlsEnabled: false,
+    downloadTiming: 'on-demand' as string,
+    downloadWindowStart: '',
+    downloadWindowEnd: '',
+    hlsMode: 'off' as string,
+    hlsWindowStart: '',
+    hlsWindowEnd: '',
     proxyShortEdge: 1080,
     proxyVideoBitrateKbps: 10_000,
     proxyPreset: 'veryfast' as string,
@@ -50,11 +62,13 @@ export function TranscodePanel() {
     setSettings(geladen);
     setForm({
       downloadFormatsEnabled: geladen.downloadFormatsEnabled,
-      downloadPrebuild: geladen.downloadPrebuild,
       downloadFinalOnly: geladen.downloadFinalOnly,
-      windowStart: geladen.windowStart ?? '',
-      windowEnd: geladen.windowEnd ?? '',
-      hlsEnabled: geladen.hlsEnabled,
+      downloadTiming: geladen.downloadTiming,
+      downloadWindowStart: geladen.downloadWindowStart ?? '',
+      downloadWindowEnd: geladen.downloadWindowEnd ?? '',
+      hlsMode: geladen.hlsMode,
+      hlsWindowStart: geladen.hlsWindowStart ?? '',
+      hlsWindowEnd: geladen.hlsWindowEnd ?? '',
       proxyShortEdge: geladen.proxyShortEdge,
       proxyVideoBitrateKbps: geladen.proxyVideoBitrateKbps,
       proxyPreset: geladen.proxyPreset,
@@ -135,13 +149,51 @@ export function TranscodePanel() {
     return <div className="empty">{error ?? 'Wird geladen …'}</div>;
   }
 
-  const fensterUnvollstaendig = Boolean(form.windowStart) !== Boolean(form.windowEnd);
+  /**
+   * Wer „nach Zeitplan" wählt, bekommt gleich Uhrzeiten vorgelegt. Ein
+   * Zeitplan ohne Zeiten wäre eine Auswahl, die nichts tut.
+   */
+  const setzeZeitplan = (feld: 'download' | 'hls', wert: string) => {
+    const plan = wert === 'schedule';
+    if (feld === 'download') {
+      setForm({
+        ...form,
+        downloadTiming: wert,
+        downloadWindowStart:
+          plan && !form.downloadWindowStart
+            ? DEFAULT_TRANSCODE_WINDOW_START
+            : form.downloadWindowStart,
+        downloadWindowEnd:
+          plan && !form.downloadWindowEnd ? DEFAULT_TRANSCODE_WINDOW_END : form.downloadWindowEnd,
+      });
+      return;
+    }
+    setForm({
+      ...form,
+      hlsMode: wert,
+      hlsWindowStart:
+        plan && !form.hlsWindowStart ? DEFAULT_TRANSCODE_WINDOW_START : form.hlsWindowStart,
+      hlsWindowEnd: plan && !form.hlsWindowEnd ? DEFAULT_TRANSCODE_WINDOW_END : form.hlsWindowEnd,
+    });
+  };
+
+  const downloadFensterUnvollstaendig =
+    form.downloadTiming === 'schedule' &&
+    Boolean(form.downloadWindowStart) !== Boolean(form.downloadWindowEnd);
+  const hlsFensterUnvollstaendig =
+    form.hlsMode === 'schedule' && Boolean(form.hlsWindowStart) !== Boolean(form.hlsWindowEnd);
+  const unvollstaendig = downloadFensterUnvollstaendig || hlsFensterUnvollstaendig;
 
   return (
-    <>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void save();
+      }}
+    >
       <p className="page__subtitle" style={{ marginTop: 0 }}>
-        Was der Server nach dem Hochladen erzeugt: die Abspielfassung, wahlweise eine adaptive
-        Stufenleiter und die Formate, die beim Herunterladen zur Auswahl stehen.
+        Was der Server nach dem Hochladen erzeugt: die Formate zum Herunterladen, wahlweise eine
+        adaptive Stufenleiter und die Abspielfassung, die jeder im Browser zu sehen bekommt.
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -171,75 +223,222 @@ export function TranscodePanel() {
           Formatauswahl anbieten
         </label>
 
-        <table className="table" style={{ marginBottom: 12 }}>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Kurze Kante</th>
-              <th>Bitrate</th>
-              <th>Qualität</th>
-              <th>Container</th>
-              <th>Angeboten</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {settings.presets.map((format) => (
-              <tr key={format.id}>
-                <td>
+        {/* Aus heißt: der ganze Abschnitt ist stumpf. `fieldset[disabled]`
+            sperrt alles darin von selbst – kein Haken einzeln. */}
+        <fieldset className="abschnitt" disabled={!form.downloadFormatsEnabled}>
+          <div className="tablewrap">
+            <table className="table" style={{ marginBottom: 12 }}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Kurze Kante</th>
+                  <th>Bitrate</th>
+                  <th>Qualität</th>
+                  <th>Container</th>
+                  <th>Angeboten</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {settings.presets.map((format) => (
+                  <tr key={format.id}>
+                    <td>
+                      <input
+                        className="input"
+                        defaultValue={format.name}
+                        onKeyDown={beendeMitEingabe}
+                        onBlur={(event) => {
+                          const name = event.target.value.trim();
+                          if (name && name !== format.name) void aendereFormat(format.id, { name });
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        type="number"
+                        min={144}
+                        max={4320}
+                        style={{ width: 100 }}
+                        defaultValue={format.shortEdge}
+                        onKeyDown={beendeMitEingabe}
+                        onBlur={(event) => {
+                          const shortEdge = Number(event.target.value);
+                          if (shortEdge && shortEdge !== format.shortEdge) {
+                            void aendereFormat(format.id, { shortEdge });
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        type="number"
+                        min={100}
+                        max={200000}
+                        style={{ width: 110 }}
+                        defaultValue={format.videoBitrateKbps}
+                        onKeyDown={beendeMitEingabe}
+                        onBlur={(event) => {
+                          const videoBitrateKbps = Number(event.target.value);
+                          if (videoBitrateKbps && videoBitrateKbps !== format.videoBitrateKbps) {
+                            void aendereFormat(format.id, { videoBitrateKbps });
+                          }
+                        }}
+                      />
+                      <span className="faint" style={{ marginLeft: 6, fontSize: 12 }}>
+                        kbit/s
+                      </span>
+                    </td>
+                    <td>
+                      <select
+                        className="select"
+                        value={format.preset}
+                        onChange={(event) =>
+                          void aendereFormat(format.id, {
+                            preset: event.target.value as DownloadPresetDto['preset'],
+                          })
+                        }
+                      >
+                        {X264_PRESETS.map((eintrag) => (
+                          <option key={eintrag} value={eintrag}>
+                            {eintrag}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        className="select"
+                        value={format.container}
+                        onChange={(event) =>
+                          void aendereFormat(format.id, {
+                            container: event.target.value as DownloadPresetDto['container'],
+                          })
+                        }
+                      >
+                        {RENDITION_CONTAINERS.map((eintrag) => (
+                          <option key={eintrag} value={eintrag}>
+                            .{eintrag}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={format.isActive}
+                          onChange={(event) =>
+                            void aendereFormat(format.id, { isActive: event.target.checked })
+                          }
+                        />
+                      </label>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="button button--ghost"
+                        onClick={() => void loesche(format)}
+                      >
+                        Löschen
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {settings.presets.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="faint">
+                      Noch kein Format angelegt.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+
+          {anlegen ? (
+            <div className="card" style={{ padding: 16 }}>
+              <div className="grid-two">
+                <div className="field">
+                  <label className="field__label" htmlFor="neu-name">
+                    Name
+                  </label>
                   <input
+                    id="neu-name"
                     className="input"
-                    defaultValue={format.name}
-                    onBlur={(event) => {
-                      const name = event.target.value.trim();
-                      if (name && name !== format.name) void aendereFormat(format.id, { name });
-                    }}
+                    placeholder="z. B. 720p – Vorschau"
+                    value={entwurf.name}
+                    onChange={(event) => setEntwurf({ ...entwurf, name: event.target.value })}
                   />
-                </td>
-                <td>
+                  <p className="hint">Diesen Namen sieht der Kunde im Download-Fenster.</p>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="neu-kante">
+                    Kurze Kante
+                  </label>
                   <input
+                    id="neu-kante"
                     className="input"
                     type="number"
                     min={144}
                     max={4320}
-                    style={{ width: 100 }}
-                    defaultValue={format.shortEdge}
-                    onBlur={(event) => {
-                      const shortEdge = Number(event.target.value);
-                      if (shortEdge && shortEdge !== format.shortEdge) {
-                        void aendereFormat(format.id, { shortEdge });
-                      }
-                    }}
+                    value={entwurf.shortEdge}
+                    onChange={(event) =>
+                      setEntwurf({ ...entwurf, shortEdge: Number(event.target.value) })
+                    }
                   />
-                </td>
-                <td>
+                  <p className="hint">
+                    1080 heißt quer 1920×1080 und hoch 1080×1920. Vergrößert wird nie.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid-two">
+                <div className="field">
+                  <label className="field__label" htmlFor="neu-bitrate">
+                    Video-Bitrate (kbit/s)
+                  </label>
                   <input
+                    id="neu-bitrate"
                     className="input"
                     type="number"
                     min={100}
                     max={200000}
-                    style={{ width: 110 }}
-                    defaultValue={format.videoBitrateKbps}
-                    onBlur={(event) => {
-                      const videoBitrateKbps = Number(event.target.value);
-                      if (videoBitrateKbps && videoBitrateKbps !== format.videoBitrateKbps) {
-                        void aendereFormat(format.id, { videoBitrateKbps });
-                      }
-                    }}
-                  />
-                  <span className="faint" style={{ marginLeft: 6, fontSize: 12 }}>
-                    kbit/s
-                  </span>
-                </td>
-                <td>
-                  <select
-                    className="select"
-                    value={format.preset}
+                    value={entwurf.videoBitrateKbps}
                     onChange={(event) =>
-                      void aendereFormat(format.id, {
-                        preset: event.target.value as DownloadPresetDto['preset'],
-                      })
+                      setEntwurf({ ...entwurf, videoBitrateKbps: Number(event.target.value) })
                     }
+                  />
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="neu-ton">
+                    Ton-Bitrate (kbit/s)
+                  </label>
+                  <input
+                    id="neu-ton"
+                    className="input"
+                    type="number"
+                    min={32}
+                    max={512}
+                    value={entwurf.audioBitrateKbps}
+                    onChange={(event) =>
+                      setEntwurf({ ...entwurf, audioBitrateKbps: Number(event.target.value) })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid-two">
+                <div className="field">
+                  <label className="field__label" htmlFor="neu-preset">
+                    Qualität
+                  </label>
+                  <select
+                    id="neu-preset"
+                    className="select"
+                    value={entwurf.preset}
+                    onChange={(event) => setEntwurf({ ...entwurf, preset: event.target.value })}
                   >
                     {X264_PRESETS.map((eintrag) => (
                       <option key={eintrag} value={eintrag}>
@@ -247,16 +446,19 @@ export function TranscodePanel() {
                       </option>
                     ))}
                   </select>
-                </td>
-                <td>
+                  <p className="hint">
+                    Langsamer heißt kleinere Datei bei gleichem Bild – und mehr Rechenzeit.
+                  </p>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="neu-container">
+                    Container
+                  </label>
                   <select
+                    id="neu-container"
                     className="select"
-                    value={format.container}
-                    onChange={(event) =>
-                      void aendereFormat(format.id, {
-                        container: event.target.value as DownloadPresetDto['container'],
-                      })
-                    }
+                    value={entwurf.container}
+                    onChange={(event) => setEntwurf({ ...entwurf, container: event.target.value })}
                   >
                     {RENDITION_CONTAINERS.map((eintrag) => (
                       <option key={eintrag} value={eintrag}>
@@ -264,276 +466,136 @@ export function TranscodePanel() {
                       </option>
                     ))}
                   </select>
-                </td>
-                <td>
-                  <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={format.isActive}
-                      onChange={(event) =>
-                        void aendereFormat(format.id, { isActive: event.target.checked })
-                      }
-                    />
-                  </label>
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="button button--ghost"
-                    onClick={() => void loesche(format)}
-                  >
-                    Löschen
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {settings.presets.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="faint">
-                  Noch kein Format angelegt.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+                </div>
+              </div>
 
-        {anlegen ? (
-          <div className="card" style={{ padding: 16 }}>
-            <div className="grid-two">
-              <div className="field">
-                <label className="field__label" htmlFor="neu-name">
-                  Name
-                </label>
-                <input
-                  id="neu-name"
-                  className="input"
-                  placeholder="z. B. 720p – Vorschau"
-                  value={entwurf.name}
-                  onChange={(event) => setEntwurf({ ...entwurf, name: event.target.value })}
-                />
-                <p className="hint">Diesen Namen sieht der Kunde im Download-Fenster.</p>
-              </div>
-              <div className="field">
-                <label className="field__label" htmlFor="neu-kante">
-                  Kurze Kante
-                </label>
-                <input
-                  id="neu-kante"
-                  className="input"
-                  type="number"
-                  min={144}
-                  max={4320}
-                  value={entwurf.shortEdge}
-                  onChange={(event) =>
-                    setEntwurf({ ...entwurf, shortEdge: Number(event.target.value) })
-                  }
-                />
-                <p className="hint">
-                  1080 heißt quer 1920×1080 und hoch 1080×1920. Vergrößert wird nie.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid-two">
-              <div className="field">
-                <label className="field__label" htmlFor="neu-bitrate">
-                  Video-Bitrate (kbit/s)
-                </label>
-                <input
-                  id="neu-bitrate"
-                  className="input"
-                  type="number"
-                  min={100}
-                  max={200000}
-                  value={entwurf.videoBitrateKbps}
-                  onChange={(event) =>
-                    setEntwurf({ ...entwurf, videoBitrateKbps: Number(event.target.value) })
-                  }
-                />
-              </div>
-              <div className="field">
-                <label className="field__label" htmlFor="neu-ton">
-                  Ton-Bitrate (kbit/s)
-                </label>
-                <input
-                  id="neu-ton"
-                  className="input"
-                  type="number"
-                  min={32}
-                  max={512}
-                  value={entwurf.audioBitrateKbps}
-                  onChange={(event) =>
-                    setEntwurf({ ...entwurf, audioBitrateKbps: Number(event.target.value) })
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="grid-two">
-              <div className="field">
-                <label className="field__label" htmlFor="neu-preset">
-                  Qualität
-                </label>
-                <select
-                  id="neu-preset"
-                  className="select"
-                  value={entwurf.preset}
-                  onChange={(event) => setEntwurf({ ...entwurf, preset: event.target.value })}
+              <div className="toolbar">
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy || !entwurf.name.trim()}
+                  onClick={() => void legeAn()}
                 >
-                  {X264_PRESETS.map((eintrag) => (
-                    <option key={eintrag} value={eintrag}>
-                      {eintrag}
-                    </option>
-                  ))}
-                </select>
-                <p className="hint">
-                  Langsamer heißt kleinere Datei bei gleichem Bild – und mehr Rechenzeit.
-                </p>
-              </div>
-              <div className="field">
-                <label className="field__label" htmlFor="neu-container">
-                  Container
-                </label>
-                <select
-                  id="neu-container"
-                  className="select"
-                  value={entwurf.container}
-                  onChange={(event) => setEntwurf({ ...entwurf, container: event.target.value })}
+                  Format anlegen
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => {
+                    setAnlegen(false);
+                    setEntwurf({ ...NEUES_FORMAT });
+                  }}
                 >
-                  {RENDITION_CONTAINERS.map((eintrag) => (
-                    <option key={eintrag} value={eintrag}>
-                      .{eintrag}
-                    </option>
-                  ))}
-                </select>
+                  Abbrechen
+                </button>
               </div>
             </div>
+          ) : (
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => setAnlegen(true)}
+            >
+              Format hinzufügen …
+            </button>
+          )}
 
-            <div className="toolbar">
-              <button
-                type="button"
-                className="button"
-                disabled={busy || !entwurf.name.trim()}
-                onClick={() => void legeAn()}
-              >
-                Format anlegen
-              </button>
-              <button
-                type="button"
-                className="button button--ghost"
-                onClick={() => {
-                  setAnlegen(false);
-                  setEntwurf({ ...NEUES_FORMAT });
-                }}
-              >
-                Abbrechen
-              </button>
-            </div>
+          <label className="switch" style={{ margin: '18px 0 6px' }}>
+            <input
+              type="checkbox"
+              checked={form.downloadFinalOnly}
+              onChange={(event) => setForm({ ...form, downloadFinalOnly: event.target.checked })}
+            />
+            Verschiedene Formate nur für Endfassungen anbieten
+          </label>
+          <p className="hint" style={{ margin: '0 0 16px 28px' }}>
+            An Zwischenständen bleibt es dann beim Original. Wird der Endfassungs-Haken später
+            gesetzt, geht es genau dann los.
+          </p>
+
+          <div className="field" style={{ maxWidth: 420 }}>
+            <label className="field__label" htmlFor="download-zeitplan">
+              Wann sollen die Formate gerechnet werden?
+            </label>
+            <select
+              id="download-zeitplan"
+              className="select"
+              value={form.downloadTiming}
+              onChange={(event) => setzeZeitplan('download', event.target.value)}
+            >
+              <option value="on-demand">Erst beim Download</option>
+              <option value="upload">Direkt beim Upload</option>
+              <option value="schedule">Nach Zeitplan</option>
+            </select>
+            <p className="hint">{ERKLAERUNG_DOWNLOAD[form.downloadTiming] ?? ''}</p>
           </div>
-        ) : (
-          <button type="button" className="button button--ghost" onClick={() => setAnlegen(true)}>
-            Format hinzufügen …
-          </button>
-        )}
+
+          {form.downloadTiming === 'schedule' ? (
+            <Zeitfenster
+              idPrefix="download"
+              von={form.downloadWindowStart}
+              bis={form.downloadWindowEnd}
+              unvollstaendig={downloadFensterUnvollstaendig}
+              onVon={(wert) => setForm({ ...form, downloadWindowStart: wert })}
+              onBis={(wert) => setForm({ ...form, downloadWindowEnd: wert })}
+            />
+          ) : null}
+        </fieldset>
       </div>
 
-      {/* ---------- Wann und wofür gearbeitet wird ---------- */}
-      <form
-        className="card"
-        style={{ padding: 20, marginBottom: 16 }}
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-      >
-        <h3 style={{ margin: '0 0 4px' }}>Wann gerechnet wird</h3>
-        <p className="hint" style={{ marginTop: 0 }}>
-          Betrifft nur, worauf niemand wartet: die Vorab-Erzeugung und die adaptive Stufenleiter.
-          Die Abspielfassung nach dem Hochladen und ein angefordertes Format laufen immer sofort –
-          sonst stünde der Kunde acht Stunden vor einem leeren Fortschrittsbalken.
-        </p>
-
-        <label className="switch" style={{ marginBottom: 10 }}>
-          <input
-            type="checkbox"
-            checked={form.downloadPrebuild}
-            onChange={(event) => setForm({ ...form, downloadPrebuild: event.target.checked })}
-          />
-          Kleinere Fassungen direkt beim Upload erstellen
-        </label>
-        <p className="hint" style={{ margin: '0 0 14px 28px' }}>
-          Der Download geht dann ohne Wartezeit los. Die Abspielfassung behält immer Vorrang – die
-          Formate rücken in der Warteschlange nach hinten.
-        </p>
-
-        <label className="switch" style={{ marginBottom: 16 }}>
-          <input
-            type="checkbox"
-            checked={form.downloadFinalOnly}
-            disabled={!form.downloadPrebuild}
-            onChange={(event) => setForm({ ...form, downloadFinalOnly: event.target.checked })}
-          />
-          Nur für Endfassungen
-        </label>
-
-        <div className="grid-two">
-          <div className="field">
-            <label className="field__label" htmlFor="fenster-von">
-              Zeitfenster ab
-            </label>
-            <input
-              id="fenster-von"
-              className="input"
-              type="time"
-              value={form.windowStart}
-              onChange={(event) => setForm({ ...form, windowStart: event.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor="fenster-bis">
-              bis
-            </label>
-            <input
-              id="fenster-bis"
-              className="input"
-              type="time"
-              value={form.windowEnd}
-              onChange={(event) => setForm({ ...form, windowEnd: event.target.value })}
-            />
-          </div>
-        </div>
-        <p className="hint" style={{ marginTop: 0 }}>
-          Beide leer heißt: jederzeit. Ein Beginn hinter dem Ende meint die Nacht, etwa 22:00 bis
-          06:00. Gerechnet wird in der Ortszeit des Containers.
-        </p>
-        {fensterUnvollstaendig ? (
-          <div className="notice" style={{ marginBottom: 12 }}>
-            Beide Zeiten angeben – oder beide leer lassen.
-          </div>
-        ) : null}
-
-        <h3 style={{ margin: '18px 0 4px' }}>Adaptive Wiedergabe (HLS)</h3>
+      {/* ---------- Adaptive Wiedergabe ---------- */}
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ margin: '0 0 4px' }}>Adaptive Wiedergabe (HLS)</h3>
         <p className="hint" style={{ marginTop: 0 }}>
           Eine Stufenleiter aus 2160p/1080p/720p/480p, aus der der Player je nach Leitung wählt.
           Sie kostet einen zweiten vollen Durchlauf über das Original und entsteht deshalb als
-          Nacharbeit – die Fassung ist vorher schon abspielbar.
+          Nacharbeit – die Fassung ist vorher schon abspielbar, der Proxy genügt dafür.
         </p>
-        <label className="switch" style={{ marginBottom: 6 }}>
-          <input
-            type="checkbox"
-            checked={form.hlsEnabled}
-            onChange={(event) => setForm({ ...form, hlsEnabled: event.target.checked })}
-          />
-          Stufenleiter erzeugen
-        </label>
-        {settings.hlsFromEnv ? (
-          <p className="hint" style={{ margin: '0 0 12px 28px' }}>
+
+        <div className="field" style={{ maxWidth: 420 }}>
+          <label className="field__label" htmlFor="hls-zeitplan">
+            Wann soll die Stufenleiter gerechnet werden?
+          </label>
+          <select
+            id="hls-zeitplan"
+            className="select"
+            value={form.hlsMode}
+            onChange={(event) => setzeZeitplan('hls', event.target.value)}
+          >
+            <option value="off">Nicht rechnen</option>
+            <option value="upload">Direkt nach dem Upload</option>
+            <option value="schedule">Nach Zeitplan</option>
+          </select>
+          <p className="hint">{ERKLAERUNG_HLS[form.hlsMode] ?? ''}</p>
+        </div>
+
+        {settings.hlsModeFromEnv ? (
+          <p className="hint" style={{ marginTop: 0 }}>
             Steht gerade auf dem Wert aus <code>HLS_ENABLED</code> in der <code>.env</code>. Sobald
             hier gespeichert wird, gilt diese Einstellung.
           </p>
         ) : null}
 
-        <h3 style={{ margin: '18px 0 4px' }}>Abspielfassung</h3>
+        {form.hlsMode === 'schedule' ? (
+          <Zeitfenster
+            idPrefix="hls"
+            von={form.hlsWindowStart}
+            bis={form.hlsWindowEnd}
+            unvollstaendig={hlsFensterUnvollstaendig}
+            onVon={(wert) => setForm({ ...form, hlsWindowStart: wert })}
+            onBis={(wert) => setForm({ ...form, hlsWindowEnd: wert })}
+          />
+        ) : null}
+      </div>
+
+      {/* ---------- Abspielfassung ---------- */}
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <h3 style={{ margin: '0 0 4px' }}>Abspielfassung</h3>
+        <p className="hint" style={{ marginTop: 0 }}>
+          Der 1080p-Proxy, den jeder im Browser zu sehen bekommt. Er entsteht immer sofort nach dem
+          Hochladen und hat vor aller Nacharbeit Vorrang – deshalb steht hier kein Zeitplan.
+        </p>
+
         <div className="notice" style={{ marginBottom: 12 }}>
           Diese Werte am besten so lassen. Sie bestimmen, was jeder im Browser zu sehen bekommt –
           und was bereits verarbeitet wurde, ändert sich rückwirkend nicht mit.
@@ -551,9 +613,7 @@ export function TranscodePanel() {
               min={144}
               max={4320}
               value={form.proxyShortEdge}
-              onChange={(event) =>
-                setForm({ ...form, proxyShortEdge: Number(event.target.value) })
-              }
+              onChange={(event) => setForm({ ...form, proxyShortEdge: Number(event.target.value) })}
             />
           </div>
           <div className="field">
@@ -591,16 +651,100 @@ export function TranscodePanel() {
             ))}
           </select>
         </div>
+      </div>
 
-        <div className="toolbar" style={{ marginTop: 8 }}>
-          <button type="submit" className="button" disabled={busy || fensterUnvollstaendig}>
-            Speichern
-          </button>
-          <span className="faint" style={{ fontSize: 12 }}>
-            Änderungen greifen ab dem nächsten Auftrag – ein Neustart ist nicht nötig.
-          </span>
+      <div className="toolbar" style={{ marginTop: 8 }}>
+        <button type="submit" className="button" disabled={busy || unvollstaendig}>
+          Speichern
+        </button>
+        <span className="faint" style={{ fontSize: 12 }}>
+          Änderungen greifen ab dem nächsten Auftrag – ein Neustart ist nicht nötig.
+        </span>
+      </div>
+    </form>
+  );
+}
+
+/** Die Zeilen unter den Formaten und unter der Stufenleiter sind dieselben. */
+function Zeitfenster({
+  idPrefix,
+  von,
+  bis,
+  unvollstaendig,
+  onVon,
+  onBis,
+}: {
+  idPrefix: string;
+  von: string;
+  bis: string;
+  unvollstaendig: boolean;
+  onVon: (wert: string) => void;
+  onBis: (wert: string) => void;
+}) {
+  return (
+    <>
+      <div className="grid-two" style={{ maxWidth: 420 }}>
+        <div className="field">
+          <label className="field__label" htmlFor={`${idPrefix}-fenster-von`}>
+            Ab
+          </label>
+          <input
+            id={`${idPrefix}-fenster-von`}
+            className="input"
+            type="time"
+            value={von}
+            onChange={(event) => onVon(event.target.value)}
+          />
         </div>
-      </form>
+        <div className="field">
+          <label className="field__label" htmlFor={`${idPrefix}-fenster-bis`}>
+            bis
+          </label>
+          <input
+            id={`${idPrefix}-fenster-bis`}
+            className="input"
+            type="time"
+            value={bis}
+            onChange={(event) => onBis(event.target.value)}
+          />
+        </div>
+      </div>
+      <p className="hint" style={{ marginTop: 0 }}>
+        Ein Beginn hinter dem Ende meint die Nacht, etwa 22:00 bis 06:00. Gerechnet wird in der
+        Ortszeit des Containers.
+      </p>
+      {unvollstaendig ? (
+        <div className="notice" style={{ marginBottom: 12 }}>
+          Beide Zeiten angeben – oder beide leer lassen.
+        </div>
+      ) : null}
     </>
   );
 }
+
+/**
+ * In der Tabelle wird ein Feld beim Verlassen gespeichert. Ohne das hier
+ * würde die Eingabetaste stattdessen das umgebende Formular abschicken.
+ */
+function beendeMitEingabe(event: KeyboardEvent<HTMLInputElement>) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    event.currentTarget.blur();
+  }
+}
+
+const ERKLAERUNG_DOWNLOAD: Record<string, string> = {
+  'on-demand':
+    'Nichts entsteht im Voraus. Wer ein Format anfordert, wartet einmal darauf – danach liegt es bereit.',
+  upload:
+    'Die Formate entstehen gleich nach dem Hochladen, der Download geht später ohne Wartezeit los. Die Abspielfassung behält immer Vorrang.',
+  schedule:
+    'Die Formate entstehen erst im Zeitfenster – für Anlagen, auf denen tagsüber gearbeitet wird. Ein ausdrücklich angefordertes Format läuft trotzdem sofort.',
+};
+
+const ERKLAERUNG_HLS: Record<string, string> = {
+  off: 'Der Player nimmt die Abspielfassung. Für die meisten Anlagen genügt das.',
+  upload: 'Die Stufenleiter entsteht als Nacharbeit, sobald die Abspielfassung steht.',
+  schedule:
+    'Die Stufenleiter entsteht erst im Zeitfenster. Bis dahin spielt der Player die Abspielfassung – zu sehen ist der Unterschied nur bei schmaler Leitung.',
+};

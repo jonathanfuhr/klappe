@@ -180,7 +180,9 @@ export class RenditionsService {
    */
   async prebuildFor(versionId: string): Promise<number> {
     const einstellungen = await this.settings.effective();
-    if (!einstellungen.downloadFormatsEnabled || !einstellungen.downloadPrebuild) return 0;
+    // `on-demand` heißt: gar nicht im Voraus, erst wenn jemand klickt.
+    if (!einstellungen.downloadFormatsEnabled) return 0;
+    if (einstellungen.downloadTiming === 'on-demand') return 0;
 
     const [version] = await this.db
       .select()
@@ -196,7 +198,7 @@ export class RenditionsService {
       .where(eq(downloadPresets.isActive, true));
     if (presets.length === 0) return 0;
 
-    const delayMs = delayUntilWindow(new Date(), einstellungen.window);
+    const delayMs = delayUntilWindow(new Date(), einstellungen.downloadWindow);
     let eingereiht = 0;
     for (const preset of presets) {
       const vorher = await this.findRendition(versionId, preset.id);

@@ -497,6 +497,30 @@ export const RENDITION_CONTAINERS = ['mp4', 'mov'] as const;
 export type RenditionContainer = (typeof RENDITION_CONTAINERS)[number];
 
 /**
+ * Wann die Download-Formate entstehen (Phase 20).
+ *
+ * Vorher waren das zwei voneinander unabhängige Schalter – ein Haken
+ * „direkt beim Upload erstellen" und ein Zeitfenster daneben, das für alle
+ * Nacharbeit zugleich galt. Beides zusammen ergab Kombinationen, die sich
+ * widersprachen (direkt beim Upload *und* nur nachts?). Als eine Auswahl aus
+ * drei sich ausschließenden Möglichkeiten kann das nicht mehr passieren.
+ */
+export const TRANSCODE_TIMINGS = ['on-demand', 'upload', 'schedule'] as const;
+export type TranscodeTiming = (typeof TRANSCODE_TIMINGS)[number];
+
+/** Dasselbe für die HLS-Stufenleiter, die zusätzlich ganz aus sein darf. */
+export const HLS_MODES = ['off', 'upload', 'schedule'] as const;
+export type HlsMode = (typeof HLS_MODES)[number];
+
+/**
+ * Vorbelegung, sobald jemand „nach Zeitplan" wählt, ohne Uhrzeiten zu setzen.
+ * Ein Zeitplan ohne Zeiten wäre sonst ein Schalter, der nichts tut – genau
+ * die Undurchsichtigkeit, die weg soll.
+ */
+export const DEFAULT_TRANSCODE_WINDOW_START = '22:00';
+export const DEFAULT_TRANSCODE_WINDOW_END = '06:00';
+
+/**
  * Ein Download-Format, wie der Admin es angelegt hat (Phase 19). Wer nur
  * herunterlädt, bekommt davon `id`, `name` und `shortEdge` zu sehen – Bitrate
  * und Preset sind Sache der Einrichtung.
@@ -556,13 +580,15 @@ export interface VersionDownloadsDto {
  */
 export interface TranscodeSettingsDto {
   downloadFormatsEnabled: boolean;
-  downloadPrebuild: boolean;
   downloadFinalOnly: boolean;
-  /** `HH:MM` oder `null` – beide `null` heißt: jederzeit. */
-  windowStart: string | null;
-  windowEnd: string | null;
-  hlsEnabled: boolean;
-  hlsFromEnv: boolean;
+  downloadTiming: TranscodeTiming;
+  /** `HH:MM` oder `null`. Nur bei `schedule` von Belang. */
+  downloadWindowStart: string | null;
+  downloadWindowEnd: string | null;
+  hlsMode: HlsMode;
+  hlsModeFromEnv: boolean;
+  hlsWindowStart: string | null;
+  hlsWindowEnd: string | null;
   proxyShortEdge: number;
   proxyShortEdgeFromEnv: boolean;
   proxyVideoBitrateKbps: number;

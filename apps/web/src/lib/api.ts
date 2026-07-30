@@ -502,12 +502,14 @@ export const api = {
   getTranscodeSettings: () => request<TranscodeSettingsDto>('/v1/settings/transcode'),
   updateTranscodeSettings: (input: {
     downloadFormatsEnabled?: boolean;
-    downloadPrebuild?: boolean;
     downloadFinalOnly?: boolean;
+    downloadTiming?: string;
     /** `HH:MM`; ein leerer String löscht das Zeitfenster. */
-    windowStart?: string;
-    windowEnd?: string;
-    hlsEnabled?: boolean;
+    downloadWindowStart?: string;
+    downloadWindowEnd?: string;
+    hlsMode?: string;
+    hlsWindowStart?: string;
+    hlsWindowEnd?: string;
     proxyShortEdge?: number;
     proxyVideoBitrateKbps?: number;
     proxyPreset?: string;
