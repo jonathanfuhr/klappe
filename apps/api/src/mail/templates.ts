@@ -316,6 +316,55 @@ export function renderProjectFileMail(input: {
   };
 }
 
+// ---------- Zugang freigeschaltet (Phase 20) ----------
+
+/**
+ * „Du kannst jetzt auch X sehen."
+ *
+ * Wird verschickt, wenn ein Gast über „Bekannte Gäste" hinzugenommen oder
+ * sein Zugriff erweitert wird. Beides passiert ohne neuen Link – bis Phase 19
+ * erfuhr der Gast davon deshalb gar nichts, und ein Zugang, von dem niemand
+ * weiß, ist keiner.
+ *
+ * Bewusst ohne Code und ohne Adresse zum Einlösen: Der Gast hat seinen Zugang
+ * schon, er meldet sich an wie immer. Eine Mail, die nach einer neuen
+ * Einladung aussieht, würde nur die Frage aufwerfen, was mit der alten ist.
+ */
+export function renderAccessGrantedMail(input: {
+  recipientName: string;
+  /** Was jetzt offensteht – ein Projektname oder „3 Videos in …". */
+  targetName: string;
+  /** Wer freigegeben hat; steht im Text, damit die Mail nicht anonym wirkt. */
+  actorName: string;
+  url: string;
+  unsubscribeUrl: string;
+  brand?: MailBrand;
+}): RenderedMail {
+  const intro = `${input.actorName} hat „${input.targetName}“ für dich freigegeben.`;
+
+  return {
+    subject: `Freigeschaltet: ${input.targetName}`,
+    text: [
+      `Hallo ${input.recipientName},`,
+      '',
+      intro,
+      'Du brauchst dafür keinen neuen Link – melde dich an wie gewohnt.',
+      '',
+      `Direkt hin: ${input.url}`,
+      '',
+      `Keine solchen Mails mehr: ${input.unsubscribeUrl}`,
+    ].join('\n'),
+    html: layout({
+      brand: input.brand,
+      title: intro,
+      body: paragraph('Du brauchst dafür keinen neuen Link – melde dich an wie gewohnt.'),
+      buttonLabel: 'Ansehen',
+      buttonUrl: input.url,
+      unsubscribeUrl: input.unsubscribeUrl,
+    }),
+  };
+}
+
 // ---------- Testmail ----------
 
 export function renderTestMail(input: {

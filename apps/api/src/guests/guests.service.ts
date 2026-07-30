@@ -15,8 +15,11 @@ import {
 } from '@nestjs/common';
 import type { GuestAccessDto, GuestCandidateDto, GuestOverviewDto } from '@klappe/shared';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import { projects, shareLinkGrants, shareLinks, users, videos } from '../db/schema';
+import { MailService } from '../mail/mail.service';
+import { renderAccessGrantedMail } from '../mail/templates';
 import { createShareToken } from '../shares/share-token';
 import { isLinkActive } from '../shares/shares.service';
 import { type GuestGrantRow, summarizeGuests } from './guest-summary';
@@ -25,7 +28,11 @@ import { type GuestGrantRow, summarizeGuests } from './guest-summary';
 export class GuestsService {
   private readonly logger = new Logger(GuestsService.name);
 
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    @Inject(CONFIG) private readonly config: AppConfig,
+    private readonly mailService: MailService,
+  ) {}
 
   /** Alle Gäste, die dieses Projekt erreichen – auch über Videofreigaben darin. */
   async listForProject(projectId: string): Promise<GuestAccessDto[]> {
@@ -190,8 +197,14 @@ export class GuestsService {
     userId: string,
     ziel: { scope: 'PROJECT' } | { scope: 'VIDEO'; videoIds: string[] },
     actorId: string,
-    /** Ohne Angabe: übernehmen, was der Gast im Projekt schon darf. */
-    wunschRechte?: { allowComments?: boolean; allowDownload?: boolean; allowUpload?: boolean },
+    optionen?: {
+      /** Ohne Angabe: übernehmen, was der Gast im Projekt schon darf. */
+      allowComments?: boolean;
+      allowDownload?: boolean;
+      allowUpload?: boolean;
+      /** Dem Gast per Mail Bescheid geben (Phase 20). Ohne Angabe: ja. */
+      benachrichtigen?: boolean;
+    },
   ): Promise<GuestAccessDto[]> {
     const bisher = (await this.listForProject(projectId)).find(
       (eintrag) => eintrag.user.id === userId,
@@ -212,11 +225,11 @@ export class GuestsService {
     const rechte = {
       // Ein hinzugenommener Gast darf erst einmal nur schauen und
       // kommentieren; alles Weitere ist eine eigene Entscheidung.
-      allowComments: wunschRechte?.allowComments ?? bisher?.canComment ?? true,
-      allowDownload: wunschRechte?.allowDownload ?? bisher?.canDownload ?? false,
+      allowComments: optionen?.allowComments ?? bisher?.canComment ?? true,
+      allowDownload: optionen?.allowDownload ?? bisher?.canDownload ?? false,
       // Hochladen hängt am Projekt; bei einer Erweiterung auf Videos bleibt es aus.
       allowUpload:
-        ziel.scope === 'PROJECT' ? (wunschRechte?.allowUpload ?? bisher?.canUpload ?? false) : false,
+        ziel.scope === 'PROJECT' ? (optionen?.allowUpload ?? bisher?.canUpload ?? false) : false,
     };
 
     const ziele: { scope: 'PROJECT' | 'VIDEO'; id: string }[] =
@@ -239,7 +252,95 @@ export class GuestsService {
     this.logger.log(
       `Gast ${userId} erweitert auf ${ziel.scope === 'PROJECT' ? `Projekt ${projectId}` : `${ziele.length} Video(s)`}.`,
     );
+
+    if (optionen?.benachrichtigen !== false) {
+      await this.meldeZugang(userId, projectId, ziele, actorId);
+    }
     return this.listForProject(projectId);
+  }
+
+  /**
+   * Dem Gast sagen, dass etwas Neues für ihn offensteht (Phase 20).
+   *
+   * Bis dahin geschah das lautlos: Ein Klick in der Gästeliste öffnete einen
+   * Zugang, von dem der Gast nichts erfuhr – er hätte von selbst nachsehen
+   * müssen. Die Mail trägt keinen Code und keinen neuen Link; der Gast hat
+   * seinen Zugang ja schon und meldet sich an wie immer.
+   *
+   * Scheitert der Versand, bleibt die Freigabe trotzdem bestehen. Sie ist die
+   * Hauptsache, die Mail nur der Hinweis darauf – ein stummer Mailserver darf
+   * nicht dazu führen, dass der Klick als Ganzes fehlschlägt.
+   */
+  private async meldeZugang(
+    userId: string,
+    projectId: string,
+    ziele: { scope: 'PROJECT' | 'VIDEO'; id: string }[],
+    actorId: string,
+  ): Promise<void> {
+    try {
+      if (!(await this.mailService.isReady())) return;
+
+      const [gast] = await this.db
+        .select({
+          name: users.name,
+          email: users.email,
+          isActive: users.isActive,
+          notificationsEnabled: users.notificationsEnabled,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      // Wer abbestellt hat oder gesperrt ist, bekommt nichts. Der Zugang
+      // steht trotzdem – er ist von der Mail unabhängig.
+      if (!gast || !gast.isActive || !gast.notificationsEnabled) return;
+
+      const [projekt] = await this.db
+        .select({ name: projects.name })
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .limit(1);
+      if (!projekt) return;
+
+      const [actor] = await this.db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.id, actorId))
+        .limit(1);
+
+      const videoZiele = ziele.filter((eintrag) => eintrag.scope === 'VIDEO');
+      let targetName = projekt.name;
+      let url = `${this.config.publicUrl}/projekte/${projectId}`;
+
+      if (videoZiele.length === 1) {
+        const [video] = await this.db
+          .select({ name: videos.name })
+          .from(videos)
+          .where(eq(videos.id, videoZiele[0].id))
+          .limit(1);
+        // Ein einzelnes Video beim Namen nennen und direkt dorthin führen –
+        // „Projekt X" wäre irreführend, er sieht ja nur dieses eine.
+        if (video) {
+          targetName = `${video.name} (${projekt.name})`;
+          url = `${this.config.publicUrl}/videos/${videoZiele[0].id}`;
+        }
+      } else if (videoZiele.length > 1) {
+        targetName = `${videoZiele.length} Videos in ${projekt.name}`;
+      }
+
+      await this.mailService.send(
+        gast.email,
+        renderAccessGrantedMail({
+          brand: await this.mailService.brand(),
+          recipientName: gast.name,
+          targetName,
+          actorName: actor?.name ?? 'Jemand aus dem Team',
+          url,
+          unsubscribeUrl: this.mailService.unsubscribeUrl(userId),
+        }),
+      );
+    } catch (error) {
+      this.logger.warn(`Hinweis auf den neuen Zugang ging nicht raus (${userId}): ${String(error)}`);
+    }
   }
 
   /** Die Videos müssen zu diesem Projekt gehören – sonst wäre es ein Ausbruch. */

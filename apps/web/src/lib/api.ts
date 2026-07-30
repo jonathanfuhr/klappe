@@ -360,7 +360,10 @@ export const api = {
   extendProjectGuest: (
     projectId: string,
     userId: string,
-    input: { scope: 'PROJECT' } | { scope: 'VIDEO'; videoIds: string[] },
+    input: ({ scope: 'PROJECT' } | { scope: 'VIDEO'; videoIds: string[] }) & {
+      /** Dem Gast per Mail Bescheid geben (Phase 20). Ohne Angabe: ja. */
+      notify?: boolean;
+    },
   ) =>
     request<GuestAccessDto[]>(`/v1/projects/${projectId}/guests/${userId}/erweitern`, {
       method: 'POST',

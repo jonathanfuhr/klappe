@@ -79,6 +79,8 @@ export function SharePanel({
   const [verwaltung, setVerwaltung] = useState(false);
   /** Für welchen Gast ist der Erweitern-Kasten aufgeklappt? */
   const [erweitert, setErweitert] = useState<string | null>(null);
+  /** Bekommt der Gast einen Hinweis per Mail? (Phase 20) */
+  const [bescheid, setBescheid] = useState(true);
   const [videos, setVideos] = useState<VideoDto[]>([]);
   const [gewaehlt, setGewaehlt] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -137,7 +139,7 @@ export function SharePanel({
   ) => {
     setBusy(true);
     try {
-      setGuests(await api.extendProjectGuest(projectId, userId, ziel));
+      setGuests(await api.extendProjectGuest(projectId, userId, { ...ziel, notify: bescheid }));
       setErweitert(null);
       setGewaehlt([]);
       setError(null);
@@ -259,6 +261,18 @@ export function SharePanel({
                     <div className="faint" style={{ fontSize: 12, marginBottom: 6 }}>
                       Zugriff erweitern – ohne neuen Link, der Gast bleibt angemeldet.
                     </div>
+
+                    {/* Sichtbar, bevor der Klick kommt: Sonst ginge unbemerkt
+                        Post an den Kunden raus (Phase 20). */}
+                    <label className="switch" style={{ marginBottom: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={bescheid}
+                        disabled={busy}
+                        onChange={(event) => setBescheid(event.target.checked)}
+                      />
+                      Per Mail Bescheid geben
+                    </label>
 
                     <button
                       type="button"

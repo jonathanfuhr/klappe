@@ -374,6 +374,8 @@ function BekannteGaeste({
   const [kunde, setKunde] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  /** Bekommt der Gast einen Hinweis per Mail? (Phase 20) */
+  const [bescheid, setBescheid] = useState(true);
 
   const laden = useCallback(async () => {
     try {
@@ -400,7 +402,9 @@ function BekannteGaeste({
       await api.extendProjectGuest(
         projectId,
         userId,
-        videoId ? { scope: 'VIDEO', videoIds: [videoId] } : { scope: 'PROJECT' },
+        videoId
+          ? { scope: 'VIDEO', videoIds: [videoId], notify: bescheid }
+          : { scope: 'PROJECT', notify: bescheid },
       );
       await Promise.all([laden(), onAdded()]);
     } catch (addError) {
@@ -444,6 +448,17 @@ function BekannteGaeste({
               : `Gäste aus anderen Projekten von „${kunde}“. Ein Klick gibt das ganze Projekt frei – ohne neuen Link, sie melden sich mit ihrem bestehenden Zugang an.`}{' '}
             Kommentieren ist dabei, Download und Kunden-Upload bleiben zunächst aus.
           </p>
+
+          {/* Sichtbar, bevor der Klick kommt: Sonst ginge unbemerkt Post an den
+              Kunden raus (Phase 20). */}
+          <label className="switch" style={{ margin: '0 0 8px' }}>
+            <input
+              type="checkbox"
+              checked={bescheid}
+              onChange={(event) => setBescheid(event.target.checked)}
+            />
+            Per Mail Bescheid geben
+          </label>
           {kandidaten.map((eintrag) => (
             <div key={eintrag.user.id} className="guest">
               <div className="toolbar" style={{ gap: 8 }}>

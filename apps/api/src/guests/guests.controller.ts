@@ -45,6 +45,14 @@ class ExtendGuestDto {
   @IsOptional()
   @IsBoolean()
   allowUpload?: boolean;
+
+  /**
+   * Dem Gast per Mail sagen, dass etwas Neues für ihn offensteht (Phase 20).
+   * Ohne Angabe: ja – ein Zugang, von dem niemand weiß, ist keiner.
+   */
+  @IsOptional()
+  @IsBoolean()
+  notify?: boolean;
 }
 
 /** `null` setzt das Recht zurück auf „wie der Link". */
@@ -102,7 +110,8 @@ export class GuestsController {
 
   /**
    * Einen vorhandenen Gast erweitern – aufs ganze Projekt oder auf einzelne
-   * weitere Videos. Ohne neuen Link, ohne neue Mail (Phase 18).
+   * weitere Videos. Ohne neuen Link und ohne neue Anmeldung (Phase 18); seit
+   * Phase 20 bekommt der Gast auf Wunsch einen kurzen Hinweis per Mail.
    */
   @Post('projects/:projectId/guests/:userId/erweitern')
   extend(
@@ -122,6 +131,7 @@ export class GuestsController {
         allowComments: dto.allowComments,
         allowDownload: dto.allowDownload,
         allowUpload: dto.allowUpload,
+        benachrichtigen: dto.notify,
       },
     );
   }
