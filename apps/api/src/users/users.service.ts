@@ -33,8 +33,19 @@ export class UsersService {
     return { id: row.id, name: row.name, email: row.email, role: row.role };
   }
 
+  /**
+   * Die Konten des Teams. Gäste stehen seit Phase 20 nicht mehr dabei: Sie
+   * sind Kundschaft, nicht Belegschaft, haben ihre eigene Seite mit den
+   * Angaben, die dort zählen (über welche Freigabe, wann zuletzt da) – und
+   * bei einem Dutzend Projekten waren sie in dieser Liste schlicht die
+   * Mehrheit.
+   */
   async list(): Promise<UserDto[]> {
-    const rows = await this.db.select().from(users).orderBy(asc(users.name));
+    const rows = await this.db
+      .select()
+      .from(users)
+      .where(ne(users.role, 'GUEST'))
+      .orderBy(asc(users.name));
     return rows.map((row) => this.toDto(row));
   }
 

@@ -39,8 +39,8 @@ export function UsersPanel() {
           <div>
             <h2 className="page__title" style={{ fontSize: 20 }}>Benutzer</h2>
             <p className="page__subtitle">
-              Team-Mitglieder sehen alle Projekte des Workspace. Gastzugänge über Freigaben folgen in
-              Phase 6.
+              Team-Mitglieder sehen alle Projekte des Workspace. Gäste stehen nicht hier, sondern
+              unter <strong>Gäste</strong> – sie sind Kundschaft, keine Belegschaft.
             </p>
           </div>
           <div className="shell__spacer" />
@@ -75,8 +75,21 @@ export function UsersPanel() {
                       style={{ width: 'auto', padding: '4px 8px' }}
                       value={user.role}
                       onChange={(event) => {
+                        const rolle = event.target.value as UserRole;
+                        // Ein Konto, das zum Gast wird, verschwindet aus dieser
+                        // Liste – das soll niemanden erschrecken.
+                        if (
+                          rolle === 'GUEST' &&
+                          !window.confirm(
+                            `„${user.name}“ zum Gast machen?\n\n` +
+                              'Die Person sieht dann nur noch, wofür sie ausdrücklich freigegeben ' +
+                              'ist, und das Konto wandert in die Liste „Gäste“.',
+                          )
+                        ) {
+                          return;
+                        }
                         void api
-                          .updateUser(user.id, { role: event.target.value as UserRole })
+                          .updateUser(user.id, { role: rolle })
                           .then(load)
                           .catch((updateError: unknown) =>
                             setError(
