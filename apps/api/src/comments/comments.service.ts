@@ -185,8 +185,8 @@ export class CommentsService {
     scope: AccessScope,
   ): Promise<CommentDto> {
     const row = await this.getRowOrFail(id);
-    await this.accessService.requireVersion(scope, row.versionId);
-    this.assertMayModify(row, user);
+    const access = await this.accessService.requireVersion(scope, row.versionId);
+    this.assertMayModify(row, user, scope, access.projectId);
 
     const [updated] = await this.db
       .update(comments)
@@ -215,8 +215,8 @@ export class CommentsService {
    */
   async remove(id: string, user: RequestUser, scope: AccessScope): Promise<void> {
     const row = await this.getRowOrFail(id);
-    await this.accessService.requireVersion(scope, row.versionId);
-    this.assertMayModify(row, user);
+    const access = await this.accessService.requireVersion(scope, row.versionId);
+    this.assertMayModify(row, user, scope, access.projectId);
     await this.db
       .update(comments)
       .set({ deletedAt: new Date(), updatedAt: new Date() })
@@ -378,11 +378,21 @@ export class CommentsService {
     return version;
   }
 
-  /** Ändern und Löschen darf der Verfasser – und Admins zum Aufräumen. */
-  private assertMayModify(row: CommentRow, user: RequestUser): void {
-    if (row.authorId !== user.id && user.role !== 'ADMIN') {
-      throw new ForbiddenException('Nur der Verfasser kann diesen Kommentar ändern.');
-    }
+  /**
+   * Ändern und Löschen darf der Verfasser, ein Admin zum Aufräumen – und seit
+   * Phase 21 ein externer Projektadmin, für genau das Projekt, in dem der
+   * Kommentar steht.
+   */
+  private assertMayModify(
+    row: CommentRow,
+    user: RequestUser,
+    scope: AccessScope,
+    projectId: string,
+  ): void {
+    if (row.authorId === user.id) return;
+    if (user.role === 'ADMIN') return;
+    if (this.accessService.canManageProject(scope, projectId)) return;
+    throw new ForbiddenException('Nur der Verfasser kann diesen Kommentar ändern.');
   }
 
   private toDto(

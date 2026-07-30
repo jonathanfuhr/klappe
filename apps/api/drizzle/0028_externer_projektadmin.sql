@@ -1,0 +1,1 @@
+ALTER TABLE "share_link_grants" ADD COLUMN "project_admin" boolean DEFAULT false NOT NULL;

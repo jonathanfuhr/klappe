@@ -97,42 +97,79 @@ export function FieldsPanel() {
           </p>
         ) : (
           <div className="list" style={{ marginTop: 8 }}>
-            {fields.map((field) => (
-              <div key={field.id} className="filelist__row">
-                <span style={{ flex: 1 }}>{field.name}</span>
-                <span className="faint" style={{ fontSize: 13 }}>
-                  {field.projectCount === 0
-                    ? 'unbenutzt'
-                    : `an ${field.projectCount} ${field.projectCount === 1 ? 'Projekt' : 'Projekten'}`}
-                </span>
-                <label
-                  className="switch"
-                  title="Beim Eintippen Werte aus den anderen Projekten vorschlagen – für einen Kundennamen hilfreich, für eine einmalige Projektnummer sinnlos."
-                >
+            {fields.map((field) => {
+              /** Ein Schalter am Feld – speichert sofort und lädt neu. */
+              const schalter = (
+                eigenschaft: 'suggest' | 'sortable' | 'groupable' | 'showOnTile',
+                label: string,
+                title: string,
+              ) => (
+                <label className="switch" title={title}>
                   <input
                     type="checkbox"
-                    checked={field.suggest}
+                    checked={field[eigenschaft]}
                     onChange={(event) => {
                       void api
-                        .updateProjectField(field.id, { suggest: event.target.checked })
+                        .updateProjectField(field.id, { [eigenschaft]: event.target.checked })
                         .then(load)
                         .catch(() => setError('Speichern fehlgeschlagen.'));
                     }}
                   />
-                  Vorschläge
+                  {label}
                 </label>
-                <button type="button" className="button" onClick={() => setUmbenennen(field)}>
-                  Umbenennen
-                </button>
-                <button
-                  type="button"
-                  className="button button--danger"
-                  onClick={() => setLoeschen(field)}
+              );
+
+              return (
+                <div
+                  key={field.id}
+                  className="filelist__row"
+                  style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}
                 >
-                  Löschen
-                </button>
-              </div>
-            ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ flex: 1 }}>{field.name}</span>
+                    <span className="faint" style={{ fontSize: 13 }}>
+                      {field.projectCount === 0
+                        ? 'unbenutzt'
+                        : `an ${field.projectCount} ${field.projectCount === 1 ? 'Projekt' : 'Projekten'}`}
+                    </span>
+                    <button type="button" className="button" onClick={() => setUmbenennen(field)}>
+                      Umbenennen
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--danger"
+                      onClick={() => setLoeschen(field)}
+                    >
+                      Löschen
+                    </button>
+                  </div>
+                  {/* Was das Feld in der Projektliste darf (Phase 22) – plus
+                      die Tippvorschläge aus Phase 16. */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
+                    {schalter(
+                      'suggest',
+                      'Vorschläge',
+                      'Beim Eintippen Werte aus den anderen Projekten vorschlagen – für einen Kundennamen hilfreich, für eine einmalige Projektnummer sinnlos.',
+                    )}
+                    {schalter(
+                      'sortable',
+                      'Sortieren',
+                      'Das Feld in der Sortier-Auswahl der Projektliste anbieten.',
+                    )}
+                    {schalter(
+                      'groupable',
+                      'Gruppieren',
+                      'Das Feld in der Gruppier-Auswahl der Projektliste anbieten.',
+                    )}
+                    {schalter(
+                      'showOnTile',
+                      'Auf der Projektkachel',
+                      'Den eingetragenen Wert auf der Projektkachel anzeigen.',
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </form>

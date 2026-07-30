@@ -103,6 +103,11 @@ export default function HandbuchPage() {
               eine neue Fassung hochgeladen, die alte bleibt erhalten und vergleichbar.
             </p>
             <p>
+              In der Projektliste steht der <strong>Kunde groß über dem Projektnamen</strong>;
+              je nach Einrichtung stehen auf der Kachel auch einzelne benutzerdefinierte Felder,
+              etwa eine Projektnummer.
+            </p>
+            <p>
               Eine Fassung kann als <strong>Endfassung</strong> markiert sein. Ist sie das nicht,
               zeigt Klappe beim Ansehen einen deutlichen Hinweis, dass es sich um einen
               Zwischenstand handelt.
@@ -204,6 +209,20 @@ export default function HandbuchPage() {
               Am Telefon im Querformat passt sich das Layout an; wird es eng, weicht als Erstes
               die Frame-Nummer, der Timecode bleibt immer sichtbar.
             </p>
+            <p>
+              Im <strong>Vollbild</strong> lässt sich weiter kommentieren: Der Kommentar-Knopf
+              (oder <span className="kbd">C</span>) fährt die Kommentarspalte von rechts ins
+              Bild; das Kreuz oben schließt sie wieder.
+            </p>
+            <h3>Wiedergabequalität</h3>
+            <p>
+              Steht für ein Video die adaptive Wiedergabe bereit, erscheint in der Steuerleiste
+              eine <strong>Qualitätswahl</strong>. Auf <strong>Auto</strong> wählt Klappe die
+              Stufe nach der gemessenen Verbindung – die gerade gespielte Stufe steht in
+              Klammern dabei. Wer eine bestimmte Stufe sehen will (etwa garantiert 1080p für
+              die Abnahme), wählt sie fest; <em>Auto</em> gibt die Wahl zurück. In Safari
+              übernimmt der Browser die Wahl selbst, dort gibt es den Umschalter nicht.
+            </p>
           </section>
 
           <section id="kommentieren" className="card manual__section">
@@ -238,6 +257,15 @@ export default function HandbuchPage() {
               Neben dem Player liegt die Spalte <strong>Freigaben</strong> mit allen Personen,
               die Zugriff haben. Ein Zugang lässt sich jederzeit entziehen – das wirkt sofort und
               trifft nur die eine Person.
+            </p>
+            <h3>Externer Projektadmin</h3>
+            <p>
+              Für die Zusammenarbeit mit Agenturen kann das Team einen Gast an seiner
+              Projektfreigabe zum <strong>Externen Projektadmin</strong> machen. Er darf dann in
+              genau diesem Projekt Videos anlegen, eigene Fassungen hochladen und löschen,
+              weiter freigeben und fremde Kommentare verwalten. Projekt und Videos umbenennen
+              oder löschen bleibt dem Team vorbehalten, ebenso das Ändern bestehender
+              Freigabe-Links.
             </p>
             <h3>Eingebetteter Player</h3>
             <p>
@@ -307,8 +335,13 @@ export default function HandbuchPage() {
             <h2>Mein Konto</h2>
             <p>
               Unter <strong>Mein Konto</strong> (Klick auf den eigenen Namen in der Kopfzeile)
-              lässt sich das eigene Passwort ändern. Gäste haben kein Passwort und sehen diesen
-              Punkt deshalb nicht – ihr Zugang läuft über den Mail-Code.
+              lässt sich der eigene <strong>Name</strong> ändern – so, wie er in Kommentaren,
+              Listen und Benachrichtigungen erscheint. Das gilt für Team und Gäste
+              gleichermaßen.
+            </p>
+            <p>
+              Team-Mitglieder ändern dort außerdem ihr <strong>Passwort</strong>. Gäste haben
+              keines – ihr Zugang läuft über den Mail-Code.
             </p>
           </section>
 

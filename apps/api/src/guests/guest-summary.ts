@@ -27,6 +27,8 @@ export interface GuestGrantRow {
   allowComments: boolean;
   allowDownload: boolean;
   allowUpload: boolean;
+  /** Externer Projektadmin (Phase 21) – nur an einer Projektfreigabe möglich. */
+  projectAdmin: boolean;
   /** Weicht diese Person vom Link ab (Phase 16)? Nur für die Anzeige. */
   hasOverride: boolean;
   /** Der Link ist weder zurückgezogen noch abgelaufen. */
@@ -69,6 +71,7 @@ export function summarizeGuests(rows: GuestGrantRow[]): GuestAccessDto[] {
         allowComments: row.allowComments,
         allowDownload: row.allowDownload,
         allowUpload: row.allowUpload,
+        projectAdmin: row.projectAdmin,
         hasOverride: row.hasOverride,
         linkActive: row.linkActive,
         revokedAt: row.revokedAt?.toISOString() ?? null,
@@ -94,6 +97,7 @@ export function summarizeGuests(rows: GuestGrantRow[]): GuestAccessDto[] {
       canComment: wirksam.some((row) => row.allowComments),
       canDownload: wirksam.some((row) => row.allowDownload),
       canUpload: wirksam.some((row) => row.allowUpload),
+      isProjectAdmin: wirksam.some((row) => row.scope === 'PROJECT' && row.projectAdmin),
       firstSeenAt: new Date(
         Math.min(...group.map((row) => row.firstSeenAt.getTime())),
       ).toISOString(),

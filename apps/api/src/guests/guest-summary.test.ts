@@ -16,6 +16,7 @@ function grant(overrides: Partial<GuestGrantRow> = {}): GuestGrantRow {
     allowComments: true,
     allowDownload: false,
     allowUpload: false,
+    projectAdmin: false,
     hasOverride: false,
     linkActive: true,
     revokedAt: null,
@@ -123,6 +124,25 @@ describe('summarizeGuests', () => {
 
   it('macht aus einer leeren Liste eine leere Übersicht', () => {
     expect(summarizeGuests([])).toEqual([]);
+  });
+
+  it('erkennt einen externen Projektadmin nur an einer wirksamen Projektfreigabe', () => {
+    const [projektadmin] = summarizeGuests([grant({ scope: 'PROJECT', projectAdmin: true })]);
+    expect(projektadmin.isProjectAdmin).toBe(true);
+
+    const [videoAdmin] = summarizeGuests([
+      grant({ scope: 'VIDEO', targetId: 'video-1', projectAdmin: true }),
+    ]);
+    expect(videoAdmin.isProjectAdmin).toBe(false);
+
+    const [entzogen] = summarizeGuests([
+      grant({
+        scope: 'PROJECT',
+        projectAdmin: true,
+        revokedAt: new Date('2026-07-02T09:00:00Z'),
+      }),
+    ]);
+    expect(entzogen.isProjectAdmin).toBe(false);
   });
 
   it('trennt verschiedene Gäste sauber', () => {

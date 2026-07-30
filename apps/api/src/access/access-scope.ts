@@ -18,6 +18,11 @@ export interface GrantedShare {
   allowDownload: boolean;
   allowUpload: boolean;
   allowComments: boolean;
+  /**
+   * „Externer Projektadmin" (Phase 21) – nur an einer Projektfreigabe
+   * überhaupt möglich, an einer Videofreigabe immer `false`.
+   */
+  projectAdmin: boolean;
 }
 
 export interface AccessScope {
@@ -114,6 +119,31 @@ export function canUploadToProject(scope: AccessScope, projectId: string): boole
  */
 export function canListAllProjectFiles(scope: AccessScope): boolean {
   return scope.unrestricted;
+}
+
+/**
+ * „Externer Projektadmin" (Phase 21): ein Gast, dem an einer Projektfreigabe
+ * ausdrücklich diese Rolle gegeben wurde. Er darf im Rahmen dieses einen
+ * Projekts, was sonst dem Team vorbehalten ist – Videos anlegen, Fassungen
+ * hochladen und löschen, weiter freigeben, fremde Kommentare verwalten.
+ * Team-Mitglieder sind das ohnehin überall.
+ */
+export function isProjectAdmin(scope: AccessScope, projectId: string): boolean {
+  if (scope.unrestricted) return true;
+  return scope.shares.some(
+    (share) => share.scope === 'PROJECT' && share.projectId === projectId && share.projectAdmin,
+  );
+}
+
+/**
+ * Ist die Person *irgendwo* ein externer Projektadmin? Für Prüfungen, bei
+ * denen das Zielprojekt noch nicht feststeht – etwa das Anlegen einer
+ * Upload-Sitzung ohne Ziel, das erst beim Zuordnen einem Video zugewiesen
+ * wird.
+ */
+export function isProjectAdminAnywhere(scope: AccessScope): boolean {
+  if (scope.unrestricted) return true;
+  return scope.shares.some((share) => share.scope === 'PROJECT' && share.projectAdmin);
 }
 
 /** Projekte, die ein Gast überhaupt zu Gesicht bekommt. */

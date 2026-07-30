@@ -81,6 +81,11 @@ viele Fassungen tragen (v1, v2, v2.5, v3 …) – wer schneidet, lädt für jede
 neue Version eine neue Fassung hoch, die alte bleibt erhalten und
 vergleichbar.
 
+In der Projektliste steht der **Kunde groß über dem Projektnamen** – wer viele
+Projekte betreut, findet so zuerst den Kunden und dann das Projekt. Je nach
+Einrichtung stehen auf der Kachel auch einzelne benutzerdefinierte Felder,
+etwa eine Projektnummer.
+
 Eine Fassung kann als **Endfassung** markiert sein. Ist sie das nicht, sieht
 jeder, der sie ansieht, einen deutlichen Hinweis darauf, dass es sich um
 einen Zwischenstand handelt.
@@ -142,6 +147,20 @@ Sekunde gemeint war.
 Am Telefon im Querformat passt sich das Layout an; wird es eng, weicht als
 Erstes die Frame-Nummer, der Timecode bleibt immer sichtbar.
 
+Im **Vollbild** lässt sich weiter kommentieren: Der Kommentar-Knopf (oder die
+Taste **C**) fährt die Kommentarspalte von rechts ins Bild; das Kreuz oben
+schließt sie wieder.
+
+### Wiedergabequalität
+
+Steht für ein Video die adaptive Wiedergabe bereit, erscheint in der
+Steuerleiste eine **Qualitätswahl**. Normalerweise steht sie auf **Auto** –
+Klappe wählt die Stufe dann nach der gemessenen Verbindung, und die gerade
+gespielte Stufe steht in Klammern dabei. Wer eine bestimmte Stufe sehen will
+(etwa garantiert 1080p für die Abnahme), wählt sie fest; *Auto* gibt die Wahl
+wieder an die Automatik zurück. In Safari übernimmt der Browser die Wahl
+selbst, dort gibt es den Umschalter nicht.
+
 ---
 
 ## Kommentieren und Zeichnen
@@ -180,6 +199,15 @@ Neben dem Player liegt die Spalte **Freigaben** mit allen Personen, die
 Zugriff haben. Ein Zugang lässt sich jederzeit **entziehen** – das wirkt
 sofort und trifft nur die eine Person; alle anderen behalten ihren Zugang
 über denselben Link.
+
+### Externer Projektadmin
+
+Für die Zusammenarbeit mit Agenturen kann das Team einen Gast an seiner
+Projektfreigabe zum **Externen Projektadmin** machen. Er darf dann in genau
+diesem Projekt Videos anlegen, eigene Fassungen hochladen und löschen, weiter
+freigeben und fremde Kommentare verwalten – also selbst Material einstellen,
+statt nur zu kommentieren. Projekt und Videos umbenennen oder löschen bleibt
+dem Team vorbehalten, ebenso das Ändern bestehender Freigabe-Links.
 
 ### Eingebetteter Player
 
@@ -259,8 +287,11 @@ oder die Mail übersehen wurde. Auch Gäste haben diese Zentrale.
 ## Mein Konto
 
 Unter **Mein Konto** (Klick auf den eigenen Namen in der Kopfzeile) lässt
-sich das eigene Passwort ändern. Gäste haben kein Passwort und sehen diesen
-Punkt deshalb nicht – ihr Zugang läuft über den Mail-Code.
+sich der eigene **Name** ändern – so, wie er in Kommentaren, Listen und
+Benachrichtigungen erscheint. Das gilt für Team und Gäste gleichermaßen.
+
+Team-Mitglieder ändern dort außerdem ihr **Passwort**. Gäste haben keines –
+ihr Zugang läuft über den Mail-Code.
 
 ---
 

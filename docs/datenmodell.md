@@ -34,9 +34,23 @@ Passwort und sehen nur, was ihre Freigabe-Links hergeben.
 
 ## projects
 
-Projekt im Workspace. `archived_at` ist vorbereitet, aber noch ohne
-Oberfläche. Jeder Schreibzugriff im Projekt setzt `updated_at` neu, damit die
-Projektliste nach zuletzt bearbeitet sortieren kann.
+Projekt im Workspace. `archived_at` markiert archivierte Projekte (Phase 18):
+sichtbar und abspielbar, aber nur noch die neueste fertige Fassung je Video,
+und kommentieren geht nicht mehr. Jeder Schreibzugriff im Projekt setzt
+`updated_at` neu, damit die Projektliste nach zuletzt bearbeitet sortieren
+kann.
+
+## project_field_defs und project_field_values
+
+Benutzerdefinierte Projekt-Felder (Phase 15): die Definitionen workspace-weit,
+die Werte je Projekt (kein Eintrag = Feld dort leer, Kaskade beim Löschen der
+Definition).
+
+| Spalte | Anmerkung |
+| --- | --- |
+| `suggest` | Tippvorschläge aus den Werten der anderen Projekte (Phase 16) |
+| `sortable`, `groupable` | steht das Feld in der Sortier- bzw. Gruppier-Auswahl der Projektliste (Phase 22)? Ab Werk an |
+| `show_on_tile` | Wert auf der Projektkachel anzeigen (Phase 22)? Ab Werk aus |
 
 `customer` ist der Kundenname. Er steht im Download-Dateinamen und dient dem
 Upload-Fenster als Anhaltspunkt, welches Projekt zu einer Datei gehört.
@@ -179,6 +193,12 @@ abgewiesen – die sollen sich anmelden.
 Wer über welchen Link hereingekommen ist: Zuordnung Gastkonto → Link, mit
 Zeitpunkt und Anzeigename. Aus dieser Tabelle baut der `AccessService` bei
 jeder Anfrage die Rechte des Gastes zusammen.
+
+| Spalte | Anmerkung |
+| --- | --- |
+| `allow_comments`, `allow_download`, `allow_upload` | Rechte-Ausnahmen je Person (Phase 16); `null` heißt „wie der Link" |
+| `project_admin` | „Externer Projektadmin" (Phase 21): darf im Projekt Videos anlegen, Fassungen hochladen und löschen, weiter freigeben und fremde Kommentare verwalten. Nur an einer Projektfreigabe wirksam, nie nullbar – immer eine ausdrückliche Entscheidung |
+| `revoked_at` | Entzug für genau diese Person; der Link bleibt für andere gültig |
 
 ## project_files
 

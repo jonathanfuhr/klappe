@@ -49,6 +49,11 @@ export interface ProjectDto {
   fileCount: number;
   /** Darf der anfragende Benutzer hier Material hochladen? */
   canUploadFiles: boolean;
+  /**
+   * Team oder externer Projektadmin (Phase 21) – darf Videos anlegen und
+   * weiter freigeben.
+   */
+  canManage: boolean;
   /** Schlagworte des Projekts (Phase 12). */
   tags: TagRefDto[];
   /** Belegte benutzerdefinierte Felder (Phase 15) – leere fehlen. */
@@ -62,6 +67,12 @@ export interface ProjectFieldDefDto {
   sortOrder: number;
   /** Tippvorschläge aus den Werten der anderen Projekte (Phase 16)? */
   suggest: boolean;
+  /** Steht das Feld in der Sortier-Auswahl der Projektliste (Phase 22)? */
+  sortable: boolean;
+  /** Steht das Feld in der Gruppier-Auswahl der Projektliste (Phase 22)? */
+  groupable: boolean;
+  /** Wert auf der Projektkachel anzeigen (Phase 22)? */
+  showOnTile: boolean;
   /** An wie vielen Projekten das Feld belegt ist – für die Löschwarnung. */
   projectCount: number;
 }
@@ -139,6 +150,11 @@ export interface VideoDto {
   downloadsEnabled: boolean;
   /** Darf der anfragende Benutzer hier kommentieren und zeichnen? */
   canComment: boolean;
+  /**
+   * Team oder externer Projektadmin (Phase 21) – darf Fassungen hochladen
+   * und löschen.
+   */
+  canManage: boolean;
 }
 
 /** Auflösung und Framerate des Originals, aus `ffprobe`. */
@@ -319,6 +335,12 @@ export interface GuestAccessLinkDto {
   allowDownload: boolean;
   allowUpload: boolean;
   /**
+   * „Externer Projektadmin" (Phase 21) – nur an einer Projektfreigabe
+   * möglich. Anders als die drei Rechte oben gibt es dafür kein „wie der
+   * Link": immer eine bewusste Einzelentscheidung.
+   */
+  projectAdmin: boolean;
+  /**
    * Für diese Person weichen die Rechte vom Link ab (Phase 16) – die
    * Oberfläche weist darauf hin, sonst wundert man sich über den Unterschied
    * zur Link-Einstellung.
@@ -346,6 +368,8 @@ export interface GuestAccessDto {
   canComment: boolean;
   canDownload: boolean;
   canUpload: boolean;
+  /** Externer Projektadmin (Phase 21) an mindestens einer Projektfreigabe. */
+  isProjectAdmin: boolean;
   firstSeenAt: string;
   lastSeenAt: string;
 }

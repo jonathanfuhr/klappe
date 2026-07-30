@@ -49,35 +49,6 @@ export function GuestsPanel() {
     }
   };
 
-  /**
-   * Aus einem Gast ein Team-Mitglied machen (Phase 20).
-   *
-   * Mit Nachfrage, weil sich damit mehr ändert, als der Knopf verspricht:
-   * Ein Mitglied sieht **alle** Projekte, nicht nur die freigegebenen. Wer
-   * das für einen Kunden anklickt, öffnet ihm das ganze Haus.
-   */
-  const insTeam = async (guest: GuestOverviewDto) => {
-    if (
-      !window.confirm(
-        `„${guest.user.name}“ ins Team aufnehmen?\n\n` +
-          'Als Mitglied sieht diese Person künftig alle Projekte des Workspace – nicht mehr nur ' +
-          'die, für die sie freigegeben ist. Das Konto wandert in die Liste „Benutzer“.',
-      )
-    ) {
-      return;
-    }
-    setBusy(guest.user.id);
-    setError(null);
-    try {
-      await api.updateUser(guest.user.id, { role: 'MEMBER' });
-      await load();
-    } catch (changeError) {
-      setError(changeError instanceof Error ? changeError.message : 'Ändern fehlgeschlagen.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const term = search.trim().toLowerCase();
   const visible = term
     ? guests.filter(
@@ -161,27 +132,20 @@ export function GuestsPanel() {
                 </span>
                 <div className="shell__spacer" />
                 {user?.role === 'ADMIN' ? (
-                  <>
-                    {/* Der Weg vom Gast ins Team (Phase 20). Andersherum geht
-                        es unter "Benutzer" – jede Liste kann die Rolle in die
-                        Richtung ändern, die von ihr aus Sinn ergibt. */}
-                    <button
-                      type="button"
-                      className="button button--ghost"
-                      disabled={busy === guest.user.id}
-                      onClick={() => void insTeam(guest)}
-                    >
-                      Ins Team aufnehmen
-                    </button>
-                    <button
-                      type="button"
-                      className={guest.isActive ? 'button button--ghost' : 'button'}
-                      disabled={busy === guest.user.id}
-                      onClick={() => void setActive(guest.user.id, !guest.isActive)}
-                    >
-                      {guest.isActive ? 'Konto sperren' : 'Konto entsperren'}
-                    </button>
-                  </>
+                  // Kein Weg mehr vom Gast ins Team (Phase 21): Gäste melden
+                  // sich per Code an, das Team mit Passwort oder Microsoft
+                  // 365 – ein Rollenwechsel hierher ergäbe ein Konto, das
+                  // sich mit keinem der beiden anmelden könnte. Für einen
+                  // echten Kollegen entsteht ein eigenes Konto unter
+                  // "Benutzer".
+                  <button
+                    type="button"
+                    className={guest.isActive ? 'button button--ghost' : 'button'}
+                    disabled={busy === guest.user.id}
+                    onClick={() => void setActive(guest.user.id, !guest.isActive)}
+                  >
+                    {guest.isActive ? 'Konto sperren' : 'Konto entsperren'}
+                  </button>
                 ) : null}
               </div>
             </div>

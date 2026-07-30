@@ -356,6 +356,7 @@ export class ProjectsService {
       videoCount: row.videoCount,
       fileCount: row.fileCount,
       canUploadFiles: this.accessService.canUpload(scope, row.project.id),
+      canManage: this.accessService.canManageProject(scope, row.project.id),
       tags: (row.tags ?? []).map(toTagRef),
       fields: row.fields ?? [],
     };

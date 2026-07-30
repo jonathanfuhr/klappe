@@ -391,6 +391,16 @@ export const shareLinkGrants = pgTable(
     allowDownload: boolean('allow_download'),
     allowUpload: boolean('allow_upload'),
     allowComments: boolean('allow_comments'),
+    /**
+     * „Externer Projektadmin" (Phase 21): Der Gast darf im Projekt Videos
+     * anlegen, Fassungen hochladen und löschen, weiter freigeben und fremde
+     * Kommentare verwalten – gedacht für Agenturen, die eigenes Material
+     * einstellen. Anders als die drei Rechte oben kein „wie der Link", weil
+     * ein Link selbst kein Projektadmin-Recht kennt: immer eine bewusste
+     * Einzelentscheidung, deshalb nicht nullbar und ab Werk aus. Nur an einer
+     * Projektfreigabe sinnvoll, nicht an einer einzelnen Videofreigabe.
+     */
+    projectAdmin: boolean('project_admin').notNull().default(false),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -526,6 +536,18 @@ export const projectFieldDefs = pgTable(
      * je Feld schaltbar und vorsichtshalber aus.
      */
     suggest: boolean('suggest').notNull().default(false),
+    /**
+     * Steht das Feld in der Sortier- bzw. Gruppier-Auswahl der Projektliste
+     * (Phase 22)? Ab Werk an – das war bis dahin das Verhalten für jedes Feld,
+     * und ein Feld, nach dem niemand sortieren will, schaltet man gezielt ab.
+     */
+    sortable: boolean('sortable').notNull().default(true),
+    groupable: boolean('groupable').notNull().default(true),
+    /**
+     * Wert auf der Projektkachel anzeigen (Phase 22)? Ab Werk aus – die Kachel
+     * ist klein, und bis dahin stand dort auch nichts davon.
+     */
+    showOnTile: boolean('show_on_tile').notNull().default(false),
     ...timestamps,
   },
   // Zwei Felder mit gleichem Namen wären im Formular nicht zu unterscheiden.

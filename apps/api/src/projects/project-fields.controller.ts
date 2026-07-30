@@ -36,6 +36,21 @@ class UpdateFieldDto {
   @IsOptional()
   @IsBoolean()
   suggest?: boolean;
+
+  /** In der Sortier-Auswahl der Projektliste anbieten (Phase 22)? */
+  @IsOptional()
+  @IsBoolean()
+  sortable?: boolean;
+
+  /** In der Gruppier-Auswahl der Projektliste anbieten (Phase 22)? */
+  @IsOptional()
+  @IsBoolean()
+  groupable?: boolean;
+
+  /** Wert auf der Projektkachel anzeigen (Phase 22)? */
+  @IsOptional()
+  @IsBoolean()
+  showOnTile?: boolean;
 }
 
 class UpdateFieldSettingsDto {
