@@ -4,6 +4,11 @@
  * der Prozess nicht, statt mit einem Standardwert weiterzulaufen.
  */
 import { randomBytes } from 'node:crypto';
+import {
+  isVideoEncoder,
+  VIDEO_ENCODERS,
+  type VideoEncoder,
+} from '../transcode/encoder-args';
 
 export interface AppConfig {
   nodeEnv: 'development' | 'production' | 'test';
@@ -50,6 +55,12 @@ export interface AppConfig {
   transcode: {
     ffmpegPath: string;
     ffprobePath: string;
+    /**
+     * Womit der Worker kodiert: `libx264` (Software, läuft überall) oder
+     * `h264_videotoolbox` (Hardware auf Apple Silicon). Eine Eigenschaft des
+     * Worker-Hosts, keine Einstellung der Oberfläche – siehe encoder-args.ts.
+     */
+    videoEncoder: VideoEncoder;
     /** Zielgröße der **kurzen** Kante – passt für Quer-, Hoch- und Quadratformat. */
     proxyShortEdge: number;
     /** Ab dieser Bitrate wird auch passendes Material neu kodiert. */
@@ -97,6 +108,19 @@ function readBool(env: NodeJS.ProcessEnv, key: string, fallback: boolean): boole
   const raw = env[key]?.trim().toLowerCase();
   if (!raw) return fallback;
   return raw === '1' || raw === 'true' || raw === 'yes';
+}
+
+function readEncoder(env: NodeJS.ProcessEnv, key: string): VideoEncoder {
+  const raw = env[key]?.trim();
+  if (!raw) return 'libx264';
+  if (!isVideoEncoder(raw)) {
+    // Lieber gar nicht starten als still in Software rechnen: Wer hier etwas
+    // einträgt, will Hardware – ein Tippfehler soll sofort auffallen.
+    throw new Error(
+      `Umgebungsvariable ${key} muss ${VIDEO_ENCODERS.join(' oder ')} sein, nicht "${raw}".`,
+    );
+  }
+  return raw;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -151,6 +175,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     transcode: {
       ffmpegPath: env.FFMPEG_PATH?.trim() || 'ffmpeg',
       ffprobePath: env.FFPROBE_PATH?.trim() || 'ffprobe',
+      videoEncoder: readEncoder(env, 'VIDEO_ENCODER'),
       // PROXY_HEIGHT bleibt als alter Name gültig, damit bestehende
       // .env-Dateien weiterlaufen.
       proxyShortEdge: readInt(env, 'PROXY_SHORT_EDGE', readInt(env, 'PROXY_HEIGHT', 1080)),

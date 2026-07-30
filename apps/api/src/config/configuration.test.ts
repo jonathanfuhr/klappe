@@ -50,3 +50,23 @@ describe('Sitzungs-Cookie', () => {
     expect(config.jwt.cookieSecure).toBe(true);
   });
 });
+
+describe('Video-Encoder', () => {
+  it('ist ohne Angabe die Software-Kodierung', () => {
+    expect(loadConfig(env()).transcode.videoEncoder).toBe('libx264');
+  });
+
+  it('übernimmt VideoToolbox für den nativen Mac-Worker', () => {
+    const config = loadConfig(env({ VIDEO_ENCODER: 'h264_videotoolbox' }));
+    expect(config.transcode.videoEncoder).toBe('h264_videotoolbox');
+  });
+
+  // Docker Compose reicht nicht gesetzte Werte als leere Zeichenkette durch.
+  it('behandelt eine leere Angabe wie „nicht gesetzt“', () => {
+    expect(loadConfig(env({ VIDEO_ENCODER: '' })).transcode.videoEncoder).toBe('libx264');
+  });
+
+  it('weist Tippfehler beim Start ab, statt still in Software zu rechnen', () => {
+    expect(() => loadConfig(env({ VIDEO_ENCODER: 'videotoolbox' }))).toThrow(/VIDEO_ENCODER/);
+  });
+});

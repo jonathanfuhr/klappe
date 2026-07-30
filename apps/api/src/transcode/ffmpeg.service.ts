@@ -1,7 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { spawn } from 'node:child_process';
 import type { FrameRate } from '@klappe/shared';
 import { AppConfig, CONFIG } from '../config/configuration';
+import { decodeArgs, keyframeArgs, videoEncodeArgs } from './encoder-args';
 import { type FfprobeOutput, parseProbeOutput } from './ffprobe-parse';
 import type { ProbeResult } from '../versions/versions.service';
 import type { LadderRung } from './hls-plan';
@@ -25,10 +26,36 @@ interface RunOptions {
 }
 
 @Injectable()
-export class FfmpegService {
+export class FfmpegService implements OnModuleInit {
   private readonly logger = new Logger(FfmpegService.name);
 
   constructor(@Inject(CONFIG) private readonly config: AppConfig) {}
+
+  /**
+   * Beim Start einmal nachsehen, ob das konfigurierte ffmpeg den gewählten
+   * Encoder überhaupt mitbringt. Ohne diese Probe fiele eine Fehlkonfiguration
+   * – etwa `VIDEO_ENCODER=h264_videotoolbox` in einem Container, wo es kein
+   * VideoToolbox gibt – erst beim ersten Auftrag auf. So endet der Prozess
+   * sofort mit einer verständlichen Meldung. Das Transcode-Modul lädt nur der
+   * Worker; die API bleibt von diesem Aufruf unberührt. Nebenbei entlarvt der
+   * Check auch einen kaputten FFMPEG_PATH, noch bevor Aufträge scheitern.
+   */
+  async onModuleInit(): Promise<void> {
+    const { ffmpegPath, videoEncoder } = this.config.transcode;
+    const { stdout } = await this.run(ffmpegPath, ['-hide_banner', '-encoders'], {});
+    const vorhanden = stdout
+      .split('\n')
+      .some((zeile) => new RegExp(`^\\s*V\\S*\\s+${videoEncoder}\\s`).test(zeile));
+    if (!vorhanden) {
+      throw new Error(
+        `Der Video-Encoder "${videoEncoder}" fehlt in ${ffmpegPath}. ` +
+          `VideoToolbox gibt es nur für einen nativ auf macOS laufenden Worker ` +
+          `(brew install ffmpeg, siehe docs/apple-silicon.md); ohne Hardware gilt ` +
+          `VIDEO_ENCODER=libx264 (Standard).`,
+      );
+    }
+    this.logger.log(`Video-Encoder: ${videoEncoder} (${ffmpegPath})`);
+  }
 
   async probe(inputPath: string): Promise<ProbeResult> {
     const { stdout } = await this.run(
@@ -81,6 +108,7 @@ export class FfmpegService {
       '-hide_banner',
       '-nostdin',
       '-y',
+      ...decodeArgs(transcode.videoEncoder),
       '-i',
       input.inputPath,
       '-map',
@@ -88,18 +116,12 @@ export class FfmpegService {
       // Das `?` macht die Tonspur optional – stummes Material bricht sonst ab.
       '-map',
       '0:a:0?',
-      '-c:v',
-      'libx264',
-      '-profile:v',
-      'high',
-      '-preset',
-      input.encoding.preset,
-      '-b:v',
-      input.encoding.videoBitrate,
-      '-maxrate',
-      input.encoding.maxrate,
-      '-bufsize',
-      input.encoding.bufsize,
+      ...videoEncodeArgs(transcode.videoEncoder, {
+        preset: input.encoding.preset,
+        videoBitrate: input.encoding.videoBitrate,
+        maxrate: input.encoding.maxrate,
+        bufsize: input.encoding.bufsize,
+      }),
       '-pix_fmt',
       'yuv420p',
       '-vf',
@@ -155,28 +177,24 @@ export class FfmpegService {
     durationSeconds: number | null;
     onProgress?: (fraction: number) => void;
   }): Promise<void> {
+    const { videoEncoder } = this.config.transcode;
     const args = [
       '-hide_banner',
       '-nostdin',
       '-y',
+      ...decodeArgs(videoEncoder),
       '-i',
       input.inputPath,
       '-map',
       '0:v:0',
       '-map',
       '0:a:0?',
-      '-c:v',
-      'libx264',
-      '-profile:v',
-      'high',
-      '-preset',
-      input.preset,
-      '-b:v',
-      `${input.videoBitrateKbps}k`,
-      '-maxrate',
-      `${Math.round(input.videoBitrateKbps * 1.2)}k`,
-      '-bufsize',
-      `${Math.round(input.videoBitrateKbps * 2.4)}k`,
+      ...videoEncodeArgs(videoEncoder, {
+        preset: input.preset,
+        videoBitrate: `${input.videoBitrateKbps}k`,
+        maxrate: `${Math.round(input.videoBitrateKbps * 1.2)}k`,
+        bufsize: `${Math.round(input.videoBitrateKbps * 2.4)}k`,
+      }),
       '-pix_fmt',
       'yuv420p',
       '-vf',
@@ -266,10 +284,12 @@ export class FfmpegService {
       (rung, index) => `[v${index}]scale=${rung.width}:${rung.height}[v${index}out]`,
     );
 
+    const { videoEncoder } = this.config.transcode;
     const args = [
       '-hide_banner',
       '-nostdin',
       '-y',
+      ...decodeArgs(videoEncoder),
       '-i',
       input.inputPath,
       '-filter_complex',
@@ -280,16 +300,13 @@ export class FfmpegService {
       args.push(
         '-map',
         `[v${index}out]`,
-        `-c:v:${index}`,
-        'libx264',
-        `-b:v:${index}`,
-        String(rung.bitrateBps),
-        `-maxrate:v:${index}`,
-        String(rung.maxrateBps),
-        `-bufsize:v:${index}`,
-        String(rung.maxrateBps * 2),
-        `-preset:v:${index}`,
-        input.preset,
+        ...videoEncodeArgs(videoEncoder, {
+          preset: input.preset,
+          videoBitrate: String(rung.bitrateBps),
+          maxrate: String(rung.maxrateBps),
+          bufsize: String(rung.maxrateBps * 2),
+          streamIndex: index,
+        }),
       );
       // Ton optional – stummes Material soll nicht abbrechen.
       args.push('-map', '0:a:0?', `-c:a:${index}`, 'aac', `-b:a:${index}`, '128k', '-ac', '2');
@@ -304,7 +321,7 @@ export class FfmpegService {
     // sauber zwischen den Stufen wechseln.
     const fps = input.frameRate ? input.frameRate.num / input.frameRate.den : 25;
     const gop = Math.max(1, Math.round(fps * input.segmentSeconds));
-    args.push('-g', String(gop), '-keyint_min', String(gop), '-sc_threshold', '0');
+    args.push(...keyframeArgs(videoEncoder, gop));
 
     args.push(
       '-f',

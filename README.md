@@ -614,6 +614,20 @@ abgelehnte Versuche zählen nicht mit, damit sich niemand selbst aussperren
 lässt. Medien-Links für Werkzeuge ohne Sitzung sind signiert, kurzlebig und an
 Fassung, Art und Person gebunden – sie **ersetzen die Rechteprüfung nicht**.
 
+### Mac mit Apple Silicon (Hardware-Transcoding)
+
+Auf einem Mac mit Apple Silicon (Mac Mini, Mac Studio, …) kodiert Apples
+Media-Engine H.264 um ein Vielfaches
+schneller als die CPU – aber nur außerhalb von Docker, denn im Container
+gibt es kein VideoToolbox. Dafür gibt es einen eigenen Aufbau: Der Stack
+bleibt im Container, nur der Worker läuft nativ auf macOS
+(`VIDEO_ENCODER=h264_videotoolbox`), gestartet über das Overlay
+`docker-compose.mac.yml`. Die Einrichtung Schritt für Schritt steht in
+[docs/apple-silicon.md](docs/apple-silicon.md); wie man den Mac selbst für
+den Dauerbetrieb einrichtet (Homebrew und Docker, Neustart nach
+Stromausfall, kein Ruhezustand, automatische Anmeldung, Automounts, SSH),
+in [docs/mac-server.md](docs/mac-server.md).
+
 ---
 
 ## Entwicklung
@@ -628,7 +642,8 @@ apps/api             NestJS: HTTP-API (main.ts) und Worker (worker.ts)
 apps/api/drizzle     SQL-Migrationen
 apps/web             Next.js: Oberfläche, Player, Kommentare, Upload-Fenster
 docker/              Caddyfile und Routen für den HTTPS-Betrieb
-docs/                Architektur, Datenmodell, API-Referenz
+deploy/mac/          launchd-Vorlage für den nativen Worker auf Apple Silicon
+docs/                Architektur, Datenmodell, API-Referenz, Mac-Betrieb
 ```
 
 Mehr dazu in [docs/architektur.md](docs/architektur.md),

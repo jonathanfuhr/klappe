@@ -1,0 +1,40 @@
+# Ergänzung für den Betrieb auf einem Mac mit Apple Silicon – Mac Mini,
+# Mac Studio, jeder M-Chip.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.mac.yml up -d
+#
+# Der Grund für diese Datei: Docker läuft auf dem Mac in einer Linux-VM, und
+# dort gibt es Apples Hardware-Encoder (VideoToolbox) nicht – ein Container
+# kann auf dem Mac immer nur in Software kodieren, egal wie er konfiguriert
+# ist. Deshalb läuft der Worker hier nativ auf macOS (Node 22 +
+# Homebrew-ffmpeg, gestartet über launchd) und kodiert mit
+# h264_videotoolbox; der Rest des Stacks bleibt im Container. Die
+# Einrichtung Schritt für Schritt: docs/apple-silicon.md.
+#
+# Kombinierbar mit docker-compose.tunnel.yml bzw. docker-compose.https.yml –
+# einfach zusätzlich mit -f angeben.
+#
+# Wichtig: MEDIA_DIR muss in der .env auf einen echten Host-Pfad zeigen. Das
+# benannte Volume (der Standard) liegt in der Docker-VM und ist für den
+# nativen Worker unsichtbar – er braucht aber exakt denselben Medienbaum wie
+# die API, sonst schreibt er ins Leere, und sein täglicher Aufräumer hielte
+# obendrein die Dateien der API für verwaist.
+
+services:
+  postgres:
+    # Nur für den nativen Worker auf diesem Mac – bewusst an 127.0.0.1
+    # gebunden. Von außen erreichbar bleibt weiterhin allein Caddy.
+    ports:
+      - '127.0.0.1:5432:5432'
+
+  redis:
+    ports:
+      - '127.0.0.1:6379:6379'
+
+  worker:
+    # Ein Profil, das nie aktiviert wird: `docker compose up` startet diesen
+    # Dienst damit nicht mehr – das Transcoding übernimmt der native Worker.
+    # Lief der Container-Worker vorher schon, einmal von Hand aufräumen:
+    #   docker compose stop worker && docker compose rm -f worker
+    profiles:
+      - im-container-deaktiviert

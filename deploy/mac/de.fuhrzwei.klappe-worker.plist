@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Vorlage für den nativen Klappe-Worker auf einem Mac mit Apple Silicon.
+
+  Alle GROSS-GESCHRIEBENEN Platzhalter ersetzen, dann nach
+  /Library/LaunchDaemons/de.fuhrzwei.klappe-worker.plist kopieren
+  (Besitzer root:wheel, Rechte 0644). Die Einrichtung Schritt für Schritt
+  steht in docs/apple-silicon.md.
+
+  Warum ein LaunchDaemon und kein LaunchAgent: Der Daemon startet beim
+  Hochfahren, ohne dass sich jemand anmeldet - richtig für einen Mac, der
+  ohne Monitor läuft. `UserName` setzt den Prozess trotzdem auf den normalen
+  Benutzer, damit Dateibesitz im Medienordner und die Homebrew-Pfade
+  stimmen. Der Hardware-Encoder funktioniert auf Apple Silicon auch ohne
+  angemeldete Oberfläche.
+-->
+<dict>
+  <key>Label</key>
+  <string>de.fuhrzwei.klappe-worker</string>
+
+  <!-- Das Repository mit gebautem Server (npm run build:server). -->
+  <key>WorkingDirectory</key>
+  <string>/Users/DEIN-BENUTZER/klappe</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/opt/node@22/bin/node</string>
+    <string>apps/api/dist/worker.js</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_ENV</key>
+    <string>production</string>
+
+    <!-- Postgres und Redis kommen aus dem Compose-Stack; das Overlay
+         docker-compose.mac.yml bindet beide an 127.0.0.1. -->
+    <key>DATABASE_URL</key>
+    <string>postgres://klappe:POSTGRES-PASSWORT-AUS-DER-ENV@127.0.0.1:5432/klappe</string>
+    <key>REDIS_URL</key>
+    <string>redis://127.0.0.1:6379</string>
+
+    <!-- Wortgleich zur .env des Stacks: Der Worker entschlüsselt damit das
+         SMTP-Passwort und signiert Abmeldelinks. -->
+    <key>JWT_SECRET</key>
+    <string>WIE-IN-DER-ENV-DES-STACKS</string>
+
+    <!-- Exakt derselbe Pfad wie MEDIA_DIR in der .env - der Worker muss
+         denselben Medienbaum sehen wie die API, sonst schreibt er ins Leere
+         und sein täglicher Aufräumer hält fremde Dateien für verwaist. -->
+    <key>STORAGE_DIR</key>
+    <string>/Users/DEIN-BENUTZER/klappe-media</string>
+
+    <!-- Steht in jeder E-Mail, die der Worker verschickt. -->
+    <key>PUBLIC_URL</key>
+    <string>https://klappe.example.org</string>
+
+    <key>WORKER_CONCURRENCY</key>
+    <string>1</string>
+
+    <key>FFMPEG_PATH</key>
+    <string>/opt/homebrew/bin/ffmpeg</string>
+    <key>FFPROBE_PATH</key>
+    <string>/opt/homebrew/bin/ffprobe</string>
+
+    <!-- Der Grund für den nativen Betrieb: Apples Hardware-Encoder. -->
+    <key>VIDEO_ENCODER</key>
+    <string>h264_videotoolbox</string>
+  </dict>
+
+  <key>UserName</key>
+  <string>DEIN-BENUTZER</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- Immer wieder starten - auch direkt nach dem Hochfahren, wenn Docker
+       Desktop noch nicht so weit ist. Der Worker wartet auf Postgres und
+       Redis von sich aus; endet er doch, versucht launchd es nach 30
+       Sekunden erneut. -->
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/DEIN-BENUTZER/Library/Logs/klappe-worker.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/DEIN-BENUTZER/Library/Logs/klappe-worker.err.log</string>
+</dict>
+</plist>
