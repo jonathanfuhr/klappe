@@ -27,6 +27,7 @@ steht unten unter [Umgesetzte Phasen](#umgesetzte-phasen).
 - [Betrieb](#betrieb)
 - [Entwicklung](#entwicklung)
 - [Umgesetzte Phasen](#umgesetzte-phasen)
+- [Lizenz](#lizenz)
 
 ---
 
@@ -795,3 +796,44 @@ einem Projekt Videos und Fassungen anlegen, weiter freigeben und Kommentare
 verwalten darf). Bewusst nicht angefangen: Sie öffnet elf verändernde Endpunkte
 in fünf Controllern für Gäste, die dann einzeln wieder abgesichert werden
 müssen – halb gebaut wäre das schlimmer als gar nicht.
+
+---
+
+## Lizenz
+
+Klappe steht unter der **GNU Affero General Public License, Version 3**
+(AGPL-3.0-only). Der vollständige Text liegt in [`LICENSE`](LICENSE).
+
+Was das praktisch heißt:
+
+- **Selbst hosten und nutzen darf jeder, kostenlos, auch gewerblich.** Genau
+  dafür ist das Tool gebaut. Wer es aus diesem Repository nimmt, in den eigenen
+  Docker-Stack stellt und damit arbeitet, hat mit der Lizenz nichts weiter zu
+  tun.
+- **Ändern darf jeder.** Solange die geänderte Fassung im eigenen Haus bleibt,
+  entsteht keine Pflicht.
+- **Wer eine geänderte Fassung über das Netz für andere zugänglich macht, muss
+  den Quellcode dieser Fassung herausgeben** – auch ohne sie zu verteilen.
+  Das ist §13 der AGPL und der einzige Unterschied zur gewöhnlichen GPL. Ein
+  gehosteter Dienst auf Basis von Klappe ist also möglich, aber nicht als
+  geschlossener Fork.
+
+Die Lizenz bindet nur andere, nicht den Rechteinhaber. Eine abweichende,
+kommerzielle Lizenz für Dritte bleibt jederzeit möglich.
+
+Die Abhängigkeiten (NestJS, Next.js, React, BullMQ, Drizzle, Express) stehen
+unter MIT beziehungsweise Apache-2.0 und sind damit verträglich. `ffmpeg` wird
+als eigener Prozess aufgerufen, nicht eingebunden.
+
+```
+Copyright (C) 2026 Jonathan Fuhr
+
+Dieses Programm ist freie Software: Sie können es unter den Bedingungen der
+GNU Affero General Public License, Version 3, wie von der Free Software
+Foundation veröffentlicht, weitergeben und/oder verändern.
+
+Die Veröffentlichung erfolgt in der Hoffnung, dass es von Nutzen sein wird,
+aber OHNE JEDE GEWÄHRLEISTUNG – sogar ohne die implizite Gewährleistung der
+MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK. Details in der
+GNU Affero General Public License.
+```

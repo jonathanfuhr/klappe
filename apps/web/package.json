@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "private": true,
   "description": "Klappe Web-Oberfläche",
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
