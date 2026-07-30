@@ -91,7 +91,7 @@ describe('deriveBrandColors', () => {
 
 describe('normalizeBrandTitle', () => {
   it('räumt Leerraum auf', () => {
-    expect(normalizeBrandTitle('  THD   Video  ')).toBe('THD Video');
+    expect(normalizeBrandTitle('  Beispiel   Video  ')).toBe('Beispiel Video');
   });
 
   it('nimmt bei leerer Eingabe den Standard', () => {

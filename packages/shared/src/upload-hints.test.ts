@@ -34,7 +34,7 @@ describe('detectVersionNumber', () => {
 
 describe('suggestVideoName', () => {
   it('räumt Endung, Version und Trennzeichen weg', () => {
-    expect(suggestVideoName('THD_Imagefilm_V2.mov')).toBe('THD Imagefilm');
+    expect(suggestVideoName('Beispiel_Imagefilm_V2.mov')).toBe('Beispiel Imagefilm');
     expect(suggestVideoName('kunde-projekt-v01.mp4')).toBe('kunde projekt');
   });
 
@@ -61,7 +61,7 @@ describe('suggestVideoName', () => {
 
 describe('matchProject', () => {
   const projekte = [
-    { id: 'p1', name: 'Imagefilm 2026', customer: 'THD' },
+    { id: 'p1', name: 'Imagefilm 2026', customer: 'Beispiel' },
     { id: 'p2', name: 'Messefilm', customer: 'Bosch' },
     { id: 'p3', name: 'Recruiting Clips', customer: null },
   ];
@@ -78,9 +78,9 @@ describe('matchProject', () => {
   });
 
   it('nennt die passenden Wörter für den Hinweis', () => {
-    expect(matchProject('THD_Imagefilm_V2.mov', projekte)?.matched.sort()).toEqual([
+    expect(matchProject('Beispiel_Imagefilm_V2.mov', projekte)?.matched.sort()).toEqual([
+      'beispiel',
       'imagefilm',
-      'thd',
     ]);
   });
 

@@ -185,7 +185,7 @@ Kunde lädt alles" nicht bauen. Zwei Kunden strikt trennen heißt: zwei Projekte
 
 ```
 JJMMTT_Kunde_Projektname_Videoname_Versionsnummer_Auflösung.Dateiendung
-260304_THD-Marketing_Sommer-Kampagne_Reel-Hochkant_v1_2160p25.mov
+260304_Beispiel-Marketing_Sommer-Kampagne_Reel-Hochkant_v1_2160p25.mov
 ```
 
 Das Datum ist das des Uploads und lässt sich ändern. Die Auflösung nennt die

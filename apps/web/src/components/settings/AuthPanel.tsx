@@ -230,7 +230,7 @@ export function AuthPanel() {
           <input
             id="domains"
             className="input"
-            placeholder="thd.de, beispiel.org"
+            placeholder="firma.de, beispiel.org"
             value={form.allowedDomains}
             onChange={(event) => setForm({ ...form, allowedDomains: event.target.value })}
           />

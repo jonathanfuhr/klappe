@@ -104,7 +104,7 @@ export function domainAllowed(email: string, allowedDomains: string[]): boolean 
   });
 }
 
-/** `"thd.de, @beispiel.org"` → `['thd.de', 'beispiel.org']` */
+/** `"firma.de, @beispiel.org"` → `['firma.de', 'beispiel.org']` */
 export function parseDomainList(value: string | null | undefined): string[] {
   if (!value) return [];
   return value

@@ -23,11 +23,11 @@ describe('normalizeTagName', () => {
 
 describe('colorForTagName', () => {
   it('liefert immer dieselbe Farbe für denselben Namen', () => {
-    expect(colorForTagName('Kunde THD')).toBe(colorForTagName('Kunde THD'));
+    expect(colorForTagName('Kunde Beispiel')).toBe(colorForTagName('Kunde Beispiel'));
   });
 
   it('achtet dabei nicht auf Schreibweise und Leerraum', () => {
-    expect(colorForTagName('kunde thd')).toBe(colorForTagName('  Kunde   THD '));
+    expect(colorForTagName('kunde beispiel')).toBe(colorForTagName('  Kunde   Beispiel '));
   });
 
   it('bleibt in der Palette', () => {

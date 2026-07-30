@@ -10,7 +10,7 @@ import {
 const basis = {
   recipientName: 'Anna Meier',
   authorName: 'Jonathan Fuhr',
-  projectName: 'THD Imagefilm',
+  projectName: 'Beispiel Imagefilm',
   videoName: 'Schnittfassung',
   versionLabel: 'v2',
   timecode: '10:00:04:00',
@@ -44,7 +44,7 @@ describe('renderCommentMail', () => {
 
   it('nennt Projekt, Fassung, Timecode und Text', () => {
     const mail = renderCommentMail(basis);
-    for (const wert of ['THD Imagefilm', 'v2', '10:00:04:00', 'Ab hier wackelt die Kamera.']) {
+    for (const wert of ['Beispiel Imagefilm', 'v2', '10:00:04:00', 'Ab hier wackelt die Kamera.']) {
       expect(mail.text).toContain(wert);
       expect(mail.html).toContain(wert);
     }
@@ -82,7 +82,7 @@ describe('renderCommentMail', () => {
 describe('renderCommentDigestMail', () => {
   const sammel = {
     recipientName: 'Anna Meier',
-    projectName: 'THD Imagefilm',
+    projectName: 'Beispiel Imagefilm',
     videoName: 'Schnittfassung',
     url: 'https://klappe.example/videos/abc',
     unsubscribeUrl: 'https://klappe.example/abmelden?token=xyz',
@@ -181,13 +181,13 @@ describe('renderProjectFileMail', () => {
     const mail = renderProjectFileMail({
       recipientName: 'Jonathan',
       uploaderName: 'Kunde GmbH',
-      projectName: 'THD Imagefilm',
+      projectName: 'Beispiel Imagefilm',
       filename: 'Logo.png',
       sizeLabel: '2,4 MB',
       url: 'https://klappe.example/projekte/1',
       unsubscribeUrl: 'https://klappe.example/abmelden?token=xyz',
     });
-    expect(mail.subject).toContain('THD Imagefilm');
+    expect(mail.subject).toContain('Beispiel Imagefilm');
     expect(mail.text).toContain('Logo.png');
     expect(mail.text).toContain('2,4 MB');
     expect(mail.html).toContain('Kunde GmbH');
@@ -196,9 +196,9 @@ describe('renderProjectFileMail', () => {
 
 describe('renderTestMail', () => {
   it('nennt Server und Absender und weist auf SPF/DKIM hin', () => {
-    const mail = renderTestMail({ host: 'smtp-relay.brevo.com', fromEmail: 'review@thd.example' });
+    const mail = renderTestMail({ host: 'smtp-relay.brevo.com', fromEmail: 'review@beispiel.example' });
     expect(mail.text).toContain('smtp-relay.brevo.com');
-    expect(mail.text).toContain('review@thd.example');
+    expect(mail.text).toContain('review@beispiel.example');
     expect(mail.text).toContain('DKIM');
   });
 });

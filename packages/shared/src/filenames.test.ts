@@ -9,7 +9,7 @@ import {
 
 const basis = {
   date: '260728',
-  customer: 'THD',
+  customer: 'Beispiel',
   projectName: 'Imagefilm 2026',
   videoName: 'Schnittfassung',
   versionNumber: 2,
@@ -19,7 +19,7 @@ const basis = {
 
 describe('buildDownloadFilename', () => {
   it('folgt dem vereinbarten Schema', () => {
-    expect(buildDownloadFilename(basis)).toBe('260728_THD_Imagefilm-2026_Schnittfassung_v2_2160p25.mov');
+    expect(buildDownloadFilename(basis)).toBe('260728_Beispiel_Imagefilm-2026_Schnittfassung_v2_2160p25.mov');
   });
 
   it('lässt fehlende Teile weg, statt Lücken zu hinterlassen', () => {
@@ -31,7 +31,7 @@ describe('buildDownloadFilename', () => {
   it('macht aus Leerzeichen Bindestriche und hält den Unterstrich als Trenner frei', () => {
     expect(
       buildDownloadFilename({ ...basis, projectName: 'Neues  Projekt', videoName: 'Teil_2 Final' }),
-    ).toBe('260728_THD_Neues-Projekt_Teil-2-Final_v2_2160p25.mov');
+    ).toBe('260728_Beispiel_Neues-Projekt_Teil-2-Final_v2_2160p25.mov');
   });
 
   it('entschärft Pfad- und Sonderzeichen', () => {
@@ -48,13 +48,13 @@ describe('buildDownloadFilename', () => {
 
   it('ignoriert ein Datum in falschem Format', () => {
     expect(buildDownloadFilename({ ...basis, date: '2026-07-28' })).toBe(
-      'THD_Imagefilm-2026_Schnittfassung_v2_2160p25.mov',
+      'Beispiel_Imagefilm-2026_Schnittfassung_v2_2160p25.mov',
     );
   });
 
   it('kommt ohne Endung aus', () => {
     expect(buildDownloadFilename({ ...basis, extension: null })).toBe(
-      '260728_THD_Imagefilm-2026_Schnittfassung_v2_2160p25',
+      '260728_Beispiel_Imagefilm-2026_Schnittfassung_v2_2160p25',
     );
   });
 
@@ -119,7 +119,7 @@ describe('extensionOf', () => {
 describe('buildDownloadFilename – Endfassung', () => {
   const basis = {
     date: '260304',
-    customer: 'THD',
+    customer: 'Beispiel',
     projectName: 'Kampagne',
     videoName: 'Teaser',
     versionNumber: 1,
@@ -129,17 +129,17 @@ describe('buildDownloadFilename – Endfassung', () => {
 
   it('schreibt „Vorschau“ hinter die Nummer, solange die Fassung nicht final ist', () => {
     expect(buildDownloadFilename({ ...basis, isFinal: false })).toBe(
-      '260304_THD_Kampagne_Teaser_v1_Vorschau_1080p25.mov',
+      '260304_Beispiel_Kampagne_Teaser_v1_Vorschau_1080p25.mov',
     );
   });
 
   it('lässt den Namen bei einer Endfassung unverändert', () => {
     expect(buildDownloadFilename({ ...basis, isFinal: true })).toBe(
-      '260304_THD_Kampagne_Teaser_v1_1080p25.mov',
+      '260304_Beispiel_Kampagne_Teaser_v1_1080p25.mov',
     );
   });
 
   it('schweigt, wenn niemand nach der Endfassung fragt – alte Aufrufer bleiben gültig', () => {
-    expect(buildDownloadFilename(basis)).toBe('260304_THD_Kampagne_Teaser_v1_1080p25.mov');
+    expect(buildDownloadFilename(basis)).toBe('260304_Beispiel_Kampagne_Teaser_v1_1080p25.mov');
   });
 });

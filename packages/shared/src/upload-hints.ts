@@ -78,7 +78,7 @@ function tokenize(value: string): string[] {
 /**
  * Sucht das Projekt, zu dem ein Dateiname am ehesten gehört – über
  * Projektname und Kunde. Ein Treffer beim Kunden zählt doppelt: Wer eine
- * Datei „THD_Imagefilm_V2.mov“ nennt, meint fast immer das Projekt dieses
+ * Datei „Beispiel_Imagefilm_V2.mov“ nennt, meint fast immer das Projekt dieses
  * Kunden.
  *
  * Gibt `null` zurück, wenn nichts eindeutig genug ist.

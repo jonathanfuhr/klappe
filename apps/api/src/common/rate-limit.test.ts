@@ -132,7 +132,7 @@ describe('RateLimiter', () => {
 
 describe('rateKey', () => {
   it('nimmt die Kennung, wenn es eine gibt', () => {
-    expect(rateKey('login', '1.2.3.4', 'Anna@THD.de')).toBe('login|anna@thd.de');
+    expect(rateKey('login', '1.2.3.4', 'Anna@Firma.de')).toBe('login|anna@firma.de');
   });
 
   it('fällt sonst auf die Adresse zurück', () => {

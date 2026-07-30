@@ -59,7 +59,7 @@ An jeder Version stehen zusätzlich:
 | `playbackReason` | Begründung im Klartext |
 | `canDownload` | ob **dieser** Aufrufer das Original bekommt |
 | `fileDate` | `JJMMTT` |
-| `downloadFilename` | der fertige Name, z. B. `260304_THD_Kampagne_Teaser_v1_1080p25.mov` |
+| `downloadFilename` | der fertige Name, z. B. `260304_Beispiel_Kampagne_Teaser_v1_1080p25.mov` |
 
 ## Upload (tus 1.0.0)
 

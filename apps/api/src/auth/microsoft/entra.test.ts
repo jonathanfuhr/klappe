@@ -82,20 +82,20 @@ describe('expectedIssuer', () => {
 describe('emailFromClaims', () => {
   it('nimmt zuerst email', () => {
     expect(
-      emailFromClaims({ email: 'A@THD.de', preferred_username: 'b@thd.de', upn: 'c@thd.de' }),
-    ).toBe('a@thd.de');
+      emailFromClaims({ email: 'A@Firma.de', preferred_username: 'b@firma.de', upn: 'c@firma.de' }),
+    ).toBe('a@firma.de');
   });
 
   it('weicht auf preferred_username aus', () => {
-    expect(emailFromClaims({ preferred_username: 'b@thd.de' })).toBe('b@thd.de');
+    expect(emailFromClaims({ preferred_username: 'b@firma.de' })).toBe('b@firma.de');
   });
 
   it('weicht zuletzt auf upn aus', () => {
-    expect(emailFromClaims({ upn: 'c@thd.de' })).toBe('c@thd.de');
+    expect(emailFromClaims({ upn: 'c@firma.de' })).toBe('c@firma.de');
   });
 
   it('ignoriert Werte ohne @ – preferred_username darf auch ein Anmeldename sein', () => {
-    expect(emailFromClaims({ preferred_username: 'anna', upn: 'anna@thd.de' })).toBe('anna@thd.de');
+    expect(emailFromClaims({ preferred_username: 'anna', upn: 'anna@firma.de' })).toBe('anna@firma.de');
     expect(emailFromClaims({ preferred_username: 'anna' })).toBeNull();
   });
 
@@ -110,12 +110,12 @@ describe('nameFromClaims', () => {
   });
 
   it('baut sonst einen Namen aus der Adresse', () => {
-    expect(nameFromClaims({}, 'anna.meier@thd.de')).toBe('Anna Meier');
-    expect(nameFromClaims({}, 'anna_meier@thd.de')).toBe('Anna Meier');
+    expect(nameFromClaims({}, 'anna.meier@firma.de')).toBe('Anna Meier');
+    expect(nameFromClaims({}, 'anna_meier@firma.de')).toBe('Anna Meier');
   });
 
   it('behält die Adresse, wenn sich nichts Besseres bauen lässt', () => {
-    expect(nameFromClaims({}, '@thd.de')).toBe('@thd.de');
+    expect(nameFromClaims({}, '@firma.de')).toBe('@firma.de');
   });
 });
 
@@ -125,27 +125,27 @@ describe('domainAllowed', () => {
   });
 
   it('lässt eingetragene Domänen durch', () => {
-    expect(domainAllowed('anna@thd.de', ['thd.de', 'beispiel.org'])).toBe(true);
+    expect(domainAllowed('anna@firma.de', ['firma.de', 'beispiel.org'])).toBe(true);
   });
 
   it('weist fremde Domänen ab', () => {
-    expect(domainAllowed('anna@fremd.de', ['thd.de'])).toBe(false);
+    expect(domainAllowed('anna@fremd.de', ['firma.de'])).toBe(false);
   });
 
   it('achtet nicht auf Groß- und Kleinschreibung', () => {
-    expect(domainAllowed('anna@THD.de', ['thd.de'])).toBe(true);
+    expect(domainAllowed('anna@Firma.de', ['firma.de'])).toBe(true);
   });
 
   it('lässt sich nicht mit einer Sub-Domäne austricksen', () => {
-    expect(domainAllowed('anna@böse-thd.de', ['thd.de'])).toBe(false);
-    expect(domainAllowed('anna@thd.de.fremd.de', ['thd.de'])).toBe(false);
+    expect(domainAllowed('anna@böse-firma.de', ['firma.de'])).toBe(false);
+    expect(domainAllowed('anna@firma.de.fremd.de', ['firma.de'])).toBe(false);
   });
 });
 
 describe('parseDomainList', () => {
   it('trennt an Komma, Semikolon und Leerraum', () => {
-    expect(parseDomainList('thd.de, @beispiel.org; dritte.de')).toEqual([
-      'thd.de',
+    expect(parseDomainList('firma.de, @beispiel.org; dritte.de')).toEqual([
+      'firma.de',
       'beispiel.org',
       'dritte.de',
     ]);
