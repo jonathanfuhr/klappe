@@ -248,6 +248,16 @@ Felder, Erscheinungsbild, Anmeldung, E-Mail-Versand und Transcode. Jeder ändert
 sein Passwort selbst unter **Mein Konto** – nach dem ersten Wechsel darf
 `ADMIN_PASSWORD` aus der `.env` verschwinden.
 
+### Handbuch und „Über diese Software“
+
+In der Kopfzeile stehen für jeden Angemeldeten – Team wie Gäste – zwei
+weitere Seiten: **Handbuch** erklärt Anmeldung, Player, Kommentieren,
+Freigeben und alles Übrige aus Sicht der Benutzung; **Über diese Software**
+nennt Autor und Software und trägt einen Freitext, den jeder Admin für die
+eigene Umgebung pflegt (z. B. „läuft auf nativer Hardware“). Das Handbuch
+liegt zusätzlich als Markdown unter [docs/handbuch.md](docs/handbuch.md) in
+der Repo.
+
 ---
 
 ## Installation
@@ -648,6 +658,9 @@ docs/                Architektur, Datenmodell, API-Referenz, Mac-Betrieb
 
 Mehr dazu in [docs/architektur.md](docs/architektur.md),
 [docs/datenmodell.md](docs/datenmodell.md) und [docs/api.md](docs/api.md).
+Das Handbuch für Benutzer und Gäste liegt in
+[docs/handbuch.md](docs/handbuch.md) – derselbe Text steht auch in der
+Anwendung selbst unter *Handbuch*.
 
 ### Ohne Container arbeiten
 

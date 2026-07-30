@@ -183,6 +183,13 @@
       "when": 1785263090399,
       "tag": "0025_gastanmeldung",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1785263150399,
+      "tag": "0026_umgebungshinweise",
+      "breakpoints": true
     }
   ]
 }

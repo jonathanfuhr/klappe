@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { ProjectSettingsDto, SmtpSettingsDto } from '@klappe/shared';
+import type { AboutDto, ProjectSettingsDto, SmtpSettingsDto } from '@klappe/shared';
+import { normalizeEnvironmentNotes } from '@klappe/shared';
 import { eq } from 'drizzle-orm';
 import { decryptSecret, encryptSecret } from '../common/secret-box';
 import { AppConfig, CONFIG } from '../config/configuration';
@@ -131,6 +132,35 @@ export class SettingsService {
         .where(eq(appSettings.id, SETTINGS_ID));
     }
     return this.getProjectSettings();
+  }
+
+  /**
+   * „Über diese Software": der einzige Teil davon, der in der Datenbank
+   * steht. Autor und Software selbst sind feste Angaben in der Oberfläche –
+   * nur der Hinweis zur Umgebung ist von Anlage zu Anlage verschieden und
+   * gehört deshalb hierher. Lesbar für jeden Angemeldeten, auch Gäste;
+   * schreibbar nur für den Admin (siehe Controller).
+   */
+  async getAbout(): Promise<AboutDto> {
+    const row = await this.getRow();
+    return {
+      environmentNotes: row.environmentNotes,
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  async updateAbout(input: { environmentNotes?: string | null }): Promise<AboutDto> {
+    await this.getRow();
+    if (input.environmentNotes !== undefined) {
+      await this.db
+        .update(appSettings)
+        .set({
+          environmentNotes: normalizeEnvironmentNotes(input.environmentNotes),
+          updatedAt: new Date(),
+        })
+        .where(eq(appSettings.id, SETTINGS_ID));
+    }
+    return this.getAbout();
   }
 
   /**

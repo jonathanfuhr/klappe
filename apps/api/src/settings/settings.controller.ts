@@ -13,9 +13,11 @@ import {
 } from '@nestjs/common';
 import {
   HLS_MODES,
+  MAX_ENVIRONMENT_NOTES_LENGTH,
   RENDITION_CONTAINERS,
   TRANSCODE_TIMINGS,
   X264_PRESETS,
+  type AboutDto,
   type AuthSettingsDto,
   type DownloadPresetDto,
   type MailFailureDto,
@@ -115,6 +117,14 @@ class UpdateProjectSettingsDto {
   @Min(0)
   @Max(MAX_ARCHIVE_RETENTION_DAYS)
   archiveRetentionDays?: number;
+}
+
+/** „Über diese Software" – der Umgebungshinweis. Ein leerer String löscht ihn. */
+class UpdateAboutDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_ENVIRONMENT_NOTES_LENGTH)
+  environmentNotes?: string;
 }
 
 /** Verarbeitung (Phase 19). Leere Zeichenketten löschen das Zeitfenster. */
@@ -346,6 +356,24 @@ export class SettingsController {
   updateProjectSettings(@Body() dto: UpdateProjectSettingsDto): Promise<ProjectSettingsDto> {
     return this.settingsService.updateProjectSettings({
       archiveRetentionDays: dto.archiveRetentionDays,
+    });
+  }
+
+  /**
+   * „Über diese Software" (Umgebungshinweis): lesbar für jeden Angemeldeten,
+   * auch Gäste – anders als die übrige Verwaltung, die dem Team vorbehalten
+   * bleibt.
+   */
+  @Get('about')
+  getAbout(): Promise<AboutDto> {
+    return this.settingsService.getAbout();
+  }
+
+  @Roles('ADMIN')
+  @Put('about')
+  updateAbout(@Body() dto: UpdateAboutDto): Promise<AboutDto> {
+    return this.settingsService.updateAbout({
+      environmentNotes: dto.environmentNotes === undefined ? undefined : dto.environmentNotes || null,
     });
   }
 
