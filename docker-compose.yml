@@ -1,0 +1,197 @@
+# Klappe – vollständiger Stack.
+#
+#   cp .env.example .env   # Werte anpassen, insbesondere die Geheimnisse
+#   docker compose up -d --build
+#
+# Nach außen zeigt nur `caddy`. Er verteilt `/v1/*` an die API und alles andere
+# an Next – beides unter derselben Herkunft, sodass das Sitzungs-Cookie greift
+# und CORS nicht gebraucht wird. Warum das nicht Next selbst übernimmt, steht
+# in `docker/klappe-routen.caddy`.
+#
+# Für HTTPS gibt es zwei Ergänzungen: `docker-compose.tunnel.yml` (Cloudflared,
+# kein Port nach außen) und `docker-compose.https.yml` (eigenes Zertifikat,
+# Portfreigabe). Sie schließen sich gegenseitig aus.
+
+name: klappe
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-klappe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss gesetzt sein}
+      POSTGRES_DB: ${POSTGRES_DB:-klappe}
+      # Ohne diese Vorgabe legt das Image die Datenbank mit der Sortierung des
+      # Hosts an, was den Import einer Sicherung auf einem anderen Host bricht.
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-klappe} -d ${POSTGRES_DB:-klappe}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: klappe/api:latest
+    restart: unless-stopped
+    command: ['api']
+    environment:
+      NODE_ENV: production
+      PORT: '3001'
+      DATABASE_URL: postgres://${POSTGRES_USER:-klappe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-klappe}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET muss gesetzt sein}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-klappe_session}
+      # Ohne Angabe entscheidet die API anhand von PUBLIC_URL. Eine feste 1
+      # hier hätte jeden Test über http:// unmöglich gemacht.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-}
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-604800}
+      STORAGE_DIR: /data
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-214748364800}
+      # Auf 1 stellen, um einem hängenden Upload zuzusehen: Dann schreibt die
+      # API jeden Block mit – Eintreffen, Byteposition im Stillstand, Abschluss.
+      UPLOAD_TRACE: ${UPLOAD_TRACE:-0}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+      # Nur nötig, wer nicht die weltweite Entra-Cloud benutzt. Microsoft 365
+      # selbst wird in der Oberfläche eingerichtet, nicht hier.
+      OIDC_AUTHORITY: ${OIDC_AUTHORITY:-https://login.microsoftonline.com}
+    volumes:
+      - ${MEDIA_DIR:-media}:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: klappe/api:latest
+    restart: unless-stopped
+    command: ['worker']
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-klappe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-klappe}
+      REDIS_URL: redis://redis:6379
+      # Auch der Worker braucht das Secret: Er entschlüsselt damit das
+      # SMTP-Passwort und signiert die Abmelde-Links in den Benachrichtigungen.
+      JWT_SECRET: ${JWT_SECRET}
+      STORAGE_DIR: /data
+      # Die Benachrichtigungen entstehen im Worker. Ohne diese Adresse zeigen
+      # alle Links in den Mails auf localhost.
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      # Wie viele Transcodings gleichzeitig laufen. Mehr als 1 lohnt nur mit
+      # entsprechend vielen Kernen – ffmpeg lastet allein schon gut aus.
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+      # Zielgröße der **kurzen** Kante; PROXY_HEIGHT bleibt als alter Name gültig.
+      PROXY_SHORT_EDGE: ${PROXY_SHORT_EDGE:-${PROXY_HEIGHT:-1080}}
+      PLAYBACK_MAX_BITRATE_BPS: ${PLAYBACK_MAX_BITRATE_BPS:-20000000}
+      PROXY_VIDEO_BITRATE: ${PROXY_VIDEO_BITRATE:-10M}
+      PROXY_PRESET: ${PROXY_PRESET:-veryfast}
+      # Adaptive Wiedergabe – kostet einen weiteren Durchlauf, daher aus.
+      HLS_ENABLED: ${HLS_ENABLED:-0}
+      HLS_SEGMENT_SECONDS: ${HLS_SEGMENT_SECONDS:-4}
+    volumes:
+      - ${MEDIA_DIR:-media}:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Muss zum Bauzeitpunkt feststehen: Next schreibt das Ziel der
+        # `/v1`-Weiterleitung fest ins Routen-Manifest.
+        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3001}
+    image: klappe/web:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-klappe_session}
+      # **Nicht** auf Nodes Standard von 5 Sekunden zurückstellen. Node macht
+      # eine ruhende Keep-Alive-Verbindung dann so früh zu, dass Safari sie noch
+      # für benutzbar hält und den nächsten Upload-Block hineinschreibt – der
+      # verschwindet dann spurlos, ohne Antwort und ohne Fehler, bis nach vier
+      # Minuten die Zeitgrenze zuschlägt. Genau das war der „Safari lädt nicht
+      # hoch"-Fehler. Chrome verdeckt ihn, weil es solche Anfragen selbst
+      # wiederholt. 59 s, weil Nodes `headersTimeout` bei 60 s steht.
+      KEEP_ALIVE_TIMEOUT: ${KEEP_ALIVE_TIMEOUT:-59000}
+    # Nicht mehr direkt veröffentlicht – davor steht `caddy`.
+    depends_on:
+      api:
+        condition: service_started
+
+  # Der einzige Dienst, der nach außen zeigt. Er verteilt `/v1/*` an die API
+  # und alles andere an Next.
+  #
+  # Er ist **nicht** optional: Nexts eigene `/v1`-Weiterleitung setzt
+  # `Connection: close` auf jede Antwort, woran der Upload in Safari zuverlässig
+  # scheitert. Die ausführliche Begründung steht in `docker/klappe-routen.caddy`.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./docker/klappe-routen.caddy:/etc/caddy/klappe-routen.caddy:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - '${WEB_PORT:-3000}:80'
+    depends_on:
+      api:
+        condition: service_started
+      web:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:
+  caddy-config:
+  # Originale, Proxys, Posterframes, Sprite-Streifen und die Teildateien
+  # laufender Uploads. Hier liegen die Nutzdaten – das gehört in die Sicherung.
+  #
+  # Als benanntes Volume nur der bequeme Standard für einen Probelauf. Im Betrieb
+  # gehört `MEDIA_DIR` auf einen echten Pfad gesetzt: Ein benanntes Volume landet
+  # unter `/var/lib/docker`, und das ist auf manchen Hosts (Unraid, Synology) ein
+  # Abbild fester Größe, das sich alle Container teilen. Ein einziges
+  # 40-GB-Kameraband bringt dann den ganzen Host zum Stehen.
+  media:

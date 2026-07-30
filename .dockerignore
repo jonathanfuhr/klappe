@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/coverage
+.git
+.gitignore
+data
+storage
+tmp
+*.log
+.env
+.env.local
+docs

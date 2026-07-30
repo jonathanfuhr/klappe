@@ -1,0 +1,33 @@
+# Reverse Proxy für den Betrieb ohne TLS – der Standardfall aus
+# `docker-compose.yml`. Nach außen zeigt nur dieser Dienst.
+#
+# Er steht hier nicht der Bequemlichkeit halber davor, sondern weil `/v1/*` an
+# Nexts eigener Weiterleitung vorbeigeführt werden **muss**: Die Begründung
+# steht in `klappe-routen.caddy`.
+#
+# Für den Betrieb mit eigener Domain und Zertifikat siehe `Caddyfile.https`
+# und `docker-compose.https.yml`.
+
+{
+	# Ohne Domain gibt es nichts zu verschlüsseln; das spart Caddy den
+	# vergeblichen Versuch, ein Zertifikat zu holen.
+	auto_https off
+}
+
+:80 {
+	encode zstd gzip
+
+	# Eine Zeile je Anfrage, mit Kopfzeilen, Statuscode und Dauer.
+	#
+	# Das ist das Mittelstück, das bei der Safari-Suche gefehlt hat: Browser und
+	# API allein sagen nur, dass etwas nicht ankommt – erst der Blick von hier
+	# aus trennt „die Antwort wurde nie geschrieben" von „sie wurde geschrieben
+	# und kam trotzdem nicht an". Genau diese Unterscheidung hat den Fehler
+	# gefunden. Wem es zu geschwätzig ist, nimmt den Block heraus.
+	log {
+		output stdout
+		format json
+	}
+
+	import klappe-routen.caddy
+}

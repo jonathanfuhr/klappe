@@ -1,0 +1,25 @@
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.local
+.env.*.local
+
+# Nur im Wurzelverzeichnis, nicht irgendwo im Baum: Ohne den führenden
+# Schrägstrich hätte `storage/` auch apps/api/src/storage/ verschluckt – und
+# genau das ist einmal passiert.
+/data/
+/storage/
+/tmp/
+
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+/.VSCodeCounter

@@ -1,0 +1,34 @@
+# Ergänzung für HTTPS mit eigenem Zertifikat.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+#
+# Der Reverse Proxy steht schon im Grundstapel – diese Datei gibt ihm nur eine
+# Domain, ein Zertifikat und die Ports 80/443. Die Wegeverteilung bleibt
+# dieselbe (siehe `docker/klappe-routen.caddy`).
+#
+# Wer stattdessen einen Cloudflared-Tunnel benutzt, braucht diese Datei nicht:
+# Der Tunnel bringt TLS mit und verbindet sich von innen nach außen, sodass
+# am Router kein Port offen sein muss. Diese Ergänzung ist für den anderen
+# Weg – eine Portfreigabe auf 80/443 mit automatischem Let's-Encrypt-Zertifikat.
+#
+# Vorbedingungen:
+#   * KLAPPE_DOMAIN in der .env auf den Namen setzen, der auf diesen Host zeigt
+#   * ACME_EMAIL setzen (für Ablaufhinweise von Let's Encrypt)
+#   * Port 80 und 443 müssen von außen erreichbar sein – Port 80 wird für die
+#     Zertifikatsprüfung gebraucht und leitet danach auf HTTPS um
+#   * PUBLIC_URL in der .env auf https://<domain> setzen, sonst zeigen die
+#     Links in E-Mails weiterhin auf http
+
+services:
+  caddy:
+    environment:
+      KLAPPE_DOMAIN: ${KLAPPE_DOMAIN:?KLAPPE_DOMAIN muss gesetzt sein}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL muss gesetzt sein}
+    ports: !override
+      - '80:80'
+      - '443:443'
+    volumes: !override
+      - ./docker/Caddyfile.https:/etc/caddy/Caddyfile:ro
+      - ./docker/klappe-routen.caddy:/etc/caddy/klappe-routen.caddy:ro
+      - caddy-data:/data
+      - caddy-config:/config

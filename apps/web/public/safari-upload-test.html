@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Klappe – Upload-Einzeltest</title>
+    <style>
+      body { font: 15px/1.5 system-ui, sans-serif; margin: 0; padding: 24px; background: #121316; color: #e8e9ec; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      p.hint { color: #9aa0a8; margin-top: 0; max-width: 60em; }
+      fieldset { border: 1px solid #2b2d33; border-radius: 8px; margin: 16px 0; padding: 12px 14px; }
+      legend { color: #9aa0a8; font-size: 13px; padding: 0 6px; }
+      label { display: block; margin: 8px 0 4px; font-size: 13px; color: #9aa0a8; }
+      input, select, button, textarea { font: inherit; padding: 7px 10px; border-radius: 6px; border: 1px solid #2b2d33; background: #1a1c21; color: inherit; }
+      button { background: #4c8dff; border-color: #4c8dff; color: #fff; cursor: pointer; font-weight: 600; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      button.leise { background: #2b2d33; border-color: #2b2d33; }
+      #log { white-space: pre-wrap; font: 12px/1.45 ui-monospace, monospace; background: #0d0e10; border: 1px solid #2b2d33; border-radius: 8px; padding: 12px; max-height: 55vh; overflow: auto; }
+      .ok { color: #7fd396; } .bad { color: #ff8f93; } .dim { color: #6d737c; } .warn { color: #ffd479; }
+    </style>
+  </head>
+  <body>
+    <h1>Upload-Einzeltest</h1>
+    <p class="hint">
+      Schickt eine Datei Block für Block per <code>XMLHttpRequest</code> an die
+      Upload-Schnittstelle – ohne React, ohne die Warteschlange der Anwendung.
+      Damit lässt sich trennen, ob der Browser oder unser Code klemmt.
+      <strong>Vorher in derselben Sitzung anmelden</strong> (Tab auf
+      <code>/login</code>), das Cookie wird mitgeschickt.
+    </p>
+    <p class="hint">
+      Solange ein Block läuft, meldet die Seite <strong>alle zwei Sekunden</strong>,
+      wie viele Bytes Safari bereits abgegeben hat. Eine Zahl, die stehen bleibt,
+      heißt: Die Gegenstelle holt die Daten nicht ab. Eine Zahl, die wächst,
+      heißt: Es läuft, nur langsam. Auf diese Unterscheidung kommt es an – nicht
+      auf den Balken in der Anwendung.
+    </p>
+
+    <fieldset>
+      <legend>Einstellungen</legend>
+      <label for="quelle">Woher die Daten kommen</label>
+      <select id="quelle">
+        <option value="datei" selected>Datei auswählen (wie im Alltag)</option>
+        <option value="opfs">Im Browser erzeugen, dateigestützt (nur über https/localhost)</option>
+        <option value="speicher">Im Browser erzeugen, im Arbeitsspeicher</option>
+      </select>
+      <div id="feldDateiZeile">
+        <label for="datei">Datei</label>
+        <input id="datei" type="file" accept="video/*" />
+      </div>
+      <div id="feldGroesseZeile" hidden>
+        <label for="groesse">Größe der erzeugten Datei in MB</label>
+        <input id="groesse" type="number" value="92" min="1" max="4096" />
+      </div>
+      <label for="block">Blockgröße</label>
+      <select id="block">
+        <option value="262144">256 KiB</option>
+        <option value="1048576">1 MiB</option>
+        <option value="4194304" selected>4 MiB (wie die App)</option>
+        <option value="8388608">8 MiB (wie früher)</option>
+      </select>
+      <label for="lesen" style="margin-top: 12px">Wie der Block verschickt wird</label>
+      <select id="lesen">
+        <option value="blob" selected>In den Speicher lesen, als Blob senden (wie die App)</option>
+        <option value="arraybuffer">In den Speicher lesen, als ArrayBuffer senden (hängt in Safari)</option>
+        <option value="direkt">Datei-Ausschnitt direkt senden (hängt in Safari bei echten Dateien)</option>
+      </select>
+      <p style="margin: 14px 0 0">
+        <button id="los">Test starten</button>
+        <button id="stopp" class="leise" disabled>Abbrechen</button>
+        <button id="kopieren" class="leise">Protokoll kopieren</button>
+      </p>
+    </fieldset>
+
+    <div id="log" class="dim">Noch nichts gelaufen.</div>
+
+    <script>
+      const feldQuelle = document.getElementById('quelle');
+      const feldDatei = document.getElementById('datei');
+      const feldGroesse = document.getElementById('groesse');
+      const feldBlock = document.getElementById('block');
+      const feldLesen = document.getElementById('lesen');
+      const knopfLos = document.getElementById('los');
+      const knopfStopp = document.getElementById('stopp');
+      const knopfKopieren = document.getElementById('kopieren');
+      const log = document.getElementById('log');
+
+      let abbrechen = false;
+      let start = 0;
+      let laufenderXhr = null;
+
+      function zeile(text, klasse) {
+        const t = ((performance.now() - start) / 1000).toFixed(1).padStart(6);
+        const span = document.createElement('div');
+        if (klasse) span.className = klasse;
+        span.textContent = `${t}s  ${text}`;
+        if (log.classList.contains('dim')) { log.textContent = ''; log.classList.remove('dim'); }
+        log.appendChild(span);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      feldQuelle.addEventListener('change', () => {
+        const datei = feldQuelle.value === 'datei';
+        document.getElementById('feldDateiZeile').hidden = !datei;
+        document.getElementById('feldGroesseZeile').hidden = datei;
+      });
+
+      knopfStopp.addEventListener('click', () => {
+        abbrechen = true;
+        laufenderXhr?.abort();
+        zeile('Abbruch angefordert.', 'dim');
+      });
+
+      knopfKopieren.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(log.innerText);
+          zeile('Protokoll in die Zwischenablage gelegt.', 'dim');
+        } catch {
+          zeile('Kopieren ging nicht – bitte den Text von Hand markieren.', 'warn');
+        }
+      });
+
+      /**
+       * Ein Block per XHR – bewusst dieselbe Mechanik wie in der Anwendung,
+       * ergänzt um eine laufende Standmeldung. Ohne die sieht ein hängender
+       * Block genauso aus wie ein langsamer, und die vier Minuten bis
+       * `xhr.timeout` verraten nichts über die Ursache.
+       */
+      function sendeBlock(location_, nutzlast, offset) {
+        const groesse = nutzlast.byteLength ?? nutzlast.size;
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          laufenderXhr = xhr;
+          const t0 = performance.now();
+          let letzterFortschritt = 0;
+          let zeitLetzterFortschritt = t0;
+          let anzahlFortschritt = 0;
+          let bodyFertigNach = null;
+
+          const uhr = setInterval(() => {
+            const seit = ((performance.now() - t0) / 1000).toFixed(0);
+            const stille = ((performance.now() - zeitLetzterFortschritt) / 1000).toFixed(0);
+            if (bodyFertigNach !== null) {
+              zeile(`   … seit ${seit}s: Body ist abgegeben, es fehlt nur die Antwort des Servers.`, 'warn');
+              return;
+            }
+            zeile(
+              `   … seit ${seit}s: ${letzterFortschritt} von ${groesse} Byte abgegeben ` +
+                `(letzte Regung vor ${stille}s, ${anzahlFortschritt} Ereignisse)`,
+              stille >= 6 ? 'warn' : 'dim',
+            );
+          }, 2000);
+
+          const beenden = () => { clearInterval(uhr); laufenderXhr = null; };
+
+          xhr.open('PATCH', location_, true);
+          xhr.withCredentials = true;
+          xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
+          xhr.setRequestHeader('Upload-Offset', String(offset));
+          xhr.setRequestHeader('Tus-Resumable', '1.0.0');
+          xhr.timeout = 60000 + Math.ceil(groesse / (20 * 1024)) * 1000;
+
+          xhr.upload.onprogress = (e) => {
+            anzahlFortschritt += 1;
+            letzterFortschritt = e.loaded;
+            zeitLetzterFortschritt = performance.now();
+          };
+          // Der Übergang, auf den es ankommt: Ab hier hat Safari alles abgegeben
+          // und wartet nur noch auf die Antwort. Bleibt es *davor* stehen, holt
+          // niemand die Daten ab; bleibt es *danach* stehen, kaut der Server.
+          xhr.upload.onload = () => {
+            bodyFertigNach = ((performance.now() - t0) / 1000).toFixed(2);
+            zeile(`   Body vollständig abgegeben nach ${bodyFertigNach}s (${anzahlFortschritt} Ereignisse)`, 'dim');
+          };
+          xhr.onerror = () => {
+            beenden();
+            reject(new Error(`Netzwerkfehler (onerror) nach ${((performance.now() - t0) / 1000).toFixed(1)}s, zuletzt ${letzterFortschritt} von ${groesse} Byte abgegeben`));
+          };
+          xhr.ontimeout = () => {
+            beenden();
+            reject(new Error(
+              `Zeitüberschreitung nach ${Math.round(xhr.timeout / 1000)}s – zuletzt ${letzterFortschritt} von ${groesse} Byte abgegeben, ` +
+                (bodyFertigNach !== null
+                  ? 'der Body war vollständig draußen, die Antwort kam nie.'
+                  : 'der Body kam nicht heraus: Die Gegenstelle hat die Daten nicht abgeholt.'),
+            ));
+          };
+          xhr.onabort = () => { beenden(); reject(new Error('Abgebrochen')); };
+          xhr.onload = () => {
+            beenden();
+            const dauer = ((performance.now() - t0) / 1000).toFixed(1);
+            if (xhr.status < 200 || xhr.status >= 300) {
+              reject(new Error(`HTTP ${xhr.status} – ${xhr.responseText.slice(0, 200)}`));
+              return;
+            }
+            zeile(`   HTTP ${xhr.status} nach ${dauer}s, ${anzahlFortschritt} Fortschrittsereignisse`, 'ok');
+            resolve(Number(xhr.getResponseHeader('Upload-Offset')));
+          };
+          xhr.send(nutzlast);
+        });
+      }
+
+      /** Ist der dateigestützte Weg hier überhaupt möglich? */
+      function opfsMoeglich() {
+        // Der private Dateispeicher gibt es nur im „sicheren Kontext“: also
+        // über https oder auf localhost. Über `http://` auf einen Hostnamen –
+        // und genau so läuft Klappe im Hausnetz – fehlt `navigator.storage`
+        // komplett.
+        return Boolean(window.isSecureContext && navigator.storage?.getDirectory);
+      }
+
+      /** Erzeugt eine Testdatei ohne Auswahl-Dialog – auf Wunsch dateigestützt. */
+      async function erzeugeDatei(mb, dateigestuetzt) {
+        const stueck = new Uint8Array(1024 * 1024);
+        for (let i = 0; i < stueck.length; i += 1) stueck[i] = i & 0xff;
+
+        if (dateigestuetzt && !opfsMoeglich()) {
+          zeile(
+            'Dateigestützt geht hier nicht: Der private Dateispeicher braucht https ' +
+              'oder localhost. Es wird stattdessen aus dem Arbeitsspeicher geschickt – ' +
+              'für die Netzwerkstrecke macht das keinen Unterschied. Wer den Weg über ' +
+              'die Platte prüfen will, nimmt oben „Datei auswählen“.',
+            'warn',
+          );
+          dateigestuetzt = false;
+        }
+
+        if (!dateigestuetzt) {
+          return new Blob(Array.from({ length: mb }, () => stueck), { type: 'video/mp4' });
+        }
+        // Über den privaten Dateispeicher des Ursprungs: Das Ergebnis ist ein
+        // echtes `File`, dessen Bytes der Netzwerkprozess von der Platte liest –
+        // derselbe Weg wie bei einer ausgewählten Datei.
+        const wurzel = await navigator.storage.getDirectory();
+        const griff = await wurzel.getFileHandle('klappe-messung.bin', { create: true });
+        const schreiber = await griff.createWritable();
+        for (let i = 0; i < mb; i += 1) await schreiber.write(stueck);
+        await schreiber.close();
+        return griff.getFile();
+      }
+
+      /**
+       * Von selbst loslegen, wenn die Adresse es sagt:
+       * `?auto=1&mb=92&quelle=opfs&block=4194304`. Damit lässt sich der Test
+       * fernsteuern – ohne Auswahl-Dialog und ohne Klick, was ihn wiederholbar
+       * macht und aus einem anderen Netz heraus überhaupt erst durchführbar.
+       */
+      const adresse = new URLSearchParams(location.search);
+      if (adresse.get('auto')) {
+        feldQuelle.value = adresse.get('quelle') || 'opfs';
+        feldQuelle.dispatchEvent(new Event('change'));
+        if (adresse.get('mb')) feldGroesse.value = adresse.get('mb');
+        if (adresse.get('block')) feldBlock.value = adresse.get('block');
+        if (adresse.get('lesen')) {
+          const wert = adresse.get('lesen');
+          feldLesen.value = wert === 'speicher' ? 'arraybuffer' : wert;
+        }
+        addEventListener('load', () => knopfLos.click());
+      }
+
+      knopfLos.addEventListener('click', async () => {
+        const blockgroesse = Number(feldBlock.value);
+        abbrechen = false;
+        start = performance.now();
+        log.textContent = '';
+        log.classList.remove('dim');
+        knopfLos.disabled = true;
+        knopfStopp.disabled = false;
+
+        try {
+          zeile(`Browser: ${navigator.userAgent}`, 'dim');
+
+          let datei;
+          if (feldQuelle.value === 'datei') {
+            datei = feldDatei.files?.[0];
+            if (!datei) throw new Error('Bitte erst eine Datei auswählen.');
+          } else {
+            const mb = Math.max(1, Number(feldGroesse.value) || 92);
+            const tErzeugen = performance.now();
+            datei = await erzeugeDatei(mb, feldQuelle.value === 'opfs');
+            zeile(`Testdatei erzeugt: ${datei.size} Byte in ${((performance.now() - tErzeugen) / 1000).toFixed(2)}s`, 'ok');
+          }
+
+          zeile(`Datei: ${datei.name ?? '(erzeugt)'}, ${(datei.size / 1048576).toFixed(1)} MB, Blöcke à ${(blockgroesse / 1024).toFixed(0)} KiB`);
+
+          // Zuerst das reine Lesen prüfen – hängt Safari schon hier, liegt es
+          // nicht am Server.
+          const tLesen = performance.now();
+          await datei.slice(0, Math.min(blockgroesse, datei.size)).arrayBuffer();
+          zeile(`Erster Block aus der Datei gelesen (${((performance.now() - tLesen) / 1000).toFixed(2)}s)`, 'ok');
+
+          const antwort = await fetch('/v1/uploads', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: datei.name || 'messung.mp4', sizeBytes: datei.size, mimeType: datei.type || undefined }),
+          });
+          if (!antwort.ok) throw new Error(`Sitzung anlegen: HTTP ${antwort.status} – ${(await antwort.text()).slice(0, 200)}`);
+          const sitzung = await antwort.json();
+          zeile(`Sitzung ${sitzung.id} angelegt`, 'ok');
+
+          let offset = 0;
+          let nummer = 0;
+          while (offset < datei.size && !abbrechen) {
+            nummer += 1;
+            const ende = Math.min(offset + blockgroesse, datei.size);
+            zeile(`Block ${nummer}: ${offset} … ${ende}`);
+            // Der entscheidende Unterschied liegt in der Body-Art. Gemessen in
+            // Safari 26.5.2, identische Strecke: Ein *dateigestützter* Body und
+            // ein *ArrayBuffer* gehen zwar vollständig raus, aber die Antwort
+            // wird dem XHR nie zugestellt. Nur ein im Speicher liegender Blob
+            // bekommt sie. Deshalb: lesen (löst die Datei-Bindung), dann wieder
+            // als Blob verpacken.
+            const ausschnitt = datei.slice(offset, ende);
+            let nutzlast;
+            if (feldLesen.value === 'direkt') nutzlast = ausschnitt;
+            else if (feldLesen.value === 'arraybuffer') nutzlast = await ausschnitt.arrayBuffer();
+            else nutzlast = new Blob([await ausschnitt.arrayBuffer()]);
+            offset = await sendeBlock(sitzung.location, nutzlast, offset);
+          }
+
+          if (abbrechen) {
+            zeile('Abgebrochen. Die Sitzung bleibt liegen und läuft von selbst ab.', 'dim');
+          } else {
+            zeile(`FERTIG – ${offset} von ${datei.size} Byte übertragen.`, 'ok');
+            zeile('Die Datei liegt jetzt ohne Zuordnung im Zwischenspeicher; das ist für diesen Test richtig so.', 'dim');
+          }
+        } catch (fehler) {
+          zeile(`GESCHEITERT: ${fehler.message}`, 'bad');
+          zeile('Bitte das ganze Protokoll weitergeben – „Protokoll kopieren“ legt es in die Zwischenablage.', 'dim');
+        } finally {
+          knopfLos.disabled = false;
+          knopfStopp.disabled = true;
+        }
+      });
+    </script>
+  </body>
+</html>
