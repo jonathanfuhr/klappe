@@ -25,6 +25,7 @@ import { IconButton } from '@/components/ui/Icon';
 import { SharePanel } from '@/components/SharePanel';
 import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { DownloadDialog } from '@/components/DownloadDialog';
+import { EmbedDialog } from '@/components/EmbedDialog';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
 import { useFallbackInterval, useLiveTopic } from '@/lib/live';
@@ -56,6 +57,8 @@ export default function ReviewPage() {
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [showUploader, setShowUploader] = useState(false);
   const [sharing, setSharing] = useState(false);
+  /** Einbetten liegt seit Phase 23 im „…"-Menü, nicht mehr bei den Freigaben. */
+  const [embedding, setEmbedding] = useState(false);
   /** Nachfrage vor dem Löschen – eine Fassung ist samt Kommentaren weg. */
   const [versionToDelete, setVersionToDelete] = useState<VersionDto | null>(null);
   const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
@@ -84,22 +87,22 @@ export default function ReviewPage() {
   );
 
   /**
-   * Der Herunterladen-Knopf (Phase 19). Sind Formate eingerichtet, öffnet sich
-   * das Auswahlfenster; sonst geht es wie bisher direkt aufs Original. Die
-   * Auskunft wird beim Klick geholt und ins Fenster durchgereicht – so muss
-   * die Fassung sie nicht dauernd mit sich herumtragen.
+   * Der Herunterladen-Knopf (Phase 19). Das Fenster geht seit Phase 23
+   * **immer** auf, auch ohne eingerichtete Formate: Dort steht der Dateiname,
+   * unter dem die Datei gleich auf der Platte landet, und bei einem
+   * Zwischenstand die Warnung dazu. Beides ist nach dem Klick nicht mehr zu
+   * haben.
+   *
+   * Die Auskunft wird beim Klick geholt und ins Fenster durchgereicht – so
+   * muss die Fassung sie nicht dauernd mit sich herumtragen. Antwortet sie
+   * nicht, bleibt der Direktlink als Rückfall.
    */
   const starteDownload = useCallback(async (versionId: string) => {
     try {
-      const auskunft = await api.listDownloads(versionId);
-      if (auskunft.formatsEnabled && auskunft.renditions.length > 0) {
-        setDownloads(auskunft);
-        return;
-      }
+      setDownloads(await api.listDownloads(versionId));
     } catch {
-      // Antwortet die Auskunft nicht, bleibt der gewohnte Weg offen.
+      window.location.href = mediaUrl.original(versionId);
     }
-    window.location.href = mediaUrl.original(versionId);
   }, []);
 
   const loadVideo = useCallback(async () => {
@@ -355,6 +358,7 @@ export default function ReviewPage() {
                   Neue Version …
                 </MenuItem>
                 <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
+                <MenuItem onSelect={() => setEmbedding(true)}>Einbetten …</MenuItem>
                 {/* Umbenennen und Löschen des Videos bleiben dem Team
                     vorbehalten – „Videos anlegen" hieß nicht „verwalten". */}
                 {isTeam ? (
@@ -551,6 +555,17 @@ export default function ReviewPage() {
           targetLabel={video.name}
           onClose={() => setSharing(false)}
           canManage={isTeam}
+        />
+      ) : null}
+
+      {embedding && video ? (
+        <EmbedDialog
+          videoId={video.id}
+          videoName={video.name}
+          hatEndfassung={versions.some(
+            (fassung) => fassung.isFinal && fassung.status === 'READY',
+          )}
+          onClose={() => setEmbedding(false)}
         />
       ) : null}
 

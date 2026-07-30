@@ -347,6 +347,7 @@ export const shareLinks = pgTable(
      * eigene Entscheidung und darf nicht als Nebenwirkung einer Freigabe
      * passieren.
      */
+    /** @deprecated Seit Phase 23 ersetzt durch `isEmbed`; wird nicht mehr gelesen. */
     embedEnabled: boolean('embed_enabled').notNull().default(false),
     /**
      * Direktfreigabe (Phase 18): entsteht, wenn ein vorhandener Gast mit einem
@@ -356,6 +357,18 @@ export const shareLinks = pgTable(
      * der Liste, zurückziehbar wie alle.
      */
     isDirect: boolean('is_direct').notNull().default(false),
+    /**
+     * Einbett-Link (Phase 23): ein Link **nur** für den `iframe`, mit dem sich
+     * niemand anmelden kann.
+     *
+     * Vorher war Einbetten ein Schalter am gewöhnlichen Freigabe-Link – und
+     * damit trug derselbe Link zwei grundverschiedene Bedeutungen: einmal
+     * „melde dich an und kommentiere", einmal „jeder, der die Adresse hat,
+     * sieht das Video". Das war zu Recht als verwirrend gemeldet. Jetzt sind
+     * es zwei Dinge: Einbett-Links tauchen in der Freigabenliste nicht auf,
+     * und das Gast-Gatter weist sie ab.
+     */
+    isEmbed: boolean('is_embed').notNull().default(false),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
@@ -537,10 +550,12 @@ export const projectFieldDefs = pgTable(
      */
     suggest: boolean('suggest').notNull().default(false),
     /**
-     * Steht das Feld in der Sortier- bzw. Gruppier-Auswahl der Projektliste
-     * (Phase 22)? Ab Werk an – das war bis dahin das Verhalten für jedes Feld,
-     * und ein Feld, nach dem niemand sortieren will, schaltet man gezielt ab.
+     * Steht das Feld in der Filter-, Sortier- bzw. Gruppier-Auswahl der
+     * Projektliste (Phase 22)? Ab Werk an – das war bis dahin das Verhalten
+     * für jedes Feld, und ein Feld, nach dem niemand filtern oder sortieren
+     * will, schaltet man gezielt ab.
      */
+    filterable: boolean('filterable').notNull().default(true),
     sortable: boolean('sortable').notNull().default(true),
     groupable: boolean('groupable').notNull().default(true),
     /**
@@ -609,6 +624,29 @@ export const appSettings = pgTable('app_settings', {
   brandLogoMime: text('brand_logo_mime'),
   /** Wechselt bei jedem neuen Logo und bricht damit den Browser-Cache auf. */
   brandLogoUpdatedAt: timestamp('brand_logo_updated_at', { withTimezone: true }),
+
+  /**
+   * Tab-Symbol (Phase 23): `standard` (das mitgelieferte Zeichen), `logo`
+   * (dasselbe Bild wie oben links) oder `eigenes` (eigens dafür hochgeladen).
+   * Ab Werk `standard` – ein breites Schriftzug-Logo taugt im 16-px-Tab nicht.
+   */
+  faviconMode: text('favicon_mode').notNull().default('standard'),
+  faviconKey: text('favicon_key'),
+  faviconMime: text('favicon_mime'),
+  faviconUpdatedAt: timestamp('favicon_updated_at', { withTimezone: true }),
+
+  /**
+   * Datenbanksicherung (Phase 23). Ab Werk aus – eine Sicherung, die niemand
+   * bestellt hat, schreibt sonst still Dateien auf ein Volume, dessen Größe
+   * der Betreiber selbst kalkuliert hat.
+   */
+  backupEnabled: boolean('backup_enabled').notNull().default(false),
+  backupIntervalHours: integer('backup_interval_hours').notNull().default(24),
+  backupRetentionDays: integer('backup_retention_days').notNull().default(30),
+  /** Wann zuletzt gesichert wurde – Grundlage für den nächsten Termin. */
+  backupLastRunAt: timestamp('backup_last_run_at', { withTimezone: true }),
+  /** Die Meldung des letzten gescheiterten Laufs, im Klartext. */
+  backupLastError: text('backup_last_error'),
 
   /**
    * Das Haus, dem der Workspace gehört (Phase 20). Das Kürzel steht in

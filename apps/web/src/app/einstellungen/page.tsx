@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { AuthPanel } from '@/components/settings/AuthPanel';
+import { BackupPanel } from '@/components/settings/BackupPanel';
 import { BrandingPanel } from '@/components/settings/BrandingPanel';
 import { FieldsPanel } from '@/components/settings/FieldsPanel';
 import { GuestsPanel } from '@/components/settings/GuestsPanel';
 import { ProjectsPanel } from '@/components/settings/ProjectsPanel';
 import { SmtpPanel } from '@/components/settings/SmtpPanel';
+import { StoragePanel } from '@/components/settings/StoragePanel';
 import { TranscodePanel } from '@/components/settings/TranscodePanel';
 import { UsersPanel } from '@/components/settings/UsersPanel';
 import { useSession } from '@/lib/session';
@@ -28,6 +30,8 @@ const BEREICHE = [
   { id: 'auth', label: 'Anmeldung', team: false },
   { id: 'mail', label: 'E-Mail-Versand', team: false },
   { id: 'transcode', label: 'Transcode', team: false },
+  { id: 'speicher', label: 'Speicher', team: false },
+  { id: 'sicherung', label: 'Datensicherung', team: false },
 ] as const;
 
 type BereichId = (typeof BEREICHE)[number]['id'];
@@ -82,6 +86,8 @@ export default function SettingsPage() {
           {gewaehlt === 'auth' ? <AuthPanel /> : null}
           {gewaehlt === 'mail' ? <SmtpPanel /> : null}
           {gewaehlt === 'transcode' ? <TranscodePanel /> : null}
+          {gewaehlt === 'speicher' ? <StoragePanel /> : null}
+          {gewaehlt === 'sicherung' ? <BackupPanel /> : null}
         </div>
       </div>
     </AppShell>

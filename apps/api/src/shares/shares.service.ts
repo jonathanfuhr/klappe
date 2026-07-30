@@ -89,7 +89,6 @@ export class SharesService {
         allowDownload: dto.allowDownload ?? false,
         allowUpload,
         allowComments: dto.allowComments ?? true,
-        embedEnabled: dto.embedEnabled ?? false,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
         createdById: user.id,
       })
@@ -113,7 +112,6 @@ export class SharesService {
               ? dto.allowUpload
               : false,
         allowComments: dto.allowComments,
-        embedEnabled: dto.embedEnabled,
         expiresAt: dto.expiresAt === undefined ? undefined : dto.expiresAt ? new Date(dto.expiresAt) : null,
         revokedAt: dto.revoked === undefined ? undefined : dto.revoked ? new Date() : null,
         updatedAt: new Date(),
@@ -136,7 +134,14 @@ export class SharesService {
       .select({ id: shareLinks.id })
       .from(shareLinks)
       .leftJoin(videos, eq(shareLinks.videoId, videos.id))
-      .where(or(eq(shareLinks.projectId, projectId), eq(videos.projectId, projectId)))
+      .where(
+        and(
+          or(eq(shareLinks.projectId, projectId), eq(videos.projectId, projectId)),
+          // Einbett-Links sind keine Freigaben und stehen deshalb nicht in
+          // dieser Liste (Phase 23) – sie haben ihr eigenes Fenster.
+          eq(shareLinks.isEmbed, false),
+        ),
+      )
       .orderBy(desc(shareLinks.createdAt));
 
     return Promise.all(rows.map((row) => this.findOneOrFail(row.id)));
@@ -146,7 +151,7 @@ export class SharesService {
     const rows = await this.db
       .select({ id: shareLinks.id })
       .from(shareLinks)
-      .where(eq(shareLinks.videoId, videoId))
+      .where(and(eq(shareLinks.videoId, videoId), eq(shareLinks.isEmbed, false)))
       .orderBy(desc(shareLinks.createdAt));
     return Promise.all(rows.map((row) => this.findOneOrFail(row.id)));
   }
@@ -611,15 +616,11 @@ export class SharesService {
       allowDownload: link.allowDownload,
       allowUpload: link.allowUpload,
       allowComments: link.allowComments,
-      embedEnabled: link.embedEnabled,
       isDirect: link.isDirect,
       expiresAt: link.expiresAt?.toISOString() ?? null,
       revokedAt: link.revokedAt?.toISOString() ?? null,
       isActive: isLinkActive(link),
       url: `${this.config.publicUrl}/f/${link.token}`,
-      // Nur, wenn der Schalter steht: Sonst führte die Adresse ins Leere und
-      // sähe trotzdem nach einer benutzbaren Einbettung aus.
-      embedUrl: link.embedEnabled ? `${this.config.publicUrl}/einbetten/${link.token}` : null,
       createdAt: link.createdAt.toISOString(),
       createdBy: creator
         ? { id: creator.id, name: creator.name, email: creator.email, role: creator.role }
@@ -640,8 +641,70 @@ export class SharesService {
       .from(shareLinks)
       .where(eq(shareLinks.token, token.trim().toLowerCase()))
       .limit(1);
-    if (!row) throw new NotFoundException('Diese Freigabe gibt es nicht.');
+    // Ein Einbett-Token ist kein Zugang (Phase 23): Er zeigt einen Player auf
+    // einer fremden Seite, mehr nicht. Dieselbe Meldung wie bei einem
+    // erfundenen Token – dass er als Einbettung existiert, geht niemanden
+    // etwas an, der ihn hier ausprobiert.
+    if (!row || row.isEmbed) throw new NotFoundException('Diese Freigabe gibt es nicht.');
     return row;
+  }
+
+  // ---------- Einbetten (Phase 23) ----------
+
+  /**
+   * Der Einbett-Link eines Videos, falls es einen gibt.
+   *
+   * Höchstens einer je Video: Zwei Adressen für dieselbe Einbettung wären
+   * nichts als eine zusätzliche Möglichkeit, die falsche zurückzuziehen.
+   */
+  async findEmbedLink(videoId: string): Promise<ShareLinkRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(shareLinks)
+      .where(
+        and(
+          eq(shareLinks.videoId, videoId),
+          eq(shareLinks.isEmbed, true),
+          isNull(shareLinks.revokedAt),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** Legt den Einbett-Link an oder gibt den vorhandenen zurück. */
+  async createEmbedLink(videoId: string, user: RequestUser): Promise<ShareLinkRow> {
+    const vorhanden = await this.findEmbedLink(videoId);
+    if (vorhanden) return vorhanden;
+
+    const [row] = await this.db
+      .insert(shareLinks)
+      .values({
+        token: createShareToken(),
+        scope: 'VIDEO',
+        videoId,
+        label: 'Einbettung',
+        isEmbed: true,
+        // Am Einbett-Link hängen keine Rechte: Er liefert die Abspielfassung
+        // der Endfassung, sonst nichts. Kein Download, kein Kommentieren,
+        // kein Hochladen – auch nicht versehentlich.
+        allowComments: false,
+        allowDownload: false,
+        allowUpload: false,
+        createdById: user.id,
+      })
+      .returning();
+
+    this.logger.log(`Einbett-Link für Video ${videoId} angelegt.`);
+    return row;
+  }
+
+  /** Zieht den Einbett-Link zurück – die Einbettung ist damit sofort tot. */
+  async revokeEmbedLink(videoId: string): Promise<void> {
+    await this.db
+      .update(shareLinks)
+      .set({ revokedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(shareLinks.videoId, videoId), eq(shareLinks.isEmbed, true)));
   }
 
   /** Namen von Ziel und Projekt für Anzeige und Mailtext. */

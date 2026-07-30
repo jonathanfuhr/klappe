@@ -60,6 +60,82 @@ export interface ProjectDto {
   fields: ProjectFieldValueDto[];
 }
 
+/**
+ * Wie viel Platz auf dem Dateisystem übrig ist, auf dem der Medienordner
+ * liegt (Phase 22).
+ *
+ * Zwei verschiedene Zahlen, die man leicht verwechselt: `totalBytes` und
+ * `freeBytes` gelten für das **ganze Dateisystem** – da liegt womöglich noch
+ * anderes darauf –, `usage` zählt nur, was **Klappe** selbst belegt.
+ */
+export interface StorageStatusDto {
+  /** Der Medienordner, wie ihn der API-Prozess sieht (im Container `/data`). */
+  path: string;
+  /**
+   * `false`, wenn das Betriebssystem keine Auskunft gibt. Dann stehen die
+   * drei Größen auf `null`, die Aufschlüsselung darunter gilt weiterhin.
+   */
+  available: boolean;
+  totalBytes: number | null;
+  /** Was ein gewöhnlicher Prozess noch schreiben kann (ohne die root-Reserve). */
+  freeBytes: number | null;
+  usedBytes: number | null;
+  /**
+   * Was Klappe belegt, aus der Datenbank summiert. Posterframes,
+   * Sprite-Streifen und die HLS-Segmente fehlen darin – für die hält Klappe
+   * keine Größe fest. Die Summe ist damit eine Untergrenze, kein `du`.
+   */
+  usage: {
+    originals: number;
+    proxies: number;
+    renditions: number;
+    projectFiles: number;
+    /** Angefangene Uploads im Zwischenspeicher. */
+    uploads: number;
+    total: number;
+  };
+}
+
+/** Grenzen der Sicherungseinstellungen (Phase 23). */
+export const MIN_BACKUP_INTERVAL_HOURS = 1;
+export const MAX_BACKUP_INTERVAL_HOURS = 24 * 14;
+export const MAX_BACKUP_RETENTION_DAYS = 365;
+
+/**
+ * Automatische Datenbanksicherung (Phase 23).
+ *
+ * Gesichert wird **nur die Datenbank** – Projekte, Kommentare, Freigaben,
+ * Einstellungen. Die Mediendateien bleiben außen vor: Sie liegen ohnehin im
+ * selben Volume, und ein Abzug davon wäre keine Sicherung, sondern eine
+ * zweite Kopie am selben Ort.
+ */
+export interface BackupSettingsDto {
+  enabled: boolean;
+  /** Abstand zwischen zwei Läufen; Vorgabe 24 Stunden. */
+  intervalHours: number;
+  /** So lange bleiben alte Sicherungen liegen; Vorgabe 30 Tage. */
+  retentionDays: number;
+  lastRunAt: string | null;
+  /** Meldung des letzten gescheiterten Laufs; `null`, wenn alles lief. */
+  lastError: string | null;
+  /** Wo die Dateien liegen – ein Unterordner des Medienverzeichnisses. */
+  directory: string;
+  /**
+   * Steht `pg_dump` im Container zur Verfügung? Ohne das Werkzeug lässt sich
+   * nichts sichern, und der Grund gehört sichtbar in die Oberfläche statt in
+   * ein Protokoll.
+   */
+  toolsAvailable: boolean;
+}
+
+/** Eine abgelegte Sicherung. */
+export interface BackupFileDto {
+  /** Dateiname, zugleich Kennung fürs Wiederherstellen und Löschen. */
+  name: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
 /** Definition eines benutzerdefinierten Projekt-Felds (Phase 15). */
 export interface ProjectFieldDefDto {
   id: string;
@@ -67,6 +143,8 @@ export interface ProjectFieldDefDto {
   sortOrder: number;
   /** Tippvorschläge aus den Werten der anderen Projekte (Phase 16)? */
   suggest: boolean;
+  /** Steht das Feld in der Filterleiste der Projektliste (Phase 22)? */
+  filterable: boolean;
   /** Steht das Feld in der Sortier-Auswahl der Projektliste (Phase 22)? */
   sortable: boolean;
   /** Steht das Feld in der Gruppier-Auswahl der Projektliste (Phase 22)? */
@@ -282,8 +360,6 @@ export interface ShareLinkDto {
   allowDownload: boolean;
   allowUpload: boolean;
   allowComments: boolean;
-  /** Einbetten auf fremden Seiten – ohne Anmeldung, ohne Code, ohne Cookie. */
-  embedEnabled: boolean;
   /**
    * Direktfreigabe (Phase 18): entstanden, weil ein vorhandener Gast mit einem
    * Klick erweitert wurde. Die Adresse verschickt niemand – die Oberfläche
@@ -295,8 +371,6 @@ export interface ShareLinkDto {
   isActive: boolean;
   /** Vollständige Adresse zum Weitergeben. */
   url: string;
-  /** Adresse für das `src` eines `iframe`; `null`, solange Einbetten aus ist. */
-  embedUrl: string | null;
   createdAt: string;
   createdBy: UserSummaryDto | null;
   guestCount: number;
@@ -625,6 +699,12 @@ export interface VersionDownloadsDto {
   /** Name, unter dem das Original heruntergeladen wird. */
   originalFilename: string;
   originalSizeBytes: number;
+  /**
+   * Endfassung? Sonst steht im Download-Fenster der Hinweis, dass hier ein
+   * Zwischenstand das Haus verlässt (Phase 23) – nach dem Klick sieht man ihm
+   * das nicht mehr an.
+   */
+  isFinal: boolean;
   renditions: VersionRenditionDto[];
 }
 
@@ -728,6 +808,22 @@ export interface EmbedDto {
   height: number | null;
   durationSeconds: number | null;
   hasPoster: boolean;
+  /** Für diese Fassung liegt eine HLS-Leiter bereit (Phase 23). */
+  hasHls: boolean;
   /** Titel des Workspace – erscheint klein in der Ecke. */
   brandTitle: string;
+}
+
+/**
+ * Der Einbett-Link eines Videos (Phase 23).
+ *
+ * Getrennt von den gewöhnlichen Freigabe-Links: Über diesen hier meldet sich
+ * niemand an, er zeigt nur den Player. Je Video gibt es höchstens einen.
+ */
+export interface EmbedLinkDto {
+  /** Adresse für das `src` eines `iframe`. */
+  url: string;
+  /** Fertiger Schnipsel zum Einfügen. */
+  snippet: string;
+  createdAt: string;
 }

@@ -22,6 +22,29 @@ export const LOGO_MIME_TYPES = [
 ] as const;
 export type LogoMimeType = (typeof LOGO_MIME_TYPES)[number];
 
+/**
+ * Was im Browser-Tab erscheint (Phase 23).
+ *
+ * - `standard`: das mitgelieferte Klappe-Zeichen.
+ * - `logo`: dasselbe Bild wie oben links. Praktisch, wenn es ohnehin quadratisch
+ *   ist – ein breites Schriftzug-Logo wird im 16-px-Tab allerdings zu Brei.
+ * - `eigenes`: eine eigens dafür hochgeladene Datei. Für genau den Fall.
+ */
+export const FAVICON_MODES = ['standard', 'logo', 'eigenes'] as const;
+export type FaviconMode = (typeof FAVICON_MODES)[number];
+
+/** Ein Tab-Symbol ist winzig; mehr als das wäre in jedem Fall verschwendet. */
+export const MAX_FAVICON_BYTES = 256 * 1024;
+
+/** `ico` gehört dazu, weil viele Vorlagen genau das ausspucken. */
+export const FAVICON_MIME_TYPES = [
+  'image/png',
+  'image/svg+xml',
+  'image/x-icon',
+  'image/vnd.microsoft.icon',
+] as const;
+export type FaviconMimeType = (typeof FAVICON_MIME_TYPES)[number];
+
 export interface BrandingDto {
   title: string;
   accent: string;
@@ -31,6 +54,14 @@ export interface BrandingDto {
   accentContrast: string;
   /** `null`, solange kein Logo hinterlegt ist. */
   logoUrl: string | null;
+  /** Woher das Tab-Symbol kommt (Phase 23). */
+  faviconMode: FaviconMode;
+  /**
+   * Was der Browser als Tab-Symbol laden soll. `null` heißt: das mitgelieferte
+   * Zeichen bleibt – entweder weil `standard` gewählt ist oder weil zur
+   * gewählten Quelle (noch) keine Datei vorliegt.
+   */
+  faviconUrl: string | null;
   /**
    * Das Haus, dem der Workspace gehört (Phase 20). Der Name steht in den
    * Einstellungen, das Kürzel in Klammern hinter jedem Namen aus dem eigenen
