@@ -13,6 +13,7 @@ import type { Response } from 'express';
 import { Public } from '../auth/auth.decorators';
 import { sendFile } from '../media/send-file';
 import { StorageService } from '../storage/storage.service';
+import { isSafeHlsFilename } from '../transcode/hls-plan';
 import { EmbedService } from './embed.service';
 
 /**
@@ -49,6 +50,9 @@ export class EmbedController {
       height: ziel.version.proxyHeight ?? ziel.version.height,
       durationSeconds: ziel.version.durationSeconds,
       hasPoster: Boolean(ziel.version.posterKey),
+      // Nur wenn für diese Fassung wirklich eine Leiter erzeugt wurde – sonst
+      // liefe der eingebettete Player in eine 404 statt in den Proxy.
+      hasHls: Boolean(ziel.version.hlsKey),
       brandTitle: ziel.brandTitle,
     };
   }
@@ -67,6 +71,48 @@ export class EmbedController {
       throw new NotFoundException('Für diese Fassung gibt es noch keine Abspielfassung.');
     }
     await this.deliver(response, version.proxyKey, 'video/mp4', range);
+  }
+
+  /**
+   * HLS im eingebetteten Player (Phase 23).
+   *
+   * Dieselbe Leiter wie in der Review-Ansicht, nur ohne Sitzung: Der Token
+   * in der Adresse weist aus, und `versionForOrFail` sorgt dafür, dass er nur
+   * die Fassungen seiner eigenen Einbettung aufschließt. Der Dateiname wird
+   * genauso streng geprüft wie dort – über einen Pfad in einer Playlist ließe
+   * sich sonst aus dem Verzeichnis ausbrechen.
+   */
+  @Public()
+  @Get(':token/versions/:id/hls/*path')
+  async hls(
+    @Param('token') token: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('path') path: string | string[],
+    @Res() response: Response,
+  ): Promise<void> {
+    const version = await this.embedService.versionForOrFail(token, id);
+    if (!version.hlsKey) {
+      throw new NotFoundException('Für diese Fassung gibt es keine adaptive Wiedergabe.');
+    }
+
+    const teile = (Array.isArray(path) ? path : path.split('/')).filter(Boolean);
+    if (teile.length === 0 || teile.length > 2) throw new NotFoundException('Unbekannter Pfad.');
+
+    const datei = teile[teile.length - 1];
+    const stufe = teile.length === 2 ? teile[0] : null;
+    const stufen = version.hlsVariants?.split(',').filter(Boolean) ?? [];
+
+    if (!isSafeHlsFilename(datei)) throw new NotFoundException('Unbekannter Pfad.');
+    if (stufe !== null && !stufen.includes(stufe)) throw new NotFoundException('Unbekannte Stufe.');
+
+    const key = stufe ? `${version.hlsKey}/${stufe}/${datei}` : `${version.hlsKey}/${datei}`;
+    const typ = datei.endsWith('.m3u8')
+      ? 'application/vnd.apple.mpegurl'
+      : datei.endsWith('.ts')
+        ? 'video/mp2t'
+        : 'video/mp4';
+
+    await this.deliver(response, key, typ, undefined);
   }
 
   @Public()

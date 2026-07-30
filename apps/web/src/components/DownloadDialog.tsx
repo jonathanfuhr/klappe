@@ -112,6 +112,18 @@ export function DownloadDialog({
         <p className="faint">Für diese Fassung ist kein Download freigegeben.</p>
       ) : (
         <>
+          {/* Vor dem Klick, nicht danach: Einer heruntergeladenen Datei sieht
+              niemand mehr an, dass sie ein Zwischenstand war – im Zweifel
+              liegt sie eine Woche später beim Kunden auf dem Schnittplatz
+              (Phase 23). */}
+          {!daten.isFinal ? (
+            <div className="notice notice--warn">
+              <strong>Noch keine Endfassung.</strong> Was hier das Haus verlässt, ist ein
+              Zwischenstand zur Abstimmung – Farbe, Ton und Schnitt können sich noch ändern. Der
+              Dateiname trägt deshalb <code>Vorschau</code> mit.
+            </div>
+          ) : null}
+
           <div className="downloadrow">
             <div className="downloadrow__text">
               <strong>Original</strong>

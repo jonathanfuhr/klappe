@@ -11,7 +11,7 @@ Abo pro Kopf, und das Kameramaterial verlässt das Haus nicht.
 Ein Container-Stack trägt genau **einen Workspace** mit eigenem Logo, Titel und
 eigener Farbe. Wer zwei Firmen strikt trennen will, betreibt zwei Stapel.
 
-**Stand: Phasen 0–22 sind gebaut und geprüft.** Der grobe Umfang steht unten
+**Stand: Phasen 0–23 sind gebaut und geprüft.** Der grobe Umfang steht unten
 unter [Umgesetzte Phasen](#umgesetzte-phasen).
 
 ---
@@ -92,8 +92,8 @@ Projekte tragen einen Kunden und beliebige **benutzerdefinierte Felder** (etwa
 eine Projektnummer), die in den Einstellungen angelegt werden. Nach jedem Feld
 lässt sich filtern, sortieren und gruppieren – Kunde und Schlagworte sind dabei
 ganz normale Dimensionen, keine Sonderfälle. Je Feld ist einstellbar, ob es in
-der Sortier- und Gruppier-Auswahl steht und ob sein Wert auf der Projektkachel
-erscheint. Der Kunde steht dort groß über dem Projektnamen – wer viele Projekte
+der Filterleiste, der Sortier- und der Gruppier-Auswahl steht und ob sein Wert
+auf der Projektkachel erscheint. Der Kunde steht dort groß über dem Projektnamen – wer viele Projekte
 hat, sucht zuerst nach dem Kunden.
 
 Projekte lassen sich **archivieren**: Sie bleiben sichtbar und abspielbar,
@@ -215,6 +215,11 @@ JJMMTT_Kunde_Projektname_Videoname_Versionsnummer_Auflösung.Dateiendung
 Das Datum ist das des Uploads und lässt sich ändern. Die Auflösung nennt die
 kurze Kante samt Bildrate (`2160p25`, `1080p50`, `1080p2997`). Fehlende Teile –
 etwa ein Projekt ohne Kunden – fallen weg, statt Lücken zu hinterlassen.
+
+Der Herunterladen-Knopf öffnet **immer** ein Fenster, auch ohne eingerichtete
+Formate: Dort steht der Dateiname, unter dem die Datei gleich auf der Platte
+landet, und bei einem Zwischenstand die Warnung dazu. Beides ist nach dem Klick
+nicht mehr zu haben.
 
 Das **Original** steht immer zur Verfügung, nie der Proxy. Zusätzlich kann der
 Admin Formate anlegen, aus denen der Kunde wählt – siehe
@@ -595,7 +600,10 @@ wieder auf. Gäste sind davon nie betroffen.
 
 ### Erscheinungsbild
 
-Titel, Logo und eine Akzentfarbe. Aus der einen Farbe werden Hover-Ton und
+Titel, Logo und eine Akzentfarbe. Dazu das **Symbol im Browser-Tab**: wahlweise
+das mitgelieferte Klappe-Zeichen, das Logo von oben oder eine eigens dafür
+hochgeladene Datei (PNG, SVG oder ICO). Die dritte Möglichkeit gibt es, weil
+ein breiter Schriftzug im 16-Pixel-Tab zu Brei wird. Aus der einen Farbe werden Hover-Ton und
 lesbare Schriftfarbe berechnet. Es gilt überall – Anmeldeseite, Gastzugang und
 jede E-Mail.
 
@@ -636,24 +644,34 @@ ohne Größe und fehlen darin. Sie ist damit eine Untergrenze, kein `du`.
 
 ## Eingebetteter Player
 
-Ein Freigabe-Link lässt sich zusätzlich zum Einbetten freischalten
-(**Freigeben → Einbetten erlauben**). Daneben steht dann ein fertiger
-`iframe`-Schnipsel zum Kopieren.
+Ein Video lässt sich in eine fremde Seite einbetten – über das **„…"-Menü →
+Einbetten**, nicht über die Freigaben. Das ist bewusst getrennt: Ein
+Freigabe-Link heißt „melde dich an und kommentiere", ein Einbett-Link heißt
+„wer die Adresse hat, sieht das Video". Dasselbe Ding für beides war zu Recht
+als verwirrend gemeldet.
 
-Das ist bewusst ein eigener Schalter und standardmäßig aus. Ein eingebetteter
-Player fragt **weder nach Anmeldecode noch nach Passwort** – anders geht es in
-einem fremden `iframe` nicht, weil Browser dort keine Cookies von
-Drittanbietern zulassen. Die Adresse allein ist damit der Schlüssel:
+Der Einbett-Link ist deshalb ein eigener Link mit eigenen Regeln:
 
-- Wer sie hat, sieht das Video. Wer sie nicht hat, bekommt eine 404 – gleich,
-  ob der Link nie existierte, nicht freigeschaltet ist oder zurückgezogen wurde.
-- Ausgeliefert wird nur die **Abspielfassung**, nie das Original. Über diesen
-  Weg lässt sich nichts herunterladen.
+- **Anmelden geht damit nicht.** Wer ihn ins Gast-Gatter tippt, bekommt
+  dieselbe Antwort wie bei einer erfundenen Adresse.
+- Er taucht in der Freigabenliste **nicht** auf und hat keine Rechte-Schalter.
+- Ausgeliefert wird nur die **neueste Endfassung**, und nur deren
+  Abspielfassung – nie das Original. Ohne gesetzten Endfassungs-Haken bleibt
+  der Player leer; das Einbetten-Fenster sagt das vorher.
+- **HLS wird mitbenutzt**, wenn für die Fassung eine Leiter erzeugt wurde –
+  auf einer fremden Seite sitzt oft genau die schwache Leitung, für die sie
+  gedacht ist.
 - Kommentare, Gästeliste und Projektstruktur bleiben außen vor.
 - Zurückziehen wirkt sofort, auch für die Medien dahinter.
 
-Bei einer Projektfreigabe zeigt der Player das zuletzt bearbeitete Video des
-Projekts, bei einer Videofreigabe dessen neueste fertige Fassung.
+Je Video gibt es höchstens einen Einbett-Link. Wer die Adresse hat, sieht das
+Video – ein `iframe` kann keine Anmeldung mitbringen, weil Browser dort keine
+fremden Cookies zulassen.
+
+> **Umstieg von Phase 22:** Vorher war Einbetten ein Schalter am gewöhnlichen
+> Freigabe-Link. Diese Einbettungen laufen nicht weiter – der neue Link ist
+> ein anderer. Wo bereits ein Player eingebunden ist, muss der Schnipsel
+> einmal neu geholt werden.
 
 ---
 
@@ -661,12 +679,33 @@ Projekts, bei einer Videofreigabe dessen neueste fertige Fassung.
 
 ### Sicherung
 
-Zu sichern sind das Medien-Verzeichnis (`MEDIA_DIR`, siehe oben) und die
-Datenbank:
+Zu sichern sind zwei Dinge: das Medien-Verzeichnis (`MEDIA_DIR`, siehe oben)
+und die Datenbank.
+
+**Die Datenbank sichert Klappe auf Wunsch selbst** – unter *Einstellungen →
+Datensicherung*. Dort steht, ob automatisch gesichert wird, in welchem Abstand
+(Vorgabe 24 Stunden) und wie lange die Dateien liegen bleiben (Vorgabe 30
+Tage). Daneben ein Knopf für eine Sicherung sofort. Die Dumps landen als
+`pg_dump --format=custom` in `<MEDIA_DIR>/backups/`; der tägliche Aufräumer
+lässt diesen Ordner in Ruhe.
+
+Aus derselben Seite lässt sich eine Sicherung auch **wiederherstellen**. Das
+ersetzt den gesamten Stand der Datenbank, verlangt deshalb ein getipptes
+Bestätigungswort – und legt vorher von selbst eine Sicherung des jetzigen
+Standes an. **Danach den Stapel neu starten:** Die laufenden Prozesse halten
+Verbindungen und Zwischenstände, die zur bisherigen Datenbank gehören. Die
+Mediendateien bleiben dabei unberührt; zeigt die eingespielte Datenbank auf
+Fassungen, die inzwischen gelöscht wurden, fehlen deren Dateien.
+
+Von Hand geht es weiterhin:
 
 ```bash
 docker compose exec postgres pg_dump -U klappe klappe > klappe-$(date +%F).sql
 ```
+
+**Das Medien-Verzeichnis sichert Klappe nicht** – es liegt im selben Volume,
+und eine Kopie daneben wäre keine Sicherung. Dafür ist die Sicherung des Hosts
+zuständig.
 
 Redis enthält nur Warteschlangen und Ereignisse und muss nicht gesichert werden.
 
@@ -828,4 +867,5 @@ HTTPS-Wege.
 | 19 | Einstellungsseite *Transcode*: Download in verschiedenen Formaten mit Fortschritt, Format-Presets, Vorab-Erzeugung mit Vorrangregel, Zeitfenster für die Nacharbeit, HLS-Schalter und Proxy-Werte aus der Datenbank statt aus der `.env` |
 | 20 | Gast-Anmeldung auf Mail und Code verkürzt (Name nur beim ersten Mal, Sitzung führt direkt durch), *Gastzugang* auf der Anmeldeseite ohne Selbstregistrierung, entzogene Zugänge entwerten den Link, Firmenkürzel hinter Team-Namen, bekannte Gäste auch am Video mit Hinweis-Mail, Transcode-Seite nach Aufgaben gegliedert mit je eigenem Zeitplan, eigene Seite *Projekte*, Gäste getrennt von Benutzern, Zeichnungen in Fahrt ein-/ausblendbar |
 | 21 | Rechtestufe **Externer Projektadmin** je Projektfreigabe (Videos anlegen, Fassungen hochladen und löschen, weiter freigeben, fremde Kommentare verwalten), Zeichnung heftet den Kommentar verlässlich an den Frame, Kommentarspalte im Vollbild, eigener Name unter *Mein Konto* änderbar (auch Gäste), GitHub-Link unter *Über diese Software*, kein Rollenwechsel Gast → Team mehr |
-| 22 | Stufenwahl im HLS-Player (Auto mit Anzeige der laufenden Stufe oder feste Wahl), Felder je einzeln sortier-/gruppierbar und auf der Kachel anzeigbar, Kunde groß auf der Projektkachel, Transcode-Seite ohne überlappenden Haken |
+| 22 | Stufenwahl im HLS-Player (Auto mit Anzeige der laufenden Stufe oder feste Wahl), Felder je einzeln filter-/sortier-/gruppierbar und auf der Kachel anzeigbar, Kunde groß auf der Projektkachel, Transcode-Seite ohne überlappenden Haken · **Nachtrag:** Einstellungsseite *Speicher* mit freiem Platz und Aufschlüsselung |
+| 23 | Download-Fenster immer mit Dateiname und Vorschau-Warnung, wählbares Tab-Symbol (Standard/Logo/eigenes), Einbetten als eigener Link im „…"-Menü (keine Anmeldung, nur Endfassungen, mit HLS), automatische Datenbanksicherung samt Wiederherstellen |

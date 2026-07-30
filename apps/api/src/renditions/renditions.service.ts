@@ -73,6 +73,7 @@ export class RenditionsService {
       canDownload: darfLaden,
       originalFilename: this.dateiname(kontext, null),
       originalSizeBytes: kontext.version.originalSizeBytes,
+      isFinal: kontext.version.isFinal,
       renditions: [],
     };
     if (!einstellungen.downloadFormatsEnabled || !darfLaden) return basis;

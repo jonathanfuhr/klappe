@@ -2,7 +2,11 @@ import type {
   AboutDto,
   Annotation,
   AuthSettingsDto,
+  BackupFileDto,
+  BackupSettingsDto,
   BrandingDto,
+  EmbedLinkDto,
+  FaviconMode,
   CommentDto,
   CustomerDto,
   DownloadPresetDto,
@@ -331,12 +335,19 @@ export const api = {
       allowDownload?: boolean;
       allowUpload?: boolean;
       allowComments?: boolean;
-      embedEnabled?: boolean;
       revoked?: boolean;
     },
   ) => request<ShareLinkDto>(`/v1/shares/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteShare: (id: string) => request<void>(`/v1/shares/${id}`, { method: 'DELETE' }),
   listShareGuests: (id: string) => request<ShareGuestDto[]>(`/v1/shares/${id}/guests`),
+
+  // ---------- Einbetten (Phase 23) ----------
+  /** Der Einbett-Link eines Videos – `null`, solange es keinen gibt. */
+  getEmbedLink: (videoId: string) => request<EmbedLinkDto | null>(`/v1/videos/${videoId}/embed`),
+  createEmbedLink: (videoId: string) =>
+    request<EmbedLinkDto>(`/v1/videos/${videoId}/embed`, { method: 'POST' }),
+  deleteEmbedLink: (videoId: string) =>
+    request<void>(`/v1/videos/${videoId}/embed`, { method: 'DELETE' }),
   /** Rechte einer Person an einem Link; `null` = wie der Link (Phase 16). */
   setShareGuestRights: (
     shareLinkId: string,
@@ -497,6 +508,27 @@ export const api = {
   smtpPresets: () => request<SmtpProviderPresetDto[]>('/v1/settings/smtp/presets'),
 
   // ---------- Projekte (Phase 20) ----------
+  // ---------- Datenbanksicherung (Phase 23) ----------
+  getBackupSettings: () => request<BackupSettingsDto>('/v1/settings/backup'),
+  updateBackupSettings: (input: {
+    enabled?: boolean;
+    intervalHours?: number;
+    retentionDays?: number;
+  }) =>
+    request<BackupSettingsDto>('/v1/settings/backup', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  listBackups: () => request<BackupFileDto[]>('/v1/settings/backup/files'),
+  runBackup: () => request<BackupFileDto>('/v1/settings/backup/run', { method: 'POST' }),
+  restoreBackup: (name: string) =>
+    request<{ sicherungVorher: string }>('/v1/settings/backup/restore', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+  deleteBackup: (name: string) =>
+    request<void>(`/v1/settings/backup/files/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
   /** Wie voll die Ablage ist (Phase 22) – Admin. */
   getStorageStatus: () => request<StorageStatusDto>('/v1/settings/storage'),
   getProjectSettings: () => request<ProjectSettingsDto>('/v1/settings/projects'),
@@ -549,6 +581,7 @@ export const api = {
     accent?: string;
     companyName?: string;
     companyShort?: string;
+    faviconMode?: FaviconMode;
   }) =>
     request<BrandingDto>('/v1/settings/branding', {
       method: 'PUT',
@@ -566,6 +599,14 @@ export const api = {
       body: file,
     }),
   removeLogo: () => request<BrandingDto>('/v1/settings/branding/logo', { method: 'DELETE' }),
+  /** Eigenes Tab-Symbol (Phase 23). */
+  uploadFavicon: (file: File) =>
+    request<BrandingDto>('/v1/settings/branding/favicon', {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }),
+  removeFavicon: () => request<BrandingDto>('/v1/settings/branding/favicon', { method: 'DELETE' }),
   sendTestMail: (to?: string) =>
     request<void>('/v1/settings/smtp/test', {
       method: 'POST',

@@ -175,6 +175,9 @@ Zeichnung wird als „keine“ gespeichert.
 | `GET /v1/videos/:videoId/shares` | Links, über die dieses Video sichtbar ist |
 | `POST /v1/shares` | `{ scope, projectId?, videoId?, label?, allowComments?, allowDownload?, allowUpload?, expiresAt? }` |
 | `PATCH /v1/shares/:id` | `{ label?, allowComments?, allowDownload?, allowUpload?, expiresAt?, revoked? }` |
+| `GET /v1/videos/:videoId/embed` | Einbett-Link des Videos, `null` wenn keiner da ist |
+| `POST /v1/videos/:videoId/embed` | Einbett-Link anlegen (oder den vorhandenen zurückgeben) |
+| `DELETE /v1/videos/:videoId/embed` | Einbettung sofort abschalten |
 | `DELETE /v1/shares/:id` | entziehen – wirkt sofort |
 | `GET /v1/shares/:id/guests` | wer über den Link hereingekommen ist |
 | `DELETE /v1/shares/:id/guests/:userId` | einzelnem Gast den Zugang entziehen |
@@ -187,6 +190,11 @@ mit `PROJECT`-Freigaben – ein einzelnes Video hat keinen Ordner.
 Anlegen und Einsehen dürfen seit Phase 21 auch **externe Projektadmins** für
 ihr eigenes Projekt; Ändern, Löschen und die Gäste eines Links bleiben dem
 Team vorbehalten.
+
+**Einbett-Links (Phase 23)** sind eine eigene Art (`is_embed`): Sie stehen
+nicht in den Listen oben, tragen keine Rechte, und `getByTokenOrFail` weist
+sie ab – über einen Einbett-Token kommt niemand durch das Gast-Gatter. Je
+Video gibt es höchstens einen.
 
 Ohne Anmeldung erreichbar (`@Public()`):
 
@@ -328,6 +336,30 @@ Fassung, Art und Person gebunden ist und nach sechs Stunden verfällt. Er
 **ersetzt die Rechteprüfung nicht** – ein entzogener Zugang macht auch einen
 schon vergebenen Link wertlos. Ein Token für den Proxy schaltet das Original
 nicht frei.
+
+## Datenbanksicherung (Phase 23)
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/settings/backup` | Admin – Einstellungen, letzter Lauf, ob `pg_dump` da ist |
+| `PUT /v1/settings/backup` | Admin – `{ enabled?, intervalHours?, retentionDays? }` |
+| `GET /v1/settings/backup/files` | Admin – abgelegte Sicherungen, neueste zuerst |
+| `POST /v1/settings/backup/run` | Admin – jetzt sichern, unabhängig vom Zeitplan |
+| `POST /v1/settings/backup/restore` | Admin – `{ name }`, spielt eine Sicherung ein |
+| `DELETE /v1/settings/backup/files/:name` | Admin – eine Sicherung löschen |
+
+Gesichert wird per `pg_dump --format=custom` nach `<STORAGE_DIR>/backups/`.
+Der Zeitplan läuft im **Worker** (viertelstündlicher Takt, Entscheidung am
+gespeicherten `backupLastRunAt`); die API bedient nur Einstellungen, Liste und
+die beiden Knöpfe. `toolsAvailable: false` heißt, im Container fehlt
+`pg_dump` – dann ist nichts zu holen, und die Oberfläche sagt das.
+
+`restore` legt **vor** dem Einspielen selbst eine Sicherung des jetzigen
+Standes an und gibt deren Namen zurück; eingespielt wird mit
+`pg_restore --clean --if-exists`. Danach gehört der Stapel neu gestartet – die
+laufenden Prozesse halten Verbindungen und Zwischenstände zur alten Datenbank.
+Der Dateiname wird streng gegen das eigene Namensmuster geprüft, bevor er in
+einen Pfad wandert.
 
 ## Speicher (Phase 22)
 

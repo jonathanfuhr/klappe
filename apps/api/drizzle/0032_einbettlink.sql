@@ -1,0 +1,1 @@
+ALTER TABLE "share_links" ADD COLUMN "is_embed" boolean DEFAULT false NOT NULL;

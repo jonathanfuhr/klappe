@@ -267,11 +267,18 @@ export default function HandbuchPage() {
               oder löschen bleibt dem Team vorbehalten, ebenso das Ändern bestehender
               Freigabe-Links.
             </p>
-            <h3>Eingebetteter Player</h3>
+            <h3>Einbetten</h3>
             <p>
-              Ein Link lässt sich zusätzlich fürs Einbetten freischalten. Ein eingebetteter
-              Player zeigt nur die Abspielfassung, ohne Kommentare, Gästeliste oder
-              Download-Möglichkeit.
+              Ein Video lässt sich in eine fremde Seite einbetten – über das{' '}
+              <strong>„…"-Menü → Einbetten</strong> am Video, nicht über die Freigaben. Ein
+              Freigabe-Link lädt zum Anmelden und Kommentieren ein, ein Einbett-Link zeigt nur
+              den Player; deshalb sind es zwei verschiedene Links.
+            </p>
+            <p>
+              Mit dem Einbett-Link kann sich niemand anmelden, und ausgeliefert wird
+              ausschließlich die neueste <strong>Endfassung</strong> – ohne gesetzten
+              Endfassungs-Haken bleibt der Player leer. Kommentare, Gästeliste und Download gibt
+              es dort nicht. Zurückziehen wirkt sofort.
             </p>
           </section>
 
@@ -304,8 +311,11 @@ export default function HandbuchPage() {
           <section id="downloads" className="card manual__section">
             <h2>Herunterladen</h2>
             <p>
-              Der <strong>Herunterladen</strong>-Knopf öffnet ein Fenster. Ganz oben steht immer
-              das <strong>Original</strong> – die unveränderte hochgeladene Datei. Je nach
+              Der <strong>Herunterladen</strong>-Knopf öffnet immer ein Fenster – auch ohne
+              zusätzliche Formate. Dort steht der Dateiname, unter dem die Datei gleich landet,
+              und bei einer Fassung ohne Endfassungs-Haken die Warnung, dass hier ein
+              Zwischenstand das Haus verlässt. Ganz oben steht immer das{' '}
+              <strong>Original</strong> – die unveränderte hochgeladene Datei. Je nach
               Einrichtung stehen darunter zusätzliche fertige Formate zur Auswahl.
             </p>
             <p>Heruntergeladene Dateien tragen einen sprechenden Namen nach diesem Schema:</p>
@@ -356,6 +366,7 @@ export default function HandbuchPage() {
               <li><strong>E-Mail-Versand</strong> – SMTP-Einrichtung, Bündel-Zeitfenster, unzustellbare Mails.</li>
               <li><strong>Transcode</strong> – welche Download-Formate angeboten und wann sie erzeugt werden.</li>
               <li><strong>Speicher</strong> – wie viel Platz auf der Platte noch frei ist und wie viel davon Klappe belegt.</li>
+              <li><strong>Datensicherung</strong> – ob und wie oft die Datenbank gesichert wird, und das Wiedereinspielen einer Sicherung.</li>
             </ul>
           </section>
 

@@ -236,6 +236,13 @@ Workspace-weite Einstellungen – genau eine Zeile. Drei Gruppen:
   Angaben zum Logo. Aus der einen Farbe werden Hover-Ton und Schriftfarbe
   berechnet, nicht gespeichert. `brand_logo_updated_at` wandert in die
   Bild-Adresse und bricht damit den Browser-Cache auf.
+- **Tab-Symbol** (Phase 23): `favicon_mode` (`standard` | `logo` | `eigenes`)
+  und, für die dritte Möglichkeit, `favicon_key` / `favicon_mime` /
+  `favicon_updated_at` wie beim Logo.
+- **Datenbanksicherung** (Phase 23): `backup_enabled`, `backup_interval_hours`
+  (Vorgabe 24), `backup_retention_days` (Vorgabe 30), dazu `backup_last_run_at`
+  und `backup_last_error`. Der Zeitpunkt wird nur bei Erfolg fortgeschrieben –
+  sonst gälte ein gescheiterter Lauf als erledigt.
 - **Anmeldung** (Phase 11): `local_login_enabled`, `oidc_*`. Das
   Client-Secret liegt wie das SMTP-Passwort verschlüsselt darin.
   `oidc_auto_provision` steht standardmäßig auf `false` – ohne diesen Schalter

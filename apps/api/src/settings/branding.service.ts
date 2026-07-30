@@ -6,12 +6,15 @@
  * wie der Mailversand.
  */
 import { BadRequestException, Inject, Injectable, Logger, PayloadTooLargeException, UnsupportedMediaTypeException } from '@nestjs/common';
-import type { BrandingDto, LogoMimeType } from '@klappe/shared';
+import type { BrandingDto, FaviconMimeType, FaviconMode, LogoMimeType } from '@klappe/shared';
 import {
   DEFAULT_BRAND_ACCENT,
+  FAVICON_MIME_TYPES,
+  FAVICON_MODES,
   LOGO_MIME_TYPES,
   MAX_COMPANY_NAME_LENGTH,
   MAX_COMPANY_SHORT_LENGTH,
+  MAX_FAVICON_BYTES,
   MAX_LOGO_BYTES,
   deriveBrandColors,
   normalizeBrandTitle,
@@ -31,6 +34,13 @@ const EXTENSIONS: Record<LogoMimeType, string> = {
   'image/svg+xml': 'svg',
 };
 
+const FAVICON_EXTENSIONS: Record<FaviconMimeType, string> = {
+  'image/png': 'png',
+  'image/svg+xml': 'svg',
+  'image/x-icon': 'ico',
+  'image/vnd.microsoft.icon': 'ico',
+};
+
 const SETTINGS_ID = 1;
 
 export interface UpdateBrandingInput {
@@ -38,6 +48,7 @@ export interface UpdateBrandingInput {
   accent?: string | null;
   companyName?: string | null;
   companyShort?: string | null;
+  faviconMode?: FaviconMode;
 }
 
 @Injectable()
@@ -58,14 +69,29 @@ export class BrandingService {
     const row = await this.settingsService.getRow();
     const colors = deriveBrandColors(row.brandAccent);
 
+    // Der Zeitstempel im Pfad sorgt dafür, dass ein neues Logo sofort
+    // erscheint und nicht bis zum Ablauf des Browser-Caches das alte bleibt.
+    const logoUrl = row.brandLogoKey
+      ? `/v1/branding/logo?v=${row.brandLogoUpdatedAt?.getTime() ?? 0}`
+      : null;
+    const faviconMode = this.faviconMode(row.faviconMode);
+
     return {
       title: normalizeBrandTitle(row.brandTitle),
       ...colors,
-      // Der Zeitstempel im Pfad sorgt dafür, dass ein neues Logo sofort
-      // erscheint und nicht bis zum Ablauf des Browser-Caches das alte bleibt.
-      logoUrl: row.brandLogoKey
-        ? `/v1/branding/logo?v=${row.brandLogoUpdatedAt?.getTime() ?? 0}`
-        : null,
+      logoUrl,
+      faviconMode,
+      /**
+       * `null` heißt: das mitgelieferte Zeichen bleibt. Auch dann, wenn zur
+       * gewählten Quelle keine Datei da ist – ein Tab ohne Symbol wäre ein
+       * schlechterer Tausch als eines, das nicht das eigene ist.
+       */
+      faviconUrl:
+        faviconMode === 'logo'
+          ? logoUrl
+          : faviconMode === 'eigenes' && row.faviconKey
+            ? `/v1/branding/favicon?v=${row.faviconUpdatedAt?.getTime() ?? 0}`
+            : null,
       companyName: normalizeCompanyText(row.companyName, MAX_COMPANY_NAME_LENGTH),
       companyShort: normalizeCompanyText(row.companyShort, MAX_COMPANY_SHORT_LENGTH),
       updatedAt: row.updatedAt.toISOString(),
@@ -103,11 +129,88 @@ export class BrandingService {
           input.companyShort === undefined
             ? undefined
             : normalizeCompanyText(input.companyShort, MAX_COMPANY_SHORT_LENGTH),
+        faviconMode: input.faviconMode,
         updatedAt: new Date(),
       })
       .where(eq(appSettings.id, SETTINGS_ID));
 
     return this.get();
+  }
+
+  /** Unbekanntes aus der Datenbank fällt auf den Standard zurück. */
+  private faviconMode(value: string | null): FaviconMode {
+    return FAVICON_MODES.includes(value as FaviconMode) ? (value as FaviconMode) : 'standard';
+  }
+
+  /**
+   * Eigenes Tab-Symbol hochladen (Phase 23). Wie beim Logo rohe Bytes; der
+   * Modus springt dabei bewusst **nicht** von selbst auf `eigenes` – das
+   * bleibt eine eigene Entscheidung, sonst wechselt das Tab-Symbol als
+   * Nebenwirkung eines Uploads.
+   */
+  async setFavicon(data: Buffer, mimeType: string): Promise<BrandingDto> {
+    const type = mimeType.split(';')[0].trim().toLowerCase() as FaviconMimeType;
+    if (!FAVICON_MIME_TYPES.includes(type)) {
+      throw new UnsupportedMediaTypeException(
+        `Als Tab-Symbol gehen ${FAVICON_MIME_TYPES.join(', ')} – nicht ${mimeType}.`,
+      );
+    }
+    if (data.length === 0) throw new BadRequestException('Die Datei ist leer.');
+    if (data.length > MAX_FAVICON_BYTES) {
+      throw new PayloadTooLargeException(
+        `Das Tab-Symbol darf höchstens ${Math.round(MAX_FAVICON_BYTES / 1024)} KB groß sein.`,
+      );
+    }
+
+    const row = await this.settingsService.getRow();
+    const key = this.storage.keyForFavicon(FAVICON_EXTENSIONS[type]);
+    await this.storage.writeFile(key, data);
+
+    // Ein Formatwechsel lässt die alte Datei sonst verwaist zurück.
+    if (row.faviconKey && row.faviconKey !== key) {
+      await this.storage.remove(row.faviconKey);
+    }
+
+    await this.db
+      .update(appSettings)
+      .set({
+        faviconKey: key,
+        faviconMime: type,
+        faviconUpdatedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(appSettings.id, SETTINGS_ID));
+
+    this.logger.log(`Tab-Symbol ersetzt (${type}, ${data.length} Bytes).`);
+    return this.get();
+  }
+
+  async removeFavicon(): Promise<BrandingDto> {
+    const row = await this.settingsService.getRow();
+    if (row.faviconKey) await this.storage.remove(row.faviconKey);
+
+    await this.db
+      .update(appSettings)
+      .set({
+        faviconKey: null,
+        faviconMime: null,
+        faviconUpdatedAt: null,
+        // Ohne Datei ergibt `eigenes` keinen Sinn mehr; sonst zeigte das Tab
+        // ab jetzt gar nichts an.
+        faviconMode: this.faviconMode(row.faviconMode) === 'eigenes' ? 'standard' : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(appSettings.id, SETTINGS_ID));
+
+    return this.get();
+  }
+
+  /** Datei und Typ des eigenen Tab-Symbols – `null`, solange keines da ist. */
+  async getFaviconFile(): Promise<{ key: string; mimeType: string } | null> {
+    const row = await this.settingsService.getRow();
+    if (!row.faviconKey) return null;
+    if (!(await this.storage.exists(row.faviconKey))) return null;
+    return { key: row.faviconKey, mimeType: row.faviconMime ?? 'application/octet-stream' };
   }
 
   /**

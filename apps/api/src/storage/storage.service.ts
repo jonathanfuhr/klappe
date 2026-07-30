@@ -96,6 +96,11 @@ export class StorageService {
     return join('branding', `logo.${extension}`);
   }
 
+  /** Eigenes Tab-Symbol (Phase 23) – neben dem Logo, nicht statt seiner. */
+  keyForFavicon(extension: string): string {
+    return join('branding', `favicon.${extension}`);
+  }
+
   /** Schreibt eine kleine Datei am Stück – für Logos und Ähnliches. */
   async writeFile(key: string, data: Buffer): Promise<void> {
     await this.ensureDirForKey(key);

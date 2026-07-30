@@ -28,12 +28,12 @@ export class EmbedService {
       .where(eq(shareLinks.token, token))
       .limit(1);
 
-    // Eine einzige Meldung für alle Fälle: Ob der Link nie existierte, nicht
-    // freigeschaltet ist oder zurückgezogen wurde, geht niemanden etwas an,
-    // der nur eine Adresse ausprobiert.
+    // Eine einzige Meldung für alle Fälle: Ob der Link nie existierte, ein
+    // gewöhnlicher Freigabe-Link ist oder zurückgezogen wurde, geht niemanden
+    // etwas an, der nur eine Adresse ausprobiert.
     if (
       !link ||
-      !link.embedEnabled ||
+      !link.isEmbed ||
       link.revokedAt !== null ||
       (link.expiresAt !== null && link.expiresAt.getTime() < Date.now())
     ) {
@@ -53,13 +53,23 @@ export class EmbedService {
           .limit(1);
     if (!video) throw new NotFoundException('Zu dieser Freigabe gibt es kein Video.');
 
+    // Nur Endfassungen (Phase 23). Eine Einbettung steht auf einer fremden
+    // Seite und wird dort niemandem erklärt – ein Zwischenstand hat da nichts
+    // verloren. Fehlt eine finale Fassung, bleibt es bei derselben neutralen
+    // Meldung wie oben; was der Betreiber tun muss, steht im Einbetten-Fenster.
     const [version] = await this.db
       .select()
       .from(videoVersions)
-      .where(and(eq(videoVersions.videoId, video.id), eq(videoVersions.status, 'READY')))
+      .where(
+        and(
+          eq(videoVersions.videoId, video.id),
+          eq(videoVersions.status, 'READY'),
+          eq(videoVersions.isFinal, true),
+        ),
+      )
       .orderBy(desc(videoVersions.versionNumber))
       .limit(1);
-    if (!version) throw new NotFoundException('Zu diesem Video gibt es noch keine Fassung.');
+    if (!version) throw new NotFoundException('Diese Einbettung gibt es nicht (mehr).');
 
     const [settings] = await this.db.select().from(appSettings).limit(1);
 
@@ -85,7 +95,9 @@ export class EmbedService {
       .from(videoVersions)
       .where(and(eq(videoVersions.id, versionId), eq(videoVersions.videoId, ziel.videoId)))
       .limit(1);
-    if (!version || version.status !== 'READY') {
+    // Auch hier die Endfassungs-Regel: Sonst wäre über die Fassungs-ID in der
+    // Adresse doch wieder ein Zwischenstand zu holen.
+    if (!version || version.status !== 'READY' || !version.isFinal) {
       throw new NotFoundException('Diese Fassung gehört nicht zu dieser Einbettung.');
     }
     return version;

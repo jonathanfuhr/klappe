@@ -5,15 +5,17 @@ import {
   ForbiddenException,
   Get,
   HttpCode,
+  Inject,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
 } from '@nestjs/common';
-import type { ShareGuestDto, ShareLinkDto } from '@klappe/shared';
+import type { EmbedLinkDto, ShareGuestDto, ShareLinkDto } from '@klappe/shared';
 import { AccessService } from '../access/access.service';
 import { CurrentUser, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
+import { AppConfig, CONFIG } from '../config/configuration';
 import { CreateShareLinkDto, UpdateShareLinkDto } from './shares.dto';
 import { SharesService } from './shares.service';
 
@@ -31,6 +33,7 @@ export class SharesController {
   constructor(
     private readonly sharesService: SharesService,
     private readonly accessService: AccessService,
+    @Inject(CONFIG) private readonly config: AppConfig,
   ) {}
 
   @Get('projects/:projectId/shares')
@@ -72,6 +75,65 @@ export class SharesController {
       throw new ForbiddenException('Dafür fehlen die Rechte.');
     }
     return this.sharesService.create(dto, user);
+  }
+
+  /**
+   * Der Einbett-Link eines Videos (Phase 23) – getrennt von den Freigaben,
+   * weil er etwas anderes ist: Über ihn meldet sich niemand an, er zeigt nur
+   * den Player. Erreichbar für Team und externen Projektadmin, wie das
+   * Freigeben selbst.
+   */
+  @Get('videos/:videoId/embed')
+  async getEmbed(
+    @Param('videoId', new ParseUUIDPipe()) videoId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<EmbedLinkDto | null> {
+    const scope = await this.accessService.loadScope(user);
+    const video = await this.accessService.requireVideo(scope, videoId);
+    this.accessService.assertCanManageProject(scope, video.projectId);
+
+    const link = await this.sharesService.findEmbedLink(videoId);
+    return link ? this.toEmbedDto(link.token, link.createdAt) : null;
+  }
+
+  @Post('videos/:videoId/embed')
+  async createEmbed(
+    @Param('videoId', new ParseUUIDPipe()) videoId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<EmbedLinkDto> {
+    const scope = await this.accessService.loadScope(user);
+    const video = await this.accessService.requireVideo(scope, videoId);
+    this.accessService.assertCanManageProject(scope, video.projectId);
+
+    const link = await this.sharesService.createEmbedLink(videoId, user);
+    return this.toEmbedDto(link.token, link.createdAt);
+  }
+
+  @Delete('videos/:videoId/embed')
+  @HttpCode(204)
+  async removeEmbed(
+    @Param('videoId', new ParseUUIDPipe()) videoId: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<void> {
+    const scope = await this.accessService.loadScope(user);
+    const video = await this.accessService.requireVideo(scope, videoId);
+    this.accessService.assertCanManageProject(scope, video.projectId);
+
+    await this.sharesService.revokeEmbedLink(videoId);
+  }
+
+  /**
+   * 16:9 über `aspect-ratio`, damit der Rahmen auf jeder Seite die richtige
+   * Höhe bekommt – eine feste Höhe in Pixeln wäre auf einem Telefon zu hoch
+   * und auf einer breiten Seite zu niedrig.
+   */
+  private toEmbedDto(token: string, createdAt: Date): EmbedLinkDto {
+    const url = `${this.config.publicUrl}/einbetten/${token}`;
+    return {
+      url,
+      snippet: `<iframe src="${url}" style="width:100%;aspect-ratio:16/9;border:0" allowfullscreen></iframe>`,
+      createdAt: createdAt.toISOString(),
+    };
   }
 
   @Roles('ADMIN', 'MEMBER')
