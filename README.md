@@ -11,7 +11,7 @@ Abo pro Kopf, und das Kameramaterial verlässt das Haus nicht.
 Ein Container-Stack trägt genau **einen Workspace** mit eigenem Logo, Titel und
 eigener Farbe. Wer zwei Firmen strikt trennen will, betreibt zwei Stapel.
 
-**Stand: Phasen 0–19 sind gebaut, geprüft und im Einsatz.** Der grobe Umfang
+**Stand: Phasen 0–20 sind gebaut, geprüft und im Einsatz.** Der grobe Umfang
 steht unten unter [Umgesetzte Phasen](#umgesetzte-phasen).
 
 ---
@@ -154,10 +154,17 @@ weicht die Frame-Nummer und der Timecode bleibt.
 ### Freigaben und Gäste
 
 Freigegeben wird per Link, auf ein **Projekt** oder ein einzelnes **Video**.
-Gäste brauchen kein Konto: Sie geben Name und E-Mail an und bekommen einen
-sechsstelligen Code per Mail. Je Link ist einstellbar, ob kommentiert,
+Gäste brauchen kein Konto und kein Passwort: Sie geben ihre E-Mail an und
+bekommen einen sechsstelligen Code. Nach dem Namen wird **einmal** gefragt,
+beim allerersten Besuch – danach nie wieder. Wer noch angemeldet ist, geht
+ohne jeden Zwischenschritt durch. Je Link ist einstellbar, ob kommentiert,
 heruntergeladen und hochgeladen werden darf; abweichende Rechte lassen sich
 zusätzlich **pro Person** setzen.
+
+Wer seinen Link nicht mehr findet, kommt über **Gastzugang** auf der
+Anmeldeseite herein – ebenfalls nur mit Adresse und Code. Ein Konto entsteht
+dabei nicht: Für eine Adresse ohne Freigabe geht **keine Mail** raus, die
+Absage steht im Browser.
 
 Neben dem Player liegt die Spalte **Freigaben** mit allen Personen, die
 hereinkommen – am Projekt wie am Video. Wer nur über ein einzelnes Video
@@ -165,9 +172,14 @@ Zugang hat, steht dort mit genau dieser Angabe; ein Klick auf *Zugriff
 erweitern* gibt ihm das ganze Projekt oder weitere Videos, ohne neuen Link,
 ohne neue Mail, ohne neue Anmeldung.
 
-Beim Freigeben schlägt Klappe **bekannte Gäste desselben Kunden** aus anderen
-Projekten vor. Entzug wirkt sofort und trifft nur die eine Person – der Link
-bleibt für alle anderen bestehen.
+Beim Freigeben schlägt Klappe **bekannte Gäste desselben Kunden** vor – am
+Projekt wie am einzelnen Video. Ein Klick nimmt sie auf, ohne neuen Link; auf
+Wunsch (Standard) bekommen sie einen kurzen Hinweis per Mail, dass etwas Neues
+für sie offensteht.
+
+Entzug wirkt sofort und trifft nur die eine Person – der Link bleibt für alle
+anderen bestehen. Wer entzogen wurde, kommt mit dem alten Link auch **nicht
+mehr über einen neuen Code** herein; er braucht eine neue Freigabe.
 
 ### Kunden-Ablage
 
@@ -205,7 +217,9 @@ eingetragen.
 
 Mails werden **gebündelt**: Erst wenn eine einstellbare Ruhezeit lang kein
 neuer Kommentar mehr kam (Vorschlag 5 Minuten), geht eine Sammelmail raus – je
-Empfänger und Video. `0` verschickt sofort.
+Empfänger und Video. `0` verschickt sofort. Gebündelt wird nur, worauf niemand
+wartet; **Anmeldecodes gehen immer sofort und ohne Umweg über die
+Warteschlange** raus.
 
 Unabhängig vom Mailversand gibt es die **Benachrichtigungszentrale**: das
 Glöckchen in der Kopfzeile mit der Zahl der Ungelesenen, dahinter wer, welches
@@ -455,13 +469,17 @@ Arbeiten – eine Datei, sofort springbar, ohne Zwischenschicht.
 
 #### Wann gerechnet wird
 
-Die Abspielfassung hat **immer Vorrang** – darauf wartet jemand. Die Nacharbeit
-(Formate im Voraus, HLS-Leiter) steht hinten in der Warteschlange und lässt sich
-auf ein Zeitfenster legen, etwa 22:00–06:00. Ein laufender ffmpeg wird dabei
-nicht abgebrochen; der nächste freie Platz geht an die Abspielfassung.
+Die Seite hat drei Abschnitte für drei verschiedene Dinge, und **jeder bringt
+seinen eigenen Zeitplan mit**: die Download-Formate, die HLS-Leiter, die
+Abspielfassung. Zur Wahl stehen jeweils *erst beim Download* bzw. *nicht
+rechnen*, *direkt beim Upload* und *nach Zeitplan*; bei Letzterem erscheinen
+Uhrzeiten, vorbelegt mit 22:00–06:00.
 
-Nicht vom Zeitfenster betroffen: ein Format, das gerade jemand angefordert hat.
-Das läuft sofort, sonst stünde der Kunde acht Stunden vor einem leeren Balken.
+Die Abspielfassung hat **immer Vorrang** – darauf wartet jemand – und steht
+deshalb ohne Zeitplan da. Ein laufender ffmpeg wird nicht abgebrochen; der
+nächste freie Platz geht an die Abspielfassung. Ebenfalls nicht vom Zeitplan
+betroffen: ein Format, das gerade jemand angefordert hat. Das läuft sofort,
+sonst stünde der Kunde acht Stunden vor einem leeren Balken.
 
 Wahlweise entstehen die Formate nur für **Endfassungen**. Wird der Haken später
 gesetzt, geht es genau dann los.
@@ -519,6 +537,17 @@ wieder auf. Gäste sind davon nie betroffen.
 Titel, Logo und eine Akzentfarbe. Aus der einen Farbe werden Hover-Ton und
 lesbare Schriftfarbe berechnet. Es gilt überall – Anmeldeseite, Gastzugang und
 jede E-Mail.
+
+Dazu **Firmenname und Kürzel**. Das Kürzel steht in Klammern hinter jedem Namen
+aus dem eigenen Team – in den Kommentaren, in den Gästelisten, bei „Hochgeladen
+von". In einem Projekt sitzen Leute aus zwei Häusern; so ist an jeder Stelle zu
+sehen, wer von welcher Seite schreibt. Gäste bekommen keines.
+
+### Projekte
+
+Wie lange die alten Fassungen eines archivierten Projekts liegen bleiben
+(Standard 30 Tage). Danach räumt der tägliche Aufräumer sie weg; die neueste
+bleibt immer.
 
 ### Benutzerdefinierte Felder
 
@@ -693,7 +722,7 @@ aus dem Dateinamen, Download-Namen nach Schema, Skalierung auf die kurze Kante,
 Prüfung vor dem Kodieren (`ORIGINAL` / `REMUX` / `TRANSCODE`) und die beiden
 HTTPS-Wege.
 
-### Aus dem Alltagsbetrieb (14–19)
+### Aus dem Alltagsbetrieb (14–20)
 
 | Phase | Inhalt |
 | --- | --- |
@@ -703,3 +732,10 @@ HTTPS-Wege.
 | 17 | Mobiloptimierung, Kommentare nach Timecode oder Erstellung sortieren, Endfassungs-Haken mit Warnung beim Kunden, Benutzer und Gäste in die Einstellungen mit senkrechtem Menü |
 | 18 | Gebündelte Mails mit Ruhezeit, Spalte *Benachrichtigungen* je Projekt und Video, Benachrichtigungszentrale, Video-Gäste sichtbar und erweiterbar, Freigabe an bekannte Gäste desselben Kunden, Verarbeitung parallel zur Eingabe · **Zusatz:** Projekte archivieren, Live-Aktualisierung statt Nachladen, unzustellbare Mails sichtbar |
 | 19 | Einstellungsseite *Transcode*: Download in verschiedenen Formaten mit Fortschritt, Format-Presets, Vorab-Erzeugung mit Vorrangregel, Zeitfenster für die Nacharbeit, HLS-Schalter und Proxy-Werte aus der Datenbank statt aus der `.env` |
+| 20 | Gast-Anmeldung auf Mail und Code verkürzt (Name nur beim ersten Mal, Sitzung führt direkt durch), *Gastzugang* auf der Anmeldeseite ohne Selbstregistrierung, entzogene Zugänge entwerten den Link, Firmenkürzel hinter Team-Namen, bekannte Gäste auch am Video mit Hinweis-Mail, Transcode-Seite nach Aufgaben gegliedert mit je eigenem Zeitplan, eigene Seite *Projekte*, Gäste getrennt von Benutzern, Zeichnungen in Fahrt ein-/ausblendbar |
+
+Offen aus Phase 20: die Rechtestufe **Externer Projektadmin** (ein Gast, der in
+einem Projekt Videos und Fassungen anlegen, weiter freigeben und Kommentare
+verwalten darf). Bewusst nicht angefangen: Sie öffnet elf verändernde Endpunkte
+in fünf Controllern für Gäste, die dann einzeln wieder abgesichert werden
+müssen – halb gebaut wäre das schlimmer als gar nicht.
