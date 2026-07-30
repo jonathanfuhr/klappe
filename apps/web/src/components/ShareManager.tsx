@@ -92,11 +92,15 @@ export function ShareManager({
         ) : null}
       </div>
 
-      {/* Am Projekt lässt sich auch ohne neuen Link freigeben – an Gäste,
-          die schon bei einem anderen Projekt desselben Kunden dabei sind
-          (Phase 18). */}
-      {scope === 'PROJECT' && projectId ? (
-        <BekannteGaeste projectId={projectId} onAdded={load} />
+      {/* Freigeben ohne neuen Link – an Gäste, die den Kunden schon kennen
+          (Phase 18, seit Phase 20 auch am einzelnen Video). Braucht das
+          Projekt, weil der Kunde daran hängt. */}
+      {projectId ? (
+        <BekannteGaeste
+          projectId={projectId}
+          videoId={scope === 'VIDEO' ? videoId : undefined}
+          onAdded={load}
+        />
       ) : null}
 
       <div className="dialog__actions">
@@ -346,7 +350,25 @@ function einbettSchnipsel(embedUrl: string | null): string {
  * Ohne Kunden am Projekt gibt es keinen Kreis – dann steht hier, woran es
  * liegt, statt einer leeren Liste ohne Erklärung.
  */
-function BekannteGaeste({ projectId, onAdded }: { projectId: string; onAdded: () => Promise<void> }) {
+/**
+ * Gäste, die den Kunden schon kennen (Phase 18, seit Phase 20 auch am
+ * einzelnen Video).
+ *
+ * Am Video ist der Kreis derselbe – alle Gäste dieses Kunden –, aber die
+ * Frage eine andere: Nicht zur Wahl steht, wer *dieses Video* schon sieht.
+ * Wer bisher nur andere Videos desselben Projekts kennt, steht also mit
+ * dabei; für ihn ist dieses hier genauso neu wie für jemanden von außerhalb.
+ */
+function BekannteGaeste({
+  projectId,
+  videoId,
+  onAdded,
+}: {
+  projectId: string;
+  /** Gesetzt heißt: Es geht um dieses eine Video, nicht um das ganze Projekt. */
+  videoId?: string;
+  onAdded: () => Promise<void>;
+}) {
   const zeigeName = useUserName();
   const [kandidaten, setKandidaten] = useState<GuestCandidateDto[] | null>(null);
   const [kunde, setKunde] = useState<string | null>(null);
@@ -356,7 +378,7 @@ function BekannteGaeste({ projectId, onAdded }: { projectId: string; onAdded: ()
   const laden = useCallback(async () => {
     try {
       const [liste, projekt] = await Promise.all([
-        api.listGuestCandidates(projectId),
+        videoId ? api.listVideoGuestCandidates(videoId) : api.listGuestCandidates(projectId),
         api.getProject(projectId),
       ]);
       setKandidaten(liste);
@@ -365,7 +387,7 @@ function BekannteGaeste({ projectId, onAdded }: { projectId: string; onAdded: ()
       setFehler(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
       setKandidaten([]);
     }
-  }, [projectId]);
+  }, [projectId, videoId]);
 
   useEffect(() => {
     void laden();
@@ -375,7 +397,11 @@ function BekannteGaeste({ projectId, onAdded }: { projectId: string; onAdded: ()
     setBusy(userId);
     setFehler(null);
     try {
-      await api.extendProjectGuest(projectId, userId, { scope: 'PROJECT' });
+      await api.extendProjectGuest(
+        projectId,
+        userId,
+        videoId ? { scope: 'VIDEO', videoIds: [videoId] } : { scope: 'PROJECT' },
+      );
       await Promise.all([laden(), onAdded()]);
     } catch (addError) {
       setFehler(addError instanceof Error ? addError.message : 'Freigeben fehlgeschlagen.');
@@ -397,8 +423,8 @@ function BekannteGaeste({ projectId, onAdded }: { projectId: string; onAdded: ()
 
       {!kunde ? (
         <p className="hint" style={{ margin: 0 }}>
-          Dieses Projekt hat keinen Kunden. Ohne Kunden lässt sich nicht sagen, wer dazugehört –
-          trage oben einen ein, dann stehen hier die Gäste seiner übrigen Projekte.
+          Das Projekt hat keinen Kunden. Ohne Kunden lässt sich nicht sagen, wer dazugehört – trage
+          am Projekt einen ein, dann stehen hier die Gäste seiner übrigen Projekte.
         </p>
       ) : kandidaten === null ? (
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
@@ -406,14 +432,17 @@ function BekannteGaeste({ projectId, onAdded }: { projectId: string; onAdded: ()
         </p>
       ) : kandidaten.length === 0 ? (
         <p className="hint" style={{ margin: 0 }}>
-          Bei „{kunde}“ gibt es sonst niemanden, der nicht schon hier wäre.
+          {videoId
+            ? `Bei „${kunde}“ gibt es sonst niemanden, der dieses Video nicht schon sieht.`
+            : `Bei „${kunde}“ gibt es sonst niemanden, der nicht schon hier wäre.`}
         </p>
       ) : (
         <>
           <p className="hint" style={{ margin: '0 0 8px' }}>
-            Gäste aus anderen Projekten von „{kunde}“. Ein Klick gibt das ganze Projekt frei – ohne
-            neuen Link, sie melden sich mit ihrem bestehenden Zugang an. Kommentieren ist dabei,
-            Download und Kunden-Upload bleiben zunächst aus.
+            {videoId
+              ? `Gäste von „${kunde}“, die dieses Video noch nicht sehen. Ein Klick gibt genau dieses Video frei – ohne neuen Link, sie melden sich mit ihrem bestehenden Zugang an.`
+              : `Gäste aus anderen Projekten von „${kunde}“. Ein Klick gibt das ganze Projekt frei – ohne neuen Link, sie melden sich mit ihrem bestehenden Zugang an.`}{' '}
+            Kommentieren ist dabei, Download und Kunden-Upload bleiben zunächst aus.
           </p>
           {kandidaten.map((eintrag) => (
             <div key={eintrag.user.id} className="guest">
@@ -426,7 +455,7 @@ function BekannteGaeste({ projectId, onAdded }: { projectId: string; onAdded: ()
                   disabled={busy === eintrag.user.id}
                   onClick={() => void hinzufuegen(eintrag.user.id)}
                 >
-                  Projekt freigeben
+                  {videoId ? 'Video freigeben' : 'Projekt freigeben'}
                 </button>
               </div>
               <span className="faint" style={{ fontSize: 12 }}>

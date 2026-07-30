@@ -318,8 +318,25 @@ export class GuestsService {
    *
    * Ohne Kunden am Projekt gibt es keinen Kreis, aus dem man wählen könnte –
    * dann bleibt die Liste leer. Die Oberfläche sagt, woran es liegt.
+   *
+   * Mit `videoId` gilt dieselbe Frage für ein einzelnes Video (Phase 20).
+   * Zwei Unterschiede: Nicht zur Wahl steht, wer dieses Video schon sieht –
+   * nicht, wer irgendwo im Projekt ist. Und Gäste, die nur andere Videos
+   * desselben Projekts sehen, stehen mit zur Wahl; für sie ist dieses Video
+   * genauso neu wie für jemanden von außerhalb.
    */
-  async listCandidates(projectId: string): Promise<GuestCandidateDto[]> {
+  /** Dasselbe für ein Video – das Projekt dazu wird hier nachgeschlagen. */
+  async listVideoCandidates(videoId: string): Promise<GuestCandidateDto[]> {
+    const [video] = await this.db
+      .select({ projectId: videos.projectId })
+      .from(videos)
+      .where(eq(videos.id, videoId))
+      .limit(1);
+    if (!video) throw new NotFoundException('Video nicht gefunden.');
+    return this.listCandidates(video.projectId, videoId);
+  }
+
+  async listCandidates(projectId: string, videoId?: string): Promise<GuestCandidateDto[]> {
     const [project] = await this.db
       .select({ id: projects.id, customer: projects.customer })
       .from(projects)
@@ -330,9 +347,9 @@ export class GuestsService {
     const kunde = project.customer?.trim();
     if (!kunde) return [];
 
-    // Wer im Projekt schon dabei ist, steht nicht zur Wahl.
+    // Wer schon sieht, worum es geht, steht nicht zur Wahl.
     const schonDa = new Set(
-      (await this.listForProject(projectId))
+      (videoId ? await this.listForVideo(videoId) : await this.listForProject(projectId))
         .filter((eintrag) => eintrag.canView)
         .map((eintrag) => eintrag.user.id),
     );
@@ -376,8 +393,11 @@ export class GuestsService {
         };
         byUser.set(row.userId, eintrag);
       }
+      // Beim Video zählt auch das eigene Projekt als Herkunft: Ein Gast, der
+      // bisher nur andere Videos daraus sieht, kommt ja tatsächlich von dort,
+      // und ohne diese Zeile fiele er unten aus der Liste.
       if (
-        row.projectId !== projectId &&
+        (videoId !== undefined || row.projectId !== projectId) &&
         !eintrag.fromProjects.some((treffer) => treffer.id === row.projectId)
       ) {
         eintrag.fromProjects.push({ id: row.projectId, name: row.projectName });

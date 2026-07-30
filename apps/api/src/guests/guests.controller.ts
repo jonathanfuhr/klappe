@@ -137,6 +137,17 @@ export class GuestsController {
     return this.guestsService.listCandidates(projectId);
   }
 
+  /**
+   * Dieselbe Frage für ein einzelnes Video (Phase 20). Der Kreis bleibt der
+   * Kunde; nicht zur Wahl steht, wer dieses Video schon sieht.
+   */
+  @Get('videos/:videoId/gastkandidaten')
+  videoCandidates(
+    @Param('videoId', new ParseUUIDPipe()) videoId: string,
+  ): Promise<GuestCandidateDto[]> {
+    return this.guestsService.listVideoCandidates(videoId);
+  }
+
   @Post('projects/:projectId/guests/:userId')
   restoreProjectAccess(
     @Param('projectId', new ParseUUIDPipe()) projectId: string,

@@ -507,6 +507,7 @@ export default function ReviewPage() {
       {sharing && video ? (
         <ShareManager
           scope="VIDEO"
+          projectId={video.projectId}
           videoId={video.id}
           targetLabel={video.name}
           onClose={() => setSharing(false)}

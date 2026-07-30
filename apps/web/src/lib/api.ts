@@ -350,6 +350,9 @@ export const api = {
    */
   listGuestCandidates: (projectId: string) =>
     request<GuestCandidateDto[]>(`/v1/projects/${projectId}/gastkandidaten`),
+  /** Dieselbe Frage fuer ein einzelnes Video (Phase 20). */
+  listVideoGuestCandidates: (videoId: string) =>
+    request<GuestCandidateDto[]>(`/v1/videos/${videoId}/gastkandidaten`),
   /**
    * Einen vorhandenen Gast erweitern – aufs ganze Projekt oder auf weitere
    * Videos. Ohne neuen Link, ohne neue Mail (Phase 18).
