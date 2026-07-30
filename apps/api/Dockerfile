@@ -21,8 +21,21 @@ RUN npm run build -w @klappe/shared && npm run build -w @klappe/api
 FROM node:22-bookworm-slim AS runtime
 # ffmpeg/ffprobe sind die eigentliche Arbeitsgrundlage der Pipeline,
 # tini sorgt dafür, dass Signale bei ffmpeg-Kindprozessen ankommen.
+#
+# Dazu `postgresql-client-16` für die Datenbanksicherung (Phase 23): pg_dump
+# und pg_restore müssen **mindestens** so neu sein wie der Server, sonst
+# verweigern sie den Dienst. Debian bookworm liefert von Haus aus nur Version
+# 15, der Stack fährt aber postgres:16 – deshalb der Umweg über das
+# PostgreSQL-eigene Paketverzeichnis.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg tini \
+  && apt-get install -y --no-install-recommends ffmpeg tini ca-certificates curl gnupg \
+  && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+     | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg \
+  && echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+     > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends postgresql-client-16 \
+  && apt-get purge -y curl gnupg && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production \

@@ -25,6 +25,7 @@ import {
   type ProjectSettingsDto,
   type SmtpProviderPresetDto,
   type SmtpSettingsDto,
+  type StorageStatusDto,
   type TranscodeSettingsDto,
 } from '@klappe/shared';
 import {
@@ -402,6 +403,17 @@ export class SettingsController {
     return this.settingsService.updateAbout({
       environmentNotes: dto.environmentNotes === undefined ? undefined : dto.environmentNotes || null,
     });
+  }
+
+  /**
+   * Wie voll die Ablage ist (Phase 22). Admin-Sache: Der Pfad verrät etwas
+   * über den Aufbau der Anlage, und für Gäste wäre die Zahl ohnehin nur
+   * Beunruhigung ohne Handhabe.
+   */
+  @Roles('ADMIN')
+  @Get('storage')
+  getStorage(): Promise<StorageStatusDto> {
+    return this.settingsService.getStorageStatus();
   }
 
   @Roles('ADMIN')

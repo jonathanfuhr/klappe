@@ -1,11 +1,24 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { AboutDto, ProjectSettingsDto, SmtpSettingsDto } from '@klappe/shared';
+import type {
+  AboutDto,
+  ProjectSettingsDto,
+  SmtpSettingsDto,
+  StorageStatusDto,
+} from '@klappe/shared';
 import { normalizeEnvironmentNotes } from '@klappe/shared';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { decryptSecret, encryptSecret } from '../common/secret-box';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
-import { type AppSettingsRow, appSettings } from '../db/schema';
+import {
+  type AppSettingsRow,
+  appSettings,
+  projectFiles,
+  uploads,
+  versionRenditions,
+  videoVersions,
+} from '../db/schema';
+import { StorageService } from '../storage/storage.service';
 
 /** SMTP AUTH mit Benutzername und Kennwort. */
 export interface SmtpCredentialsPassword {
@@ -86,6 +99,7 @@ export class SettingsService {
   constructor(
     @Inject(DB) private readonly db: Database,
     @Inject(CONFIG) private readonly config: AppConfig,
+    private readonly storage: StorageService,
   ) {}
 
   /** Liefert die eine Einstellungszeile und legt sie beim ersten Mal an. */
@@ -164,6 +178,70 @@ export class SettingsService {
         .where(eq(appSettings.id, SETTINGS_ID));
     }
     return this.getProjectSettings();
+  }
+
+  /**
+   * Wie voll die Ablage ist (Phase 22).
+   *
+   * Zwei Herkünfte, bewusst getrennt: Der freie Platz kommt vom Dateisystem
+   * (siehe `StorageService.freeSpace`) und gilt für alles, was dort liegt –
+   * auf einer NAS teilt sich Klappe den Platz oft mit anderem. Was Klappe
+   * selbst belegt, wird aus der Datenbank summiert.
+   *
+   * Die Summen laufen über `double precision`, nicht über `int`: Ein `sum`
+   * über `bigint` sprengt in Postgres die 2-GB-Grenze von `int4` sofort, und
+   * `numeric` käme als Zeichenkette zurück. Ein Double trägt ganze Zahlen bis
+   * 2^53 exakt – gut neun Petabyte.
+   */
+  async getStorageStatus(): Promise<StorageStatusDto> {
+    const [fassungen] = await this.db
+      .select({
+        originals: sql<number>`coalesce(sum(${videoVersions.originalSizeBytes}), 0)::double precision`,
+        proxies: sql<number>`coalesce(sum(${videoVersions.proxySizeBytes}), 0)::double precision`,
+      })
+      .from(videoVersions);
+
+    const [formate] = await this.db
+      .select({
+        bytes: sql<number>`coalesce(sum(${versionRenditions.sizeBytes}), 0)::double precision`,
+      })
+      .from(versionRenditions);
+
+    const [kundendateien] = await this.db
+      .select({
+        bytes: sql<number>`coalesce(sum(${projectFiles.sizeBytes}), 0)::double precision`,
+      })
+      .from(projectFiles);
+
+    // Angefangene Uploads liegen im Zwischenspeicher – gezählt wird, was
+    // wirklich schon geschrieben ist, nicht die angekündigte Endgröße.
+    const [angefangen] = await this.db
+      .select({
+        bytes: sql<number>`coalesce(sum(${uploads.offsetBytes}), 0)::double precision`,
+      })
+      .from(uploads)
+      .where(eq(uploads.status, 'IN_PROGRESS'));
+
+    const usage = {
+      originals: fassungen?.originals ?? 0,
+      proxies: fassungen?.proxies ?? 0,
+      renditions: formate?.bytes ?? 0,
+      projectFiles: kundendateien?.bytes ?? 0,
+      uploads: angefangen?.bytes ?? 0,
+      total: 0,
+    };
+    usage.total =
+      usage.originals + usage.proxies + usage.renditions + usage.projectFiles + usage.uploads;
+
+    const platz = await this.storage.freeSpace();
+    return {
+      path: platz?.path ?? this.config.storage.root,
+      available: platz !== null,
+      totalBytes: platz?.totalBytes ?? null,
+      freeBytes: platz?.freeBytes ?? null,
+      usedBytes: platz?.usedBytes ?? null,
+      usage,
+    };
   }
 
   /**

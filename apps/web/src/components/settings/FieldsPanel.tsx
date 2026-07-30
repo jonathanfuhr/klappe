@@ -100,7 +100,7 @@ export function FieldsPanel() {
             {fields.map((field) => {
               /** Ein Schalter am Feld – speichert sofort und lädt neu. */
               const schalter = (
-                eigenschaft: 'suggest' | 'sortable' | 'groupable' | 'showOnTile',
+                eigenschaft: 'suggest' | 'filterable' | 'sortable' | 'groupable' | 'showOnTile',
                 label: string,
                 title: string,
               ) => (
@@ -150,6 +150,11 @@ export function FieldsPanel() {
                       'suggest',
                       'Vorschläge',
                       'Beim Eintippen Werte aus den anderen Projekten vorschlagen – für einen Kundennamen hilfreich, für eine einmalige Projektnummer sinnlos.',
+                    )}
+                    {schalter(
+                      'filterable',
+                      'Filtern',
+                      'Das Feld als Filter über der Projektliste anbieten.',
                     )}
                     {schalter(
                       'sortable',

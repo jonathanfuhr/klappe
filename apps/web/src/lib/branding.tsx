@@ -25,10 +25,15 @@ const fallback: BrandingDto = {
   title: DEFAULT_BRAND_TITLE,
   ...deriveBrandColors(DEFAULT_BRAND_ACCENT),
   logoUrl: null,
+  faviconMode: 'standard',
+  faviconUrl: null,
   companyName: null,
   companyShort: null,
   updatedAt: new Date(0).toISOString(),
 };
+
+/** Kennzeichnet den Link, den wir selbst gesetzt haben. */
+const FAVICON_ATTRIBUT = 'data-klappe-favicon';
 
 interface BrandingState {
   branding: BrandingDto;
@@ -68,6 +73,28 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.title = branding.title;
   }, [branding.title]);
+
+  /**
+   * Tab-Symbol (Phase 23).
+   *
+   * Next legt aus `app/icon.svg` selbst einen `<link rel="icon">` an. Statt
+   * den zu entfernen, wird ein eigener **dahinter** gehängt: Browser nehmen
+   * bei mehreren den zuletzt passenden, und bleibt unserer aus (Modus
+   * `standard`), steht das mitgelieferte Zeichen unverändert da.
+   */
+  useEffect(() => {
+    const vorhanden = document.querySelector<HTMLLinkElement>(`link[${FAVICON_ATTRIBUT}]`);
+    if (!branding.faviconUrl) {
+      vorhanden?.remove();
+      return;
+    }
+
+    const link = vorhanden ?? document.createElement('link');
+    link.rel = 'icon';
+    link.setAttribute(FAVICON_ATTRIBUT, '');
+    if (link.href !== branding.faviconUrl) link.href = branding.faviconUrl;
+    if (!vorhanden) document.head.append(link);
+  }, [branding.faviconUrl]);
 
   const value = useMemo<BrandingState>(
     () => ({ branding, apply: setBranding, reload }),

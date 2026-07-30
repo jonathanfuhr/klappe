@@ -56,6 +56,21 @@ export default function ProjectsPage() {
   const [deleting, setDeleting] = useState<ProjectDto | null>(null);
   const [renamingCustomer, setRenamingCustomer] = useState<string | null>(null);
 
+  /**
+   * Die tatsächlich wirksamen Feld-Filter. Ein Feld, dessen Filter nachträglich
+   * abgeschaltet wurde (Phase 22), verschwindet aus der Leiste – ohne diese
+   * Sieberei würde eine alte Auswahl weiter filtern, ohne dass irgendwo steht,
+   * warum die Liste so kurz ist.
+   */
+  const aktiveFeldFilter = useMemo(
+    () =>
+      fieldDefs
+        .filter((def) => def.filterable)
+        .map((def) => ({ fieldId: def.id, values: selectedFieldValues[def.id] ?? [] }))
+        .filter((eintrag) => eintrag.values.length > 0),
+    [fieldDefs, selectedFieldValues],
+  );
+
   // Gefiltert wird auf dem Server: Die Auswahl gehört in die Abfrage, nicht
   // in eine nachträgliche Sieberei über eine schon geholte Liste.
   const load = useCallback(async () => {
@@ -67,9 +82,7 @@ export default function ProjectsPage() {
           // Gruppieren heißt: Die Sortierung stellt die Gruppen her.
           sort: groupBy === 'customer' ? 'customer' : groupBy ? `field:${groupBy}` : sort,
           customers: selectedCustomers,
-          fieldFilters: Object.entries(selectedFieldValues)
-            .filter(([, values]) => values.length > 0)
-            .map(([fieldId, values]) => ({ fieldId, values })),
+          fieldFilters: aktiveFeldFilter,
         }),
       );
       setError(null);
@@ -78,7 +91,7 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTags, tagMatch, sort, selectedCustomers, selectedFieldValues, groupBy]);
+  }, [selectedTags, tagMatch, sort, selectedCustomers, aktiveFeldFilter, groupBy]);
 
   /**
    * Die Filter-Dimensionen: Kunden, Felddefinitionen samt vorkommender Werte,
@@ -170,9 +183,7 @@ export default function ProjectsPage() {
   }, [groupBy, visible, gruppenWert]);
 
   const filterAktiv =
-    selectedTags.length > 0 ||
-    selectedCustomers.length > 0 ||
-    Object.values(selectedFieldValues).some((values) => values.length > 0);
+    selectedTags.length > 0 || selectedCustomers.length > 0 || aktiveFeldFilter.length > 0;
 
   /** Felder, deren Wert laut Einstellung auf die Kachel gehört (Phase 22). */
   const kachelFeldIds = useMemo(
@@ -282,21 +293,24 @@ export default function ProjectsPage() {
               selected={selectedCustomers}
               onChange={setSelectedCustomers}
             />
-            {fieldDefs.map((def) => (
-              <FilterSelect
-                key={def.id}
-                label={def.name}
-                options={(fieldValues[def.id] ?? []).map((wert) => ({
-                  value: wert.value,
-                  label: wert.value,
-                  count: wert.projectCount,
-                }))}
-                selected={selectedFieldValues[def.id] ?? []}
-                onChange={(values) =>
-                  setSelectedFieldValues((current) => ({ ...current, [def.id]: values }))
-                }
-              />
-            ))}
+            {/* Nur Felder, die laut Einstellung filterbar sind (Phase 22). */}
+            {fieldDefs
+              .filter((def) => def.filterable)
+              .map((def) => (
+                <FilterSelect
+                  key={def.id}
+                  label={def.name}
+                  options={(fieldValues[def.id] ?? []).map((wert) => ({
+                    value: wert.value,
+                    label: wert.value,
+                    count: wert.projectCount,
+                  }))}
+                  selected={selectedFieldValues[def.id] ?? []}
+                  onChange={(values) =>
+                    setSelectedFieldValues((current) => ({ ...current, [def.id]: values }))
+                  }
+                />
+              ))}
             {tagsEnabled ? (
               <FilterSelect
                 label="Schlagworte"

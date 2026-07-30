@@ -37,6 +37,11 @@ class UpdateFieldDto {
   @IsBoolean()
   suggest?: boolean;
 
+  /** In der Filterleiste der Projektliste anbieten (Phase 22)? */
+  @IsOptional()
+  @IsBoolean()
+  filterable?: boolean;
+
   /** In der Sortier-Auswahl der Projektliste anbieten (Phase 22)? */
   @IsOptional()
   @IsBoolean()

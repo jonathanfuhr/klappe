@@ -2,9 +2,12 @@
 
 import {
   DEFAULT_BRAND_ACCENT,
+  FAVICON_MIME_TYPES,
+  type FaviconMode,
   LOGO_MIME_TYPES,
   MAX_COMPANY_NAME_LENGTH,
   MAX_COMPANY_SHORT_LENGTH,
+  MAX_FAVICON_BYTES,
   MAX_LOGO_BYTES,
 } from '@klappe/shared';
 import { useEffect, useRef, useState } from 'react';
@@ -28,6 +31,7 @@ export function BrandingPanel() {
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const faviconRef = useRef<HTMLInputElement>(null);
 
   // Beim ersten Laden steht noch der Standard im Kontext.
   useEffect(() => {
@@ -76,6 +80,58 @@ export function BrandingPanel() {
     try {
       apply(await api.removeLogo());
       setInfo('Logo entfernt.');
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : 'Entfernen fehlgeschlagen.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Der Modus wird sofort gespeichert, nicht erst mit dem Speichern-Knopf –
+   * sonst stünde darunter ein Hochladen-Feld für eine Wahl, die noch gar
+   * nicht gilt (Phase 23).
+   */
+  const setzeFaviconModus = async (faviconMode: FaviconMode) => {
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      apply(await api.updateBranding({ faviconMode }));
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uploadFavicon = async (file: File) => {
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      if (file.size > MAX_FAVICON_BYTES) {
+        throw new Error(
+          `Das Symbol darf höchstens ${Math.round(MAX_FAVICON_BYTES / 1024)} KB haben.`,
+        );
+      }
+      apply(await api.uploadFavicon(file));
+      setInfo('Tab-Symbol übernommen.');
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Hochladen fehlgeschlagen.');
+    } finally {
+      setBusy(false);
+      if (faviconRef.current) faviconRef.current.value = '';
+    }
+  };
+
+  const removeFavicon = async () => {
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      apply(await api.removeFavicon());
+      setInfo('Tab-Symbol entfernt.');
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : 'Entfernen fehlgeschlagen.');
     } finally {
@@ -244,6 +300,91 @@ export function BrandingPanel() {
             PNG, JPEG, WebP oder SVG, höchstens {Math.round(MAX_LOGO_BYTES / 1024)} KB. Es steht im
             Kopf neben dem Titel, wird also in der Höhe auf 22 Pixel gebracht.
           </p>
+        </div>
+
+        {/* Tab-Symbol (Phase 23) */}
+        <div className="field">
+          <label className="field__label" htmlFor="favicon-mode">
+            Symbol im Browser-Tab
+          </label>
+          <select
+            id="favicon-mode"
+            className="select"
+            style={{ maxWidth: 320 }}
+            value={branding.faviconMode}
+            disabled={busy}
+            onChange={(event) => void setzeFaviconModus(event.target.value as FaviconMode)}
+          >
+            <option value="standard">Standard (Klappe-Zeichen)</option>
+            <option value="logo">Das Logo von oben</option>
+            <option value="eigenes">Eigenes Symbol</option>
+          </select>
+          <p className="hint">
+            Ein Tab-Symbol ist 16 Pixel groß. Ein breiter Schriftzug wird darin zu Brei – dafür
+            gibt es die dritte Möglichkeit.
+          </p>
+
+          {branding.faviconMode === 'logo' && !branding.logoUrl ? (
+            <div className="notice notice--warn">
+              Es ist noch kein Logo hinterlegt – solange bleibt das Standard-Zeichen stehen.
+            </div>
+          ) : null}
+
+          {branding.faviconMode === 'eigenes' ? (
+            <div className="toolbar" style={{ marginTop: 8 }}>
+              {branding.faviconUrl ? (
+                // Bewusst als <img>: ein SVG führt so keine Skripte aus.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={branding.faviconUrl}
+                  alt="Aktuelles Tab-Symbol"
+                  width={24}
+                  height={24}
+                  style={{ borderRadius: 4 }}
+                />
+              ) : (
+                <span className="faint" style={{ fontSize: 13 }}>
+                  Noch kein eigenes Symbol – es gilt das Standard-Zeichen.
+                </span>
+              )}
+              <div className="shell__spacer" />
+              <input
+                ref={faviconRef}
+                type="file"
+                accept={FAVICON_MIME_TYPES.join(',')}
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void uploadFavicon(file);
+                }}
+              />
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                onClick={() => faviconRef.current?.click()}
+              >
+                {branding.faviconUrl ? 'Symbol ersetzen' : 'Symbol hochladen'}
+              </button>
+              {branding.faviconUrl ? (
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  disabled={busy}
+                  onClick={() => void removeFavicon()}
+                >
+                  Entfernen
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {branding.faviconMode === 'eigenes' ? (
+            <p className="hint">
+              PNG, SVG oder ICO, höchstens {Math.round(MAX_FAVICON_BYTES / 1024)} KB. Quadratisch
+              und schlicht wirkt am besten – 32×32 Pixel genügen.
+            </p>
+          ) : null}
         </div>
 
         <div className="toolbar" style={{ marginTop: 18 }}>

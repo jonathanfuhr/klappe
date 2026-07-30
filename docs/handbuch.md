@@ -209,12 +209,19 @@ freigeben und fremde Kommentare verwalten – also selbst Material einstellen,
 statt nur zu kommentieren. Projekt und Videos umbenennen oder löschen bleibt
 dem Team vorbehalten, ebenso das Ändern bestehender Freigabe-Links.
 
-### Eingebetteter Player
+### Einbetten
 
-Ein Link lässt sich zusätzlich fürs **Einbetten** freischalten (z. B. auf
-der eigenen Website). Ein eingebetteter Player zeigt nur die Abspielfassung,
-ohne Kommentare, ohne Gästeliste und ohne Download-Möglichkeit – die
-Video-Adresse selbst ist dabei der einzige Schlüssel.
+Ein Video lässt sich in eine fremde Seite einbetten – über das
+**„…"-Menü → Einbetten** am Video, nicht über die Freigaben. Das ist bewusst
+getrennt: Ein Freigabe-Link lädt zum Anmelden und Kommentieren ein, ein
+Einbett-Link zeigt nur den Player.
+
+Der Einbett-Link ist deshalb ein eigener Link. Mit ihm kann sich niemand
+anmelden, er taucht in der Freigabenliste nicht auf, und ausgeliefert wird
+ausschließlich die neueste **Endfassung** – ohne gesetzten Endfassungs-Haken
+bleibt der Player leer. Kommentare, Gästeliste und Download gibt es dort
+nicht; die Adresse selbst ist der einzige Schlüssel. Zurückziehen wirkt
+sofort.
 
 ---
 
@@ -250,8 +257,11 @@ Wer Zugang zu einem Projekt hat, sieht den gesamten Bereich dieses Projekts.
 
 ## Herunterladen
 
-Der **Herunterladen**-Knopf öffnet ein Fenster. Ganz oben steht immer das
-**Original** – die unveränderte hochgeladene Datei. Je nach Einrichtung des
+Der **Herunterladen**-Knopf öffnet immer ein Fenster – auch wenn keine
+zusätzlichen Formate eingerichtet sind. Dort steht der Dateiname, unter dem
+die Datei gleich landet, und bei einer Fassung ohne Endfassungs-Haken die
+Warnung, dass hier ein Zwischenstand das Haus verlässt. Ganz oben steht immer
+das **Original** – die unveränderte hochgeladene Datei. Je nach Einrichtung des
 Workspace stehen darunter zusätzliche fertige Formate zur Auswahl; ein Klick
 darauf erzeugt die Datei bei Bedarf und startet den Download automatisch,
 sobald sie fertig ist.
@@ -309,6 +319,10 @@ Team-Mitglieder und Admins finden unter **Einstellungen** unter anderem:
   Mails.
 - **Transcode** – welche Download-Formate angeboten werden und wann sie
   erzeugt werden.
+- **Speicher** – wie viel Platz auf der Platte noch frei ist und wie viel
+  davon Klappe belegt.
+- **Datensicherung** – ob und wie oft die Datenbank gesichert wird, und die
+  Möglichkeit, eine Sicherung wieder einzuspielen.
 
 ---
 

@@ -10,13 +10,15 @@ import {
   Res,
 } from '@nestjs/common';
 import { Body } from '@nestjs/common';
-import type { BrandingDto } from '@klappe/shared';
+import type { BrandingDto, FaviconMode } from '@klappe/shared';
 import {
+  FAVICON_MODES,
   MAX_COMPANY_NAME_LENGTH,
   MAX_COMPANY_SHORT_LENGTH,
+  MAX_FAVICON_BYTES,
   MAX_LOGO_BYTES,
 } from '@klappe/shared';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import { Public, Roles } from '../auth/auth.decorators';
 import { StorageService } from '../storage/storage.service';
@@ -45,6 +47,11 @@ class UpdateBrandingDto {
   @IsString()
   @MaxLength(MAX_COMPANY_SHORT_LENGTH)
   companyShort?: string;
+
+  /** Woher das Tab-Symbol kommt (Phase 23). */
+  @IsOptional()
+  @IsIn(FAVICON_MODES)
+  faviconMode?: FaviconMode;
 }
 
 /**
@@ -86,6 +93,25 @@ export class BrandingController {
     this.storage.createReadStream(file.key).pipe(response);
   }
 
+  /**
+   * Eigenes Tab-Symbol (Phase 23). Wie beim Logo ohne Anmeldung abrufbar –
+   * der Browser holt das Symbol schon für die Anmeldeseite.
+   */
+  @Public()
+  @Get('branding/favicon')
+  async favicon(@Res() response: Response): Promise<void> {
+    const file = await this.brandingService.getFaviconFile();
+    if (!file) throw new NotFoundException('Für diesen Workspace gibt es kein eigenes Symbol.');
+
+    response.setHeader('Content-Type', file.mimeType);
+    response.setHeader('Content-Length', String(await this.storage.size(file.key)));
+    response.setHeader('Cache-Control', 'public, max-age=3600');
+    response.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'");
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+
+    this.storage.createReadStream(file.key).pipe(response);
+  }
+
   @Roles('ADMIN')
   @Put('settings/branding')
   update(@Body() dto: UpdateBrandingDto): Promise<BrandingDto> {
@@ -94,7 +120,27 @@ export class BrandingController {
       accent: dto.accent,
       companyName: dto.companyName,
       companyShort: dto.companyShort,
+      faviconMode: dto.faviconMode,
     });
+  }
+
+  @Roles('ADMIN')
+  @Put('settings/branding/favicon')
+  async setFavicon(
+    @Req() request: Request,
+    @Headers('content-type') contentType: string | undefined,
+  ): Promise<BrandingDto> {
+    if (!contentType) throw new BadRequestException('Content-Type fehlt.');
+    return this.brandingService.setFavicon(
+      await readBody(request, MAX_FAVICON_BYTES, 'Das Tab-Symbol'),
+      contentType,
+    );
+  }
+
+  @Roles('ADMIN')
+  @Delete('settings/branding/favicon')
+  removeFavicon(): Promise<BrandingDto> {
+    return this.brandingService.removeFavicon();
   }
 
   /**
@@ -124,17 +170,21 @@ export class BrandingController {
  * gezogen, damit ein absichtlich riesiger Upload nicht erst vollständig im
  * Speicher landet.
  */
-async function readBody(request: Request): Promise<Buffer> {
+async function readBody(
+  request: Request,
+  limit: number = MAX_LOGO_BYTES,
+  was = 'Das Logo',
+): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let total = 0;
 
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string);
     total += buffer.length;
-    if (total > MAX_LOGO_BYTES) {
+    if (total > limit) {
       request.destroy();
       throw new BadRequestException(
-        `Das Logo darf höchstens ${Math.round(MAX_LOGO_BYTES / 1024)} KB groß sein.`,
+        `${was} darf höchstens ${Math.round(limit / 1024)} KB groß sein.`,
       );
     }
     chunks.push(buffer);
