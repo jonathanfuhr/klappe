@@ -25,6 +25,8 @@ const fallback: BrandingDto = {
   title: DEFAULT_BRAND_TITLE,
   ...deriveBrandColors(DEFAULT_BRAND_ACCENT),
   logoUrl: null,
+  companyName: null,
+  companyShort: null,
   updatedAt: new Date(0).toISOString(),
 };
 

@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import type { ProjectDto, TagRefDto } from '@klappe/shared';
+import type { ProjectDto, TagRefDto, UserRole } from '@klappe/shared';
 import { colorForTagName } from '@klappe/shared';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
@@ -24,6 +24,7 @@ type ProjectQueryRow = {
   creatorId: string | null;
   creatorName: string | null;
   creatorEmail: string | null;
+  creatorRole: UserRole | null;
   videoCount: number;
   fileCount: number;
   tags: { id: string; name: string; color: string | null }[] | null;
@@ -60,6 +61,7 @@ export class ProjectsService {
         creatorId: users.id,
         creatorName: users.name,
         creatorEmail: users.email,
+        creatorRole: users.role,
         videoCount: sql<number>`(select count(*)::int from ${videos} where ${videos.projectId} = ${projects.id})`,
         fileCount: sql<number>`(select count(*)::int from ${projectFiles} where ${projectFiles.projectId} = ${projects.id})`,
         // Die Schlagworte kommen als JSON aus derselben Abfrage; sonst
@@ -343,7 +345,12 @@ export class ProjectsService {
       updatedAt: row.project.updatedAt.toISOString(),
       createdBy:
         row.creatorId && row.creatorName && row.creatorEmail
-          ? { id: row.creatorId, name: row.creatorName, email: row.creatorEmail }
+          ? {
+              id: row.creatorId,
+              name: row.creatorName,
+              email: row.creatorEmail,
+              role: row.creatorRole ?? 'GUEST',
+            }
           : null,
       archivedAt: row.project.archivedAt?.toISOString() ?? null,
       videoCount: row.videoCount,

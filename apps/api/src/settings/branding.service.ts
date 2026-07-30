@@ -10,9 +10,12 @@ import type { BrandingDto, LogoMimeType } from '@klappe/shared';
 import {
   DEFAULT_BRAND_ACCENT,
   LOGO_MIME_TYPES,
+  MAX_COMPANY_NAME_LENGTH,
+  MAX_COMPANY_SHORT_LENGTH,
   MAX_LOGO_BYTES,
   deriveBrandColors,
   normalizeBrandTitle,
+  normalizeCompanyText,
   normalizeHexColor,
 } from '@klappe/shared';
 import { eq } from 'drizzle-orm';
@@ -33,6 +36,8 @@ const SETTINGS_ID = 1;
 export interface UpdateBrandingInput {
   title?: string | null;
   accent?: string | null;
+  companyName?: string | null;
+  companyShort?: string | null;
 }
 
 @Injectable()
@@ -61,6 +66,8 @@ export class BrandingService {
       logoUrl: row.brandLogoKey
         ? `/v1/branding/logo?v=${row.brandLogoUpdatedAt?.getTime() ?? 0}`
         : null,
+      companyName: normalizeCompanyText(row.companyName, MAX_COMPANY_NAME_LENGTH),
+      companyShort: normalizeCompanyText(row.companyShort, MAX_COMPANY_SHORT_LENGTH),
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -88,6 +95,14 @@ export class BrandingService {
       .set({
         brandTitle: input.title === undefined ? undefined : input.title?.trim() || null,
         brandAccent: accent,
+        companyName:
+          input.companyName === undefined
+            ? undefined
+            : normalizeCompanyText(input.companyName, MAX_COMPANY_NAME_LENGTH),
+        companyShort:
+          input.companyShort === undefined
+            ? undefined
+            : normalizeCompanyText(input.companyShort, MAX_COMPANY_SHORT_LENGTH),
         updatedAt: new Date(),
       })
       .where(eq(appSettings.id, SETTINGS_ID));

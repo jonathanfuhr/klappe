@@ -2,6 +2,7 @@
 
 import type { GuestAccessDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
 
@@ -21,6 +22,7 @@ interface GuestAccessProps {
  */
 export function GuestAccess({ projectId, videoId }: GuestAccessProps) {
   const [guests, setGuests] = useState<GuestAccessDto[]>([]);
+  const zeigeName = useUserName();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export function GuestAccess({ projectId, videoId }: GuestAccessProps) {
       {guests.map((guest) => (
         <div className="guest" key={guest.user.id} data-blocked={!guest.canView}>
           <div className="toolbar">
-            <strong style={{ fontSize: 14 }}>{guest.user.name}</strong>
+            <strong style={{ fontSize: 14 }}>{zeigeName(guest.user)}</strong>
             <span className="faint" style={{ fontSize: 12 }}>
               {guest.user.email}
             </span>

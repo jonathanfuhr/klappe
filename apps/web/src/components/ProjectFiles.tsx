@@ -2,6 +2,7 @@
 
 import type { ProjectFileDto, ProjectFolderDto, UserDto } from '@klappe/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useUserName } from '@/lib/user-name';
 import { Dialog } from '@/components/ui/Dialog';
 import { Menu, MenuItem } from '@/components/ui/Menu';
 import { api, mediaUrl } from '@/lib/api';
@@ -28,6 +29,7 @@ export function ProjectFiles({
   reloadToken = 0,
 }: ProjectFilesProps) {
   const [files, setFiles] = useState<ProjectFileDto[]>([]);
+  const zeigeName = useUserName();
   const [folders, setFolders] = useState<ProjectFolderDto[]>([]);
   const [aktuellerOrdner, setAktuellerOrdner] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -192,7 +194,7 @@ export function ProjectFiles({
               <div className="shell__spacer" />
               {file.uploadedBy ? (
                 <span className="faint" style={{ fontSize: 12 }}>
-                  {file.uploadedBy.name}
+                  {zeigeName(file.uploadedBy)}
                 </span>
               ) : null}
               <span className="faint" style={{ fontSize: 12 }}>

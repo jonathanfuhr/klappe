@@ -2,6 +2,7 @@
 
 import type { NotificationSubscriberDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
 
 /**
@@ -28,6 +29,7 @@ export function NotificationPanel({
   videoId?: string;
 }) {
   const [people, setPeople] = useState<NotificationSubscriberDto[]>([]);
+  const zeigeName = useUserName();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -96,7 +98,7 @@ export function NotificationPanel({
                   disabled={person.inherited || busy === person.user.id}
                   onChange={(event) => void umschalten(person.user.id, event.target.checked)}
                 />
-                <strong style={{ fontSize: 14 }}>{person.user.name}</strong>
+                <strong style={{ fontSize: 14 }}>{zeigeName(person.user)}</strong>
               </label>
               <span className="faint" style={{ fontSize: 12 }}>
                 {person.user.email}

@@ -8,6 +8,7 @@ import {
 import {
   type Annotation,
   type CommentDto,
+  type UserRole,
   type UserSummaryDto,
   framesToTimecode,
   mentionedUserIds,
@@ -35,6 +36,7 @@ interface CommentWithAuthor {
   authorId: string;
   authorName: string;
   authorEmail: string;
+  authorRole: UserRole;
 }
 
 @Injectable()
@@ -60,6 +62,7 @@ export class CommentsService {
         authorId: users.id,
         authorName: users.name,
         authorEmail: users.email,
+        authorRole: users.role,
       })
       .from(comments)
       .innerJoin(users, eq(comments.authorId, users.id))
@@ -262,6 +265,7 @@ export class CommentsService {
         authorId: users.id,
         authorName: users.name,
         authorEmail: users.email,
+        authorRole: users.role,
       })
       .from(comments)
       .innerJoin(users, eq(comments.authorId, users.id))
@@ -315,6 +319,7 @@ export class CommentsService {
         id: users.id,
         name: users.name,
         email: users.email,
+        role: users.role,
       })
       .from(commentMentions)
       .innerJoin(users, eq(commentMentions.userId, users.id))
@@ -322,7 +327,7 @@ export class CommentsService {
 
     for (const row of rows) {
       const list = result.get(row.commentId) ?? [];
-      list.push({ id: row.id, name: row.name, email: row.email });
+      list.push({ id: row.id, name: row.name, email: row.email, role: row.role });
       result.set(row.commentId, list);
     }
     return result;
@@ -389,7 +394,12 @@ export class CommentsService {
       id: row.comment.id,
       versionId: row.comment.versionId,
       parentId: row.comment.parentId,
-      author: { id: row.authorId, name: row.authorName, email: row.authorEmail },
+      author: {
+        id: row.authorId,
+        name: row.authorName,
+        email: row.authorEmail,
+        role: row.authorRole,
+      },
       body: row.comment.body,
       frame: row.comment.frame,
       timecode,

@@ -104,6 +104,12 @@ export interface UserSummaryDto {
   id: string;
   name: string;
   email: string;
+  /**
+   * Seit Phase 20 dabei, damit die Oberfläche das Firmenkürzel nur hinter
+   * Namen des eigenen Teams setzt. Dass ein Gast dadurch sieht, wer Team ist
+   * und wer nicht, ist genau der Zweck.
+   */
+  role: UserRole;
 }
 
 /** Schlagwort für Projekte (Phase 12). */

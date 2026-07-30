@@ -94,7 +94,7 @@ export class GuestsService {
       let entry = byUser.get(row.userId);
       if (!entry) {
         entry = {
-          user: { id: row.userId, name: row.name, email: row.email },
+          user: { id: row.userId, name: row.name, email: row.email, role: 'GUEST' },
           isActive: row.isActive,
           projects: [],
           linkCount: 0,
@@ -371,7 +371,7 @@ export class GuestsService {
       let eintrag = byUser.get(row.userId);
       if (!eintrag) {
         eintrag = {
-          user: { id: row.userId, name: row.name, email: row.email },
+          user: { id: row.userId, name: row.name, email: row.email, role: 'GUEST' },
           fromProjects: [],
         };
         byUser.set(row.userId, eintrag);

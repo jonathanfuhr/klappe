@@ -1,6 +1,12 @@
 'use client';
 
-import { DEFAULT_BRAND_ACCENT, LOGO_MIME_TYPES, MAX_LOGO_BYTES } from '@klappe/shared';
+import {
+  DEFAULT_BRAND_ACCENT,
+  LOGO_MIME_TYPES,
+  MAX_COMPANY_NAME_LENGTH,
+  MAX_COMPANY_SHORT_LENGTH,
+  MAX_LOGO_BYTES,
+} from '@klappe/shared';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { useBranding } from '@/lib/branding';
@@ -16,6 +22,8 @@ export function BrandingPanel() {
   const { branding, apply } = useBranding();
   const [title, setTitle] = useState(branding.title);
   const [accent, setAccent] = useState(branding.accent);
+  const [companyName, setCompanyName] = useState(branding.companyName ?? '');
+  const [companyShort, setCompanyShort] = useState(branding.companyShort ?? '');
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,14 +33,16 @@ export function BrandingPanel() {
   useEffect(() => {
     setTitle(branding.title);
     setAccent(branding.accent);
-  }, [branding.title, branding.accent]);
+    setCompanyName(branding.companyName ?? '');
+    setCompanyShort(branding.companyShort ?? '');
+  }, [branding.title, branding.accent, branding.companyName, branding.companyShort]);
 
   const save = async () => {
     setBusy(true);
     setError(null);
     setInfo(null);
     try {
-      apply(await api.updateBranding({ title, accent }));
+      apply(await api.updateBranding({ title, accent, companyName, companyShort }));
       setInfo('Gespeichert.');
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
@@ -107,6 +117,42 @@ export function BrandingPanel() {
             onChange={(event) => setTitle(event.target.value)}
           />
           <p className="hint">Steht im Kopf, im Browser-Tab und als Absenderzeile in den Mails.</p>
+        </div>
+
+        <div className="grid-two">
+          <div className="field">
+            <label className="field__label" htmlFor="company-name">
+              Firmenname
+            </label>
+            <input
+              id="company-name"
+              className="input"
+              maxLength={MAX_COMPANY_NAME_LENGTH}
+              placeholder="z. B. Beispiel Medien GmbH"
+              value={companyName}
+              onChange={(event) => setCompanyName(event.target.value)}
+            />
+            <p className="hint">Das Haus, dem dieser Workspace gehört.</p>
+          </div>
+
+          <div className="field">
+            <label className="field__label" htmlFor="company-short">
+              Kürzel hinter den Benutzernamen
+            </label>
+            <input
+              id="company-short"
+              className="input"
+              maxLength={MAX_COMPANY_SHORT_LENGTH}
+              placeholder="z. B. BSP"
+              value={companyShort}
+              onChange={(event) => setCompanyShort(event.target.value)}
+            />
+            <p className="hint">
+              Steht in Klammern hinter jedem Namen aus dem eigenen Team – an einem Kommentar ist
+              damit zu sehen, wer von welcher Seite schreibt. Gäste bekommen keines. Leer lassen
+              schaltet es ab.
+            </p>
+          </div>
         </div>
 
         <div className="field">

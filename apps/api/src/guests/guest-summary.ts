@@ -87,7 +87,7 @@ export function summarizeGuests(rows: GuestGrantRow[]): GuestAccessDto[] {
     const wirksam = group.filter(counts);
 
     summaries.push({
-      user: { id: first.userId, name: first.name, email: first.email },
+      user: { id: first.userId, name: first.name, email: first.email, role: 'GUEST' },
       isActive: first.userActive,
       links,
       canView: wirksam.length > 0,

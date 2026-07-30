@@ -31,6 +31,14 @@ export interface BrandingDto {
   accentContrast: string;
   /** `null`, solange kein Logo hinterlegt ist. */
   logoUrl: string | null;
+  /**
+   * Das Haus, dem der Workspace gehört (Phase 20). Der Name steht in den
+   * Einstellungen, das Kürzel in Klammern hinter jedem Namen aus dem eigenen
+   * Team – damit an einem Kommentar zu sehen ist, wer von welcher Seite
+   * schreibt. Beides `null`, solange nichts hinterlegt ist.
+   */
+  companyName: string | null;
+  companyShort: string | null;
   updatedAt: string;
 }
 

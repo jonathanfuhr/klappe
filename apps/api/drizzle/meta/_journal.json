@@ -169,6 +169,13 @@
       "when": 1785262970399,
       "tag": "0023_zeitplan",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785263030399,
+      "tag": "0024_firmenkuerzel",
+      "breakpoints": true
     }
   ]
 }

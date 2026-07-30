@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { ProjectFileDto } from '@klappe/shared';
+import type { ProjectFileDto, UserRole } from '@klappe/shared';
 import { desc, eq } from 'drizzle-orm';
 import type { AccessScope } from '../access/access.service';
 import { AccessService } from '../access/access.service';
@@ -36,6 +36,7 @@ export class ProjectFilesService {
         uploaderId: users.id,
         uploaderName: users.name,
         uploaderEmail: users.email,
+        uploaderRole: users.role,
       })
       .from(projectFiles)
       .leftJoin(users, eq(projectFiles.uploadedById, users.id))
@@ -101,6 +102,7 @@ export class ProjectFilesService {
     uploaderId: string | null;
     uploaderName: string | null;
     uploaderEmail: string | null;
+    uploaderRole: UserRole | null;
   }): ProjectFileDto {
     return {
       id: row.file.id,
@@ -112,7 +114,12 @@ export class ProjectFilesService {
       note: row.file.note,
       uploadedBy:
         row.uploaderId && row.uploaderName && row.uploaderEmail
-          ? { id: row.uploaderId, name: row.uploaderName, email: row.uploaderEmail }
+          ? {
+              id: row.uploaderId,
+              name: row.uploaderName,
+              email: row.uploaderEmail,
+              role: row.uploaderRole ?? 'GUEST',
+            }
           : null,
       createdAt: row.file.createdAt.toISOString(),
     };

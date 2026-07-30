@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { VersionDto, VideoDto } from '@klappe/shared';
+import type { UserRole, VersionDto, VideoDto } from '@klappe/shared';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
 import type { RequestUser } from '../auth/auth.types';
@@ -15,6 +15,7 @@ type VideoRow = {
   creatorId: string | null;
   creatorName: string | null;
   creatorEmail: string | null;
+  creatorRole: UserRole | null;
   projectName?: string | null;
   projectCustomer?: string | null;
 };
@@ -44,6 +45,7 @@ export class VideosService {
         creatorId: users.id,
         creatorName: users.name,
         creatorEmail: users.email,
+        creatorRole: users.role,
         projectName: projects.name,
         projectCustomer: projects.customer,
       })
@@ -74,6 +76,7 @@ export class VideosService {
         creatorId: users.id,
         creatorName: users.name,
         creatorEmail: users.email,
+        creatorRole: users.role,
         // Für die Brotkrumen: Ohne den Namen stünde dort nur „Projekt".
         projectName: projects.name,
         projectCustomer: projects.customer,
@@ -179,7 +182,12 @@ export class VideosService {
       updatedAt: row.video.updatedAt.toISOString(),
       createdBy:
         row.creatorId && row.creatorName && row.creatorEmail
-          ? { id: row.creatorId, name: row.creatorName, email: row.creatorEmail }
+          ? {
+              id: row.creatorId,
+              name: row.creatorName,
+              email: row.creatorEmail,
+              role: row.creatorRole ?? 'GUEST',
+            }
           : null,
       projectName: row.projectName ?? null,
       projectCustomer: row.projectCustomer ?? null,
@@ -204,6 +212,7 @@ export class VideosService {
         uploaderId: users.id,
         uploaderName: users.name,
         uploaderEmail: users.email,
+        uploaderRole: users.role,
         commentCount: sql<number>`(
           select count(*)::int from ${comments}
           where ${comments.versionId} = ${videoVersions.id} and ${comments.deletedAt} is null

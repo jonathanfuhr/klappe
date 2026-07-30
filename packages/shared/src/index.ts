@@ -1,5 +1,6 @@
 export * from './annotations';
 export * from './branding';
+export * from './company';
 export * from './filenames';
 export * from './mentions';
 export * from './tags';

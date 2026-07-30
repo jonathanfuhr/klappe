@@ -29,8 +29,8 @@ export class UsersService {
     };
   }
 
-  toSummary(row: Pick<UserRow, 'id' | 'name' | 'email'>): UserSummaryDto {
-    return { id: row.id, name: row.name, email: row.email };
+  toSummary(row: Pick<UserRow, 'id' | 'name' | 'email' | 'role'>): UserSummaryDto {
+    return { id: row.id, name: row.name, email: row.email, role: row.role };
   }
 
   async list(): Promise<UserDto[]> {
@@ -53,7 +53,7 @@ export class UsersService {
   ): Promise<UserSummaryDto[]> {
     const term = `%${query.trim()}%`;
     const rows = await this.db
-      .select({ id: users.id, name: users.name, email: users.email })
+      .select({ id: users.id, name: users.name, email: users.email, role: users.role })
       .from(users)
       .where(
         and(

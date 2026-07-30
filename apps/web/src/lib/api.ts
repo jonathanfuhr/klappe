@@ -483,7 +483,12 @@ export const api = {
 
   // ---------- Erscheinungsbild (Phase 10) ----------
   getBranding: () => request<BrandingDto>('/v1/branding'),
-  updateBranding: (input: { title?: string; accent?: string }) =>
+  updateBranding: (input: {
+    title?: string;
+    accent?: string;
+    companyName?: string;
+    companyShort?: string;
+  }) =>
     request<BrandingDto>('/v1/settings/branding', {
       method: 'PUT',
       body: JSON.stringify(input),

@@ -160,6 +160,7 @@ export class SharesService {
         id: users.id,
         name: users.name,
         email: users.email,
+        role: users.role,
       })
       .from(shareLinkGrants)
       .innerJoin(users, eq(shareLinkGrants.userId, users.id))
@@ -167,7 +168,7 @@ export class SharesService {
       .orderBy(desc(shareLinkGrants.lastSeenAt));
 
     return rows.map((row) => ({
-      user: { id: row.id, name: row.name, email: row.email },
+      user: { id: row.id, name: row.name, email: row.email, role: row.role },
       shareLinkId,
       shareLabel: link.label,
       createdAt: row.grant.createdAt.toISOString(),
@@ -373,7 +374,7 @@ export class SharesService {
     const creator = link.createdById
       ? (
           await this.db
-            .select({ id: users.id, name: users.name, email: users.email })
+            .select({ id: users.id, name: users.name, email: users.email, role: users.role })
             .from(users)
             .where(eq(users.id, link.createdById))
             .limit(1)
@@ -401,7 +402,9 @@ export class SharesService {
       // sähe trotzdem nach einer benutzbaren Einbettung aus.
       embedUrl: link.embedEnabled ? `${this.config.publicUrl}/einbetten/${link.token}` : null,
       createdAt: link.createdAt.toISOString(),
-      createdBy: creator ? { id: creator.id, name: creator.name, email: creator.email } : null,
+      createdBy: creator
+        ? { id: creator.id, name: creator.name, email: creator.email, role: creator.role }
+        : null,
       guestCount: guests,
     };
   }

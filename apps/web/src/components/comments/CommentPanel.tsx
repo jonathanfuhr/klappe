@@ -2,6 +2,7 @@
 
 import type { Annotation, CommentDto, UserDto } from '@klappe/shared';
 import { useMemo, useState } from 'react';
+import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
 import { formatRelative, initialsOf } from '@/lib/format';
 import { CommentBody } from './CommentBody';
@@ -48,6 +49,7 @@ export function CommentPanel({
   canComment = true,
 }: CommentPanelProps) {
   const [filter, setFilter] = useState<Filter>('alle');
+  const zeigeName = useUserName();
   const [sortierung, setSortierung] = useState<Sortierung>('timecode');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -137,7 +139,7 @@ export function CommentPanel({
               <span className="avatar" style={{ width: 24, height: 24, fontSize: 11 }}>
                 {initialsOf(comment.author.name)}
               </span>
-              <span className="comment__author">{comment.author.name}</span>
+              <span className="comment__author">{zeigeName(comment.author)}</span>
               {comment.timecode ? (
                 <button
                   type="button"
@@ -239,7 +241,7 @@ export function CommentPanel({
                       <span className="avatar" style={{ width: 20, height: 20, fontSize: 10 }}>
                         {initialsOf(reply.author.name)}
                       </span>
-                      <span className="comment__author">{reply.author.name}</span>
+                      <span className="comment__author">{zeigeName(reply.author)}</span>
                       <span className="shell__spacer" />
                       <span className="comment__time">{formatRelative(reply.createdAt)}</span>
                     </div>

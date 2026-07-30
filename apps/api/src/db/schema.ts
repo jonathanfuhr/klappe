@@ -567,6 +567,15 @@ export const appSettings = pgTable('app_settings', {
   /** Wechselt bei jedem neuen Logo und bricht damit den Browser-Cache auf. */
   brandLogoUpdatedAt: timestamp('brand_logo_updated_at', { withTimezone: true }),
 
+  /**
+   * Das Haus, dem der Workspace gehört (Phase 20). Das Kürzel steht in
+   * Klammern hinter jedem Namen aus dem eigenen Team – in einem Projekt
+   * sitzen Leute aus zwei Häusern, und an einem Kommentar stand bisher nur
+   * ein Name.
+   */
+  companyName: text('company_name'),
+  companyShort: text('company_short'),
+
   // ---------- Anmeldung (Phase 11) ----------
   /** Lokale Konten mit Passwort. Abschaltbar, sobald M365 nachweislich läuft. */
   localLoginEnabled: boolean('local_login_enabled').notNull().default(true),

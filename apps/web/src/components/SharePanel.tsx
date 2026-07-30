@@ -2,6 +2,7 @@
 
 import type { GuestAccessDto, ShareScope, VideoDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { useUserName } from '@/lib/user-name';
 import { ShareManager } from '@/components/ShareManager';
 import { IconButton } from '@/components/ui/Icon';
 import { api } from '@/lib/api';
@@ -74,6 +75,7 @@ export function SharePanel({
 }) {
   const [guests, setGuests] = useState<GuestAccessDto[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const zeigeName = useUserName();
   const [verwaltung, setVerwaltung] = useState(false);
   /** Für welchen Gast ist der Erweitern-Kasten aufgeklappt? */
   const [erweitert, setErweitert] = useState<string | null>(null);
@@ -166,7 +168,7 @@ export function SharePanel({
           guests.map((guest) => (
             <div key={guest.user.id} className="guest" data-blocked={!guest.isActive}>
               <div className="toolbar" style={{ gap: 8 }}>
-                <strong style={{ fontSize: 14 }}>{guest.user.name}</strong>
+                <strong style={{ fontSize: 14 }}>{zeigeName(guest.user)}</strong>
                 <div className="shell__spacer" />
                 <span className="faint" style={{ fontSize: 12 }}>
                   {formatRelative(guest.lastSeenAt)}

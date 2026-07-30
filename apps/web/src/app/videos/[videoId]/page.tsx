@@ -30,12 +30,14 @@ import { formatBytes, formatFrameRate } from '@/lib/format';
 import { useFallbackInterval, useLiveTopic } from '@/lib/live';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
+import { useUserName } from '@/lib/user-name';
 
 export default function ReviewPage() {
   const params = useParams<{ videoId: string }>();
   const videoId = params.videoId;
   const { user } = useSession();
   const { completedCount } = useUploads();
+  const zeigeName = useUserName();
 
   const playerRef = useRef<PlayerHandle>(null);
 
@@ -177,9 +179,9 @@ export default function ReviewPage() {
           id: comment.id,
           frame: comment.frame,
           resolved: Boolean(comment.resolvedAt),
-          label: `${comment.author.name}: ${comment.body.slice(0, 60)}`,
+          label: `${zeigeName(comment.author)}: ${comment.body.slice(0, 60)}`,
         })),
-    [comments],
+    [comments, zeigeName],
   );
 
   /**
@@ -590,6 +592,7 @@ export default function ReviewPage() {
 }
 
 function VersionDetails({ version }: { version: VersionDto }) {
+  const zeigeName = useUserName();
   const media = version.media;
   const entries: Array<[string, string]> = [
     ['Datei', version.originalFilename],
@@ -600,7 +603,7 @@ function VersionDetails({ version }: { version: VersionDto }) {
     ['Start-Timecode', media.startTimecode ?? '–'],
     ['Frames', media.frameCount ? String(media.frameCount) : '–'],
     ['Codec', media.videoCodec ?? '–'],
-    ['Hochgeladen von', version.uploadedBy?.name ?? '–'],
+    ['Hochgeladen von', zeigeName(version.uploadedBy) || '–'],
   ];
 
   return (

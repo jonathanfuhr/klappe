@@ -9,6 +9,7 @@ import {
   fileDateFromIso,
   framesToTimecode,
   nextVersionNumber,
+  type UserRole,
 } from '@klappe/shared';
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
@@ -71,6 +72,7 @@ export type VersionQueryRow = {
   uploaderId: string | null;
   uploaderName: string | null;
   uploaderEmail: string | null;
+  uploaderRole: UserRole | null;
   commentCount: number;
   /** Für den Download-Dateinamen nach Schema. */
   videoName?: string | null;
@@ -109,6 +111,7 @@ export class VersionsService {
         uploaderId: users.id,
         uploaderName: users.name,
         uploaderEmail: users.email,
+        uploaderRole: users.role,
         commentCount: sql<number>`(
           select count(*)::int from ${comments}
           where ${comments.versionId} = ${videoVersions.id} and ${comments.deletedAt} is null
@@ -441,7 +444,12 @@ export class VersionsService {
       originalSizeBytes: version.originalSizeBytes,
       uploadedBy:
         row.uploaderId && row.uploaderName && row.uploaderEmail
-          ? { id: row.uploaderId, name: row.uploaderName, email: row.uploaderEmail }
+          ? {
+              id: row.uploaderId,
+              name: row.uploaderName,
+              email: row.uploaderEmail,
+              role: row.uploaderRole ?? 'GUEST',
+            }
           : null,
       createdAt: version.createdAt.toISOString(),
       media: {

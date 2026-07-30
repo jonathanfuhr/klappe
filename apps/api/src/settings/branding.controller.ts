@@ -11,7 +11,11 @@ import {
 } from '@nestjs/common';
 import { Body } from '@nestjs/common';
 import type { BrandingDto } from '@klappe/shared';
-import { MAX_LOGO_BYTES } from '@klappe/shared';
+import {
+  MAX_COMPANY_NAME_LENGTH,
+  MAX_COMPANY_SHORT_LENGTH,
+  MAX_LOGO_BYTES,
+} from '@klappe/shared';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import { Public, Roles } from '../auth/auth.decorators';
@@ -29,6 +33,18 @@ class UpdateBrandingDto {
   @IsString()
   @MaxLength(9)
   accent?: string;
+
+  /** Das Haus, dem der Workspace gehört (Phase 20). Leer entfernt den Eintrag. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_COMPANY_NAME_LENGTH)
+  companyName?: string;
+
+  /** Steht in Klammern hinter jedem Namen aus dem eigenen Team. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_COMPANY_SHORT_LENGTH)
+  companyShort?: string;
 }
 
 /**
@@ -73,7 +89,12 @@ export class BrandingController {
   @Roles('ADMIN')
   @Put('settings/branding')
   update(@Body() dto: UpdateBrandingDto): Promise<BrandingDto> {
-    return this.brandingService.update({ title: dto.title, accent: dto.accent });
+    return this.brandingService.update({
+      title: dto.title,
+      accent: dto.accent,
+      companyName: dto.companyName,
+      companyShort: dto.companyShort,
+    });
   }
 
   /**

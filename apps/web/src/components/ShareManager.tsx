@@ -2,6 +2,7 @@
 
 import type { GuestCandidateDto, ShareGuestDto, ShareLinkDto, ShareScope } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
 import { formatDateTime, formatRelative } from '@/lib/format';
 import { Dialog } from './ui/Dialog';
@@ -116,6 +117,7 @@ export function ShareManager({
 }
 
 function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Promise<void> }) {
+  const zeigeName = useUserName();
   const [copied, setCopied] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
   const [guests, setGuests] = useState<ShareGuestDto[] | null>(null);
@@ -294,7 +296,7 @@ function ShareRow({ link, onChanged }: { link: ShareLinkDto; onChanged: () => Pr
           ) : null}
           {guests.map((guest) => (
             <div key={guest.user.id} className="filelist__row">
-              <span className="filelist__name">{guest.user.name}</span>
+              <span className="filelist__name">{zeigeName(guest.user)}</span>
               <span className="muted" style={{ fontSize: 12 }}>
                 {guest.user.email}
               </span>
@@ -345,6 +347,7 @@ function einbettSchnipsel(embedUrl: string | null): string {
  * liegt, statt einer leeren Liste ohne Erklärung.
  */
 function BekannteGaeste({ projectId, onAdded }: { projectId: string; onAdded: () => Promise<void> }) {
+  const zeigeName = useUserName();
   const [kandidaten, setKandidaten] = useState<GuestCandidateDto[] | null>(null);
   const [kunde, setKunde] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -415,7 +418,7 @@ function BekannteGaeste({ projectId, onAdded }: { projectId: string; onAdded: ()
           {kandidaten.map((eintrag) => (
             <div key={eintrag.user.id} className="guest">
               <div className="toolbar" style={{ gap: 8 }}>
-                <strong style={{ fontSize: 14 }}>{eintrag.user.name}</strong>
+                <strong style={{ fontSize: 14 }}>{zeigeName(eintrag.user)}</strong>
                 <div className="shell__spacer" />
                 <button
                   type="button"
