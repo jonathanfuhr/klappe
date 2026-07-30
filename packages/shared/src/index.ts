@@ -1,3 +1,4 @@
+export * from './about';
 export * from './annotations';
 export * from './branding';
 export * from './company';
