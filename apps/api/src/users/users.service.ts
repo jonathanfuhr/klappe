@@ -123,6 +123,18 @@ export class UsersService {
       if (problem) throw new BadRequestException(problem);
     }
 
+    // Ein Gast hat kein Passwort und kein Microsoft-365-Konto im Tenant – die
+    // Logins von Team und Gast sind grundverschieden, ein Rollenwechsel in
+    // diese Richtung ergibt also kein brauchbares Konto (Phase 21). Für einen
+    // echten Kollegen entsteht ein neues, richtiges Konto unter „Benutzer“.
+    if (existing.role === 'GUEST' && (dto.role === 'MEMBER' || dto.role === 'ADMIN')) {
+      throw new BadRequestException(
+        'Ein Gast lässt sich nicht ins Team aufnehmen – Gäste melden sich per Code an, das Team ' +
+          'mit Passwort oder Microsoft 365. Für einen echten Kollegen bitte unter „Benutzer" ein ' +
+          'eigenes Konto anlegen.',
+      );
+    }
+
     // Sonst kann sich der letzte Admin selbst aussperren und niemand kommt
     // mehr an die Einstellungen.
     const losesAdmin = existing.role === 'ADMIN' && (dto.role === 'MEMBER' || dto.role === 'GUEST');
