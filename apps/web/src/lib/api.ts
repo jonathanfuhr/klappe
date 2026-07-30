@@ -404,6 +404,19 @@ export const api = {
 
   // ---------- Gastzugang ----------
   sharePreview: (token: string) => request<SharePreviewDto>(`/v1/share/${token}`),
+  /**
+   * Gastzugang von der Anmeldeseite, ohne Freigabe-Link (Phase 20). Für eine
+   * unbekannte Adresse antwortet die API mit einem Fehler und verschickt
+   * nichts – das ist ausdrücklich keine Selbstregistrierung.
+   */
+  requestGuestLoginCode: (email: string) =>
+    request<void>('/v1/auth/gast/code', { method: 'POST', body: JSON.stringify({ email }) }),
+  verifyGuestLogin: (input: { email: string; code: string }) =>
+    request<{ user: UserDto; redirectPath: string }>('/v1/auth/gast/verify', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
   /** Seit Phase 20 nur die Adresse – der Name kommt einmal ganz am Ende. */
   requestGuestCode: (token: string, input: { email: string }) =>
     request<void>(`/v1/share/${token}/code`, { method: 'POST', body: JSON.stringify(input) }),

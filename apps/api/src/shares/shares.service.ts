@@ -238,21 +238,7 @@ export class SharesService {
     // und die Absage käme erst, nachdem er den Code abgetippt hat.
     if (existing) await this.pruefeEntzug(link.id, existing.id);
 
-    const [{ recent }] = await this.db
-      .select({ recent: count() })
-      .from(loginCodes)
-      .where(
-        and(
-          eq(loginCodes.email, email),
-          gt(loginCodes.createdAt, new Date(Date.now() - 60 * 60 * 1000)),
-        ),
-      );
-    if (recent >= MAX_CODES_PER_HOUR) {
-      throw new HttpException(
-        'Es wurden zu viele Codes angefordert. Bitte in einer Stunde erneut versuchen.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
+    await this.pruefeCodeBremse(email);
 
     const code = createLoginCode();
     await this.db.insert(loginCodes).values({
@@ -298,29 +284,7 @@ export class SharesService {
     }
 
     const email = normalizeEmail(input.email);
-    const [candidate] = await this.db
-      .select()
-      .from(loginCodes)
-      .where(
-        and(
-          eq(loginCodes.email, email),
-          eq(loginCodes.shareLinkId, link.id),
-          isNull(loginCodes.consumedAt),
-          gt(loginCodes.expiresAt, new Date()),
-        ),
-      )
-      .orderBy(desc(loginCodes.createdAt))
-      .limit(1);
-
-    if (!candidate) {
-      throw new BadRequestException('Der Code ist abgelaufen. Bitte einen neuen anfordern.');
-    }
-    if (candidate.attempts >= MAX_CODE_ATTEMPTS) {
-      throw new HttpException(
-        'Zu viele Fehlversuche. Bitte einen neuen Code anfordern.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
+    const candidate = await this.zieheCode(email, link.id);
 
     if (!(await verifyPassword(input.code.trim(), candidate.codeHash))) {
       await this.db
@@ -361,6 +325,180 @@ export class SharesService {
       needsName: !user.nameConfirmed,
       redirectPath: zielPfad(link),
     };
+  }
+
+  // ---------- Gastzugang ohne Link (Phase 20) ----------
+
+  /**
+   * „Gastzugang" auf der Anmeldeseite: Code anfordern, ohne einen Link zur
+   * Hand zu haben. Für den Kunden, der den alten Link nicht mehr findet.
+   *
+   * **Für eine unbekannte Adresse geht keine Mail raus.** Sonst wäre das hier
+   * eine Selbstregistrierung: Jeder könnte sich eintragen und bekäme Post von
+   * dieser Anlage. Dass die Absage damit verrät, ob eine Adresse als Gast
+   * angelegt ist, ist der bewusst in Kauf genommene Preis – die Anfragebremse
+   * davor begrenzt, wie oft sich das ausprobieren lässt.
+   */
+  async requestGuestLoginCode(email: string): Promise<void> {
+    const adresse = normalizeEmail(email);
+    const [user] = await this.db.select().from(users).where(eq(users.email, adresse)).limit(1);
+
+    if (!user || user.role !== 'GUEST') {
+      throw new NotFoundException(
+        'Zu dieser Adresse gibt es keinen Gastzugang. Bitte den Freigabe-Link benutzen, den du bekommen hast.',
+      );
+    }
+    if (!user.isActive) throw new ForbiddenException('Dieser Zugang wurde gesperrt.');
+
+    const [{ offen }] = await this.db
+      .select({ offen: count() })
+      .from(shareLinkGrants)
+      .innerJoin(shareLinks, eq(shareLinks.id, shareLinkGrants.shareLinkId))
+      .where(
+        and(
+          eq(shareLinkGrants.userId, user.id),
+          isNull(shareLinkGrants.revokedAt),
+          isNull(shareLinks.revokedAt),
+        ),
+      );
+    if (offen === 0) {
+      throw new ForbiddenException(
+        'Für diesen Zugang ist derzeit nichts freigegeben. Bitte frage nach einem neuen Link.',
+      );
+    }
+
+    await this.pruefeCodeBremse(adresse);
+
+    const code = createLoginCode();
+    await this.db.insert(loginCodes).values({
+      email: adresse,
+      codeHash: await hashPassword(code),
+      // Ohne Link: Dieser Code gilt für die Anmeldung als solche, nicht für
+      // eine bestimmte Freigabe.
+      shareLinkId: null,
+      expiresAt: new Date(Date.now() + CODE_TTL_MINUTES * 60 * 1000),
+    });
+
+    const brand = await this.mailService.brand();
+    await this.mailService.send(
+      adresse,
+      renderGuestCodeMail({
+        brand,
+        code,
+        targetName: brand.title,
+        minutesValid: CODE_TTL_MINUTES,
+      }),
+    );
+  }
+
+  /** Den Code von der Anmeldeseite einlösen. */
+  async verifyGuestLogin(input: {
+    email: string;
+    code: string;
+  }): Promise<{ user: UserRow; redirectPath: string }> {
+    if (!isLoginCodeShaped(input.code)) {
+      throw new BadRequestException('Der Code besteht aus sechs Ziffern.');
+    }
+    const adresse = normalizeEmail(input.email);
+    const candidate = await this.zieheCode(adresse, null);
+
+    const [user] = await this.db.select().from(users).where(eq(users.email, adresse)).limit(1);
+    if (!user || user.role !== 'GUEST' || !user.isActive) {
+      throw new ForbiddenException('Dieser Zugang steht nicht mehr offen.');
+    }
+
+    if (!(await verifyPassword(input.code.trim(), candidate.codeHash))) {
+      await this.db
+        .update(loginCodes)
+        .set({ attempts: candidate.attempts + 1 })
+        .where(eq(loginCodes.id, candidate.id));
+      throw new BadRequestException('Der Code stimmt nicht.');
+    }
+
+    await this.db
+      .update(loginCodes)
+      .set({ consumedAt: new Date() })
+      .where(eq(loginCodes.id, candidate.id));
+    await this.db
+      .update(users)
+      .set({ lastLoginAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, user.id));
+
+    this.logger.log(`Gast angemeldet: ${user.email} über den Gastzugang`);
+    return { user, redirectPath: await this.startseiteFuer(user.id) };
+  }
+
+  /**
+   * Wohin nach dem Anmelden ohne Link? Wer genau eine Videofreigabe hat, will
+   * dieses Video sehen – bei allem anderen ist die Projektliste der richtige
+   * Ausgangspunkt.
+   */
+  private async startseiteFuer(userId: string): Promise<string> {
+    const rows = await this.db
+      .select({ scope: shareLinks.scope, videoId: shareLinks.videoId })
+      .from(shareLinkGrants)
+      .innerJoin(shareLinks, eq(shareLinks.id, shareLinkGrants.shareLinkId))
+      .where(
+        and(
+          eq(shareLinkGrants.userId, userId),
+          isNull(shareLinkGrants.revokedAt),
+          isNull(shareLinks.revokedAt),
+        ),
+      );
+    if (rows.length === 1 && rows[0].scope === 'VIDEO' && rows[0].videoId) {
+      return `/videos/${rows[0].videoId}`;
+    }
+    return '/projekte';
+  }
+
+  /** Fünf Codes je Adresse und Stunde – für beide Wege dieselbe Grenze. */
+  private async pruefeCodeBremse(email: string): Promise<void> {
+    const [{ recent }] = await this.db
+      .select({ recent: count() })
+      .from(loginCodes)
+      .where(
+        and(eq(loginCodes.email, email), gt(loginCodes.createdAt, new Date(Date.now() - 60 * 60 * 1000))),
+      );
+    if (recent >= MAX_CODES_PER_HOUR) {
+      throw new HttpException(
+        'Es wurden zu viele Codes angefordert. Bitte in einer Stunde erneut versuchen.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
+  /**
+   * Den jüngsten offenen Code zu dieser Adresse holen. `shareLinkId === null`
+   * meint den Gastzugang ohne Link – ein Code für eine bestimmte Freigabe
+   * taugt dafür ausdrücklich nicht.
+   */
+  private async zieheCode(email: string, shareLinkId: string | null) {
+    const [candidate] = await this.db
+      .select()
+      .from(loginCodes)
+      .where(
+        and(
+          eq(loginCodes.email, email),
+          shareLinkId === null
+            ? isNull(loginCodes.shareLinkId)
+            : eq(loginCodes.shareLinkId, shareLinkId),
+          isNull(loginCodes.consumedAt),
+          gt(loginCodes.expiresAt, new Date()),
+        ),
+      )
+      .orderBy(desc(loginCodes.createdAt))
+      .limit(1);
+
+    if (!candidate) {
+      throw new BadRequestException('Der Code ist abgelaufen. Bitte einen neuen anfordern.');
+    }
+    if (candidate.attempts >= MAX_CODE_ATTEMPTS) {
+      throw new HttpException(
+        'Zu viele Fehlversuche. Bitte einen neuen Code anfordern.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    return candidate;
   }
 
   /**
