@@ -176,6 +176,13 @@
       "when": 1785263030399,
       "tag": "0024_firmenkuerzel",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785263090399,
+      "tag": "0025_gastanmeldung",
+      "breakpoints": true
     }
   ]
 }

@@ -82,15 +82,22 @@ export class UpdateShareLinkDto {
   revoked?: boolean;
 }
 
+/**
+ * Seit Phase 20 nur noch die Adresse: Der Name wird einmal beim ersten
+ * Anmelden erfragt, nicht bei jedem Besuch.
+ */
 export class RequestGuestCodeDto {
+  @IsEmail({}, { message: 'Bitte eine gültige E-Mail-Adresse angeben.' })
+  @MaxLength(320)
+  email!: string;
+}
+
+/** Der Name, den der Gast beim ersten Anmelden angibt (Phase 20). */
+export class ConfirmGuestNameDto {
   @IsString()
   @MinLength(2, { message: 'Bitte den Namen angeben.' })
   @MaxLength(200)
   name!: string;
-
-  @IsEmail({}, { message: 'Bitte eine gültige E-Mail-Adresse angeben.' })
-  @MaxLength(320)
-  email!: string;
 }
 
 export class VerifyGuestCodeDto {

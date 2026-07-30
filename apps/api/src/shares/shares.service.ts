@@ -215,14 +215,13 @@ export class SharesService {
    * Wenn der Mailserver klemmt, soll der Gast das sofort erfahren und nicht
    * vergeblich auf eine Mail warten.
    */
-  async requestCode(token: string, input: { name: string; email: string }): Promise<void> {
+  async requestCode(token: string, input: { email: string }): Promise<void> {
     const link = await this.getByTokenOrFail(token);
     if (!isLinkActive(link)) {
       throw new GoneException('Diese Freigabe ist abgelaufen oder wurde zurückgezogen.');
     }
 
     const email = normalizeEmail(input.email);
-    const name = normalizeName(input.name);
 
     const [existing] = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
     if (existing && existing.role !== 'GUEST') {
@@ -233,6 +232,11 @@ export class SharesService {
     if (existing && !existing.isActive) {
       throw new ForbiddenException('Dieser Zugang wurde gesperrt.');
     }
+    // Wem der Zugriff entzogen wurde, dem nützt der alte Link nichts mehr
+    // (Phase 20). Die Prüfung steht hier und nicht erst beim Einlösen: Sonst
+    // ginge eine Code-Mail an jemanden raus, der ohnehin nicht hereinkommt,
+    // und die Absage käme erst, nachdem er den Code abgetippt hat.
+    if (existing) await this.pruefeEntzug(link.id, existing.id);
 
     const [{ recent }] = await this.db
       .select({ recent: count() })
@@ -253,7 +257,6 @@ export class SharesService {
     const code = createLoginCode();
     await this.db.insert(loginCodes).values({
       email,
-      name,
       codeHash: await hashPassword(code),
       shareLinkId: link.id,
       expiresAt: new Date(Date.now() + CODE_TTL_MINUTES * 60 * 1000),
@@ -279,7 +282,13 @@ export class SharesService {
   async verifyCode(
     token: string,
     input: { email: string; code: string },
-  ): Promise<{ user: UserRow; link: ShareLinkRow; redirectPath: string }> {
+  ): Promise<{
+    user: UserRow;
+    link: ShareLinkRow;
+    /** Beim allerersten Anmelden fehlt der Name noch (Phase 20). */
+    needsName: boolean;
+    redirectPath: string;
+  }> {
     const link = await this.getByTokenOrFail(token);
     if (!isLinkActive(link)) {
       throw new GoneException('Diese Freigabe ist abgelaufen oder wurde zurückgezogen.');
@@ -326,38 +335,110 @@ export class SharesService {
       .set({ consumedAt: new Date() })
       .where(eq(loginCodes.id, candidate.id));
 
-    const user = await this.upsertGuest(email, candidate.name ?? 'Gast');
+    const user = await this.upsertGuest(email);
+
+    // Noch einmal, jetzt mit dem tatsächlichen Konto: Zwischen Anfordern und
+    // Einlösen können fünfzehn Minuten liegen, und ein Entzug in dieser Zeit
+    // soll greifen. Vor dem Schreiben, damit ein entzogener Zugang nicht
+    // nebenbei ein `lastSeenAt` bekommt.
+    await this.pruefeEntzug(link.id, user.id);
 
     await this.db
       .insert(shareLinkGrants)
       .values({ shareLinkId: link.id, userId: user.id })
       .onConflictDoUpdate({
         target: [shareLinkGrants.shareLinkId, shareLinkGrants.userId],
-        // Ein erneutes Anmelden hebt einen früheren Entzug nicht auf.
+        // Ein erneutes Anmelden hebt einen früheren Entzug nicht auf – der
+        // wäre oben schon aufgefallen.
         set: { lastSeenAt: sql`now()` },
       });
-
-    const [grant] = await this.db
-      .select()
-      .from(shareLinkGrants)
-      .where(
-        and(eq(shareLinkGrants.shareLinkId, link.id), eq(shareLinkGrants.userId, user.id)),
-      )
-      .limit(1);
-    if (grant?.revokedAt) {
-      throw new ForbiddenException('Der Zugriff auf diese Freigabe wurde entzogen.');
-    }
 
     this.logger.log(`Gast angemeldet: ${user.email} über Freigabe ${link.id}`);
 
     return {
       user,
       link,
-      redirectPath:
-        link.scope === 'VIDEO' && link.videoId
-          ? `/videos/${link.videoId}`
-          : `/projekte/${link.projectId}`,
+      needsName: !user.nameConfirmed,
+      redirectPath: zielPfad(link),
     };
+  }
+
+  /**
+   * Der Gast gibt seinen Namen an – einmal, beim ersten Besuch (Phase 20).
+   *
+   * Danach ist der Weg zu. Das ist kein Umbenennen-Verbot aus Prinzip,
+   * sondern die Absicherung eines Schritts, der genau einmal vorkommt: Ohne
+   * sie wäre der Endpunkt eine offene Möglichkeit, sich jederzeit anders zu
+   * nennen – auch mitten in einem laufenden Gespräch.
+   */
+  async confirmName(userId: string, name: string): Promise<UserRow> {
+    const [row] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!row) throw new NotFoundException('Konto nicht gefunden.');
+    if (row.nameConfirmed) {
+      throw new ConflictException('Der Name steht schon fest.');
+    }
+
+    const [updated] = await this.db
+      .update(users)
+      .set({ name: normalizeName(name), nameConfirmed: true, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Der Gast ist schon angemeldet und ruft den Link erneut auf (Phase 20).
+   *
+   * Bisher stand er dann wieder vor der Maske und musste Name, Adresse und
+   * Code noch einmal eingeben – obwohl die Sitzung längst gültig war. Jetzt
+   * geht es direkt weiter.
+   *
+   * Der Link bleibt der Zugangsschutz: Wer ihn hat und angemeldet ist, kommt
+   * herein, genau wie über den Code. Ein entzogener Zugriff bleibt entzogen,
+   * und für das eigene Team wird gar kein Gasteintrag angelegt – die sehen
+   * ohnehin alles.
+   */
+  async continueWithSession(
+    token: string,
+    user: { id: string; role: string },
+  ): Promise<{ redirectPath: string }> {
+    const link = await this.getByTokenOrFail(token);
+    if (!isLinkActive(link)) {
+      throw new GoneException('Diese Freigabe ist abgelaufen oder wurde zurückgezogen.');
+    }
+
+    if (user.role !== 'GUEST') return { redirectPath: zielPfad(link) };
+
+    await this.pruefeEntzug(link.id, user.id);
+    await this.db
+      .insert(shareLinkGrants)
+      .values({ shareLinkId: link.id, userId: user.id })
+      .onConflictDoUpdate({
+        target: [shareLinkGrants.shareLinkId, shareLinkGrants.userId],
+        set: { lastSeenAt: sql`now()` },
+      });
+
+    return { redirectPath: zielPfad(link) };
+  }
+
+  /**
+   * Ein Zugang, der einmal entzogen wurde, lässt sich nicht durch erneutes
+   * Anmelden zurückholen (Phase 20). Wer wieder hereinwill, braucht eine neue
+   * Freigabe – das ist eine Entscheidung des Teams, keine des Gastes.
+   */
+  private async pruefeEntzug(shareLinkId: string, userId: string): Promise<void> {
+    const [grant] = await this.db
+      .select({ revokedAt: shareLinkGrants.revokedAt })
+      .from(shareLinkGrants)
+      .where(
+        and(eq(shareLinkGrants.shareLinkId, shareLinkId), eq(shareLinkGrants.userId, userId)),
+      )
+      .limit(1);
+    if (grant?.revokedAt) {
+      throw new ForbiddenException(
+        'Dein Zugriff auf diese Freigabe wurde zurückgezogen. Bitte frage nach einem neuen Link.',
+      );
+    }
   }
 
   // ---------- Hilfsmittel ----------
@@ -452,13 +533,20 @@ export class SharesService {
     return { targetName: 'Freigabe', projectName: 'Projekt' };
   }
 
-  /** Gastkonto anlegen oder den Namen auffrischen. */
-  private async upsertGuest(email: string, name: string): Promise<UserRow> {
+  /**
+   * Gastkonto anlegen oder die Anmeldung vermerken (Phase 20).
+   *
+   * Der Name wird hier **nicht** mehr gesetzt: Ein bestehendes Konto behält
+   * seinen, ein neues bekommt den Teil vor dem At-Zeichen als Notbehelf und
+   * `nameConfirmed = false`. Danach fragt die Oberfläche genau einmal nach –
+   * und nie wieder.
+   */
+  private async upsertGuest(email: string): Promise<UserRow> {
     const [existing] = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
     if (existing) {
       const [updated] = await this.db
         .update(users)
-        .set({ name, lastLoginAt: new Date(), updatedAt: new Date() })
+        .set({ lastLoginAt: new Date(), updatedAt: new Date() })
         .where(eq(users.id, existing.id))
         .returning();
       return updated;
@@ -466,10 +554,34 @@ export class SharesService {
 
     const [created] = await this.db
       .insert(users)
-      .values({ email, name, role: 'GUEST', passwordHash: null, lastLoginAt: new Date() })
+      .values({
+        email,
+        name: notnameAus(email),
+        nameConfirmed: false,
+        role: 'GUEST',
+        passwordHash: null,
+        lastLoginAt: new Date(),
+      })
       .returning();
     return created;
   }
+}
+
+/** Wohin der Gast nach dem Anmelden springt. */
+export function zielPfad(link: Pick<ShareLinkRow, 'scope' | 'videoId' | 'projectId'>): string {
+  return link.scope === 'VIDEO' && link.videoId
+    ? `/videos/${link.videoId}`
+    : `/projekte/${link.projectId}`;
+}
+
+/**
+ * `anna.meier@firma.de` → `anna.meier`. Nur ein Notbehelf, bis der Gast
+ * seinen Namen selbst angibt – aber besser als ein leeres Feld oder ein
+ * gleichlautendes „Gast" für alle.
+ */
+function notnameAus(email: string): string {
+  const vorne = email.split('@')[0]?.trim();
+  return vorne && vorne.length > 0 ? vorne.slice(0, 200) : 'Gast';
 }
 
 /** Aktiv heißt: nicht zurückgezogen und nicht abgelaufen. */

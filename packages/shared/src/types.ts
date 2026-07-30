@@ -660,6 +660,11 @@ export interface GuestLoginResponseDto {
   share: SharePreviewDto;
   /** Wohin die Oberfläche nach der Anmeldung springt. */
   redirectPath: string;
+  /**
+   * Beim allerersten Anmelden fehlt der Name noch (Phase 20). Die Sitzung
+   * steht dann schon – gefragt wird einmal, danach nie wieder.
+   */
+  needsName: boolean;
 }
 
 export interface ApiErrorDto {

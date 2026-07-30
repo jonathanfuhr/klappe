@@ -74,6 +74,15 @@ export const users = pgTable(
     /** `null` bei Konten ohne lokales Passwort (Gäste, später M365-SSO). */
     passwordHash: text('password_hash'),
     role: userRoleEnum('role').notNull().default('MEMBER'),
+    /**
+     * Hat die Person ihren Namen selbst angegeben? (Phase 20)
+     *
+     * Ein frisch angelegtes Gastkonto trägt zunächst den Teil vor dem
+     * At-Zeichen als Notbehelf – angezeigt werden muss ja etwas. Erst wenn
+     * der Gast den Namen bestätigt hat, steht hier `true`, und danach wird
+     * nie wieder gefragt.
+     */
+    nameConfirmed: boolean('name_confirmed').notNull().default(true),
     isActive: boolean('is_active').notNull().default(true),
     notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),

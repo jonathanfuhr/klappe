@@ -404,12 +404,22 @@ export const api = {
 
   // ---------- Gastzugang ----------
   sharePreview: (token: string) => request<SharePreviewDto>(`/v1/share/${token}`),
-  requestGuestCode: (token: string, input: { name: string; email: string }) =>
+  /** Seit Phase 20 nur die Adresse – der Name kommt einmal ganz am Ende. */
+  requestGuestCode: (token: string, input: { email: string }) =>
     request<void>(`/v1/share/${token}/code`, { method: 'POST', body: JSON.stringify(input) }),
   verifyGuestCode: (token: string, input: { email: string; code: string }) =>
     request<GuestLoginResponseDto>(`/v1/share/${token}/verify`, {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+  /** Mit gültiger Sitzung direkt weiter, ohne Adresse und Code (Phase 20). */
+  continueShare: (token: string) =>
+    request<{ redirectPath: string }>(`/v1/share/${token}/weiter`, { method: 'POST' }),
+  /** Der Name beim allerersten Anmelden – danach ist der Weg zu. */
+  confirmGuestName: (token: string, name: string) =>
+    request<UserDto>(`/v1/share/${token}/name`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
     }),
 
   // ---------- Kundendateien (Phase 7) ----------
