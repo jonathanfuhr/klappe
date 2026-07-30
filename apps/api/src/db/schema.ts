@@ -585,6 +585,14 @@ export const appSettings = pgTable('app_settings', {
   companyName: text('company_name'),
   companyShort: text('company_short'),
 
+  /**
+   * Freitext für die Seite „Über diese Software": Auf welcher Umgebung
+   * dieser Stack läuft (etwa „läuft auf nativer Hardware, kein NAS"). Steht
+   * neben den festen Angaben zum Autor, weil nur der Admin vor Ort weiß, wo
+   * der Container tatsächlich steht – das kann Klappe selbst nicht wissen.
+   */
+  environmentNotes: text('environment_notes'),
+
   // ---------- Anmeldung (Phase 11) ----------
   /** Lokale Konten mit Passwort. Abschaltbar, sobald M365 nachweislich läuft. */
   localLoginEnabled: boolean('local_login_enabled').notNull().default(true),

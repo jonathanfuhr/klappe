@@ -2026,6 +2026,89 @@ a.badge:hover {
   opacity: 0.5;
 }
 
+/*
+ * ---------- Handbuch und „Über diese Software" ----------
+ *
+ * Fließtext-Seiten statt Formulare – ruhigeres Zeilenmaß und mehr Luft
+ * zwischen den Abschnitten als in den sonst eher dichten Karten.
+ */
+.manual {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 760px;
+}
+
+.manual__section {
+  padding: 22px 24px;
+}
+
+.manual__section h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.manual__section h3 {
+  margin: 18px 0 6px;
+  font-size: 15px;
+  color: var(--klappe-text-muted);
+}
+
+.manual__section p {
+  margin: 0 0 12px;
+  color: var(--klappe-text);
+}
+
+.manual__section p:last-child {
+  margin-bottom: 0;
+}
+
+.manual__section ul,
+.manual__section ol {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.manual__section li {
+  margin-bottom: 4px;
+}
+
+.manual__toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 16px 20px;
+  font-size: 13px;
+}
+
+.manual__toc a:hover {
+  text-decoration: underline;
+}
+
+/* Ein Tastenkürzel als kleine Taste, kein Fließtext. */
+.kbd {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid var(--klappe-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--klappe-surface-raised);
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.codeblock {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--klappe-radius-sm);
+  background: var(--klappe-bg);
+  border: 1px solid var(--klappe-border);
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
 /* ---------- Schmale Schirme (Phase 17) ---------- */
 
 @media (max-width: 860px) {
@@ -2080,6 +2163,10 @@ a.badge:hover {
   .shell__nav a {
     padding: 8px 12px;
     white-space: nowrap;
+  }
+
+  .manual__section {
+    padding: 16px 16px;
   }
 
   .page {

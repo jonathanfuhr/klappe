@@ -1,4 +1,5 @@
 import type {
+  AboutDto,
   Annotation,
   AuthSettingsDto,
   BrandingDto,
@@ -478,6 +479,11 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
+  // ---------- Über diese Software ----------
+  getAbout: () => request<AboutDto>('/v1/settings/about'),
+  updateAbout: (input: { environmentNotes?: string }) =>
+    request<AboutDto>('/v1/settings/about', { method: 'PUT', body: JSON.stringify(input) }),
+
   /** Was nicht zugestellt werden konnte (Phase 18). */
   mailFailures: () => request<MailFailureDto[]>('/v1/settings/smtp/fehlversand'),
   clearMailFailures: (id?: string) =>

@@ -34,6 +34,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href="/projekte" data-active={pathname.startsWith('/projekte')}>
             Projekte
           </Link>
+          {/* Für Team und Gäste gleichermaßen gedacht – anders als
+              „Einstellungen" unten, das dem Team vorbehalten bleibt. */}
+          <Link href="/handbuch" data-active={pathname.startsWith('/handbuch')}>
+            Handbuch
+          </Link>
+          <Link href="/ueber" data-active={pathname.startsWith('/ueber')}>
+            Über diese Software
+          </Link>
           {/* Gäste und Benutzer stehen seit Phase 17 in den Einstellungen –
               die Kopfzeile trägt nur noch, was täglich gebraucht wird. */}
           {user?.role === 'ADMIN' || user?.role === 'MEMBER' ? (
