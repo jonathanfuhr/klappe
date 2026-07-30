@@ -63,6 +63,9 @@ interface VideoPlayerProps {
 /** Stufen für J/K/L – wie im Schnittprogramm. */
 const SHUTTLE_RATES = [1, 2, 4, 8] as const;
 
+/** Merkt sich, ob Zeichnungen in Fahrt sichtbar bleiben (Phase 20). */
+const SPEICHER_ZEICHNUNG = 'klappe.zeichnung-bei-fahrt';
+
 export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function VideoPlayer(
   {
     version,
@@ -93,6 +96,20 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   const [penColor, setPenColor] = useState<string>(ANNOTATION_COLORS[0]);
   const [penWidth, setPenWidth] = useState<number>(DEFAULT_ANNOTATION_WIDTH);
 
+  /**
+   * Zeichnungen während Wiedergabe und Scrubbing (Phase 20).
+   *
+   * Eine Zeichnung gehört zu genau einem Bild. Beim Abspielen blitzt sie
+   * deshalb für den Bruchteil einer Sekunde auf, und beim Durchziehen der
+   * Zeitleiste flackert es an jeder Anmerkung. Wer den Film am Stück sehen
+   * will, schaltet das hier ab; wer nach Anmerkungen sucht, lässt es an.
+   * Die Wahl bleibt im Browser, nicht am Video – sie sagt etwas über die
+   * Arbeitsweise, nicht über den Film.
+   */
+  const [zeichnungBeiFahrt, setZeichnungBeiFahrt] = useState(true);
+  const [scrubbing, setScrubbing] = useState(false);
+  const scrubTimer = useRef<number | null>(null);
+
   const frameRate: FrameRate | null = version.media.frameRate;
   const frame = useFrameClock(videoRef, frameRate, ready);
 
@@ -113,6 +130,33 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   useEffect(() => {
     onFrameChange?.(frame);
   }, [frame, onFrameChange]);
+
+  // Die gespeicherte Wahl erst nach dem ersten Rendern lesen – auf dem Server
+  // gibt es kein `localStorage`, und ein Unterschied zwischen Server- und
+  // Browser-Fassung würde React beim Hydrieren bemängeln.
+  useEffect(() => {
+    setZeichnungBeiFahrt(window.localStorage.getItem(SPEICHER_ZEICHNUNG) !== 'aus');
+  }, []);
+
+  useEffect(() => () => {
+    if (scrubTimer.current) window.clearTimeout(scrubTimer.current);
+  }, []);
+
+  /**
+   * Scrubbing hat kein eigenes Ereignis „fertig". Statt die Zeitleiste um
+   * einen Zustand zu erweitern, gilt hier: Wer gerade gesprungen ist, ist für
+   * einen Augenblick noch in Bewegung. Jeder weitere Sprung schiebt das Ende
+   * nach hinten, ein Standbild bleibt also nach kurzem Zögern stehen.
+   */
+  const meldeSprung = useCallback(() => {
+    setScrubbing(true);
+    if (scrubTimer.current) window.clearTimeout(scrubTimer.current);
+    scrubTimer.current = window.setTimeout(() => setScrubbing(false), 260);
+  }, []);
+
+  /** In Fahrt heißt: läuft, spult, oder wurde eben noch gescrubbt. */
+  const inFahrt = rate !== 0 || scrubbing;
+  const sichtbareZeichnung = inFahrt && !zeichnungBeiFahrt ? null : (shownAnnotation ?? null);
 
   const seekToFrame = useCallback(
     (target: number) => {
@@ -416,7 +460,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
 
         {hasProxy ? (
           <AnnotationCanvas
-            annotation={drawingMode ? draftAnnotation : (shownAnnotation ?? null)}
+            annotation={drawingMode ? draftAnnotation : sichtbareZeichnung}
             drawing={drawingMode}
             color={penColor}
             strokeWidth={penWidth}
@@ -482,6 +526,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         onSeekFrame={(target) => {
           stopTransport();
           seekToFrame(target);
+          meldeSprung();
         }}
         onMarkerClick={onMarkerClick}
       />
@@ -583,6 +628,26 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           aria-label="Vollbild"
         >
           ⛶
+        </button>
+        <button
+          type="button"
+          className="iconbutton"
+          onClick={() => {
+            const neu = !zeichnungBeiFahrt;
+            setZeichnungBeiFahrt(neu);
+            window.localStorage.setItem(SPEICHER_ZEICHNUNG, neu ? 'an' : 'aus');
+          }}
+          disabled={!hasProxy}
+          title={
+            zeichnungBeiFahrt
+              ? 'Zeichnungen beim Abspielen und Scrubben ausblenden'
+              : 'Zeichnungen beim Abspielen und Scrubben einblenden'
+          }
+          aria-label="Zeichnungen beim Abspielen und Scrubben"
+          aria-pressed={zeichnungBeiFahrt}
+          data-active={zeichnungBeiFahrt}
+        >
+          <Icon name={zeichnungBeiFahrt ? 'eye' : 'eye-off'} />
         </button>
         <button
           type="button"
