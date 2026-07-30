@@ -523,28 +523,58 @@ Anmeldecodes im Spam.
 Erzwingt der Tenant Mehrfaktor-Anmeldung, lehnt `smtp.office365.com` ein
 Kennwort ab – auch ein App-Kennwort hilft dabei nicht zuverlässig. Klappe
 unterstützt deshalb zusätzlich den Client-Credentials-Fluss (App-only, ohne
-Anmeldefenster):
+Anmeldefenster). Dieselbe App-Registrierung wie für die Anmeldung (siehe unten)
+lässt sich dafür mitbenutzen – Tenant-ID, Client-ID und Secret sind dann in
+beiden Einstellungsbereichen identisch.
 
-1. Im Entra Admin Center eine App-Registrierung anlegen (kann dieselbe sein
-   wie für die Anmeldung, muss es aber nicht).
-2. Unter *API-Berechtigungen* die **Microsoft-Graph-Anwendungsberechtigung**
-   `SMTP.SendAsApp` hinzufügen und die Admin-Zustimmung erteilen.
-3. Unter *Zertifikate & Geheimnisse* einen geheimen Clientschlüssel erzeugen.
-4. Per Exchange Online PowerShell die App auf das sendende Postfach
-   einschränken – ohne diesen Schritt dürfte sie tenant-weit als jedes
-   Postfach senden:
+1. Unter *API-Berechtigungen* **nichts** hinzufügen – `SMTP.SendAsApp` wird
+   über eine RBAC-Rollenzuweisung in Exchange Online vergeben (siehe unten),
+   nicht über eine Entra-Berechtigung. Eine zusätzlich gesetzte Berechtigung
+   zwingt Exchange zu einer unnötigen (und hier störenden)
+   Mailbox-Rechteprüfung.
+2. Unter *Zertifikate & Geheimnisse* einen geheimen Clientschlüssel erzeugen
+   (kann derselbe wie für die Anmeldung sein).
+3. Per Exchange Online PowerShell die App verknüpfen und auf das sendende
+   Postfach einschränken:
    ```powershell
-   New-ApplicationAccessPolicy -AppId "<Anwendungs-ID>" `
-     -PolicyScopeGroupId "versand@contoso.de" -AccessRight RestrictAccess `
-     -Description "Nur Klappe darf als dieses Postfach senden"
+   Install-Module -Name ExchangeOnlineManagement   # falls noch nicht vorhanden
+   Connect-ExchangeOnline
+
+   # Object-ID kommt aus Entra ID -> Unternehmensanwendungen -> "Klappe" ->
+   # Übersicht -> Objekt-ID (nicht die Objekt-ID der App-Registrierung selbst).
+   New-ServicePrincipal -AppId "<Anwendungs-ID>" -ObjectId "<Objekt-ID der Unternehmensanwendung>" -DisplayName "Klappe"
+
+   New-DistributionGroup -Name "Klappe Versand" -Type Security
+   Add-DistributionGroupMember -Identity "Klappe Versand" -Member "versand@contoso.de"
+
+   New-ManagementScope -Name "Klappe SMTP Scope" `
+     -RecipientRestrictionFilter "MemberOfGroup -eq '<DN oder GUID der Gruppe>'"
+
+   New-ManagementRoleAssignment -Name "Klappe SMTP RBAC" `
+     -Role "Application SMTP.SendAsApp" -App "<Anwendungs-ID>" `
+     -CustomResourceScope "Klappe SMTP Scope"
+
+   # Unabhängig vom Auth-Verfahren: SMTP AUTH muss am Postfach selbst an sein.
+   Set-CASMailbox -Identity "versand@contoso.de" -SmtpClientAuthenticationDisabled $false
    ```
-5. In den Einstellungen unter *Authentifizierung* auf **OAuth2** umstellen und
+4. In den Einstellungen unter *Authentifizierung* auf **OAuth2** umstellen und
    Verzeichnis-ID, Anwendungs-ID, Client-Secret sowie das absendende Postfach
    eintragen.
 
 Klappe holt sich das Zugriffstoken bei Bedarf selbst (Gültigkeit rund eine
 Stunde) und hält es bis kurz vor Ablauf vor – ein Neustart ist dafür nicht
-nötig.
+nötig. Kommt trotz korrekter Einrichtung `535 5.7.3 Authentication
+unsuccessful`, liegt es meist an Schritt 3 (SMTP AUTH noch aus) oder daran,
+dass die Rollenzuweisung noch nicht propagiert ist (bis zu ~30 Minuten).
+
+Bietet der eigene Tenant „RBAC für Anwendungen" (noch) nicht an, gibt es den
+älteren, von Microsoft inzwischen als *Legacy* markierten Weg: unter
+*API-Berechtigungen → APIs, die meine Organisation verwendet → „Office 365
+Exchange Online"* die Anwendungsberechtigung `SMTP.SendAsApp` hinzufügen,
+Admin-Zustimmung erteilen, und dann per `New-ApplicationAccessPolicy -AppId
+"<Anwendungs-ID>" -PolicyScopeGroupId "versand@contoso.de" -AccessRight
+RestrictAccess` einschränken. Beide Wege nicht gleichzeitig einrichten – das
+führt laut Microsoft zu Konflikten bei der Rechteprüfung.
 
 ### Anmeldung über Microsoft 365
 
@@ -558,7 +588,9 @@ nötig.
 
 Umgesetzt ist der Authorization-Code-Fluss mit PKCE; das ID-Token wird gegen die
 öffentlichen Schlüssel des Tenants geprüft. Angefordert werden nur
-`openid profile email`.
+`openid profile email` – dafür ist keine zusätzliche API-Berechtigung nötig,
+diese Standard-Scopes sind ohne Admin-Zustimmung verfügbar. Dieselbe
+App-Registrierung kann also unverändert auch für den Mailversand oben dienen.
 
 **Unbekannte Adressen kommen standardmäßig nicht herein.** Wer sich über M365
 anmeldet, braucht hier bereits ein Konto – in einem großen Tenant bekäme sonst
