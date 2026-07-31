@@ -43,6 +43,12 @@ export interface UploadJob {
   videoId: string;
   /** Name für ein neu anzulegendes Video. */
   newVideoName: string;
+  /**
+   * Hat jemand den Namen selbst angefasst (Phase 25)? Solange nicht, darf das
+   * Upload-Fenster den Vorschlag nachschärfen – etwa Kunden- und Projektname
+   * herausnehmen, sobald das Ziel-Projekt feststeht.
+   */
+  nameBeruehrt?: boolean;
   /** Erkannte Versionsnummer aus dem Dateinamen – Vorschlag fürs Feld. */
   detectedVersion: number | null;
   /**

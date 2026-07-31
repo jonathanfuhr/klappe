@@ -1,17 +1,18 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   type FrameRate,
   type VersionDto,
   type VersionStatus,
   buildDownloadFilename,
   checkVersionNumber,
+  checkVersionRenumber,
   extensionOf,
   fileDateFromIso,
   framesToTimecode,
   nextVersionNumber,
   type UserRole,
 } from '@klappe/shared';
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, ne, sql } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
 import { resolutionLabel } from '../transcode/media-plan';
 import type { RequestUser } from '../auth/auth.types';
@@ -384,9 +385,37 @@ export class VersionsService {
       downloadEnabled?: boolean;
       fileDate?: string;
       isFinal?: boolean;
+      versionNumber?: number;
     },
     scope: AccessScope,
   ): Promise<VersionDto> {
+    /*
+     * Umnummerieren (Phase 25): erlaubt ist jede freie Nummer über 0 – die
+     * Aufwärts-Regel gilt nur beim Anlegen, hier wird ja gerade eine
+     * Fehleingabe begradigt. Geprüft wird gegen die übrigen Fassungen; den
+     * letzten Rest fängt der eindeutige Index (video_id, version_number) ab.
+     */
+    let neueNummer: string | undefined;
+    if (changes.versionNumber !== undefined) {
+      const bestehend = await this.getRowOrFail(versionId);
+      const geschwister = await this.db
+        .select({ nummer: videoVersions.versionNumber })
+        .from(videoVersions)
+        .where(
+          and(eq(videoVersions.videoId, bestehend.videoId), ne(videoVersions.id, versionId)),
+        );
+
+      const ergebnis = checkVersionRenumber(
+        changes.versionNumber,
+        geschwister.map((eintrag) => Number(eintrag.nummer)),
+      );
+      if (!ergebnis.ok) {
+        if (ergebnis.reason === 'vergeben') throw new ConflictException(ergebnis.message);
+        throw new BadRequestException(ergebnis.message);
+      }
+      neueNummer = String(ergebnis.value);
+    }
+
     const [row] = await this.db
       .update(videoVersions)
       .set({
@@ -394,6 +423,7 @@ export class VersionsService {
         downloadEnabled: changes.downloadEnabled,
         fileDate: changes.fileDate,
         isFinal: changes.isFinal,
+        versionNumber: neueNummer,
         updatedAt: new Date(),
       })
       .where(eq(videoVersions.id, versionId))

@@ -7,6 +7,8 @@ import {
   type VersionDownloadsDto,
   type VersionDto,
   type VideoDto,
+  checkVersionRenumber,
+  formatVersionNumber,
   frameToDisplayTimecode,
   versionLabel,
 } from '@klappe/shared';
@@ -62,6 +64,8 @@ export default function ReviewPage() {
   const [embedding, setEmbedding] = useState(false);
   /** Nachfrage vor dem Löschen – eine Fassung ist samt Kommentaren weg. */
   const [versionToDelete, setVersionToDelete] = useState<VersionDto | null>(null);
+  /** Fassungsnummer der gewählten Fassung ändern (Phase 25). */
+  const [renumbering, setRenumbering] = useState(false);
   const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
   /** Offenes Download-Fenster samt der Auskunft, die den Knopf ausgelöst hat. */
   const [downloads, setDownloads] = useState<VersionDownloadsDto | null>(null);
@@ -405,6 +409,11 @@ export default function ReviewPage() {
                     <MenuItem onSelect={() => setEditingVideo(true)}>Video umbenennen …</MenuItem>
                   ) : null}
                   {selectedVersion ? (
+                    <MenuItem onSelect={() => setRenumbering(true)}>
+                      Fassungsnummer ändern …
+                    </MenuItem>
+                  ) : null}
+                  {selectedVersion ? (
                     <MenuItem danger onSelect={() => setVersionToDelete(selectedVersion)}>
                       Fassung löschen …
                     </MenuItem>
@@ -696,6 +705,20 @@ export default function ReviewPage() {
       ) : null}
 
 
+      {renumbering && selectedVersion ? (
+        <RenumberVersionDialog
+          version={selectedVersion}
+          andere={versions
+            .filter((eintrag) => eintrag.id !== selectedVersion.id)
+            .map((eintrag) => eintrag.versionNumber)}
+          onClose={() => setRenumbering(false)}
+          onSaved={async () => {
+            setRenumbering(false);
+            await loadVideo();
+          }}
+        />
+      ) : null}
+
       {versionToDelete ? (
         <Dialog
           title={`${versionLabel(versionToDelete.versionNumber)} löschen?`}
@@ -795,6 +818,100 @@ function VersionDetails({ version }: { version: VersionDto }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Fassungsnummer nachträglich ändern (Phase 25) – zum Begradigen von
+ * Fehleingaben. Anders als beim Hochladen darf die Nummer auch **unter** der
+ * höchsten liegen; nur frei und größer 0 muss sie sein. Geprüft wird schon
+ * beim Tippen mit derselben Funktion, die auch die API benutzt.
+ */
+function RenumberVersionDialog({
+  version,
+  andere,
+  onClose,
+  onSaved,
+}: {
+  version: VersionDto;
+  /** Die Nummern der übrigen Fassungen des Videos. */
+  andere: number[];
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [eingabe, setEingabe] = useState(formatVersionNumber(version.versionNumber));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const wert = Number(eingabe.trim().replace(',', '.'));
+  const unveraendert =
+    Number.isFinite(wert) && wert === Number(version.versionNumber.toFixed(3));
+  const problem =
+    eingabe.trim() === ''
+      ? null
+      : !Number.isFinite(wert)
+        ? { message: 'Bitte eine Zahl angeben – auch 2.5 geht.' }
+        : unveraendert
+          ? null
+          : (() => {
+              const ergebnis = checkVersionRenumber(wert, andere);
+              return ergebnis.ok ? null : { message: ergebnis.message };
+            })();
+
+  const kannSpeichern = eingabe.trim() !== '' && Number.isFinite(wert) && !problem && !unveraendert && !busy;
+
+  return (
+    <Dialog
+      title={`${versionLabel(version.versionNumber)} umnummerieren`}
+      onClose={onClose}
+    >
+      <form
+        onSubmit={async (event) => {
+          event.preventDefault();
+          if (!kannSpeichern) return;
+          setBusy(true);
+          setError(null);
+          try {
+            await api.updateVersion(version.id, { versionNumber: wert });
+            await onSaved();
+          } catch (saveError) {
+            setError(saveError instanceof Error ? saveError.message : 'Ändern fehlgeschlagen.');
+            setBusy(false);
+          }
+        }}
+      >
+        <div className="field">
+          <label className="field__label" htmlFor="renumber-version">
+            Neue Nummer
+          </label>
+          <input
+            id="renumber-version"
+            className="input"
+            style={{ width: 140 }}
+            inputMode="decimal"
+            autoFocus
+            value={eingabe}
+            onChange={(event) => setEingabe(event.target.value)}
+          />
+          <p className="hint">
+            Muss im Video einmalig sein; Zwischenfassungen wie 2.5 gehen. Die Reihenfolge der
+            Liste und der Download-Dateiname folgen sofort der neuen Nummer.
+            {problem ? ` ${problem.message}` : ''}
+          </p>
+        </div>
+
+        {error ? <div className="notice">{error}</div> : null}
+
+        <div className="dialog__actions">
+          <button type="button" className="button" onClick={onClose}>
+            Abbrechen
+          </button>
+          <button type="submit" className="button button--primary" disabled={!kannSpeichern}>
+            Umnummerieren
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

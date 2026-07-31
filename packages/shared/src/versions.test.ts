@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkVersionNumber,
+  checkVersionRenumber,
   formatVersionNumber,
   nextVersionNumber,
   versionForFilename,
@@ -93,5 +94,30 @@ describe('nextVersionNumber', () => {
 describe('versionLabel', () => {
   it('setzt das v davor', () => {
     expect(versionLabel(2.5)).toBe('v2.5');
+  });
+});
+
+describe('checkVersionRenumber', () => {
+  it('erlaubt auch eine kleinere Nummer als die hoechste', () => {
+    const ergebnis = checkVersionRenumber(2.5, [1, 2, 4]);
+    expect(ergebnis.ok).toBe(true);
+    expect(ergebnis.ok && ergebnis.value).toBe(2.5);
+  });
+
+  it('weist vergebene Nummern zurueck', () => {
+    const ergebnis = checkVersionRenumber(2, [1, 2, 4]);
+    expect(ergebnis.ok).toBe(false);
+    expect(!ergebnis.ok && ergebnis.reason).toBe('vergeben');
+  });
+
+  it('vergleicht gerundet auf drei Stellen', () => {
+    const ergebnis = checkVersionRenumber(2.0004, [2]);
+    expect(!ergebnis.ok && ergebnis.reason).toBe('vergeben');
+  });
+
+  it('weist Null, Negatives und Uebergrosses zurueck', () => {
+    expect(checkVersionRenumber(0, []).ok).toBe(false);
+    expect(checkVersionRenumber(-1, []).ok).toBe(false);
+    expect(checkVersionRenumber(100_000, []).ok).toBe(false);
   });
 });
