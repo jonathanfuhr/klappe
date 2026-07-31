@@ -1,0 +1,1 @@
+ALTER TABLE "app_settings" DROP COLUMN "favicon_mode";
