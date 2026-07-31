@@ -76,7 +76,7 @@ export default function AccountPage() {
         </div>
 
         <form
-          className="card"
+          className="card card--form"
           onSubmit={async (event) => {
             event.preventDefault();
             if (!nameGültig || !nameGeändert) return;
@@ -142,7 +142,7 @@ export default function AccountPage() {
         {istGast ? null : (
         <>
         <form
-          className="card"
+          className="card card--form"
           onSubmit={async (event) => {
             event.preventDefault();
             setBusy(true);
@@ -231,7 +231,7 @@ export default function AccountPage() {
         </form>
 
         {user?.role === 'ADMIN' ? (
-          <p className="muted" style={{ fontSize: 13 }}>
+          <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
             Passwörter anderer Konten setzt du unter <Link href="/benutzer">Benutzer</Link>.
           </p>
         ) : null}

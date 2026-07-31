@@ -153,7 +153,7 @@ export function SmtpPanel() {
 
       {error ? <div className="notice">{error}</div> : null}
       {info ? (
-        <div className="card" style={{ padding: '10px 12px', marginBottom: 14 }}>
+        <div className="card" style={{ padding: '10px 12px' }}>
           {info}
         </div>
       ) : null}
@@ -161,7 +161,7 @@ export function SmtpPanel() {
       {/* Ganz oben, nicht unten: Wer hier hereinkommt, weil eine Mail nicht
           ankam, soll es sofort sehen (Phase 18). */}
       {fehlversand.length > 0 ? (
-        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+        <div className="card" style={{ padding: 16 }}>
           <div className="toolbar" style={{ marginBottom: 10 }}>
             <strong>Nicht zugestellt</strong>
             <span className="badge badge--failed">{fehlversand.length}</span>

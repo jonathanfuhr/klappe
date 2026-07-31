@@ -17,8 +17,10 @@ export interface SectionNavItem {
  * Auf schmalen Schirmen stand hier bisher eine waagerecht rollbare Reiterreihe.
  * Sie sah aus wie ein abgeschnittener Satz: Was rechts noch kam, war nicht zu
  * ahnen, und die Reihe verriet nicht einmal, wie viele Bereiche es überhaupt
- * gibt. Jetzt klappt dieselbe senkrechte Liste hinter einem Hamburger-Symbol
- * auf, das den gerade offenen Bereich beim Namen nennt.
+ * gibt. Jetzt fährt dieselbe senkrechte Liste hinter einem Hamburger-Symbol von
+ * links herein – über den Inhalt, nicht in ihn hinein. Aufgeklappt *im*
+ * Textfluss schob sie sonst alles nach unten weg, und nach der Wahl sprang die
+ * Seite wieder zurück.
  */
 export function SectionNav({
   title,
@@ -35,11 +37,32 @@ export function SectionNav({
   const [offen, setOffen] = useState(false);
   const gewaehlt = items.find((eintrag) => eintrag.id === active);
 
-  // Ein Wechsel des Bereichs schließt die Liste wieder: Auf dem Handy stünde
-  // sonst das Menü über dem Inhalt, den man gerade aufgerufen hat.
+  // Ein Wechsel des Bereichs schließt die Schublade wieder.
   useEffect(() => {
     setOffen(false);
   }, [active]);
+
+  /**
+   * Solange die Schublade offen ist: Escape schließt sie, und die Seite
+   * darunter rollt nicht mit. Ohne die Sperre wischt man auf dem Handy am
+   * Menü vorbei und scrollt den Text dahinter.
+   */
+  useEffect(() => {
+    if (!offen) return;
+
+    const taste = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOffen(false);
+    };
+    document.addEventListener('keydown', taste);
+
+    const vorher = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', taste);
+      document.body.style.overflow = vorher;
+    };
+  }, [offen]);
 
   return (
     <nav className="sectionnav" aria-label={title} data-open={offen}>
@@ -49,13 +72,39 @@ export function SectionNav({
         type="button"
         className="sectionnav__toggle"
         aria-expanded={offen}
-        onClick={() => setOffen((zustand) => !zustand)}
+        onClick={() => setOffen(true)}
       >
         <Icon name="menu" />
         <span className="sectionnav__toggle-label">{gewaehlt?.label ?? title}</span>
       </button>
 
+      {/*
+       * Der Schleier liegt zwischen Seite und Schublade. Ein Klick darauf
+       * schließt – der eingeführte Weg, ein Menü loszuwerden, ohne einen
+       * Eintrag zu treffen. Für die Tastatur gibt es Escape, deshalb ist er
+       * vor Vorlesewerkzeugen verborgen.
+       */}
+      <button
+        type="button"
+        className="sectionnav__backdrop"
+        tabIndex={-1}
+        aria-hidden
+        onClick={() => setOffen(false)}
+      />
+
       <div className="sectionnav__list">
+        <div className="sectionnav__drawerhead">
+          <span className="sectionnav__drawertitle">{title}</span>
+          <button
+            type="button"
+            className="iconbutton"
+            aria-label="Menü schließen"
+            onClick={() => setOffen(false)}
+          >
+            ×
+          </button>
+        </div>
+
         {items.map((eintrag) =>
           eintrag.href ? (
             <a

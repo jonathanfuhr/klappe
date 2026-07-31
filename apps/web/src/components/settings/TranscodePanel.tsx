@@ -198,13 +198,13 @@ export function TranscodePanel() {
 
       {error ? <div className="notice">{error}</div> : null}
       {info ? (
-        <div className="card" style={{ padding: '10px 12px', marginBottom: 14 }}>
+        <div className="card" style={{ padding: '10px 12px' }}>
           {info}
         </div>
       ) : null}
 
       {/* ---------- Download-Formate ---------- */}
-      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+      <div className="card" style={{ padding: 20 }}>
         <h3 style={{ margin: '0 0 4px' }}>Download in verschiedenen Formaten</h3>
         <p className="hint" style={{ marginTop: 0 }}>
           Ist das eingeschaltet, öffnet der Herunterladen-Knopf ein Fenster mit dieser Auswahl.
@@ -558,7 +558,7 @@ export function TranscodePanel() {
       </div>
 
       {/* ---------- Adaptive Wiedergabe ---------- */}
-      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+      <div className="card" style={{ padding: 20 }}>
         <h3 style={{ margin: '0 0 4px' }}>Adaptive Wiedergabe (HLS)</h3>
         <p className="hint" style={{ marginTop: 0 }}>
           Eine Stufenleiter aus 2160p/1080p/720p/480p, aus der der Player je nach Leitung wählt.
@@ -603,7 +603,7 @@ export function TranscodePanel() {
       </div>
 
       {/* ---------- Abspielfassung ---------- */}
-      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+      <div className="card" style={{ padding: 20 }}>
         <h3 style={{ margin: '0 0 4px' }}>Abspielfassung</h3>
         <p className="hint" style={{ marginTop: 0 }}>
           Der 1080p-Proxy, den jeder im Browser zu sehen bekommt. Er entsteht immer sofort nach dem

@@ -128,7 +128,7 @@ export function AuthPanel() {
 
       {error ? <div className="notice">{error}</div> : null}
       {info ? (
-        <div className="card" style={{ padding: '10px 12px', marginBottom: 14 }}>
+        <div className="card" style={{ padding: '10px 12px' }}>
           {info}
         </div>
       ) : null}
@@ -252,7 +252,7 @@ export function AuthPanel() {
         </div>
 
         {/* ---------- Zweite Sektion: Microsoft 365 ---------- */}
-        <div className="card" style={{ padding: 20, marginTop: 16 }}>
+        <div className="card" style={{ padding: 20 }}>
           <h2 className="section__title" style={{ marginBottom: 12 }}>
             Microsoft 365
           </h2>

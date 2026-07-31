@@ -146,7 +146,7 @@ export function StoragePanel() {
         )}
       </div>
 
-      <div className="card" style={{ padding: 20, marginTop: 16 }}>
+      <div className="card" style={{ padding: 20 }}>
         <h3 style={{ margin: '0 0 4px' }}>Davon Klappe</h3>
         <p className="hint" style={{ marginTop: 0 }}>
           Aus der Datenbank summiert. Posterframes, Sprite-Streifen und die HLS-Segmente führt
