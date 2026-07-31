@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { AiPanel } from '@/components/settings/AiPanel';
 import { AuthPanel } from '@/components/settings/AuthPanel';
 import { BackupPanel } from '@/components/settings/BackupPanel';
 import { BrandingPanel } from '@/components/settings/BrandingPanel';
@@ -27,6 +28,7 @@ const BEREICHE = [
   { id: 'benutzer', label: 'Benutzer', team: false },
   { id: 'felder', label: 'Benutzerdefinierte Felder', team: false },
   { id: 'projekte', label: 'Projekte', team: false },
+  { id: 'ki', label: 'KI-Inhalte', team: false },
   { id: 'branding', label: 'Erscheinungsbild', team: false },
   { id: 'auth', label: 'Anmeldung', team: false },
   { id: 'mail', label: 'E-Mail-Versand', team: false },
@@ -83,6 +85,7 @@ export default function SettingsPage() {
           {gewaehlt === 'benutzer' ? <UsersPanel /> : null}
           {gewaehlt === 'felder' ? <FieldsPanel /> : null}
           {gewaehlt === 'projekte' ? <ProjectsPanel /> : null}
+          {gewaehlt === 'ki' ? <AiPanel /> : null}
           {gewaehlt === 'branding' ? <BrandingPanel /> : null}
           {gewaehlt === 'auth' ? <AuthPanel /> : null}
           {gewaehlt === 'mail' ? <SmtpPanel /> : null}

@@ -1,5 +1,6 @@
 import type {
   AboutDto,
+  AiContentSettingsDto,
   Annotation,
   AuthSettingsDto,
   BackupFileDto,
@@ -216,9 +217,33 @@ export const api = {
     }),
   updateVideo: (
     id: string,
-    input: { name?: string; description?: string; downloadsEnabled?: boolean },
+    input: {
+      name?: string;
+      description?: string;
+      downloadsEnabled?: boolean;
+      /** KI-Kennzeichnung (Phase 24, Nachtrag); `aiKindIds` ersetzt die Auswahl. */
+      aiContent?: boolean;
+      aiKindIds?: string[];
+    },
   ) => request<VideoDto>(`/v1/videos/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteVideo: (id: string) => request<void>(`/v1/videos/${id}`, { method: 'DELETE' }),
+
+  // ---------- KI-Kennzeichnung (Phase 24, Nachtrag) ----------
+  getAiSettings: () => request<AiContentSettingsDto>('/v1/ai-kinds'),
+  updateAiSettings: (input: { enabled: boolean }) =>
+    request<AiContentSettingsDto>('/v1/ai-kinds/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  createAiKind: (name: string) =>
+    request<AiContentSettingsDto>('/v1/ai-kinds', { method: 'POST', body: JSON.stringify({ name }) }),
+  renameAiKind: (id: string, name: string) =>
+    request<AiContentSettingsDto>(`/v1/ai-kinds/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    }),
+  deleteAiKind: (id: string) =>
+    request<AiContentSettingsDto>(`/v1/ai-kinds/${id}`, { method: 'DELETE' }),
 
   listVersions: (videoId: string) => request<VersionDto[]>(`/v1/videos/${videoId}/versions`),
   getVersion: (id: string) => request<VersionDto>(`/v1/versions/${id}`),

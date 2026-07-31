@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  type AiContentSettingsDto,
   type Annotation,
   type CommentDto,
   type VersionDownloadsDto,
@@ -64,8 +65,23 @@ export default function ReviewPage() {
   const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
   /** Offenes Download-Fenster samt der Auskunft, die den Knopf ausgelöst hat. */
   const [downloads, setDownloads] = useState<VersionDownloadsDto | null>(null);
+  /** Katalog der KI-Arten fürs Team (Phase 24, Nachtrag); Gäste brauchen ihn nicht. */
+  const [aiKatalog, setAiKatalog] = useState<AiContentSettingsDto | null>(null);
 
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
+
+  // Der Katalog ändert sich selten; einmal je Seitenaufruf genügt.
+  useEffect(() => {
+    if (!isTeam) return;
+    void api
+      .getAiSettings()
+      .then(setAiKatalog)
+      .catch(() => {
+        // Ohne Katalog fehlt nur die Schalter-Zeile; der Hinweis am Video
+        // kommt unabhängig davon aus dem Video-DTO.
+      });
+  }, [isTeam]);
+
   /**
    * Team oder externer Projektadmin (Phase 21): darf Fassungen hochladen und
    * löschen, weiter freigeben – aber nicht das Video umbenennen oder löschen,
@@ -418,6 +434,21 @@ export default function ReviewPage() {
             </div>
           ) : null}
 
+          {/* KI-Kennzeichnung (Phase 24, Nachtrag): Der Hinweis richtet sich an
+              den Auftraggeber und steht deshalb für **alle** Betrachter da,
+              auch Gäste – über alle Fassungen des Videos hinweg. */}
+          {video?.aiContent ? (
+            <div className="notice notice--warn">
+              <strong>KI-Inhalte:</strong>
+              {video.aiKinds.length > 0
+                ? ` (${video.aiKinds.map((art) => art.name).join(', ')})`
+                : ''}{' '}
+              Gem. Art. 50 EU AI Act besteht ab dem 2. August 2026 ggf. eine Kennzeichnungspflicht
+              für KI-generierte Inhalte. Die Entscheidung, ob und wie die KI-Inhalte im
+              veröffentlichten Content gekennzeichnet werden, liegt beim Auftraggeber.
+            </div>
+          ) : null}
+
           {isTeam && video && selectedVersion ? (
             <div className="toolbar card" style={{ padding: '8px 14px' }}>
               <label className="switch">
@@ -462,6 +493,62 @@ export default function ReviewPage() {
               <span className="hint" style={{ marginTop: 0 }}>
                 Wirkt nur zusammen mit dem Download-Recht am Freigabe-Link.
               </span>
+            </div>
+          ) : null}
+
+          {/*
+           * KI-Kennzeichnung (Phase 24, Nachtrag) – analog zum Endfassungs-
+           * Haken, aber am **Video**: Ob KI-Stimme oder KI-Musik im Schnitt
+           * stecken, ändert sich nicht von Fassung zu Fassung. Die Arten
+           * kommen aus dem Katalog in den Einstellungen; ist die Funktion dort
+           * abgeschaltet, fehlt die Zeile ganz.
+           */}
+          {isTeam && video && aiKatalog?.enabled ? (
+            <div className="toolbar card" style={{ padding: '8px 14px' }}>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={video.aiContent}
+                  onChange={(event) => {
+                    void api.updateVideo(video.id, { aiContent: event.target.checked }).then(loadVideo);
+                  }}
+                />
+                KI-Inhalte
+              </label>
+
+              {video.aiContent ? (
+                aiKatalog.kinds.length > 0 ? (
+                  aiKatalog.kinds.map((art) => {
+                    const gewaehlt = video.aiKinds.some((eintrag) => eintrag.id === art.id);
+                    return (
+                      <label key={art.id} className="switch">
+                        <input
+                          type="checkbox"
+                          checked={gewaehlt}
+                          onChange={() => {
+                            const ids = gewaehlt
+                              ? video.aiKinds
+                                  .filter((eintrag) => eintrag.id !== art.id)
+                                  .map((eintrag) => eintrag.id)
+                              : [...video.aiKinds.map((eintrag) => eintrag.id), art.id];
+                            void api.updateVideo(video.id, { aiKindIds: ids }).then(loadVideo);
+                          }}
+                        />
+                        {art.name}
+                      </label>
+                    );
+                  })
+                ) : (
+                  <span className="hint" style={{ marginTop: 0 }}>
+                    Keine Arten angelegt – das geht unter Einstellungen → KI-Inhalte.
+                  </span>
+                )
+              ) : (
+                <span className="hint" style={{ marginTop: 0 }}>
+                  Setzt über allen Fassungen den Hinweis zur Kennzeichnungspflicht nach Art. 50 EU
+                  AI Act.
+                </span>
+              )}
             </div>
           ) : null}
 

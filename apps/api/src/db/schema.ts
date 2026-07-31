@@ -118,10 +118,52 @@ export const videos = pgTable(
     sortOrder: integer('sort_order').notNull().default(0),
     /** Schalter für das ganze Video; wirkt zusätzlich zum Recht am Share-Link. */
     downloadsEnabled: boolean('downloads_enabled').notNull().default(true),
+    /**
+     * KI-Kennzeichnung (Phase 24, Nachtrag). Anders als der Endfassungs-Haken
+     * hängt sie am **Video**, nicht an einer Fassung: Ob KI-Stimme oder
+     * KI-Musik im Schnitt stecken, ändert sich nicht von v2 auf v3. Welche
+     * Arten es sind, steht in `video_ai_kinds`.
+     */
+    aiContent: boolean('ai_content').notNull().default(false),
     createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
     ...timestamps,
   },
   (table) => [index('videos_project_idx').on(table.projectId, table.sortOrder)],
+);
+
+/**
+ * Die Arten von KI-Inhalten, die der Workspace kennt (Phase 24, Nachtrag) –
+ * ab Werk KI-Stimme, KI-Video, KI-Sounds und KI-Musik, vom Admin erweiterbar.
+ * Grundlage für den Hinweis nach Art. 50 EU AI Act an gekennzeichneten Videos.
+ */
+export const aiContentKinds = pgTable(
+  'ai_content_kinds',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
+    ...timestamps,
+  },
+  // Zwei gleichnamige Arten wären in der Auswahl nicht zu unterscheiden.
+  (table) => [uniqueIndex('ai_content_kinds_name_unique').on(sql`lower(${table.name})`)],
+);
+
+/** Welche KI-Arten an einem Video hängen – wie `project_tags` am Projekt. */
+export const videoAiKinds = pgTable(
+  'video_ai_kinds',
+  {
+    videoId: uuid('video_id')
+      .notNull()
+      .references(() => videos.id, { onDelete: 'cascade' }),
+    kindId: uuid('kind_id')
+      .notNull()
+      .references(() => aiContentKinds.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.videoId, table.kindId] }),
+    index('video_ai_kinds_kind_idx').on(table.kindId),
+  ],
 );
 
 export const videoVersions = pgTable(
@@ -713,6 +755,14 @@ export const appSettings = pgTable('app_settings', {
    */
   tagsEnabled: boolean('tags_enabled').notNull().default(true),
 
+  /**
+   * KI-Kennzeichnung im Workspace verwenden (Phase 24, Nachtrag)? Aus heißt:
+   * Haken, Auswahl und Hinweis verschwinden überall; gesetzte Kennzeichnungen
+   * bleiben gespeichert und kommen beim Wiedereinschalten zurück – wie bei
+   * den Schlagworten.
+   */
+  aiContentEnabled: boolean('ai_content_enabled').notNull().default(true),
+
   // ---------- Benachrichtigungen (Phase 18) ----------
   /**
    * Ruhezeit vor dem Versand: Erst wenn so viele Minuten lang kein neuer
@@ -1046,6 +1096,7 @@ export type LoginCodeRow = typeof loginCodes.$inferSelect;
 export type ProjectFileRow = typeof projectFiles.$inferSelect;
 export type AppSettingsRow = typeof appSettings.$inferSelect;
 export type TagRow = typeof tags.$inferSelect;
+export type AiContentKindRow = typeof aiContentKinds.$inferSelect;
 export type ProjectFieldDefRow = typeof projectFieldDefs.$inferSelect;
 export type ProjectFolderRow = typeof projectFolders.$inferSelect;
 export type PendingNotificationRow = typeof pendingNotifications.$inferSelect;

@@ -1,7 +1,8 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { UserRole, VersionDto, VideoDto } from '@klappe/shared';
+import type { AiKindDto, UserRole, VersionDto, VideoDto } from '@klappe/shared';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
+import { AiContentService } from '../ai/ai-content.service';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
 import { comments, projects, users, videoVersions, videos } from '../db/schema';
@@ -28,6 +29,7 @@ export class VideosService {
     private readonly versionsService: VersionsService,
     private readonly accessService: AccessService,
     private readonly storage: StorageService,
+    private readonly aiContent: AiContentService,
   ) {}
 
   async listForProject(projectId: string, scope: AccessScope): Promise<VideoDto[]> {
@@ -61,12 +63,15 @@ export class VideosService {
 
     if (rows.length === 0) return [];
 
-    const latestByVideo = await this.loadLatestVersions(
-      rows.map((row) => row.video),
-      scope,
-    );
+    const [latestByVideo, ki] = await Promise.all([
+      this.loadLatestVersions(
+        rows.map((row) => row.video),
+        scope,
+      ),
+      this.loadAiKennzeichnung(rows.map((row) => row.video.id)),
+    ]);
 
-    return rows.map((row) => this.toDto(row, latestByVideo, scope));
+    return rows.map((row) => this.toDto(row, latestByVideo, scope, ki));
   }
 
   async findOneOrFail(id: string, scope: AccessScope): Promise<VideoDto> {
@@ -89,8 +94,11 @@ export class VideosService {
     if (!row) throw new NotFoundException('Video nicht gefunden.');
     this.accessService.assertCanViewVideo(scope, row.video);
 
-    const latest = await this.loadLatestVersions([row.video], scope);
-    return this.toDto(row, latest, scope);
+    const [latest, ki] = await Promise.all([
+      this.loadLatestVersions([row.video], scope),
+      this.loadAiKennzeichnung([row.video.id]),
+    ]);
+    return this.toDto(row, latest, scope, ki);
   }
 
   async create(
@@ -130,11 +138,16 @@ export class VideosService {
         description: dto.description === undefined ? undefined : dto.description.trim() || null,
         sortOrder: dto.sortOrder,
         downloadsEnabled: dto.downloadsEnabled,
+        aiContent: dto.aiContent,
         updatedAt: new Date(),
       })
       .where(eq(videos.id, id))
       .returning();
     if (!row) throw new NotFoundException('Video nicht gefunden.');
+    // Die Auswahl der Arten wird als Ganzes ersetzt (Phase 24, Nachtrag).
+    if (dto.aiKindIds !== undefined) {
+      await this.aiContent.setKindsForVideo(row.id, dto.aiKindIds);
+    }
     await this.projectsService.touch(row.projectId);
     return this.findOneOrFail(row.id, scope);
   }
@@ -173,6 +186,7 @@ export class VideosService {
     row: VideoRow,
     latestByVideo: Map<string, { latest: VersionDto; count: number }>,
     scope: AccessScope,
+    ki: { enabled: boolean; kinds: Map<string, AiKindDto[]> },
   ): VideoDto {
     return {
       id: row.video.id,
@@ -195,9 +209,26 @@ export class VideosService {
       versionCount: latestByVideo.get(row.video.id)?.count ?? 0,
       latestVersion: latestByVideo.get(row.video.id)?.latest ?? null,
       downloadsEnabled: row.video.downloadsEnabled,
+      /*
+       * Ist die Kennzeichnung im Workspace abgeschaltet, kommt hier immer
+       * `false` an – der Haken bleibt gespeichert, wirkt aber nirgends.
+       */
+      aiContent: ki.enabled && row.video.aiContent,
+      aiKinds: ki.enabled && row.video.aiContent ? (ki.kinds.get(row.video.id) ?? []) : [],
       canComment: this.accessService.canCommentOn(scope, row.video),
       canManage: this.accessService.canManageProject(scope, row.video.projectId),
     };
+  }
+
+  /** Schalter und Arten-Zuordnung für die KI-Kennzeichnung (Phase 24, Nachtrag). */
+  private async loadAiKennzeichnung(
+    videoIds: string[],
+  ): Promise<{ enabled: boolean; kinds: Map<string, AiKindDto[]> }> {
+    const enabled = await this.aiContent.isEnabled();
+    // Abgeschaltet spart die zweite Abfrage; die Zuordnungen interessieren
+    // dann niemanden.
+    if (!enabled) return { enabled, kinds: new Map() };
+    return { enabled, kinds: await this.aiContent.kindsForVideos(videoIds) };
   }
 
   /**
