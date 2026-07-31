@@ -253,6 +253,13 @@
       "when": 1785481985885,
       "tag": "0035_favicon_modus_entfaellt",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785492541974,
+      "tag": "0036_ki_kennzeichnung",
+      "breakpoints": true
     }
   ]
 }
