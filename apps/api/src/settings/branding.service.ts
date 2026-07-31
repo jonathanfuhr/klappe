@@ -27,6 +27,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { appSettings } from '../db/schema';
+import { LocaleService } from '../i18n/locale.service';
 import { StorageService } from '../storage/storage.service';
 import { SettingsService } from './settings.service';
 
@@ -64,6 +65,7 @@ export class BrandingService {
     @Inject(DB) private readonly db: Database,
     private readonly settingsService: SettingsService,
     private readonly storage: StorageService,
+    private readonly locales: LocaleService,
   ) {}
 
   /**
@@ -138,6 +140,10 @@ export class BrandingService {
         updatedAt: new Date(),
       })
       .where(eq(appSettings.id, SETTINGS_ID));
+
+    // Der Sprach-Dienst merkt sich die Vorgabe eine halbe Minute – nach einer
+    // Änderung soll sie sofort gelten und nicht erst nach dem nächsten Takt.
+    if (input.defaultLocale !== undefined) this.locales.vergessen();
 
     return this.get();
   }

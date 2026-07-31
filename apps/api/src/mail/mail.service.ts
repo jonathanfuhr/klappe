@@ -1,11 +1,13 @@
 import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { deriveBrandColors, normalizeBrandTitle } from '@klappe/shared';
+import { type Locale, isLocale } from '@klappe/shared';
 import { desc, eq, sql } from 'drizzle-orm';
 import { createTransport, type Transporter } from 'nodemailer';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import { mailFailures } from '../db/schema';
 import type { MailFailureDto } from '@klappe/shared';
+import { LocaleService } from '../i18n/locale.service';
 import { SettingsService, type SmtpCredentials } from '../settings/settings.service';
 import { Ms365OauthService } from './ms365-oauth.service';
 import { createUnsubscribeToken } from './unsubscribe-token';
@@ -26,6 +28,7 @@ export class MailService {
   constructor(
     private readonly settingsService: SettingsService,
     private readonly ms365Oauth: Ms365OauthService,
+    private readonly locales: LocaleService,
     @Inject(CONFIG) private readonly config: AppConfig,
     @Inject(DB) private readonly db: Database,
   ) {}
@@ -106,8 +109,19 @@ export class MailService {
     }
   }
 
+  /**
+   * In welcher Sprache liest dieser Empfänger? (Phase 26)
+   *
+   * Erst die eigene Wahl unter „Profil und Sicherheit", sonst die Vorgabe des
+   * Workspace. Einen Browser gibt es hier nicht – eine Mail wird gelesen,
+   * wenn niemand mehr davorsitzt.
+   */
+  async localeFor(eigene: string | null | undefined): Promise<Locale> {
+    return isLocale(eigene) ? eigene : await this.locales.workspaceLocale();
+  }
+
   /** Testmail aus dem Admin-Panel – meldet Fehler unverändert zurück. */
-  async sendTestMail(to: string): Promise<void> {
+  async sendTestMail(to: string, locale?: string | null): Promise<void> {
     const credentials = await this.settingsService.getCredentials();
     if (!credentials) {
       throw new ServiceUnavailableException(
@@ -120,6 +134,7 @@ export class MailService {
         host: credentials.host,
         fromEmail: credentials.fromEmail,
         brand: await this.brand(),
+        locale: await this.localeFor(locale),
       }),
     );
   }

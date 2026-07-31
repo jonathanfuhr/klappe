@@ -286,6 +286,7 @@ export class GuestsService {
           email: users.email,
           isActive: users.isActive,
           notificationsEnabled: users.notificationsEnabled,
+          locale: users.locale,
         })
         .from(users)
         .where(eq(users.id, userId))
@@ -331,6 +332,7 @@ export class GuestsService {
         gast.email,
         renderAccessGrantedMail({
           brand: await this.mailService.brand(),
+          locale: await this.mailService.localeFor(gast.locale),
           recipientName: gast.name,
           targetName,
           actorName: actor?.name ?? 'Jemand aus dem Team',
