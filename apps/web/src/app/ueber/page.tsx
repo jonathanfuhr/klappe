@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { api } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 const MAX_LENGTH = 4000;
@@ -17,6 +18,7 @@ const MAX_LENGTH = 4000;
  * Offen für alle Angemeldeten, auch Gäste; bearbeiten darf nur ein Admin.
  */
 export default function AboutPage() {
+  const t = useT();
   const { user } = useSession();
   const istAdmin = user?.role === 'ADMIN';
 
@@ -34,9 +36,9 @@ export default function AboutPage() {
       setUpdatedAt(about.updatedAt);
       setEntwurf(about.environmentNotes ?? '');
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -52,7 +54,7 @@ export default function AboutPage() {
       setEntwurf(gespeichert.environmentNotes ?? '');
       setBearbeiten(false);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
@@ -63,33 +65,25 @@ export default function AboutPage() {
       <div className="page">
         <div className="page__header">
           <div>
-            <h1 className="page__title">Über diese Software</h1>
-            <p className="page__subtitle">Was Klappe ist, wer sie gebaut hat, und wo sie läuft.</p>
+            <h1 className="page__title">{t('about.title')}</h1>
+            <p className="page__subtitle">{t('about.subtitle')}</p>
           </div>
         </div>
 
         <div className="manual">
           <section className="card manual__section">
-            <h2>Klappe</h2>
-            <p>
-              Klappe ist ein selbst gehostetes Review- und Freigabe-Werkzeug für
-              Videoproduktionen – die eigene Alternative zu Frame.io. Schnittfassungen
-              hochladen, frame-genau ansehen, am Bild kommentieren und zeichnen, per Link an
-              Kunden freigeben, Rückmeldungen einsammeln, freigeben, herunterladen. Alles läuft
-              im eigenen Docker-Stack: keine fremde Cloud, kein Abo pro Kopf, und das
-              Kameramaterial verlässt das Haus nicht.
-            </p>
+            <h2>{t('about.klappeTitle')}</h2>
+            <p>{t('about.klappeBody')}</p>
           </section>
 
           <section className="card manual__section">
-            <h2>Autor</h2>
+            <h2>{t('about.authorTitle')}</h2>
             <p>
-              Klappe wurde gebaut, um für meine Arbeit bei{' '}
-              <strong>THD Video</strong> ein Produktivitätswerkzeug zu haben, mit dem wir ganz
-              einfach Feedback zu unseren Filmen einholen können.
+              {t('about.authorBodyStart')} <strong>THD Video</strong>{' '}
+              {t('about.authorBodyEnd')}
             </p>
             <p>
-              Fragen, Fehlermeldungen oder Wünsche zur Weiterentwicklung:{' '}
+              {t('about.contact')}{' '}
               <a href="mailto:jonathan@fuhrzwei.de">jonathan@fuhrzwei.de</a>
             </p>
           </section>
@@ -97,35 +91,30 @@ export default function AboutPage() {
           {/* Lizenz und Quellcode gehören zusammen: Wer den Code holt, muss
               wissen, woran er dabei gebunden ist (Phase 24). */}
           <section className="card manual__section">
-            <h2>Quellcode und Lizenz</h2>
+            <h2>{t('about.sourceTitle')}</h2>
             <p>
-              Der vollständige Quellcode liegt auf GitHub:{' '}
+              {t('about.sourceBody')}{' '}
               <a href="https://github.com/jonathanfuhr/klappe" target="_blank" rel="noreferrer">
                 github.com/jonathanfuhr/klappe
               </a>
             </p>
             <p>
-              Klappe steht unter der{' '}
+              {t('about.licenseStart')}{' '}
               <a
                 href="https://www.gnu.org/licenses/agpl-3.0.de.html"
                 target="_blank"
                 rel="noreferrer"
               >
-                GNU Affero General Public License, Version 3
+                {t('about.licenseName')}
               </a>{' '}
-              (AGPL-3.0). Kurz gefasst: Klappe darf jeder nutzen, verändern und weitergeben. Wer
-              eine veränderte Fassung betreibt und sie anderen über ein Netz zugänglich macht,
-              muss deren Quellcode ebenfalls unter dieser Lizenz herausgeben. Der vollständige
-              Text steht als Datei <code>LICENSE</code> im Repository.
+              {t('about.licenseEnd')} <code>LICENSE</code> {t('about.licenseFileEnd')}
             </p>
           </section>
 
           <section className="card manual__section">
-            <h2>Diese Installation</h2>
+            <h2>{t('about.installationTitle')}</h2>
             <p className="hint" style={{ marginTop: 0 }}>
-              Freitext des Admins – etwa auf welcher Hardware oder in welcher Umgebung dieser
-              Klappe-Stack läuft. Klappe kann das nicht selbst erkennen; das trägt nur ein Admin
-              vor Ort ein.
+              {t('about.installationHint')}
             </p>
 
             {error ? <div className="notice">{error}</div> : null}
@@ -135,7 +124,7 @@ export default function AboutPage() {
                 {notes ? (
                   <p style={{ whiteSpace: 'pre-wrap' }}>{notes}</p>
                 ) : (
-                  <p className="muted">Noch keine Hinweise hinterlegt.</p>
+                  <p className="muted">{t('about.noNotes')}</p>
                 )}
                 {istAdmin ? (
                   <div className="toolbar" style={{ marginTop: 8 }}>
@@ -147,11 +136,11 @@ export default function AboutPage() {
                         setBearbeiten(true);
                       }}
                     >
-                      Bearbeiten
+                      {t('common.edit')}
                     </button>
                     {updatedAt ? (
                       <span className="faint" style={{ fontSize: 12 }}>
-                        zuletzt geändert {formatDateTime(updatedAt)}
+                        {t('common.lastChanged', { when: formatDateTime(updatedAt) })}
                       </span>
                     ) : null}
                   </div>
@@ -166,25 +155,24 @@ export default function AboutPage() {
               >
                 <div className="field">
                   <label className="field__label" htmlFor="environment-notes">
-                    Hinweise zur Umgebung
+                    {t('about.notesLabel')}
                   </label>
                   <textarea
                     id="environment-notes"
                     className="textarea"
                     style={{ minHeight: 140 }}
                     maxLength={MAX_LENGTH}
-                    placeholder="z. B. „läuft auf nativer Hardware, kein NAS, Backup läuft nachts um 3 Uhr auf den zweiten Server.“"
+                    placeholder={t('about.notesPlaceholder')}
                     value={entwurf}
                     onChange={(event) => setEntwurf(event.target.value)}
                   />
                   <p className="hint">
-                    Sichtbar für alle Angemeldeten, auch Gäste. Leer lassen entfernt den Hinweis
-                    wieder.
+                    {t('about.notesHint')}
                   </p>
                 </div>
                 <div className="toolbar">
                   <button type="submit" className="button button--primary" disabled={busy}>
-                    {busy ? 'Wird gespeichert …' : 'Speichern'}
+                    {busy ? t('common.saving') : t('common.save')}
                   </button>
                   <button
                     type="button"
@@ -196,7 +184,7 @@ export default function AboutPage() {
                       setError(null);
                     }}
                   >
-                    Abbrechen
+                    {t('common.cancel')}
                   </button>
                 </div>
               </form>

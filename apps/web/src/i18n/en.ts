@@ -995,4 +995,33 @@ export const en: Record<MessageKey, Message> = {
   'upload.hintProject': 'Project suggested from “{words}”',
   'upload.hintNewVersion': 'recognised as a new version of an existing video',
   'upload.hintVersion': 'Version {number} recognised in the filename',
+
+  'about.title': 'About this software',
+  'about.subtitle': 'What Klappe is, who built it, and where it runs.',
+  'about.klappeTitle': 'Klappe',
+  'about.klappeBody':
+    'Klappe is a self-hosted review and approval tool for video production – your own alternative to Frame.io. Upload edits, watch them frame by frame, comment and draw on the picture, share them with clients by link, collect feedback, approve, download. Everything runs in your own Docker stack: no external cloud, no per-seat subscription, and the camera material never leaves the building.',
+  'about.authorTitle': 'Author',
+  'about.authorBodyStart': 'Klappe was built to have a productivity tool for my work at',
+  'about.authorBodyEnd':
+    'with which we can collect feedback on our films very easily.',
+  'about.contact': 'Questions, bug reports or wishes for further development:',
+  'about.sourceTitle': 'Source code and licence',
+  'about.sourceBody': 'The full source code is on GitHub:',
+  'about.licenseStart': 'Klappe is licensed under the',
+  'about.licenseName': 'GNU Affero General Public License, Version 3',
+  'about.licenseEnd':
+    '(AGPL-3.0). In short: anyone may use, modify and redistribute Klappe. Whoever runs a modified version and makes it available to others over a network must release its source code under this licence as well. The full text is in the file',
+  'about.licenseFileEnd': 'in the repository.',
+  'about.installationTitle': 'This installation',
+  'about.installationHint':
+    'Free text by the admin – for instance which hardware or environment this Klappe stack runs on. Klappe cannot detect that itself; only an admin on site enters it.',
+  'about.noNotes': 'No notes yet.',
+  'about.notesLabel': 'Notes on the environment',
+  'about.notesPlaceholder':
+    'e.g. “runs on native hardware, no NAS, backup runs at 3 a.m. to the second server.”',
+  'about.notesHint': 'Visible to everyone signed in, guests included. Leaving it empty removes the note again.',
+
+  'manual.title': 'Manual',
+  'manual.subtitle': 'For everyone working with Klappe – team and invited guests alike.',
 };

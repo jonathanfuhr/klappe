@@ -993,6 +993,35 @@ export const de = {
   'upload.hintProject': 'Projekt anhand von „{words}" vorgeschlagen',
   'upload.hintNewVersion': 'als neue Fassung eines vorhandenen Videos erkannt',
   'upload.hintVersion': 'Version {number} im Dateinamen erkannt',
+
+  'about.title': 'Über diese Software',
+  'about.subtitle': 'Was Klappe ist, wer sie gebaut hat, und wo sie läuft.',
+  'about.klappeTitle': 'Klappe',
+  'about.klappeBody':
+    'Klappe ist ein selbst gehostetes Review- und Freigabe-Werkzeug für Videoproduktionen – die eigene Alternative zu Frame.io. Schnittfassungen hochladen, frame-genau ansehen, am Bild kommentieren und zeichnen, per Link an Kunden freigeben, Rückmeldungen einsammeln, freigeben, herunterladen. Alles läuft im eigenen Docker-Stack: keine fremde Cloud, kein Abo pro Kopf, und das Kameramaterial verlässt das Haus nicht.',
+  'about.authorTitle': 'Autor',
+  'about.authorBodyStart': 'Klappe wurde gebaut, um für meine Arbeit bei',
+  'about.authorBodyEnd':
+    'ein Produktivitätswerkzeug zu haben, mit dem wir ganz einfach Feedback zu unseren Filmen einholen können.',
+  'about.contact': 'Fragen, Fehlermeldungen oder Wünsche zur Weiterentwicklung:',
+  'about.sourceTitle': 'Quellcode und Lizenz',
+  'about.sourceBody': 'Der vollständige Quellcode liegt auf GitHub:',
+  'about.licenseStart': 'Klappe steht unter der',
+  'about.licenseName': 'GNU Affero General Public License, Version 3',
+  'about.licenseEnd':
+    '(AGPL-3.0). Kurz gefasst: Klappe darf jeder nutzen, verändern und weitergeben. Wer eine veränderte Fassung betreibt und sie anderen über ein Netz zugänglich macht, muss deren Quellcode ebenfalls unter dieser Lizenz herausgeben. Der vollständige Text steht als Datei',
+  'about.licenseFileEnd': 'im Repository.',
+  'about.installationTitle': 'Diese Installation',
+  'about.installationHint':
+    'Freitext des Admins – etwa auf welcher Hardware oder in welcher Umgebung dieser Klappe-Stack läuft. Klappe kann das nicht selbst erkennen; das trägt nur ein Admin vor Ort ein.',
+  'about.noNotes': 'Noch keine Hinweise hinterlegt.',
+  'about.notesLabel': 'Hinweise zur Umgebung',
+  'about.notesPlaceholder':
+    'z. B. „läuft auf nativer Hardware, kein NAS, Backup läuft nachts um 3 Uhr auf den zweiten Server."',
+  'about.notesHint': 'Sichtbar für alle Angemeldeten, auch Gäste. Leer lassen entfernt den Hinweis wieder.',
+
+  'manual.title': 'Handbuch',
+  'manual.subtitle': 'Für alle, die mit Klappe arbeiten – Team wie eingeladene Gäste.',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */
