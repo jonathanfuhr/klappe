@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { and, isNotNull, lt, or, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import {
+  deviceAuthorizations,
   loginCodes,
   pendingNotifications,
   projectFiles,
@@ -51,6 +52,8 @@ export interface CleanupReport {
   pendingNotifications: number;
   /** Alte Fassungen archivierter Projekte (Phase 18). */
   archivedVersions: number;
+  /** Abgelaufene Gerätekopplungen (Phase 25). */
+  deviceAuthorizations: number;
 }
 
 @Injectable()
@@ -80,15 +83,17 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
   async runAll(): Promise<CleanupReport> {
     try {
       const codes = await this.cleanupLoginCodes();
+      const kopplungen = await this.cleanupDeviceAuthorizations();
       const hinweise = await this.cleanupPendingNotifications();
       // Vor dem Datei-Durchlauf: Was hier wegfällt, ist danach verwaist und
       // wird im selben Lauf mit abgeräumt.
       const fassungen = await this.cleanupArchivedVersions();
       const dateien = await this.cleanupOrphanFiles();
 
-      if (codes > 0 || dateien.count > 0 || hinweise > 0 || fassungen > 0) {
+      if (codes > 0 || dateien.count > 0 || hinweise > 0 || fassungen > 0 || kopplungen > 0) {
         this.logger.log(
-          `Aufgeräumt: ${codes} Anmeldecodes, ${hinweise} liegengebliebene Benachrichtigungen, ` +
+          `Aufgeräumt: ${codes} Anmeldecodes, ${kopplungen} abgelaufene Gerätekopplungen, ` +
+            `${hinweise} liegengebliebene Benachrichtigungen, ` +
             `${fassungen} alte Fassungen aus archivierten Projekten, ` +
             `${dateien.count} verwaiste Dateien (${Math.round(dateien.bytes / 1024 / 1024)} MB).`,
         );
@@ -99,6 +104,7 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
         freedBytes: dateien.bytes,
         pendingNotifications: hinweise,
         archivedVersions: fassungen,
+        deviceAuthorizations: kopplungen,
       };
     } catch (error) {
       this.logger.error(`Aufräumen fehlgeschlagen: ${String(error)}`);
@@ -108,6 +114,7 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
         freedBytes: 0,
         pendingNotifications: 0,
         archivedVersions: 0,
+        deviceAuthorizations: 0,
       };
     }
   }
@@ -180,6 +187,24 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
       .delete(loginCodes)
       .where(or(lt(loginCodes.expiresAt, grenze), and(isNotNull(loginCodes.consumedAt), lt(loginCodes.createdAt, grenze))))
       .returning({ id: loginCodes.id });
+    return rows.length;
+  }
+
+  /**
+   * Abgelaufene Gerätekopplungen (Phase 25).
+   *
+   * Eine Kopplung gilt zehn Minuten. Was danach übrig bleibt, ist wertlos –
+   * der Klartext-Token ist beim Abholen ohnehin gelöscht worden. Dieselbe
+   * Karenz von einem Tag wie bei den Anmeldecodes: Wer sich fragt, warum das
+   * Verbinden eben nicht geklappt hat, soll die Zeile im Zweifel noch
+   * vorfinden.
+   */
+  async cleanupDeviceAuthorizations(): Promise<number> {
+    const grenze = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const rows = await this.db
+      .delete(deviceAuthorizations)
+      .where(lt(deviceAuthorizations.expiresAt, grenze))
+      .returning({ id: deviceAuthorizations.id });
     return rows.length;
   }
 

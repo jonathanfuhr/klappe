@@ -2,6 +2,8 @@ import type {
   AboutDto,
   AiContentSettingsDto,
   Annotation,
+  ApiAccessSettingsDto,
+  ApiTokenDto,
   AuthSettingsDto,
   BackupFileDto,
   BackupSettingsDto,
@@ -9,6 +11,7 @@ import type {
   EmbedLinkDto,
   CommentDto,
   CustomerDto,
+  DevicePendingDto,
   DownloadPresetDto,
   FieldValueCountDto,
   GuestAccessDto,
@@ -716,6 +719,52 @@ export const api = {
     request<VersionRenditionDto>(`/v1/versions/${versionId}/downloads/${presetId}`, {
       method: 'POST',
     }),
+
+  // ---------- Externe Anbindung (Phase 25) ----------
+
+  /** Die eigenen verbundenen Geräte – für jeden Angemeldeten, auch Gäste. */
+  listDevices: () => request<ApiTokenDto[]>('/v1/geraete'),
+  /**
+   * Ein eigenes Gerät trennen. Wirkt sofort: Die nächste Anfrage des Plugins
+   * fällt durch.
+   */
+  revokeDevice: (id: string) => request<void>(`/v1/geraete/${id}`, { method: 'DELETE' }),
+  /** Alle eigenen Geräte auf einmal – der Knopf für den Ernstfall. */
+  revokeAllDevices: () => request<void>('/v1/geraete', { method: 'DELETE' }),
+  /**
+   * Einen Token von Hand ausstellen (für Skripte). Der Klartext steht **nur**
+   * in dieser einen Antwort.
+   */
+  createDeviceToken: (name: string) =>
+    request<{ token: ApiTokenDto; plaintext: string }>('/v1/geraete', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  /** Was sich hinter einem Kopplungscode verbirgt – vor dem Bestätigen. */
+  describeDevicePairing: (userCode: string) =>
+    request<DevicePendingDto>(`/v1/auth/geraet/${encodeURIComponent(userCode)}`),
+  approveDevicePairing: (userCode: string) =>
+    request<DevicePendingDto>('/v1/auth/geraet/bestaetigen', {
+      method: 'POST',
+      body: JSON.stringify({ userCode }),
+    }),
+  denyDevicePairing: (userCode: string) =>
+    request<void>('/v1/auth/geraet/ablehnen', {
+      method: 'POST',
+      body: JSON.stringify({ userCode }),
+    }),
+
+  /** Der Admin-Schalter und die Geräte aller Konten. */
+  getApiAccess: () => request<ApiAccessSettingsDto>('/v1/settings/api-zugriff'),
+  updateApiAccess: (enabled: boolean) =>
+    request<ApiAccessSettingsDto>('/v1/settings/api-zugriff', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    }),
+  listAllDevices: () => request<ApiTokenDto[]>('/v1/settings/geraete'),
+  revokeAnyDevice: (id: string) =>
+    request<void>(`/v1/settings/geraete/${id}`, { method: 'DELETE' }),
 };
 
 export const mediaUrl = {

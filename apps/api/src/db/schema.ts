@@ -736,6 +736,15 @@ export const appSettings = pgTable('app_settings', {
   oidcButtonLabel: text('oidc_button_label'),
 
   /**
+   * Externer API-Zugriff (Phase 25). Ab Werk **aus**: Wer Klappe nur im
+   * Browser benutzt, soll keine zweite Tür offen haben, von der er nichts
+   * weiß. Aus heißt, dass `Authorization: Bearer …` gar nicht erst geprüft
+   * wird – weder ein API-Token noch ein Sitzungs-JWT im Header. Die Anmeldung
+   * im Browser läuft über das Sitzungs-Cookie und bleibt davon unberührt.
+   */
+  apiAccessEnabled: boolean('api_access_enabled').notNull().default(false),
+
+  /**
    * Passwort-Richtlinie für Team-Konten (Phase 24). Vorher standen diese
    * Regeln fest im Code; die Vorgabewerte hier sind genau die alten, damit ein
    * Update kein bestehendes Passwort ungültig macht. Gäste betrifft das nicht –
@@ -1029,6 +1038,95 @@ export const pendingNotifications = pgTable(
   ],
 );
 
+/**
+ * API-Tokens für externe Anbindungen (Phase 25).
+ *
+ * Ein Token gehört immer zu **einem** Konto und trägt genau dessen Rechte –
+ * ein Plugin sieht also das, was die Person auch im Browser sähe, nicht mehr.
+ * Das ist der Grund, warum es keinen workspace-weiten Generalschlüssel gibt:
+ * An jedem Kommentar, jedem Upload und jeder Freigabe hängt sonst dieselbe
+ * namenlose Kennung.
+ *
+ * Gespeichert wird nie der Token selbst, sondern nur `selector` (offen, zum
+ * Nachschlagen) und `secretHash` – siehe `api-token.ts`.
+ */
+export const apiTokens = pgTable(
+  'api_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Was in der Liste steht, etwa „DaVinci Resolve auf dem Schnittrechner“. */
+    name: text('name').notNull(),
+    selector: text('selector').notNull(),
+    secretHash: text('secret_hash').notNull(),
+    /**
+     * Wie der Token entstanden ist: `device` über die Gerätekopplung im
+     * Browser, `manual` von Hand in den Einstellungen. Nur zur Anzeige – für
+     * die Rechte macht es keinen Unterschied.
+     */
+    origin: text('origin').notNull().default('device'),
+    /**
+     * Fortgeschrieben bei Benutzung, aber höchstens einmal pro Minute: Der
+     * Wert soll die Frage „wird das noch benutzt?“ beantworten, und dafür
+     * lohnt kein Schreibvorgang je Anfrage.
+     */
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    /** Gesetzt heißt widerrufen. Die Zeile bleibt, damit die Liste ehrlich ist. */
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('api_tokens_selector_unique').on(table.selector),
+    index('api_tokens_user_idx').on(table.userId, table.createdAt),
+  ],
+);
+
+/**
+ * Wartende Gerätekopplungen (Phase 25).
+ *
+ * Der Ablauf, den ein Plugin durchläuft: Es meldet sich an dieser Stelle an,
+ * zeigt den kurzen Benutzercode auf dem Schirm, und ein angemeldeter Mensch
+ * bestätigt ihn im Browser. Erst danach entsteht der Token.
+ *
+ * Der fertige Token liegt bis zur Abholung **verschlüsselt** hier (dieselbe
+ * Kiste wie die SMTP-Geheimnisse) und wird beim Abholen gelöscht. Anders
+ * ginge es nicht: Das Plugin ist im Moment der Bestätigung nicht am Zug, und
+ * ein zweites Mal lässt sich der Klartext nirgends herholen.
+ */
+export const deviceAuthorizations = pgTable(
+  'device_authorizations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Nur der Hash – der lange Code bleibt beim Plugin. */
+    deviceCodeHash: text('device_code_hash').notNull(),
+    /** Der kurze Code zum Abtippen, `KHFP-3RTM`. */
+    userCode: text('user_code').notNull(),
+    /** Wie sich das Plugin nennt; wird zum Namen des Tokens. */
+    clientName: text('client_name').notNull(),
+    /** Wer bestätigt hat. Offen, solange niemand bestätigt hat. */
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    /** Abgelehnt – das Plugin bekommt eine klare Absage statt eines Zeitablaufs. */
+    deniedAt: timestamp('denied_at', { withTimezone: true }),
+    apiTokenId: uuid('api_token_id').references(() => apiTokens.id, { onDelete: 'cascade' }),
+    /** Der Klartext-Token bis zur Abholung, verschlüsselt (`common/secret-box.ts`). */
+    tokenEncrypted: text('token_encrypted'),
+    /** Fehlversuche beim Abholen – bremst das Durchprobieren von Gerätecodes. */
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('device_authorizations_device_code_unique').on(table.deviceCodeHash),
+    // Nicht eindeutig: Ein abgelaufener Code darf später wieder vorkommen.
+    // Gesucht wird immer zusammen mit „noch gültig“, siehe den Dienst.
+    index('device_authorizations_user_code_idx').on(table.userCode, table.expiresAt),
+    index('device_authorizations_expires_idx').on(table.expiresAt),
+  ],
+);
+
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   comments: many(comments),
@@ -1105,3 +1203,5 @@ export type NotificationRow = typeof notifications.$inferSelect;
 export type MailFailureRow = typeof mailFailures.$inferSelect;
 export type DownloadPresetRow = typeof downloadPresets.$inferSelect;
 export type VersionRenditionRow = typeof versionRenditions.$inferSelect;
+export type ApiTokenRow = typeof apiTokens.$inferSelect;
+export type DeviceAuthorizationRow = typeof deviceAuthorizations.$inferSelect;
