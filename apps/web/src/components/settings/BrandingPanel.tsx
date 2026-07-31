@@ -1,10 +1,11 @@
 'use client';
 
 import {
+  APP_ICON_SIZE,
   DEFAULT_BRAND_ACCENT,
-  FAVICON_MIME_TYPES,
-  type FaviconMode,
+  FAVICON_RECOMMENDED_SIZES,
   LOGO_MIME_TYPES,
+  MAX_APP_ICON_BYTES,
   MAX_COMPANY_NAME_LENGTH,
   MAX_COMPANY_SHORT_LENGTH,
   MAX_FAVICON_BYTES,
@@ -32,6 +33,7 @@ export function BrandingPanel() {
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const faviconRef = useRef<HTMLInputElement>(null);
+  const appIconRef = useRef<HTMLInputElement>(null);
 
   // Beim ersten Laden steht noch der Standard im Kontext.
   useEffect(() => {
@@ -87,24 +89,6 @@ export function BrandingPanel() {
     }
   };
 
-  /**
-   * Der Modus wird sofort gespeichert, nicht erst mit dem Speichern-Knopf –
-   * sonst stünde darunter ein Hochladen-Feld für eine Wahl, die noch gar
-   * nicht gilt (Phase 23).
-   */
-  const setzeFaviconModus = async (faviconMode: FaviconMode) => {
-    setBusy(true);
-    setError(null);
-    setInfo(null);
-    try {
-      apply(await api.updateBranding({ faviconMode }));
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const uploadFavicon = async (file: File) => {
     setBusy(true);
     setError(null);
@@ -112,11 +96,17 @@ export function BrandingPanel() {
     try {
       if (file.size > MAX_FAVICON_BYTES) {
         throw new Error(
-          `Das Symbol darf höchstens ${Math.round(MAX_FAVICON_BYTES / 1024)} KB haben.`,
+          `Das Favicon darf höchstens ${Math.round(MAX_FAVICON_BYTES / 1024)} KB haben.`,
         );
       }
-      apply(await api.uploadFavicon(file));
-      setInfo('Tab-Symbol übernommen.');
+      /*
+       * Der Browser meldet für eine `.ico` je nach System `image/x-icon`,
+       * `image/vnd.microsoft.icon` – oder gar nichts. Im letzten Fall wird der
+       * verbreitetere der beiden Typen gesetzt, statt den Upload an einer
+       * fehlenden Angabe scheitern zu lassen; die API prüft ohnehin nach.
+       */
+      apply(await api.uploadFavicon(file, file.type || 'image/x-icon'));
+      setInfo('Favicon übernommen.');
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'Hochladen fehlgeschlagen.');
     } finally {
@@ -131,7 +121,41 @@ export function BrandingPanel() {
     setInfo(null);
     try {
       apply(await api.removeFavicon());
-      setInfo('Tab-Symbol entfernt.');
+      setInfo('Favicon entfernt.');
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : 'Entfernen fehlgeschlagen.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uploadAppIcon = async (file: File) => {
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      if (file.size > MAX_APP_ICON_BYTES) {
+        throw new Error(
+          `Das App-Symbol darf höchstens ${Math.round(MAX_APP_ICON_BYTES / 1024)} KB haben.`,
+        );
+      }
+      apply(await api.uploadAppIcon(file));
+      setInfo('App-Symbol übernommen.');
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Hochladen fehlgeschlagen.');
+    } finally {
+      setBusy(false);
+      if (appIconRef.current) appIconRef.current.value = '';
+    }
+  };
+
+  const removeAppIcon = async () => {
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      apply(await api.removeAppIcon());
+      setInfo('App-Symbol entfernt.');
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : 'Entfernen fehlgeschlagen.');
     } finally {
@@ -148,7 +172,7 @@ export function BrandingPanel() {
 
       {error ? <div className="notice">{error}</div> : null}
       {info ? (
-        <div className="card" style={{ padding: '10px 12px', marginBottom: 14 }}>
+        <div className="card" style={{ padding: '10px 12px' }}>
           {info}
         </div>
       ) : null}
@@ -302,89 +326,130 @@ export function BrandingPanel() {
           </p>
         </div>
 
-        {/* Tab-Symbol (Phase 23) */}
+        {/*
+         * Tab-Symbol und App-Symbol werden fertig hochgeladen (Phase 24).
+         *
+         * Vorher stand hier eine Auswahl „Standard / Logo / eigenes", und im
+         * Fall „Logo" rechnete der Browser daraus selbst ein Symbol. Das
+         * Ergebnis passte selten: Ein Zeichen, das im 16-Pixel-Tab bestehen
+         * soll, entsteht nicht durch Verkleinern eines Schriftzugs. Wer sein
+         * Symbol genau haben will, baut es ohnehin außerhalb – zwei Felder mit
+         * klarer Größenangabe sind ehrlicher als eine Automatik, die man
+         * hinterher zurechtbiegt.
+         */}
         <div className="field">
-          <label className="field__label" htmlFor="favicon-mode">
-            Symbol im Browser-Tab
-          </label>
-          <select
-            id="favicon-mode"
-            className="select"
-            style={{ maxWidth: 320 }}
-            value={branding.faviconMode}
-            disabled={busy}
-            onChange={(event) => void setzeFaviconModus(event.target.value as FaviconMode)}
-          >
-            <option value="standard">Standard (Klappe-Zeichen)</option>
-            <option value="logo">Das Logo von oben</option>
-            <option value="eigenes">Eigenes Symbol</option>
-          </select>
-          <p className="hint">
-            Ein Tab-Symbol ist 16 Pixel groß. Ein breiter Schriftzug wird darin zu Brei – dafür
-            gibt es die dritte Möglichkeit.
-          </p>
-
-          {branding.faviconMode === 'logo' && !branding.logoUrl ? (
-            <div className="notice notice--warn">
-              Es ist noch kein Logo hinterlegt – solange bleibt das Standard-Zeichen stehen.
-            </div>
-          ) : null}
-
-          {branding.faviconMode === 'eigenes' ? (
-            <div className="toolbar" style={{ marginTop: 8 }}>
-              {branding.faviconUrl ? (
-                // Bewusst als <img>: ein SVG führt so keine Skripte aus.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={branding.faviconUrl}
-                  alt="Aktuelles Tab-Symbol"
-                  width={24}
-                  height={24}
-                  style={{ borderRadius: 4 }}
-                />
-              ) : (
-                <span className="faint" style={{ fontSize: 13 }}>
-                  Noch kein eigenes Symbol – es gilt das Standard-Zeichen.
-                </span>
-              )}
-              <div className="shell__spacer" />
-              <input
-                ref={faviconRef}
-                type="file"
-                accept={FAVICON_MIME_TYPES.join(',')}
-                hidden
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void uploadFavicon(file);
-                }}
+          <span className="field__label">Symbol im Browser-Tab (Favicon)</span>
+          <div className="toolbar">
+            {branding.faviconUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={branding.faviconUrl}
+                alt="Aktuelles Tab-Symbol"
+                width={32}
+                height={32}
+                style={{ borderRadius: 4 }}
               />
+            ) : (
+              <span className="faint" style={{ fontSize: 13 }}>
+                Noch keines hinterlegt – es gilt das Klappe-Zeichen.
+              </span>
+            )}
+            <div className="shell__spacer" />
+            <input
+              ref={faviconRef}
+              type="file"
+              accept=".ico,image/x-icon,image/vnd.microsoft.icon"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void uploadFavicon(file);
+              }}
+            />
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => faviconRef.current?.click()}
+            >
+              {branding.faviconUrl ? 'Favicon ersetzen' : 'Favicon hochladen'}
+            </button>
+            {branding.faviconUrl ? (
               <button
                 type="button"
-                className="button"
+                className="button button--ghost"
                 disabled={busy}
-                onClick={() => faviconRef.current?.click()}
+                onClick={() => void removeFavicon()}
               >
-                {branding.faviconUrl ? 'Symbol ersetzen' : 'Symbol hochladen'}
+                Entfernen
               </button>
-              {branding.faviconUrl ? (
-                <button
-                  type="button"
-                  className="button button--ghost"
-                  disabled={busy}
-                  onClick={() => void removeFavicon()}
-                >
-                  Entfernen
-                </button>
-              ) : null}
-            </div>
-          ) : null}
+            ) : null}
+          </div>
+          <p className="hint">
+            Eine fertige <strong>.ico</strong>-Datei, höchstens{' '}
+            {Math.round(MAX_FAVICON_BYTES / 1024)} KB.{' '}
+            <strong>Empfohlen: {FAVICON_RECOMMENDED_SIZES.join(', ')} Pixel in einer Datei</strong>{' '}
+            – eine .ico kann mehrere Größen zugleich enthalten, und der Browser nimmt sich die
+            passende. Quadratisch und schlicht wirkt am besten; ein Schriftzug ist bei 16 Pixeln
+            nicht mehr zu lesen. Erzeugen lässt sich so eine Datei mit jedem Favicon-Generator.
+          </p>
+        </div>
 
-          {branding.faviconMode === 'eigenes' ? (
-            <p className="hint">
-              PNG, SVG oder ICO, höchstens {Math.round(MAX_FAVICON_BYTES / 1024)} KB. Quadratisch
-              und schlicht wirkt am besten – 32×32 Pixel genügen.
-            </p>
-          ) : null}
+        <div className="field">
+          <span className="field__label">App-Symbol für den Startbildschirm</span>
+          <div className="toolbar">
+            {branding.appIconUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={branding.appIconUrl}
+                alt="Aktuelles App-Symbol"
+                width={44}
+                height={44}
+                style={{ borderRadius: 10, background: 'var(--klappe-surface-raised)' }}
+              />
+            ) : (
+              <span className="faint" style={{ fontSize: 13 }}>
+                Noch keines hinterlegt.
+              </span>
+            )}
+            <div className="shell__spacer" />
+            <input
+              ref={appIconRef}
+              type="file"
+              accept=".png,image/png"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void uploadAppIcon(file);
+              }}
+            />
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => appIconRef.current?.click()}
+            >
+              {branding.appIconUrl ? 'App-Symbol ersetzen' : 'App-Symbol hochladen'}
+            </button>
+            {branding.appIconUrl ? (
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={busy}
+                onClick={() => void removeAppIcon()}
+              >
+                Entfernen
+              </button>
+            ) : null}
+          </div>
+          <p className="hint">
+            Ein <strong>PNG</strong>, höchstens {Math.round(MAX_APP_ICON_BYTES / 1024)} KB.{' '}
+            <strong>
+              Empfohlen: quadratisch, {APP_ICON_SIZE}×{APP_ICON_SIZE} Pixel
+            </strong>{' '}
+            – daraus rechnen iOS und Android alle kleineren Größen selbst. Es erscheint, wenn
+            jemand Klappe über „Zum Home-Bildschirm" ablegt; ein SVG nimmt iOS dafür nicht an. Der
+            Rand wird auf dem iPhone rund beschnitten, das Motiv sollte also etwas Luft haben.
+          </p>
         </div>
 
         <div className="toolbar" style={{ marginTop: 18 }}>

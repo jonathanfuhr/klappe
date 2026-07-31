@@ -48,7 +48,34 @@ describe('validatePasswordStrength', () => {
 
   it('weist zu kurze, reine Buchstaben oder überlange Passwörter zurück', () => {
     expect(validatePasswordStrength('kurz1')).toMatch(/mindestens/);
-    expect(validatePasswordStrength('nurbuchstaben')).toMatch(/Ziffern/);
+    expect(validatePasswordStrength('nurbuchstaben')).toMatch(/Ziffer/);
     expect(validatePasswordStrength(`a1${'x'.repeat(600)}`)).toMatch(/höchstens/);
+  });
+
+  /*
+   * Ohne Richtlinie gelten die alten, fest verdrahteten Regeln – ein Update
+   * darf kein bestehendes Passwort ungültig machen (Phase 24).
+   */
+  it('folgt der übergebenen Richtlinie statt fester Regeln', () => {
+    const streng = {
+      minLength: 14,
+      requireLetter: true,
+      requireDigit: true,
+      requireMixedCase: true,
+      requireSymbol: true,
+    };
+    expect(validatePasswordStrength('Kamera-Klappe-1!', streng)).toBeNull();
+    expect(validatePasswordStrength('kamera-klappe-1!', streng)).toMatch(/Groß- und Klein/);
+    expect(validatePasswordStrength('KameraKlappe123', streng)).toMatch(/Sonderzeichen/);
+    expect(validatePasswordStrength('Kamera-1!', streng)).toMatch(/mindestens 14/);
+
+    const locker = {
+      minLength: 8,
+      requireLetter: false,
+      requireDigit: false,
+      requireMixedCase: false,
+      requireSymbol: false,
+    };
+    expect(validatePasswordStrength('12345678', locker)).toBeNull();
   });
 });

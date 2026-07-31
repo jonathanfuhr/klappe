@@ -25,8 +25,8 @@ const fallback: BrandingDto = {
   title: DEFAULT_BRAND_TITLE,
   ...deriveBrandColors(DEFAULT_BRAND_ACCENT),
   logoUrl: null,
-  faviconMode: 'standard',
   faviconUrl: null,
+  appIconUrl: null,
   companyName: null,
   companyShort: null,
   updatedAt: new Date(0).toISOString(),
@@ -75,26 +75,37 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   }, [branding.title]);
 
   /**
-   * Tab-Symbol (Phase 23).
+   * Tab-Symbol und App-Symbol (Phasen 23 und 24).
    *
-   * Next legt aus `app/icon.svg` selbst einen `<link rel="icon">` an. Statt
-   * den zu entfernen, wird ein eigener **dahinter** gehängt: Browser nehmen
-   * bei mehreren den zuletzt passenden, und bleibt unserer aus (Modus
-   * `standard`), steht das mitgelieferte Zeichen unverändert da.
+   * Next legt aus `app/icon.svg` selbst einen `<link rel="icon">` an. Statt den
+   * zu entfernen, werden eigene **dahinter** gehängt: Browser nehmen bei
+   * mehreren den zuletzt passenden, und ist keines hinterlegt, steht das
+   * mitgelieferte Zeichen unverändert da.
+   *
+   * Die beiden sind unabhängig voneinander. Das Tab bekommt die `.ico`, der
+   * Startbildschirm das PNG – ein SVG lässt Safari dort schlicht weg und malt
+   * stattdessen einen Bildschirmausschnitt der Seite.
    */
   useEffect(() => {
-    const vorhanden = document.querySelector<HTMLLinkElement>(`link[${FAVICON_ATTRIBUT}]`);
-    if (!branding.faviconUrl) {
-      vorhanden?.remove();
-      return;
+    for (const alt of document.querySelectorAll(`link[${FAVICON_ATTRIBUT}]`)) alt.remove();
+
+    const quellen: { rel: string; href: string; type?: string }[] = [];
+    if (branding.faviconUrl) {
+      quellen.push({ rel: 'icon', href: branding.faviconUrl, type: 'image/x-icon' });
+    }
+    if (branding.appIconUrl) {
+      quellen.push({ rel: 'apple-touch-icon', href: branding.appIconUrl });
     }
 
-    const link = vorhanden ?? document.createElement('link');
-    link.rel = 'icon';
-    link.setAttribute(FAVICON_ATTRIBUT, '');
-    if (link.href !== branding.faviconUrl) link.href = branding.faviconUrl;
-    if (!vorhanden) document.head.append(link);
-  }, [branding.faviconUrl]);
+    for (const quelle of quellen) {
+      const link = document.createElement('link');
+      link.rel = quelle.rel;
+      link.href = quelle.href;
+      if (quelle.type) link.type = quelle.type;
+      link.setAttribute(FAVICON_ATTRIBUT, '');
+      document.head.append(link);
+    }
+  }, [branding.appIconUrl, branding.faviconUrl]);
 
   const value = useMemo<BrandingState>(
     () => ({ branding, apply: setBranding, reload }),

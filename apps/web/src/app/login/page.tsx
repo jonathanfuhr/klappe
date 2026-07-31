@@ -1,6 +1,7 @@
 'use client';
 
 import type { LoginMethodsDto } from '@klappe/shared';
+import { DEFAULT_PASSWORD_POLICY } from '@klappe/shared';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { BrandMark } from '@/components/BrandMark';
@@ -43,6 +44,7 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
     local: true,
     microsoft: false,
     microsoftLabel: 'Mit Microsoft 365 anmelden',
+    passwordPolicy: DEFAULT_PASSWORD_POLICY,
   });
 
   useEffect(() => {

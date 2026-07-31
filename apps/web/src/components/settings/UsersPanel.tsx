@@ -1,6 +1,7 @@
 'use client';
 
-import type { UserDto, UserRole } from '@klappe/shared';
+import type { PasswordPolicy, UserDto, UserRole } from '@klappe/shared';
+import { DEFAULT_PASSWORD_POLICY, describePasswordPolicy } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
@@ -37,8 +38,7 @@ export function UsersPanel() {
       <div>
         <div className="page__header">
           <div>
-            <h2 className="page__title" style={{ fontSize: 20 }}>Benutzer</h2>
-            <p className="page__subtitle">
+            <p className="page__subtitle" style={{ marginTop: 0 }}>
               Team-Mitglieder sehen alle Projekte des Workspace. Gäste stehen nicht hier, sondern
               unter <strong>Gäste</strong> – sie sind Kundschaft, keine Belegschaft.
             </p>
@@ -166,6 +166,17 @@ function CreateUserDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* Die geltenden Passwort-Regeln (Phase 24); bis zur Antwort der Vorgabewert. */
+  const [policy, setPolicy] = useState<PasswordPolicy>(DEFAULT_PASSWORD_POLICY);
+  useEffect(() => {
+    void api
+      .loginMethods()
+      .then((methoden) => setPolicy(methoden.passwordPolicy))
+      .catch(() => {
+        // Verbindlich prüft ohnehin der Server.
+      });
+  }, []);
+
   return (
     <Dialog title="Benutzer anlegen" onClose={onClose}>
       <form
@@ -211,17 +222,21 @@ function CreateUserDialog({
         </div>
         <div className="field">
           <label className="field__label" htmlFor="user-password">
-            Passwort (mindestens 10 Zeichen, Buchstaben und Ziffern)
+            Passwort
           </label>
           <input
             id="user-password"
             className="input"
             type="password"
             required
-            minLength={10}
+            minLength={policy.minLength}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
+          {/* Die Regeln kommen aus den Einstellungen (Phase 24) – hier stand
+              vorher eine feste Zahl, die eine geänderte Richtlinie sofort zur
+              Lüge gemacht hätte. */}
+          <p className="hint">{describePasswordPolicy(policy).join(', ')}.</p>
         </div>
         <div className="field">
           <label className="field__label" htmlFor="user-role">

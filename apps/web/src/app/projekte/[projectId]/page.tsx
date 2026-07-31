@@ -13,6 +13,7 @@ import { ProjectTags } from '@/components/ProjectTags';
 import { ShareManager } from '@/components/ShareManager';
 import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
+import { IconButton } from '@/components/ui/Icon';
 import { Menu, MenuItem } from '@/components/ui/Menu';
 import {
   ArchiveProjectDialog,
@@ -23,6 +24,7 @@ import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
 import { formatFrameRate, formatRelative } from '@/lib/format';
 import { useFallbackInterval, useLive } from '@/lib/live';
+import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 
@@ -44,7 +46,7 @@ export default function ProjectPage() {
   const [seitenTab, setSeitenTab] = useState<'freigaben' | 'benachrichtigungen'>('freigaben');
   const router = useRouter();
   const { user } = useSession();
-  const { completedCount } = useUploads();
+  const { completedCount, enqueue } = useUploads();
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
   /**
    * Team oder externer Projektadmin (Phase 21): darf Videos anlegen und
@@ -52,6 +54,28 @@ export default function ProjectPage() {
    * Videos umbenennen/löschen bleiben dem Team vorbehalten.
    */
   const canManage = isTeam || (project?.canManage ?? false);
+
+  /** Ablagefläche sichtbar? Wird am Schreibtisch vom „+" auf- und zugeklappt. */
+  const [uploaderOffen, setUploaderOffen] = useState(false);
+
+  /**
+   * Videodateien hinzufügen (Phase 24).
+   *
+   * Am Schreibtisch klappt das „+" die Ablagefläche auf – dorthin zieht man
+   * Dateien direkt aus dem Finder, gerade mehrere auf einmal. Auf einem Gerät
+   * ohne Zeiger gibt es nichts zu ziehen; dort öffnet es gleich die
+   * Dateiauswahl. `videos` geht mit, damit das Upload-Fenster eine Datei als
+   * neue Fassung eines vorhandenen Videos erkennen kann.
+   */
+  const videosHinzufuegen = useCallback(async () => {
+    if (hatZeiger()) {
+      setUploaderOffen((offen) => !offen);
+      return;
+    }
+    const files = (await pickFiles({ accept: VIDEO_ACCEPT })).filter((file) => file.size > 0);
+    if (files.length === 0) return;
+    enqueue({ files, target: 'video', projectId, videos });
+  }, [enqueue, projectId, videos]);
 
   const load = useCallback(async () => {
     try {
@@ -117,9 +141,28 @@ export default function ProjectPage() {
           <div className="shell__spacer" />
           {canManage ? (
             <>
-              {/* Der große „Freigeben"-Knopf ist in die Spalte rechts gewandert
-                  (Phase 16) – dort steht er neben denen, die es betrifft.
-                  Umbenennen, Archivieren und Löschen bleiben dem Team
+              {/*
+               * Videos hinzufügen: ein Symbol neben dem „…"-Menü (Phase 24).
+               * Am Schreibtisch klappt es die Ablagefläche auf, ohne Zeiger
+               * öffnet es direkt die Dateiauswahl – siehe `videosHinzufuegen`.
+               * Vorher stand die Fläche dauerhaft mitten auf der Seite.
+               */}
+              <IconButton
+                icon="plus"
+                label="Videodateien hinzufügen"
+                onClick={() => void videosHinzufuegen()}
+              />
+
+              {/* Wie am Video: Freigeben als eigenes Symbol neben dem „…"-Menü
+                  (Phase 24) – der häufigste Handgriff verdient den direkten
+                  Knopf, nicht erst den Umweg übers Menü. */}
+              <IconButton
+                icon="share"
+                label="Freigabe-Links verwalten"
+                onClick={() => setSharing(true)}
+              />
+
+              {/* Umbenennen, Archivieren und Löschen bleiben dem Team
                   vorbehalten, auch für den externen Projektadmin (Phase 21). */}
               <Menu label="Aktionen für dieses Projekt">
                 <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
@@ -147,7 +190,11 @@ export default function ProjectPage() {
 
         {project ? <ProjectFieldValues project={project} isTeam={isTeam} onChanged={load} /> : null}
 
-        {canManage ? <Uploader projectId={projectId} videos={videos} /> : null}
+        {uploaderOffen && canManage ? (
+          <div style={{ marginTop: 16 }}>
+            <Uploader projectId={projectId} videos={videos} />
+          </div>
+        ) : null}
 
         <h2 style={{ fontSize: 16, margin: '26px 0 12px' }}>
           Videos {videos.length > 0 ? <span className="faint">({videos.length})</span> : null}

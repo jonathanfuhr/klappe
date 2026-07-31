@@ -23,27 +23,43 @@ export const LOGO_MIME_TYPES = [
 export type LogoMimeType = (typeof LOGO_MIME_TYPES)[number];
 
 /**
- * Was im Browser-Tab erscheint (Phase 23).
+ * Tab-Symbol und App-Symbol (Phase 24).
  *
- * - `standard`: das mitgelieferte Klappe-Zeichen.
- * - `logo`: dasselbe Bild wie oben links. Praktisch, wenn es ohnehin quadratisch
- *   ist – ein breites Schriftzug-Logo wird im 16-px-Tab allerdings zu Brei.
- * - `eigenes`: eine eigens dafür hochgeladene Datei. Für genau den Fall.
+ * Beide werden fertig hochgeladen, nichts wird daraus abgeleitet. Der Versuch,
+ * sie aus dem Logo zu rechnen, ging schief: Was im Kopf neben dem Titel gut
+ * aussieht, taugt im 16-Pixel-Tab selten, und wer sein Symbol genau haben will,
+ * baut es ohnehin selbst. Zwei Felder mit klarer Größenempfehlung sind
+ * ehrlicher als eine Automatik, die man hinterher zurechtbiegen muss.
  */
-export const FAVICON_MODES = ['standard', 'logo', 'eigenes'] as const;
-export type FaviconMode = (typeof FAVICON_MODES)[number];
 
 /** Ein Tab-Symbol ist winzig; mehr als das wäre in jedem Fall verschwendet. */
 export const MAX_FAVICON_BYTES = 256 * 1024;
 
-/** `ico` gehört dazu, weil viele Vorlagen genau das ausspucken. */
-export const FAVICON_MIME_TYPES = [
-  'image/png',
-  'image/svg+xml',
-  'image/x-icon',
-  'image/vnd.microsoft.icon',
-] as const;
+/**
+ * Nur `.ico`: Das ist das Format, das jeder Browser im Tab annimmt, und in
+ * einer Datei stecken alle nötigen Größen zugleich.
+ */
+export const FAVICON_MIME_TYPES = ['image/x-icon', 'image/vnd.microsoft.icon'] as const;
 export type FaviconMimeType = (typeof FAVICON_MIME_TYPES)[number];
+
+/** Die Größen, die in eine `.ico` gehören – als Empfehlung in der Oberfläche. */
+export const FAVICON_RECOMMENDED_SIZES = [16, 32, 48] as const;
+
+/**
+ * Empfohlene Kantenlänge des App-Symbols.
+ *
+ * 512 ist die größte Größe, die ein Web-App-Manifest üblicherweise verlangt;
+ * Browser und iOS rechnen daraus alles Kleinere selbst herunter. Eine einzige
+ * quadratische Datei genügt also.
+ */
+export const APP_ICON_SIZE = 512;
+
+/** Nur PNG: Ein SVG nimmt der iOS-Startbildschirm als App-Symbol nicht an. */
+export const APP_ICON_MIME_TYPES = ['image/png'] as const;
+export type AppIconMimeType = (typeof APP_ICON_MIME_TYPES)[number];
+
+/** Ein 512er PNG bleibt weit darunter; die Grenze fängt nur Unfug ab. */
+export const MAX_APP_ICON_BYTES = 512 * 1024;
 
 export interface BrandingDto {
   title: string;
@@ -54,14 +70,16 @@ export interface BrandingDto {
   accentContrast: string;
   /** `null`, solange kein Logo hinterlegt ist. */
   logoUrl: string | null;
-  /** Woher das Tab-Symbol kommt (Phase 23). */
-  faviconMode: FaviconMode;
   /**
-   * Was der Browser als Tab-Symbol laden soll. `null` heißt: das mitgelieferte
-   * Zeichen bleibt – entweder weil `standard` gewählt ist oder weil zur
-   * gewählten Quelle (noch) keine Datei vorliegt.
+   * Die hochgeladene `.ico` fürs Browser-Tab. `null` heißt: Es bleibt beim
+   * mitgelieferten Klappe-Zeichen.
    */
   faviconUrl: string | null;
+  /**
+   * Das hochgeladene App-Symbol als PNG – für den iOS-Startbildschirm und das
+   * Web-App-Manifest. `null`, solange keines hinterlegt ist.
+   */
+  appIconUrl: string | null;
   /**
    * Das Haus, dem der Workspace gehört (Phase 20). Der Name steht in den
    * Einstellungen, das Kürzel in Klammern hinter jedem Namen aus dem eigenen

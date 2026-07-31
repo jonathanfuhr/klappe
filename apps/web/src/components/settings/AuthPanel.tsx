@@ -1,6 +1,12 @@
 'use client';
 
 import type { AuthSettingsDto } from '@klappe/shared';
+import {
+  DEFAULT_PASSWORD_POLICY,
+  PASSWORD_MIN_LENGTH_CEILING,
+  PASSWORD_MIN_LENGTH_FLOOR,
+  describePasswordPolicy,
+} from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
@@ -23,6 +29,12 @@ export function AuthPanel() {
     autoProvision: false,
     allowedDomains: '',
     buttonLabel: '',
+    // Passwort-Richtlinie (Phase 24)
+    passwordMinLength: DEFAULT_PASSWORD_POLICY.minLength,
+    passwordRequireLetter: DEFAULT_PASSWORD_POLICY.requireLetter,
+    passwordRequireDigit: DEFAULT_PASSWORD_POLICY.requireDigit,
+    passwordRequireMixedCase: DEFAULT_PASSWORD_POLICY.requireMixedCase,
+    passwordRequireSymbol: DEFAULT_PASSWORD_POLICY.requireSymbol,
   });
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -42,6 +54,11 @@ export function AuthPanel() {
         autoProvision: current.autoProvision,
         allowedDomains: current.allowedDomains.join(', '),
         buttonLabel: current.buttonLabel,
+        passwordMinLength: current.passwordPolicy.minLength,
+        passwordRequireLetter: current.passwordPolicy.requireLetter,
+        passwordRequireDigit: current.passwordPolicy.requireDigit,
+        passwordRequireMixedCase: current.passwordPolicy.requireMixedCase,
+        passwordRequireSymbol: current.passwordPolicy.requireSymbol,
       });
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
@@ -68,6 +85,11 @@ export function AuthPanel() {
         autoProvision: form.autoProvision,
         allowedDomains: form.allowedDomains,
         buttonLabel: form.buttonLabel,
+        passwordMinLength: form.passwordMinLength,
+        passwordRequireLetter: form.passwordRequireLetter,
+        passwordRequireDigit: form.passwordRequireDigit,
+        passwordRequireMixedCase: form.passwordRequireMixedCase,
+        passwordRequireSymbol: form.passwordRequireSymbol,
       });
       setSettings(saved);
       setForm((current) => ({ ...current, clientSecret: '' }));
@@ -106,45 +128,158 @@ export function AuthPanel() {
 
       {error ? <div className="notice">{error}</div> : null}
       {info ? (
-        <div className="card" style={{ padding: '10px 12px', marginBottom: 14 }}>
+        <div className="card" style={{ padding: '10px 12px' }}>
           {info}
         </div>
       ) : null}
 
       <form
-        className="card"
-        style={{ padding: 20 }}
         onSubmit={(event) => {
           event.preventDefault();
           void save();
         }}
       >
-        <label className="switch" style={{ marginBottom: 6 }}>
-          <input
-            type="checkbox"
-            checked={form.oidcEnabled}
-            onChange={(event) => setForm({ ...form, oidcEnabled: event.target.checked })}
-          />
-          Anmeldung über Microsoft 365 anbieten
-        </label>
+        {/* ---------- Erste Sektion: Passwort (Phase 24) ---------- */}
+        <div className="card" style={{ padding: 20 }}>
+          <h2 className="section__title" style={{ marginBottom: 12 }}>
+            Passwort
+          </h2>
 
-        <label className="switch" style={{ marginBottom: 16 }}>
-          <input
-            type="checkbox"
-            checked={form.localLoginEnabled}
-            disabled={!oidcVollstaendig}
-            onChange={(event) => setForm({ ...form, localLoginEnabled: event.target.checked })}
-          />
-          Lokale Anmeldung mit Passwort erlauben
-        </label>
-        {!oidcVollstaendig ? (
-          <p className="hint" style={{ marginTop: -10 }}>
-            Abschaltbar, sobald Microsoft 365 aktiv und vollständig eingetragen ist – sonst käme
-            niemand mehr herein.
-          </p>
-        ) : null}
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={form.localLoginEnabled}
+              disabled={!oidcVollstaendig}
+              onChange={(event) => setForm({ ...form, localLoginEnabled: event.target.checked })}
+            />
+            Anmeldung mit E-Mail und Passwort erlauben
+          </label>
+          {!oidcVollstaendig ? (
+            <p className="hint">
+              Abschaltbar, sobald Microsoft 365 aktiv und vollständig eingetragen ist – sonst käme
+              niemand mehr herein.
+            </p>
+          ) : null}
 
-        <div className="field">
+          {/*
+           * Die Richtlinie stand bis Phase 24 fest im Code. Sie gilt für neue
+           * Konten und für jede Passwortänderung; bestehende Passwörter werden
+           * nicht rückwirkend geprüft – das ließe sich gar nicht feststellen,
+           * weil nur der Hash gespeichert ist.
+           */}
+          <div className="field" style={{ marginTop: 18 }}>
+            <label className="field__label" htmlFor="pw-min-length">
+              Mindestlänge
+            </label>
+            <input
+              id="pw-min-length"
+              className="input"
+              type="number"
+              style={{ width: 120 }}
+              min={PASSWORD_MIN_LENGTH_FLOOR}
+              max={PASSWORD_MIN_LENGTH_CEILING}
+              value={form.passwordMinLength}
+              onChange={(event) =>
+                setForm({ ...form, passwordMinLength: Number(event.target.value) })
+              }
+            />
+            <p className="hint">
+              Zwischen {PASSWORD_MIN_LENGTH_FLOOR} und {PASSWORD_MIN_LENGTH_CEILING} Zeichen. Länge
+              bringt mehr als Sonderzeichen – eine lange Wortfolge ist sicherer und leichter zu
+              merken als „P4ssw!rt".
+            </p>
+          </div>
+
+          <div className="field">
+            <span className="field__label">Zusammensetzung</span>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={form.passwordRequireLetter}
+                onChange={(event) =>
+                  setForm({ ...form, passwordRequireLetter: event.target.checked })
+                }
+              />
+              Mindestens ein Buchstabe
+            </label>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={form.passwordRequireDigit}
+                onChange={(event) =>
+                  setForm({ ...form, passwordRequireDigit: event.target.checked })
+                }
+              />
+              Mindestens eine Ziffer
+            </label>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={form.passwordRequireMixedCase}
+                onChange={(event) =>
+                  setForm({ ...form, passwordRequireMixedCase: event.target.checked })
+                }
+              />
+              Groß- und Kleinbuchstaben
+            </label>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={form.passwordRequireSymbol}
+                onChange={(event) =>
+                  setForm({ ...form, passwordRequireSymbol: event.target.checked })
+                }
+              />
+              Mindestens ein Sonderzeichen
+            </label>
+            <p className="hint">
+              Gilt für Team-Konten beim Anlegen und bei jeder Änderung. Bestehende Passwörter
+              bleiben gültig – gespeichert ist nur ihr Hash, nachprüfen ließe sich das gar nicht.
+              Gäste haben kein Passwort und sind nicht betroffen.
+            </p>
+            <p className="hint" style={{ marginTop: 4 }}>
+              <strong>Es gilt dann:</strong>{' '}
+              {describePasswordPolicy({
+                minLength: form.passwordMinLength,
+                requireLetter: form.passwordRequireLetter,
+                requireDigit: form.passwordRequireDigit,
+                requireMixedCase: form.passwordRequireMixedCase,
+                requireSymbol: form.passwordRequireSymbol,
+              }).join(', ')}
+              .
+            </p>
+          </div>
+        </div>
+
+        {/* ---------- Zweite Sektion: Microsoft 365 ---------- */}
+        <div className="card" style={{ padding: 20 }}>
+          <h2 className="section__title" style={{ marginBottom: 12 }}>
+            Microsoft 365
+          </h2>
+
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={form.oidcEnabled}
+              onChange={(event) => setForm({ ...form, oidcEnabled: event.target.checked })}
+            />
+            Anmeldung über Microsoft 365 anbieten
+          </label>
+
+          {/*
+           * Die Einrichtungsfelder erscheinen erst mit dem Haken (Phase 24).
+           * Vorher standen Tenant, Client-ID, Secret, Domänenliste und
+           * Beschriftung auch dann da, wenn Microsoft 365 gar nicht benutzt
+           * wird – acht Felder, die niemanden etwas angingen.
+           */}
+          {!form.oidcEnabled ? (
+            <p className="hint" style={{ marginBottom: 0 }}>
+              Aus. Zum Einrichten den Haken setzen – dann erscheinen die Felder für die
+              App-Registrierung im Entra Admin Center.
+            </p>
+          ) : (
+            <>
+              <div className="field" style={{ marginTop: 16 }}>
           <span className="field__label">Redirect-URI für die App-Registrierung</span>
           <div className="share__url">
             <input
@@ -237,16 +372,19 @@ export function AuthPanel() {
           <p className="hint">Leer heißt: keine Einschränkung.</p>
         </div>
 
-        <div className="field">
-          <label className="field__label" htmlFor="button-label">
-            Beschriftung der Schaltfläche
-          </label>
-          <input
-            id="button-label"
-            className="input"
-            value={form.buttonLabel}
-            onChange={(event) => setForm({ ...form, buttonLabel: event.target.value })}
-          />
+              <div className="field">
+                <label className="field__label" htmlFor="button-label">
+                  Beschriftung der Schaltfläche
+                </label>
+                <input
+                  id="button-label"
+                  className="input"
+                  value={form.buttonLabel}
+                  onChange={(event) => setForm({ ...form, buttonLabel: event.target.value })}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         <div className="toolbar" style={{ marginTop: 18 }}>

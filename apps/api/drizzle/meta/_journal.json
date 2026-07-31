@@ -239,6 +239,20 @@
       "when": 1785428261318,
       "tag": "0033_datenbanksicherung",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1785478714326,
+      "tag": "0034_app_symbol_und_passwortregeln",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1785481985885,
+      "tag": "0035_favicon_modus_entfaellt",
+      "breakpoints": true
     }
   ]
 }

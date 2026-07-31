@@ -6,7 +6,6 @@ import type {
   BackupSettingsDto,
   BrandingDto,
   EmbedLinkDto,
-  FaviconMode,
   CommentDto,
   CustomerDto,
   DownloadPresetDto,
@@ -572,6 +571,12 @@ export const api = {
     autoProvision?: boolean;
     allowedDomains?: string;
     buttonLabel?: string;
+    /** Passwort-Richtlinie (Phase 24). */
+    passwordMinLength?: number;
+    passwordRequireLetter?: boolean;
+    passwordRequireDigit?: boolean;
+    passwordRequireMixedCase?: boolean;
+    passwordRequireSymbol?: boolean;
   }) => request<AuthSettingsDto>('/v1/settings/auth', { method: 'PUT', body: JSON.stringify(input) }),
 
   // ---------- Erscheinungsbild (Phase 10) ----------
@@ -581,7 +586,6 @@ export const api = {
     accent?: string;
     companyName?: string;
     companyShort?: string;
-    faviconMode?: FaviconMode;
   }) =>
     request<BrandingDto>('/v1/settings/branding', {
       method: 'PUT',
@@ -599,14 +603,26 @@ export const api = {
       body: file,
     }),
   removeLogo: () => request<BrandingDto>('/v1/settings/branding/logo', { method: 'DELETE' }),
-  /** Eigenes Tab-Symbol (Phase 23). */
-  uploadFavicon: (file: File) =>
+  /**
+   * Tab-Symbol als `.ico` (Phase 23, seit Phase 24 nur noch hochgeladen).
+   * `mimeType` getrennt, weil manche Systeme für eine `.ico` gar keinen Typ
+   * melden – dann setzt der Aufrufer den üblichen.
+   */
+  uploadFavicon: (file: File, mimeType: string) =>
     request<BrandingDto>('/v1/settings/branding/favicon', {
       method: 'PUT',
-      headers: { 'Content-Type': file.type },
+      headers: { 'Content-Type': mimeType },
       body: file,
     }),
   removeFavicon: () => request<BrandingDto>('/v1/settings/branding/favicon', { method: 'DELETE' }),
+  /** App-Symbol als quadratisches PNG für den Startbildschirm (Phase 24). */
+  uploadAppIcon: (file: File) =>
+    request<BrandingDto>('/v1/settings/branding/app-icon', {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'image/png' },
+      body: file,
+    }),
+  removeAppIcon: () => request<BrandingDto>('/v1/settings/branding/app-icon', { method: 'DELETE' }),
   sendTestMail: (to?: string) =>
     request<void>('/v1/settings/smtp/test', {
       method: 'POST',

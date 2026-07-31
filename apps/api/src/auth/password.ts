@@ -7,6 +7,8 @@
  */
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
+import type { PasswordPolicy } from '@klappe/shared';
+import { DEFAULT_PASSWORD_POLICY, validatePassword } from '@klappe/shared';
 
 const scryptAsync = promisify(scrypt) as (
   password: string | Buffer,
@@ -21,7 +23,11 @@ const SALT_LENGTH = 16;
 /** scrypt braucht ~128·N·r Byte; mit Reserve, sonst wirft Node bei N=16384. */
 const MAX_MEM = 64 * 1024 * 1024;
 
-export const MIN_PASSWORD_LENGTH = 10;
+/**
+ * Nur noch die Untergrenze für die Formularprüfung – die tatsächliche Länge
+ * gibt seit Phase 24 die Richtlinie des Workspace vor.
+ */
+export const MIN_PASSWORD_LENGTH = DEFAULT_PASSWORD_POLICY.minLength;
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(SALT_LENGTH);
@@ -66,16 +72,16 @@ export async function verifyPassword(password: string, stored: string | null): P
   return derived.length === expected.length && timingSafeEqual(derived, expected);
 }
 
-/** Liefert `null`, wenn das Passwort in Ordnung ist, sonst den Grund. */
-export function validatePasswordStrength(password: string): string | null {
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    return `Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`;
-  }
-  if (password.length > 512) {
-    return 'Das Passwort darf höchstens 512 Zeichen lang sein.';
-  }
-  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-    return 'Das Passwort muss Buchstaben und Ziffern enthalten.';
-  }
-  return null;
+/**
+ * Liefert `null`, wenn das Passwort in Ordnung ist, sonst den Grund.
+ *
+ * Seit Phase 24 entscheidet das die Richtlinie des Workspace, nicht mehr eine
+ * feste Regel hier. Ohne Angabe gilt der Vorgabewert – genau die alten Regeln,
+ * damit ein Aufruf ohne Richtlinie sich nicht plötzlich anders verhält.
+ */
+export function validatePasswordStrength(
+  password: string,
+  policy: PasswordPolicy = DEFAULT_PASSWORD_POLICY,
+): string | null {
+  return validatePassword(password, policy);
 }

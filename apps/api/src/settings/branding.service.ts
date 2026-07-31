@@ -6,12 +6,13 @@
  * wie der Mailversand.
  */
 import { BadRequestException, Inject, Injectable, Logger, PayloadTooLargeException, UnsupportedMediaTypeException } from '@nestjs/common';
-import type { BrandingDto, FaviconMimeType, FaviconMode, LogoMimeType } from '@klappe/shared';
+import type { AppIconMimeType, BrandingDto, FaviconMimeType, LogoMimeType } from '@klappe/shared';
 import {
+  APP_ICON_MIME_TYPES,
   DEFAULT_BRAND_ACCENT,
   FAVICON_MIME_TYPES,
-  FAVICON_MODES,
   LOGO_MIME_TYPES,
+  MAX_APP_ICON_BYTES,
   MAX_COMPANY_NAME_LENGTH,
   MAX_COMPANY_SHORT_LENGTH,
   MAX_FAVICON_BYTES,
@@ -35,20 +36,20 @@ const EXTENSIONS: Record<LogoMimeType, string> = {
 };
 
 const FAVICON_EXTENSIONS: Record<FaviconMimeType, string> = {
-  'image/png': 'png',
-  'image/svg+xml': 'svg',
   'image/x-icon': 'ico',
   'image/vnd.microsoft.icon': 'ico',
 };
 
 const SETTINGS_ID = 1;
 
+/** Die acht Bytes, mit denen jede PNG-Datei anfängt. */
+const PNG_SIGNATUR = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
 export interface UpdateBrandingInput {
   title?: string | null;
   accent?: string | null;
   companyName?: string | null;
   companyShort?: string | null;
-  faviconMode?: FaviconMode;
 }
 
 @Injectable()
@@ -74,24 +75,22 @@ export class BrandingService {
     const logoUrl = row.brandLogoKey
       ? `/v1/branding/logo?v=${row.brandLogoUpdatedAt?.getTime() ?? 0}`
       : null;
-    const faviconMode = this.faviconMode(row.faviconMode);
 
     return {
       title: normalizeBrandTitle(row.brandTitle),
       ...colors,
       logoUrl,
-      faviconMode,
-      /**
-       * `null` heißt: das mitgelieferte Zeichen bleibt. Auch dann, wenn zur
-       * gewählten Quelle keine Datei da ist – ein Tab ohne Symbol wäre ein
-       * schlechterer Tausch als eines, das nicht das eigene ist.
+      /*
+       * Beide Symbole werden fertig hochgeladen (Phase 24). `null` heißt
+       * schlicht: Es ist keines hinterlegt, es bleibt beim mitgelieferten
+       * Klappe-Zeichen.
        */
-      faviconUrl:
-        faviconMode === 'logo'
-          ? logoUrl
-          : faviconMode === 'eigenes' && row.faviconKey
-            ? `/v1/branding/favicon?v=${row.faviconUpdatedAt?.getTime() ?? 0}`
-            : null,
+      faviconUrl: row.faviconKey
+        ? `/v1/branding/favicon?v=${row.faviconUpdatedAt?.getTime() ?? 0}`
+        : null,
+      appIconUrl: row.appIconKey
+        ? `/v1/branding/app-icon.png?v=${row.appIconUpdatedAt?.getTime() ?? 0}`
+        : null,
       companyName: normalizeCompanyText(row.companyName, MAX_COMPANY_NAME_LENGTH),
       companyShort: normalizeCompanyText(row.companyShort, MAX_COMPANY_SHORT_LENGTH),
       updatedAt: row.updatedAt.toISOString(),
@@ -129,7 +128,6 @@ export class BrandingService {
           input.companyShort === undefined
             ? undefined
             : normalizeCompanyText(input.companyShort, MAX_COMPANY_SHORT_LENGTH),
-        faviconMode: input.faviconMode,
         updatedAt: new Date(),
       })
       .where(eq(appSettings.id, SETTINGS_ID));
@@ -137,16 +135,12 @@ export class BrandingService {
     return this.get();
   }
 
-  /** Unbekanntes aus der Datenbank fällt auf den Standard zurück. */
-  private faviconMode(value: string | null): FaviconMode {
-    return FAVICON_MODES.includes(value as FaviconMode) ? (value as FaviconMode) : 'standard';
-  }
-
   /**
-   * Eigenes Tab-Symbol hochladen (Phase 23). Wie beim Logo rohe Bytes; der
-   * Modus springt dabei bewusst **nicht** von selbst auf `eigenes` – das
-   * bleibt eine eigene Entscheidung, sonst wechselt das Tab-Symbol als
-   * Nebenwirkung eines Uploads.
+   * Tab-Symbol hochladen. Wie beim Logo rohe Bytes im Rumpf.
+   *
+   * Nur `.ico`: Das nimmt jeder Browser im Tab an, und eine einzige Datei trägt
+   * alle nötigen Größen zugleich. Erzeugt wird sie außerhalb – Klappe rechnet
+   * seit Phase 24 nichts mehr selbst um.
    */
   async setFavicon(data: Buffer, mimeType: string): Promise<BrandingDto> {
     const type = mimeType.split(';')[0].trim().toLowerCase() as FaviconMimeType;
@@ -195,9 +189,6 @@ export class BrandingService {
         faviconKey: null,
         faviconMime: null,
         faviconUpdatedAt: null,
-        // Ohne Datei ergibt `eigenes` keinen Sinn mehr; sonst zeigte das Tab
-        // ab jetzt gar nichts an.
-        faviconMode: this.faviconMode(row.faviconMode) === 'eigenes' ? 'standard' : undefined,
         updatedAt: new Date(),
       })
       .where(eq(appSettings.id, SETTINGS_ID));
@@ -211,6 +202,62 @@ export class BrandingService {
     if (!row.faviconKey) return null;
     if (!(await this.storage.exists(row.faviconKey))) return null;
     return { key: row.faviconKey, mimeType: row.faviconMime ?? 'application/octet-stream' };
+  }
+
+  /**
+   * App-Symbol hochladen (Phase 24) – ein fertiges, quadratisches PNG für den
+   * iOS-Startbildschirm und das Web-App-Manifest.
+   *
+   * Nur PNG, und das wird an der Signatur nachgeprüft statt am `Content-Type`:
+   * Was hier hereinkommt, geht später als `image/png` wieder hinaus, und der
+   * Endpunkt ist erreichbar – auf die Angabe des Absenders ist da kein Verlass.
+   */
+  async setAppIcon(data: Buffer, mimeType: string): Promise<BrandingDto> {
+    const type = mimeType.split(';')[0].trim().toLowerCase();
+    if (!APP_ICON_MIME_TYPES.includes(type as AppIconMimeType)) {
+      throw new UnsupportedMediaTypeException(`Als App-Symbol geht nur PNG – nicht ${mimeType}.`);
+    }
+    if (data.length === 0) throw new BadRequestException('Die Datei ist leer.');
+    if (data.length > MAX_APP_ICON_BYTES) {
+      throw new PayloadTooLargeException(
+        `Das App-Symbol darf höchstens ${Math.round(MAX_APP_ICON_BYTES / 1024)} KB groß sein.`,
+      );
+    }
+    if (!data.subarray(0, 8).equals(PNG_SIGNATUR)) {
+      throw new UnsupportedMediaTypeException('Die Datei ist kein PNG.');
+    }
+
+    await this.settingsService.getRow();
+    const key = this.storage.keyForAppIcon();
+    await this.storage.writeFile(key, data);
+
+    await this.db
+      .update(appSettings)
+      .set({ appIconKey: key, appIconUpdatedAt: new Date(), updatedAt: new Date() })
+      .where(eq(appSettings.id, SETTINGS_ID));
+
+    this.logger.log(`App-Symbol ersetzt (${data.length} Bytes).`);
+    return this.get();
+  }
+
+  async removeAppIcon(): Promise<BrandingDto> {
+    const row = await this.settingsService.getRow();
+    if (row.appIconKey) await this.storage.remove(row.appIconKey);
+
+    await this.db
+      .update(appSettings)
+      .set({ appIconKey: null, appIconUpdatedAt: null, updatedAt: new Date() })
+      .where(eq(appSettings.id, SETTINGS_ID));
+
+    return this.get();
+  }
+
+  /** Datei des App-Symbols – `null`, solange keines da ist. */
+  async getAppIconFile(): Promise<{ key: string } | null> {
+    const row = await this.settingsService.getRow();
+    if (!row.appIconKey) return null;
+    if (!(await this.storage.exists(row.appIconKey))) return null;
+    return { key: row.appIconKey };
   }
 
   /**

@@ -1,10 +1,33 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
+import { SectionNav } from '@/components/ui/SectionNav';
 
 export const metadata: Metadata = {
   title: 'Handbuch · Klappe',
 };
+
+/**
+ * Das Inhaltsverzeichnis links (Phase 24) – dasselbe senkrechte Menü wie in den
+ * Einstellungen, inklusive Hamburger auf schmalen Schirmen. Rechts bleibt der
+ * Text ein durchgehender Rollbereich; jeder Eintrag springt nur zum Anker.
+ */
+const ABSCHNITTE = [
+  { id: 'anmelden', label: 'Anmelden', href: '#anmelden' },
+  { id: 'oberflaeche', label: 'Oberfläche', href: '#oberflaeche' },
+  { id: 'projekte', label: 'Projekte, Videos, Fassungen', href: '#projekte' },
+  { id: 'hochladen', label: 'Hochladen', href: '#hochladen' },
+  { id: 'player', label: 'Der Player', href: '#player' },
+  { id: 'kommentieren', label: 'Kommentieren & Zeichnen', href: '#kommentieren' },
+  { id: 'freigeben', label: 'Freigeben', href: '#freigeben' },
+  { id: 'gast', label: 'Als Gast bei Klappe', href: '#gast' },
+  { id: 'ablage', label: 'Kunden-Ablage', href: '#ablage' },
+  { id: 'downloads', label: 'Herunterladen', href: '#downloads' },
+  { id: 'benachrichtigungen', label: 'Benachrichtigungen', href: '#benachrichtigungen' },
+  { id: 'konto', label: 'Mein Konto', href: '#konto' },
+  { id: 'einstellungen', label: 'Einstellungen (Team)', href: '#einstellungen' },
+  { id: 'faq', label: 'Häufige Fragen', href: '#faq' },
+] as const;
 
 /**
  * Handbuch für Benutzer und Gäste.
@@ -17,35 +40,17 @@ export const metadata: Metadata = {
 export default function HandbuchPage() {
   return (
     <AppShell>
-      <div className="page">
-        <div className="page__header">
-          <div>
-            <h1 className="page__title">Handbuch</h1>
-            <p className="page__subtitle">
-              Für alle, die mit Klappe arbeiten – Team wie eingeladene Gäste.
-            </p>
-          </div>
-        </div>
+      <div className="page settingspage">
+        <SectionNav title="Handbuch" items={ABSCHNITTE} />
 
-        <div className="manual">
-          <nav className="card manual__toc" aria-label="Inhalt">
-            <a href="#anmelden">Anmelden</a>
-            <a href="#oberflaeche">Oberfläche</a>
-            <a href="#projekte">Projekte, Videos, Fassungen</a>
-            <a href="#hochladen">Hochladen</a>
-            <a href="#player">Der Player</a>
-            <a href="#kommentieren">Kommentieren &amp; Zeichnen</a>
-            <a href="#freigeben">Freigeben</a>
-            <a href="#gast">Als Gast bei Klappe</a>
-            <a href="#ablage">Kunden-Ablage</a>
-            <a href="#downloads">Herunterladen</a>
-            <a href="#benachrichtigungen">Benachrichtigungen</a>
-            <a href="#konto">Mein Konto</a>
-            <a href="#einstellungen">Einstellungen (Team)</a>
-            <a href="#faq">Häufige Fragen</a>
-          </nav>
+        <div className="settingspage__body">
+          <h1 className="page__title settingspage__heading">Handbuch</h1>
+          <p className="page__subtitle">
+            Für alle, die mit Klappe arbeiten – Team wie eingeladene Gäste.
+          </p>
 
-          <section id="anmelden" className="card manual__section">
+          <div className="manual">
+            <section id="anmelden" className="card manual__section">
             <h2>Anmelden</h2>
             <p>
               <strong>Team-Mitglieder</strong> melden sich mit E-Mail-Adresse und Passwort an,
@@ -389,7 +394,8 @@ export default function HandbuchPage() {
               <strong>Wo steht, wer diese Software gebaut hat und wo sie läuft?</strong> Auf der
               Seite <Link href="/ueber">Über diese Software</Link>.
             </p>
-          </section>
+            </section>
+          </div>
         </div>
       </div>
     </AppShell>

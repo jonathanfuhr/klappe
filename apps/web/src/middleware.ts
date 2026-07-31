@@ -45,6 +45,15 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Statische Dateien und die API-Weiterleitung bleiben außen vor.
-  matcher: ['/((?!_next/static|_next/image|v1/|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)'],
+  /*
+   * Statische Dateien und die API-Weiterleitung bleiben außen vor.
+   *
+   * Das Web-App-Manifest gehört ausdrücklich dazu (Phase 24): Der Browser holt
+   * es ohne Sitzungs-Cookie, und eine Weiterleitung aufs Login käme dort als
+   * unlesbares Manifest an – das iPhone legte dann wieder eine Kachel ohne
+   * Symbol an.
+   */
+  matcher: [
+    '/((?!_next/static|_next/image|v1/|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)',
+  ],
 };

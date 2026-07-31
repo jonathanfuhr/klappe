@@ -626,14 +626,26 @@ export const appSettings = pgTable('app_settings', {
   brandLogoUpdatedAt: timestamp('brand_logo_updated_at', { withTimezone: true }),
 
   /**
-   * Tab-Symbol (Phase 23): `standard` (das mitgelieferte Zeichen), `logo`
-   * (dasselbe Bild wie oben links) oder `eigenes` (eigens dafür hochgeladen).
-   * Ab Werk `standard` – ein breites Schriftzug-Logo taugt im 16-px-Tab nicht.
+   * Das hochgeladene Tab-Symbol als `.ico` (Phase 23, vereinfacht in 24).
+   *
+   * Bis Phase 24 stand hier zusätzlich ein Modus: Standard-Zeichen, Logo oder
+   * eigene Datei – und im Fall „Logo" rechnete die Oberfläche das Symbol selbst
+   * aus. Das Ergebnis passte selten; ein Symbol, das im 16-Pixel-Tab bestehen
+   * soll, entsteht nicht durch Verkleinern. Jetzt wird eine fertige Datei
+   * hochgeladen oder eben keine.
    */
-  faviconMode: text('favicon_mode').notNull().default('standard'),
   faviconKey: text('favicon_key'),
   faviconMime: text('favicon_mime'),
   faviconUpdatedAt: timestamp('favicon_updated_at', { withTimezone: true }),
+
+  /**
+   * Das hochgeladene App-Symbol als quadratisches PNG (Phase 24) – für den
+   * iOS-Startbildschirm und das Web-App-Manifest. Ein SVG wird dort gar nicht
+   * angenommen, deshalb ein eigenes Feld neben dem Logo.
+   */
+  appIconKey: text('app_icon_key'),
+  /** Wechselt bei jedem neuen Symbol und bricht damit den Browser-Cache auf. */
+  appIconUpdatedAt: timestamp('app_icon_updated_at', { withTimezone: true }),
 
   /**
    * Datenbanksicherung (Phase 23). Ab Werk aus – eine Sicherung, die niemand
@@ -680,6 +692,18 @@ export const appSettings = pgTable('app_settings', {
   oidcAllowedDomains: text('oidc_allowed_domains'),
   /** Beschriftung der Schaltfläche auf der Anmeldeseite. */
   oidcButtonLabel: text('oidc_button_label'),
+
+  /**
+   * Passwort-Richtlinie für Team-Konten (Phase 24). Vorher standen diese
+   * Regeln fest im Code; die Vorgabewerte hier sind genau die alten, damit ein
+   * Update kein bestehendes Passwort ungültig macht. Gäste betrifft das nicht –
+   * sie melden sich per Code an und haben gar kein Passwort.
+   */
+  passwordMinLength: integer('password_min_length').notNull().default(10),
+  passwordRequireLetter: boolean('password_require_letter').notNull().default(true),
+  passwordRequireDigit: boolean('password_require_digit').notNull().default(true),
+  passwordRequireMixedCase: boolean('password_require_mixed_case').notNull().default(false),
+  passwordRequireSymbol: boolean('password_require_symbol').notNull().default(false),
 
   // ---------- Projektliste (Phase 16) ----------
   /**

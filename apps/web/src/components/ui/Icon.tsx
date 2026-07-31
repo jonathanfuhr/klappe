@@ -19,7 +19,13 @@ export type IconName =
   | 'comment'
   | 'bell'
   | 'eye'
-  | 'eye-off';
+  | 'eye-off'
+  | 'menu'
+  | 'search'
+  | 'filter'
+  | 'sort'
+  | 'group'
+  | 'tag';
 
 const PFADE: Record<IconName, ReactElement> = {
   plus: (
@@ -75,6 +81,49 @@ const PFADE: Record<IconName, ReactElement> = {
       <path d="M20.4 9.3C21.4 10.5 22 12 22 12s-3.6 6-10 6c-1.9 0-3.5-.5-4.9-1.2" />
       <circle cx="12" cy="12" r="2.6" />
       <line x1="3.5" y1="3.5" x2="20.5" y2="20.5" />
+    </>
+  ),
+  menu: (
+    <>
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6" />
+      <line x1="15.5" y1="15.5" x2="20" y2="20" />
+    </>
+  ),
+  /* Trichter – das eingeführte Zeichen fürs Filtern. */
+  filter: (
+    <>
+      <path d="M4 5h16l-6.2 7.4V19l-3.6-2v-4.6z" />
+    </>
+  ),
+  /* Drei Balken abnehmender Länge mit Pfeil: Sortierung. */
+  sort: (
+    <>
+      <line x1="4" y1="7" x2="14" y2="7" />
+      <line x1="4" y1="12" x2="11" y2="12" />
+      <line x1="4" y1="17" x2="8" y2="17" />
+      <path d="M17 6v12" />
+      <path d="M14.5 15.5 17 18l2.5-2.5" />
+    </>
+  ),
+  /* Gestapelte Kästen: Gruppierung. */
+  group: (
+    <>
+      <rect x="3.5" y="4" width="17" height="5" rx="1.2" />
+      <rect x="3.5" y="12.5" width="17" height="7.5" rx="1.2" />
+      <line x1="7" y1="16.2" x2="17" y2="16.2" />
+    </>
+  ),
+  tag: (
+    <>
+      <path d="M11.4 3.5H20v8.6l-8.7 8.7a1.4 1.4 0 0 1-2 0l-6.6-6.6a1.4 1.4 0 0 1 0-2z" />
+      <circle cx="16.4" cy="7.1" r="1.4" />
     </>
   ),
 };

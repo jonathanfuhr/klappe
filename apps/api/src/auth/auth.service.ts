@@ -1,11 +1,18 @@
-import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { eq } from 'drizzle-orm';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import { users } from '../db/schema';
 import { normalizeEmail } from '../common/normalize';
-import { hashPassword, verifyPassword } from './password';
+import { AuthSettingsService } from '../settings/auth-settings.service';
+import { hashPassword, validatePasswordStrength, verifyPassword } from './password';
 import type { JwtPayload, RequestUser } from './auth.types';
 import type { UserRow } from '../db/schema';
 
@@ -17,6 +24,8 @@ export class AuthService {
     @Inject(DB) private readonly db: Database,
     @Inject(CONFIG) private readonly config: AppConfig,
     private readonly jwtService: JwtService,
+    /* Für die Passwort-Richtlinie des Workspace (Phase 24). */
+    private readonly authSettings: AuthSettingsService,
   ) {}
 
   /**
@@ -57,6 +66,17 @@ export class AuthService {
     if (!row || !(await verifyPassword(currentPassword, row.passwordHash))) {
       throw new UnauthorizedException('Das aktuelle Passwort ist falsch.');
     }
+
+    /*
+     * Bis Phase 24 prüfte hier nur der Formularwächter die Länge – Buchstaben
+     * und Ziffern verlangte er nicht. Wer sein Passwort selbst änderte, kam
+     * also an Regeln vorbei, die beim Anlegen eines Kontos galten.
+     */
+    const problem = validatePasswordStrength(
+      newPassword,
+      await this.authSettings.getPasswordPolicy(),
+    );
+    if (problem) throw new BadRequestException(problem);
     await this.db
       .update(users)
       .set({ passwordHash: await hashPassword(newPassword), updatedAt: new Date() })

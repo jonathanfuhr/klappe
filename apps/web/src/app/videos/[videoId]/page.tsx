@@ -29,6 +29,7 @@ import { EmbedDialog } from '@/components/EmbedDialog';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
 import { useFallbackInterval, useLiveTopic } from '@/lib/live';
+import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 import { useUserName } from '@/lib/user-name';
@@ -37,7 +38,7 @@ export default function ReviewPage() {
   const params = useParams<{ videoId: string }>();
   const videoId = params.videoId;
   const { user } = useSession();
-  const { completedCount } = useUploads();
+  const { completedCount, enqueue } = useUploads();
   const zeigeName = useUserName();
 
   const playerRef = useRef<PlayerHandle>(null);
@@ -55,7 +56,6 @@ export default function ReviewPage() {
   const [pinned, setPinned] = useState(true);
   const [focusToken, setFocusToken] = useState(0);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
-  const [showUploader, setShowUploader] = useState(false);
   const [sharing, setSharing] = useState(false);
   /** Einbetten liegt seit Phase 23 im „…"-Menü, nicht mehr bei den Freigaben. */
   const [embedding, setEmbedding] = useState(false);
@@ -104,6 +104,26 @@ export default function ReviewPage() {
       window.location.href = mediaUrl.original(versionId);
     }
   }, []);
+
+  /** Ablagefläche sichtbar? Wird am Schreibtisch vom „+" auf- und zugeklappt. */
+  const [uploaderOffen, setUploaderOffen] = useState(false);
+
+  /**
+   * Neue Fassung (Phase 24): Am Schreibtisch klappt das „+" die Ablagefläche
+   * auf – dorthin zieht man die Datei direkt aus dem Finder. Auf einem Gerät
+   * ohne Zeiger gibt es nichts zu ziehen; dort öffnet es gleich die
+   * Dateiauswahl.
+   */
+  const neueFassung = useCallback(async () => {
+    if (!video) return;
+    if (hatZeiger()) {
+      setUploaderOffen((offen) => !offen);
+      return;
+    }
+    const files = (await pickFiles({ accept: VIDEO_ACCEPT })).filter((file) => file.size > 0);
+    if (files.length === 0) return;
+    enqueue({ files, target: 'video', projectId: video.projectId, videoId: video.id });
+  }, [video, enqueue]);
 
   const loadVideo = useCallback(async () => {
     try {
@@ -291,18 +311,21 @@ export default function ReviewPage() {
             <span>{video?.name ?? '…'}</span>
           </div>
 
-          <div className="toolbar">
-            <h1 className="page__title" style={{ fontSize: 19 }}>
-              {video?.name ?? 'Video'}
-            </h1>
+          {/*
+           * Auf dem Handy stapelt sich diese Leiste in drei Zeilen: Titel,
+           * darunter die Fassungswahl über die volle Breite, darunter
+           * rechtsbündig die Aktionen (Phase 24). Nebeneinander gequetscht
+           * rutschten die Symbole vorher über den rechten Rand hinaus.
+           */}
+          <div className="toolbar videobar">
+            <h1 className="page__title videobar__title">{video?.name ?? 'Video'}</h1>
             {selectedVersion ? <VersionStatusBadge version={selectedVersion} /> : null}
 
             <div className="shell__spacer" />
 
             {versions.length > 0 ? (
               <select
-                className="select"
-                style={{ width: 'auto' }}
+                className="select videobar__versions"
                 value={selectedVersionId ?? ''}
                 onChange={(event) => {
                   setSelectedVersionId(event.target.value);
@@ -320,63 +343,69 @@ export default function ReviewPage() {
               </select>
             ) : null}
 
-            {/* Symbole statt Textknöpfe – die Leiste war voll (Phase 16).
-                Was seltener gebraucht wird, steht im „…"-Menü daneben; wer
-                Zugriffe sehen will, nimmt den Reiter „Freigaben" rechts.
-                Ab Phase 21 auch für den externen Projektadmin, nicht nur
-                fürs Team. */}
-            {canManage ? (
-              <>
-                <IconButton
-                  icon="plus"
-                  label="Neue Version hochladen"
-                  onClick={() => setShowUploader((show) => !show)}
-                />
-                <IconButton
-                  icon="share"
-                  label="Freigabe-Links verwalten"
-                  onClick={() => setSharing(true)}
-                />
-              </>
-            ) : null}
+            <div className="videobar__actions">
+              {/* Symbole statt Textknöpfe – die Leiste war voll (Phase 16).
+                  Was seltener gebraucht wird, steht im „…"-Menü daneben; wer
+                  Zugriffe sehen will, nimmt den Reiter „Freigaben" rechts.
+                  Ab Phase 21 auch für den externen Projektadmin, nicht nur
+                  fürs Team. */}
+              {canManage ? (
+                <>
+                  <IconButton
+                    icon="plus"
+                    label="Neue Version hochladen"
+                    onClick={() => void neueFassung()}
+                  />
+                  <IconButton
+                    icon="share"
+                    label="Freigabe-Links verwalten"
+                    onClick={() => setSharing(true)}
+                  />
+                </>
+              ) : null}
 
-            {/* Sind Download-Formate eingerichtet, öffnet der Knopf ein
-                Fenster mit der Auswahl (Phase 19); sonst bleibt es beim
-                Direktlink aufs Original. Entschieden wird das an der Antwort,
-                statt die Auskunft an jeder Fassung mitzuschleppen. */}
-            {selectedVersion?.status === 'READY' && selectedVersion.canDownload ? (
-              <IconButton
-                icon="download"
-                label="Herunterladen"
-                onClick={() => void starteDownload(selectedVersion.id)}
-              />
-            ) : null}
+              {/* Sind Download-Formate eingerichtet, öffnet der Knopf ein
+                  Fenster mit der Auswahl (Phase 19); sonst bleibt es beim
+                  Direktlink aufs Original. Entschieden wird das an der Antwort,
+                  statt die Auskunft an jeder Fassung mitzuschleppen. */}
+              {selectedVersion?.status === 'READY' && selectedVersion.canDownload ? (
+                <IconButton
+                  icon="download"
+                  label="Herunterladen"
+                  onClick={() => void starteDownload(selectedVersion.id)}
+                />
+              ) : null}
 
-            {canManage ? (
-              <Menu label="Aktionen für dieses Video">
-                <MenuItem onSelect={() => setShowUploader((show) => !show)}>
-                  Neue Version …
-                </MenuItem>
-                <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
-                <MenuItem onSelect={() => setEmbedding(true)}>Einbetten …</MenuItem>
-                {/* Umbenennen und Löschen des Videos bleiben dem Team
-                    vorbehalten – „Videos anlegen" hieß nicht „verwalten". */}
-                {isTeam ? (
-                  <MenuItem onSelect={() => setEditingVideo(true)}>Video umbenennen …</MenuItem>
-                ) : null}
-                {selectedVersion ? (
-                  <MenuItem danger onSelect={() => setVersionToDelete(selectedVersion)}>
-                    Fassung löschen …
+              {canManage ? (
+                <Menu label="Aktionen für dieses Video">
+                  <MenuItem onSelect={() => void neueFassung()}>
+                    Neue Version …
                   </MenuItem>
-                ) : null}
-                {isTeam ? (
-                  <MenuItem danger onSelect={() => setDeletingVideo(true)}>
-                    Video löschen …
-                  </MenuItem>
-                ) : null}
-              </Menu>
-            ) : null}
+                  <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
+                  <MenuItem onSelect={() => setEmbedding(true)}>Einbetten …</MenuItem>
+                  {/* Umbenennen und Löschen des Videos bleiben dem Team
+                      vorbehalten – „Videos anlegen" hieß nicht „verwalten". */}
+                  {isTeam ? (
+                    <MenuItem onSelect={() => setEditingVideo(true)}>Video umbenennen …</MenuItem>
+                  ) : null}
+                  {selectedVersion ? (
+                    <MenuItem danger onSelect={() => setVersionToDelete(selectedVersion)}>
+                      Fassung löschen …
+                    </MenuItem>
+                  ) : null}
+                  {isTeam ? (
+                    <MenuItem danger onSelect={() => setDeletingVideo(true)}>
+                      Video löschen …
+                    </MenuItem>
+                  ) : null}
+                </Menu>
+              ) : null}
+            </div>
           </div>
+
+          {uploaderOffen && video && canManage ? (
+            <Uploader projectId={video.projectId} videoId={video.id} />
+          ) : null}
 
           {/* Solange keine Endfassung markiert ist, sagt es die Seite – zuerst
               dem Kunden, der sonst eine Zwischenfassung für das Ergebnis
@@ -439,10 +468,6 @@ export default function ReviewPage() {
           {error ? <div className="notice">{error}</div> : null}
           {loading ? <p className="muted">Wird geladen …</p> : null}
 
-          {showUploader && video && canManage ? (
-            <Uploader projectId={video.projectId} videoId={video.id} />
-          ) : null}
-
           {selectedVersion ? (
             <>
               <VideoPlayer
@@ -485,9 +510,14 @@ export default function ReviewPage() {
             !loading && (
               <div className="empty">
                 Für dieses Video wurde noch keine Datei hochgeladen.
-                <div style={{ marginTop: 12 }}>
-                  {video ? <Uploader projectId={video.projectId} videoId={video.id} /> : null}
-                </div>
+                {video && canManage ? (
+                  <div style={{ marginTop: 12 }}>
+                    {/* Auf einer leeren Seite darf die Fläche direkt stehen –
+                        sie ist hier die eine Handlung, die ansteht. Ihren
+                        Knopf bringt sie für Geräte ohne Zeiger selbst mit. */}
+                    <Uploader projectId={video.projectId} videoId={video.id} />
+                  </div>
+                ) : null}
               </div>
             )
           )}

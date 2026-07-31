@@ -1,5 +1,7 @@
 'use client';
 
+import type { PasswordPolicy } from '@klappe/shared';
+import { DEFAULT_PASSWORD_POLICY, describePasswordPolicy, validatePassword } from '@klappe/shared';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
@@ -40,9 +42,26 @@ export default function AccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const zuKurz = next.length > 0 && next.length < 10;
+  /**
+   * Die Passwort-Regeln des Workspace (Phase 24). Sie standen hier bis dahin
+   * als feste Zahl im Text – seit sie einstellbar sind, wäre das schlicht
+   * gelogen. Bis die Antwort da ist, gilt der Vorgabewert.
+   */
+  const [policy, setPolicy] = useState<PasswordPolicy>(DEFAULT_PASSWORD_POLICY);
+  useEffect(() => {
+    void api
+      .loginMethods()
+      .then((methoden) => setPolicy(methoden.passwordPolicy))
+      .catch(() => {
+        // Ohne Antwort bleibt der Vorgabewert stehen; verbindlich prüft
+        // ohnehin der Server.
+      });
+  }, []);
+
+  const verstoss = next.length > 0 ? validatePassword(next, policy) : null;
   const ungleich = repeat.length > 0 && next !== repeat;
-  const kannSpeichern = current.length > 0 && next.length >= 10 && next === repeat && !busy;
+  const kannSpeichern =
+    current.length > 0 && next.length > 0 && !verstoss && next === repeat && !busy;
 
   return (
     <AppShell>
@@ -57,7 +76,7 @@ export default function AccountPage() {
         </div>
 
         <form
-          className="card"
+          className="card card--form"
           onSubmit={async (event) => {
             event.preventDefault();
             if (!nameGültig || !nameGeändert) return;
@@ -123,7 +142,7 @@ export default function AccountPage() {
         {istGast ? null : (
         <>
         <form
-          className="card"
+          className="card card--form"
           onSubmit={async (event) => {
             event.preventDefault();
             setBusy(true);
@@ -183,8 +202,8 @@ export default function AccountPage() {
               onChange={(event) => setNext(event.target.value)}
             />
             <p className="hint">
-              Mindestens 10 Zeichen, Buchstaben und Ziffern gemischt.
-              {zuKurz ? ' Noch zu kurz.' : ''}
+              {describePasswordPolicy(policy).join(', ')}.
+              {verstoss ? ` ${verstoss}` : ''}
             </p>
           </div>
 
@@ -212,7 +231,7 @@ export default function AccountPage() {
         </form>
 
         {user?.role === 'ADMIN' ? (
-          <p className="muted" style={{ fontSize: 13 }}>
+          <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
             Passwörter anderer Konten setzt du unter <Link href="/benutzer">Benutzer</Link>.
           </p>
         ) : null}

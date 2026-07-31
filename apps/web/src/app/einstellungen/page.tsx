@@ -12,6 +12,7 @@ import { SmtpPanel } from '@/components/settings/SmtpPanel';
 import { StoragePanel } from '@/components/settings/StoragePanel';
 import { TranscodePanel } from '@/components/settings/TranscodePanel';
 import { UsersPanel } from '@/components/settings/UsersPanel';
+import { SectionNav } from '@/components/ui/SectionNav';
 import { useSession } from '@/lib/session';
 
 /**
@@ -62,22 +63,22 @@ export default function SettingsPage() {
   return (
     <AppShell>
       <div className="page settingspage">
-        <nav className="settingsnav" aria-label="Einstellungen">
-          <span className="settingsnav__title">Einstellungen</span>
-          {sichtbar.map((eintrag) => (
-            <button
-              key={eintrag.id}
-              type="button"
-              className="settingsnav__item"
-              data-active={gewaehlt === eintrag.id}
-              onClick={() => setBereich(eintrag.id)}
-            >
-              {eintrag.label}
-            </button>
-          ))}
-        </nav>
+        <SectionNav
+          title="Einstellungen"
+          items={sichtbar}
+          active={gewaehlt}
+          onSelect={(id) => setBereich(id as BereichId)}
+        />
 
         <div className="settingspage__body">
+          {/* Die Überschrift steht hier, nicht in den Panels: Bis Phase 23
+              trugen nur „Gäste" und „Benutzer" eine – auf allen anderen Seiten
+              begann der Text ohne Ansage, und auf dem Handy, wo das Menü
+              zugeklappt ist, stand nirgends, wo man gerade war. */}
+          <h1 className="page__title settingspage__heading">
+            {sichtbar.find((eintrag) => eintrag.id === gewaehlt)?.label ?? 'Einstellungen'}
+          </h1>
+
           {gewaehlt === 'gaeste' ? <GuestsPanel /> : null}
           {gewaehlt === 'benutzer' ? <UsersPanel /> : null}
           {gewaehlt === 'felder' ? <FieldsPanel /> : null}

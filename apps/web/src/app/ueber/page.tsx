@@ -84,19 +84,39 @@ export default function AboutPage() {
           <section className="card manual__section">
             <h2>Autor</h2>
             <p>
-              Klappe wurde von <strong>Jonathan Fuhr</strong> gebaut, tätig bei{' '}
-              <strong>THD Video Filmproduktion</strong>.
+              Klappe wurde gebaut, um für meine Arbeit bei{' '}
+              <strong>THD Video</strong> ein Produktivitätswerkzeug zu haben, mit dem wir ganz
+              einfach Feedback zu unseren Filmen einholen können.
             </p>
             <p>
               Fragen, Fehlermeldungen oder Wünsche zur Weiterentwicklung:{' '}
               <a href="mailto:jonathan@fuhrzwei.de">jonathan@fuhrzwei.de</a>
             </p>
+          </section>
+
+          {/* Lizenz und Quellcode gehören zusammen: Wer den Code holt, muss
+              wissen, woran er dabei gebunden ist (Phase 24). */}
+          <section className="card manual__section">
+            <h2>Quellcode und Lizenz</h2>
             <p>
-              Quellcode auf GitHub:{' '}
+              Der vollständige Quellcode liegt auf GitHub:{' '}
               <a href="https://github.com/jonathanfuhr/klappe" target="_blank" rel="noreferrer">
                 github.com/jonathanfuhr/klappe
+              </a>
+            </p>
+            <p>
+              Klappe steht unter der{' '}
+              <a
+                href="https://www.gnu.org/licenses/agpl-3.0.de.html"
+                target="_blank"
+                rel="noreferrer"
+              >
+                GNU Affero General Public License, Version 3
               </a>{' '}
-              – frei nutzbar für alle, die selbst einen Klappe-Stack betreiben wollen.
+              (AGPL-3.0). Kurz gefasst: Klappe darf jeder nutzen, verändern und weitergeben. Wer
+              eine veränderte Fassung betreibt und sie anderen über ein Netz zugänglich macht,
+              muss deren Quellcode ebenfalls unter dieser Lizenz herausgeben. Der vollständige
+              Text steht als Datei <code>LICENSE</code> im Repository.
             </p>
           </section>
 

@@ -90,7 +90,7 @@ export function BackupPanel() {
 
       {error ? <div className="notice">{error}</div> : null}
       {info ? (
-        <div className="card" style={{ padding: '10px 12px', marginBottom: 14 }}>
+        <div className="card" style={{ padding: '10px 12px' }}>
           {info}
         </div>
       ) : null}
@@ -188,7 +188,7 @@ export function BackupPanel() {
         ) : null}
       </div>
 
-      <div className="card" style={{ padding: 20, marginTop: 16 }}>
+      <div className="card" style={{ padding: 20 }}>
         <h3 style={{ margin: '0 0 4px' }}>Vorhandene Sicherungen</h3>
         <p className="hint" style={{ marginTop: 0 }}>
           Wiederherstellen wirft den jetzigen Stand der Datenbank weg und ersetzt ihn. Vorher legt

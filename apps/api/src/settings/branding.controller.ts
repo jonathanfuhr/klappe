@@ -10,15 +10,15 @@ import {
   Res,
 } from '@nestjs/common';
 import { Body } from '@nestjs/common';
-import type { BrandingDto, FaviconMode } from '@klappe/shared';
+import type { BrandingDto } from '@klappe/shared';
 import {
-  FAVICON_MODES,
+  MAX_APP_ICON_BYTES,
   MAX_COMPANY_NAME_LENGTH,
   MAX_COMPANY_SHORT_LENGTH,
   MAX_FAVICON_BYTES,
   MAX_LOGO_BYTES,
 } from '@klappe/shared';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import { Public, Roles } from '../auth/auth.decorators';
 import { StorageService } from '../storage/storage.service';
@@ -48,10 +48,6 @@ class UpdateBrandingDto {
   @MaxLength(MAX_COMPANY_SHORT_LENGTH)
   companyShort?: string;
 
-  /** Woher das Tab-Symbol kommt (Phase 23). */
-  @IsOptional()
-  @IsIn(FAVICON_MODES)
-  faviconMode?: FaviconMode;
 }
 
 /**
@@ -120,7 +116,6 @@ export class BrandingController {
       accent: dto.accent,
       companyName: dto.companyName,
       companyShort: dto.companyShort,
-      faviconMode: dto.faviconMode,
     });
   }
 
@@ -141,6 +136,45 @@ export class BrandingController {
   @Delete('settings/branding/favicon')
   removeFavicon(): Promise<BrandingDto> {
     return this.brandingService.removeFavicon();
+  }
+
+  /**
+   * Das App-Symbol (Phase 24): iOS-Startbildschirm und Web-App-Manifest holen
+   * es hier. Ohne Anmeldung, wie Logo und Tab-Symbol – der Browser fragt es an,
+   * bevor irgendjemand angemeldet ist.
+   */
+  @Public()
+  @Get('branding/app-icon.png')
+  async appIcon(@Res() response: Response): Promise<void> {
+    const file = await this.brandingService.getAppIconFile();
+    if (!file) throw new NotFoundException('Für diesen Workspace gibt es kein App-Symbol.');
+
+    response.setHeader('Content-Type', 'image/png');
+    response.setHeader('Content-Length', String(await this.storage.size(file.key)));
+    response.setHeader('Cache-Control', 'public, max-age=3600');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+
+    this.storage.createReadStream(file.key).pipe(response);
+  }
+
+  /** Rohe PNG-Bytes im Rumpf, Format im `Content-Type` – wie beim Logo. */
+  @Roles('ADMIN')
+  @Put('settings/branding/app-icon')
+  async setAppIcon(
+    @Req() request: Request,
+    @Headers('content-type') contentType: string | undefined,
+  ): Promise<BrandingDto> {
+    if (!contentType) throw new BadRequestException('Content-Type fehlt.');
+    return this.brandingService.setAppIcon(
+      await readBody(request, MAX_APP_ICON_BYTES, 'Das App-Symbol'),
+      contentType,
+    );
+  }
+
+  @Roles('ADMIN')
+  @Delete('settings/branding/app-icon')
+  removeAppIcon(): Promise<BrandingDto> {
+    return this.brandingService.removeAppIcon();
   }
 
   /**
