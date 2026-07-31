@@ -260,6 +260,13 @@
       "when": 1785492541974,
       "tag": "0036_ki_kennzeichnung",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1785534669943,
+      "tag": "0037_sprachen",
+      "breakpoints": true
     }
   ]
 }
