@@ -1024,4 +1024,26 @@ export const en: Record<MessageKey, Message> = {
 
   'manual.title': 'Manual',
   'manual.subtitle': 'For everyone working with Klappe – team and invited guests alike.',
+
+  'account.nameHintGuest': 'That is how it appears in comments, notifications and share lists.',
+  'account.nameHintTeam': 'That is how you appear to your team and to guests.',
+  'account.passwordChanged':
+    'The password has been changed. If it is still in the {file} as {var}, it can go now.',
+  'account.changing': 'Changing …',
+  'account.changePassword': 'Change password',
+  'upload.transportAborted':
+    'The connection broke off during the transfer (no contact with the server) – after {sent} of {total} bytes of this block.',
+  'upload.blockTimeout': 'The block did not get through within {seconds} seconds and was aborted.',
+  'upload.timeoutBodySent': 'The data had been handed over completely, but the server never answered.',
+  'upload.timeoutBodyStuck':
+    'Only {sent} of {total} bytes got out – the other end did not pick them up.',
+  'upload.blockRejected': 'The block was rejected (HTTP {status}{reason}).',
+  'upload.noOffset': 'The server did not return a valid upload offset.',
+  'upload.stateUnavailable': 'The upload state could not be queried (HTTP {status}).',
+  'upload.assignFailed': 'The assignment could not be saved.',
+  'upload.resumedHint': 'Transfer from an earlier session – check the details and save',
+  'upload.willBeAdded': 'Will be added as soon as the transfer is through',
+
+  'upload.aborted': 'Aborted.',
+  'upload.failed': 'Upload failed.',
 };

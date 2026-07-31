@@ -19,9 +19,15 @@ import {
   useRef,
   useState,
 } from 'react';
+import type { MessageKey } from '@/i18n/de';
 import { api } from './api';
-import { useT } from './i18n';
-import { type UploadHandle, uploadProjectFile, uploadVersionFile } from './upload';
+import { type Translator, useT } from './i18n';
+import {
+  type UploadHandle,
+  UploadTransportError,
+  uploadProjectFile,
+  uploadVersionFile,
+} from './upload';
 
 export type UploadTarget = 'video' | 'project-file';
 
@@ -296,11 +302,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
             const aborted = error instanceof DOMException && error.name === 'AbortError';
             update(job.id, {
               state: aborted ? 'abgebrochen' : 'fehler',
-              message: aborted
-                ? 'Abgebrochen.'
-                : error instanceof Error
-                  ? error.message
-                  : 'Upload fehlgeschlagen.',
+              message: aborted ? t('upload.aborted') : uebersetzeFehler(error, t),
             });
           }
         }
@@ -355,7 +357,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
           state: laeuftNoch ? 'lädt' : 'bereit',
           gespeichert: false,
           message:
-            error instanceof Error ? error.message : 'Die Zuordnung ließ sich nicht speichern.',
+            error instanceof Error ? error.message : t('upload.assignFailed'),
         });
       } finally {
         uebernahmeLaeuft.current.delete(job.id);
@@ -415,7 +417,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
             detectedVersion: detectVersionNumber(sitzung.filename),
             versionNumber: '',
             fileDate: heute,
-            hint: 'Übertragung aus einer früheren Sitzung – Angaben prüfen und speichern',
+            hint: t('upload.resumedHint'),
             state: 'bereit',
             uploadId: sitzung.id,
             gespeichert: false,
@@ -487,4 +489,19 @@ export function useUploads(): UploadsState {
   const context = useContext(UploadsContext);
   if (!context) throw new Error('useUploads muss innerhalb von <UploadsProvider> benutzt werden.');
   return context;
+}
+
+/**
+ * Ein Fehler der Übertragung in der Sprache des Betrachters (Phase 26).
+ *
+ * Der Transportcode kennt keine Sprache und trägt deshalb Schlüssel mit sich;
+ * erst hier, wo der Fehler in der Oberfläche landet, wird daraus ein Satz. Was
+ * von woanders kommt – etwa eine Meldung der API – ist dort schon übersetzt
+ * und geht unverändert durch.
+ */
+function uebersetzeFehler(error: unknown, t: Translator): string {
+  if (error instanceof UploadTransportError) {
+    return error.parts.map((teil) => t(teil.key as MessageKey, teil.vars)).join(' ');
+  }
+  return error instanceof Error ? error.message : t('upload.failed');
 }

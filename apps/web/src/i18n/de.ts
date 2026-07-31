@@ -1022,6 +1022,28 @@ export const de = {
 
   'manual.title': 'Handbuch',
   'manual.subtitle': 'Für alle, die mit Klappe arbeiten – Team wie eingeladene Gäste.',
+
+  'account.nameHintGuest': 'So steht es in Kommentaren, Benachrichtigungen und Freigabelisten.',
+  'account.nameHintTeam': 'So erscheinst du für dein Team und für Gäste.',
+  'account.passwordChanged':
+    'Das Passwort ist geändert. Steht es noch als {var} in der {file}, kann es dort jetzt raus.',
+  'account.changing': 'Wird geändert …',
+  'account.changePassword': 'Passwort ändern',
+  'upload.transportAborted':
+    'Die Verbindung brach während der Übertragung ab (kein Kontakt zum Server) – nach {sent} von {total} Byte dieses Blocks.',
+  'upload.blockTimeout': 'Der Block kam in {seconds} Sekunden nicht durch und wurde abgebrochen.',
+  'upload.timeoutBodySent': 'Die Daten waren vollständig abgegeben, die Antwort des Servers blieb aus.',
+  'upload.timeoutBodyStuck':
+    'Es kamen nur {sent} von {total} Byte heraus – die Gegenstelle hat sie nicht abgeholt.',
+  'upload.blockRejected': 'Der Block wurde abgelehnt (HTTP {status}{reason}).',
+  'upload.noOffset': 'Der Server hat keinen gültigen Upload-Offset zurückgegeben.',
+  'upload.stateUnavailable': 'Der Upload-Stand ließ sich nicht abfragen (HTTP {status}).',
+  'upload.assignFailed': 'Die Zuordnung ließ sich nicht speichern.',
+  'upload.resumedHint': 'Übertragung aus einer früheren Sitzung – Angaben prüfen und speichern',
+  'upload.willBeAdded': 'Wird aufgenommen, sobald die Übertragung durch ist',
+
+  'upload.aborted': 'Abgebrochen.',
+  'upload.failed': 'Upload fehlgeschlagen.',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

@@ -135,7 +135,7 @@ export default function AccountPage() {
               await refresh();
             } catch (nameSaveError) {
               setNameError(
-                nameSaveError instanceof Error ? nameSaveError.message : 'Ändern fehlgeschlagen.',
+                nameSaveError instanceof Error ? nameSaveError.message : t('common.changeFailed'),
               );
             } finally {
               setNameBusy(false);
@@ -167,8 +167,8 @@ export default function AccountPage() {
             />
             <p className="hint">
               {istGast
-                ? 'So steht es in Kommentaren, Benachrichtigungen und Freigabelisten.'
-                : 'So erscheinst du für dein Team und für Gäste.'}
+                ? t('account.nameHintGuest')
+                : t('account.nameHintTeam')}
             </p>
           </div>
 
@@ -200,20 +200,19 @@ export default function AccountPage() {
               setDone(true);
             } catch (changeError) {
               setError(
-                changeError instanceof Error ? changeError.message : 'Ändern fehlgeschlagen.',
+                changeError instanceof Error ? changeError.message : t('common.changeFailed'),
               );
             } finally {
               setBusy(false);
             }
           }}
         >
-          <h2 className="card__title">Passwort ändern</h2>
+          <h2 className="card__title">{t('account.changePassword')}</h2>
 
           {error ? <div className="notice">{error}</div> : null}
           {done ? (
             <div className="notice notice--ok">
-              Das Passwort ist geändert. Steht es noch als <code>ADMIN_PASSWORD</code> in der
-              <code>.env</code>, kann es dort jetzt raus.
+              {t('account.passwordChanged', { var: 'ADMIN_PASSWORD', file: '.env' })}
             </div>
           ) : null}
 
@@ -271,7 +270,7 @@ export default function AccountPage() {
 
           <div className="dialog__actions">
             <button type="submit" className="button button--primary" disabled={!kannSpeichern}>
-              {busy ? 'Wird geändert …' : 'Passwort ändern'}
+              {busy ? t('account.changing') : t('account.changePassword')}
             </button>
           </div>
         </form>

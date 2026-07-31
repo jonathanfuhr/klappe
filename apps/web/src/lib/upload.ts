@@ -30,6 +30,31 @@ const MAX_RETRIES = 5;
  * Minuten – großzügig genug für eine schlechte Leitung, eng genug, dass ein
  * echter Hänger auffällt.
  */
+/**
+ * Ein Fehler der Übertragung, der sich noch übersetzen lässt (Phase 26).
+ *
+ * Diese Datei ist kein React-Modul – `useT()` gibt es hier nicht, und einen
+ * Übersetzer durch vier Ebenen durchzureichen machte den Transportcode
+ * schlechter. Stattdessen trägt der Fehler die Schlüssel mit; übersetzt wird
+ * er dort, wo er in der Oberfläche landet (`uploads-context.tsx`). Die
+ * `message` bleibt der deutsche Satz – so steht in der Konsole und in jedem
+ * Protokoll etwas Lesbares.
+ */
+export interface MeldungsTeil {
+  key: string;
+  vars?: Record<string, string | number>;
+}
+
+export class UploadTransportError extends Error {
+  constructor(
+    readonly parts: MeldungsTeil[],
+    message: string,
+  ) {
+    super(message);
+    this.name = 'UploadTransportError';
+  }
+}
+
 function chunkTimeoutMs(bytes: number): number {
   return 60_000 + Math.ceil(bytes / (20 * 1024)) * 1000;
 }
@@ -317,22 +342,38 @@ function sendChunk(input: {
 
     xhr.onerror = () =>
       scheitern(
-        new Error(
+        new UploadTransportError(
+          [
+            {
+              key: 'upload.transportAborted',
+              vars: { sent: abgegeben, total: input.daten.size },
+            },
+          ],
           'Die Verbindung brach während der Übertragung ab (kein Kontakt zum Server) – ' +
             `nach ${abgegeben} von ${input.daten.size} Byte dieses Blocks.`,
         ),
       );
-    xhr.ontimeout = () =>
+    xhr.ontimeout = () => {
+      const sekunden = Math.round(chunkTimeoutMs(input.daten.size) / 1000);
+      const nachsatz = bodyDraussen
+        ? 'Die Daten waren vollständig abgegeben, die Antwort des Servers blieb aus.'
+        : `Es kamen nur ${abgegeben} von ${input.daten.size} Byte heraus – die Gegenstelle ` +
+          'hat sie nicht abgeholt.';
       scheitern(
-        new Error(
-          `Der Block kam in ${Math.round(chunkTimeoutMs(input.daten.size) / 1000)} Sekunden ` +
-            'nicht durch und wurde abgebrochen. ' +
-            (bodyDraussen
-              ? 'Die Daten waren vollständig abgegeben, die Antwort des Servers blieb aus.'
-              : `Es kamen nur ${abgegeben} von ${input.daten.size} Byte heraus – die Gegenstelle ` +
-                'hat sie nicht abgeholt.'),
+        new UploadTransportError(
+          [
+            { key: 'upload.blockTimeout', vars: { seconds: sekunden } },
+            bodyDraussen
+              ? { key: 'upload.timeoutBodySent' }
+              : {
+                  key: 'upload.timeoutBodyStuck',
+                  vars: { sent: abgegeben, total: input.daten.size },
+                },
+          ],
+          `Der Block kam in ${sekunden} Sekunden nicht durch und wurde abgebrochen. ${nachsatz}`,
         ),
       );
+    };
     xhr.onabort = () => {
       if (!input.signal.aborted) return;
       scheitern(new DOMException('Abgebrochen', 'AbortError'));
@@ -344,12 +385,27 @@ function sendChunk(input: {
       if (xhr.status < 200 || xhr.status >= 300) {
         // Ohne den Text des Servers steht in der Oberfläche nur eine Zahl, mit
         // der niemand etwas anfangen kann.
-        reject(new Error(`Der Block wurde abgelehnt (HTTP ${xhr.status}${grund(xhr.responseText)}).`));
+        reject(
+          new UploadTransportError(
+            [
+              {
+                key: 'upload.blockRejected',
+                vars: { status: xhr.status, reason: grund(xhr.responseText) },
+              },
+            ],
+            `Der Block wurde abgelehnt (HTTP ${xhr.status}${grund(xhr.responseText)}).`,
+          ),
+        );
         return;
       }
       const neuerOffset = Number(xhr.getResponseHeader('Upload-Offset'));
       if (!Number.isFinite(neuerOffset)) {
-        reject(new Error('Der Server hat keinen gültigen Upload-Offset zurückgegeben.'));
+        reject(
+          new UploadTransportError(
+            [{ key: 'upload.noOffset' }],
+            'Der Server hat keinen gültigen Upload-Offset zurückgegeben.',
+          ),
+        );
         return;
       }
       resolve({ offset: neuerOffset, versionId: xhr.getResponseHeader('Klappe-Version-Id') });
@@ -402,11 +458,17 @@ async function fetchOffset(location: string, signal: AbortSignal): Promise<numbe
     signal,
   });
   if (!response.ok) {
-    throw new Error(`Der Upload-Stand ließ sich nicht abfragen (HTTP ${response.status}).`);
+    throw new UploadTransportError(
+      [{ key: 'upload.stateUnavailable', vars: { status: response.status } }],
+      `Der Upload-Stand ließ sich nicht abfragen (HTTP ${response.status}).`,
+    );
   }
   const offset = Number(response.headers.get('Upload-Offset'));
   if (!Number.isFinite(offset)) {
-    throw new Error('Der Server hat keinen gültigen Upload-Offset zurückgegeben.');
+    throw new UploadTransportError(
+      [{ key: 'upload.noOffset' }],
+      'Der Server hat keinen gültigen Upload-Offset zurückgegeben.',
+    );
   }
   return offset;
 }

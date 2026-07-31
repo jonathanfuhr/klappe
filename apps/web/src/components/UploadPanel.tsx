@@ -257,7 +257,7 @@ function JobRow({
                 : !job.videoId && !job.newVideoName.trim()
                   ? t('upload.needVideo')
                   : job.state === 'lädt'
-                    ? 'Wird aufgenommen, sobald die Übertragung durch ist'
+                    ? t('upload.willBeAdded')
                     : undefined
             }
           >
