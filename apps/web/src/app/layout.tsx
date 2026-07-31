@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { UploadPanel } from '@/components/UploadPanel';
 import { BrandingProvider } from '@/lib/branding';
+import { I18nProvider } from '@/lib/i18n';
 import { LiveProvider } from '@/lib/live';
 import { SessionProvider } from '@/lib/session';
 import { UploadsProvider } from '@/lib/uploads-context';
@@ -41,6 +42,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             Anmeldeseite – deshalb ganz außen. */}
         <BrandingProvider>
           <SessionProvider>
+            {/* Sprache steht erst fest, wenn Erscheinungsbild und Sitzung da
+                sind (Phase 26) – deshalb innerhalb beider. */}
+            <I18nProvider>
             {/* Eine Live-Verbindung für die ganze Anwendung (Phase 18):
                 Was sich ändert, kommt von selbst an, statt im Sekundentakt
                 erfragt zu werden. */}
@@ -52,6 +56,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <UploadPanel />
               </UploadsProvider>
             </LiveProvider>
+            </I18nProvider>
           </SessionProvider>
         </BrandingProvider>
       </body>

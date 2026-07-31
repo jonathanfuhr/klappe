@@ -85,6 +85,14 @@ export const users = pgTable(
     nameConfirmed: boolean('name_confirmed').notNull().default(true),
     isActive: boolean('is_active').notNull().default(true),
     notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
+    /**
+     * Eigene Sprache (Phase 26). `null` heißt: der Vorgabe des Workspace
+     * folgen (`app_settings.default_locale`) – das ist der Normalfall, und
+     * eine Umstellung dort wirkt dann für alle, die nichts eigenes gewählt
+     * haben. Gilt für Oberfläche, Fehlermeldungen **und** die E-Mails an
+     * diese Person; auch Gäste dürfen wählen.
+     */
+    locale: text('locale'),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     ...timestamps,
   },
@@ -658,6 +666,13 @@ export const appSettings = pgTable('app_settings', {
   smtpFromEmail: text('smtp_from_email'),
 
   // ---------- White-Label (Phase 10) ----------
+  /**
+   * Sprache des Workspace (Phase 26). Gilt für alle, die unter „Profil und
+   * Sicherheit" nichts eigenes gewählt haben, und für jede Seite, die ohne
+   * Anmeldung erscheint – Anmeldeseite, Gast-Gatter, eingebetteter Player.
+   */
+  defaultLocale: text('default_locale').notNull().default('de'),
+
   /** Titel im Kopf, im Browser-Tab und in jeder E-Mail. */
   brandTitle: text('brand_title'),
   /** Eine Farbe; heller Hover-Ton und lesbare Schriftfarbe leiten sich ab. */

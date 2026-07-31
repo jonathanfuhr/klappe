@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '@/lib/i18n';
 import { Icon } from './Icon';
 
 /**
@@ -14,12 +15,14 @@ import { Icon } from './Icon';
 export function SearchBox({
   value,
   onChange,
-  placeholder = 'Suchen …',
+  placeholder,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
+  const t = useT();
+  const beschriftung = placeholder ?? t('common.searchPlaceholder');
   const [offen, setOffen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -34,8 +37,8 @@ export function SearchBox({
       <button
         type="button"
         className="iconbutton listbar__button"
-        aria-label="Suchen"
-        title="Suchen"
+        aria-label={t('common.search')}
+        title={t('common.search')}
         aria-expanded={false}
         onClick={() => setOffen(true)}
       >
@@ -53,8 +56,8 @@ export function SearchBox({
         ref={inputRef}
         className="input searchbox__input"
         type="search"
-        placeholder={placeholder}
-        aria-label={placeholder}
+        placeholder={beschriftung}
+        aria-label={beschriftung}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onBlur={() => {

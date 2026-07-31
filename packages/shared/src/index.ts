@@ -3,6 +3,7 @@ export * from './annotations';
 export * from './branding';
 export * from './company';
 export * from './filenames';
+export * from './i18n';
 export * from './mentions';
 export * from './password-policy';
 export * from './tags';

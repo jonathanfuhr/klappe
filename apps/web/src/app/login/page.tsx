@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { BrandMark } from '@/components/BrandMark';
 import { API_BASE, api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 /**
@@ -33,6 +34,7 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refresh } = useSession();
+  const t = useT();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -69,17 +71,13 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
           // der Browser das Cookie verworfen hat (`Secure` über http://). Ohne
           // diese Prüfung landet man wortlos wieder auf dieser Seite.
           if (!(await refresh())) {
-            setError(
-              'Passwort richtig, aber der Browser hat das Sitzungs-Cookie verworfen. ' +
-                'Das passiert, wenn SESSION_COOKIE_SECURE=1 gesetzt ist, die Seite aber ' +
-                'über http:// statt https:// aufgerufen wird.',
-            );
+            setError(t('login.cookieRejected'));
             return;
           }
           // `replace`, damit der Zurück-Knopf nicht wieder aufs Login führt.
           router.replace(target.startsWith('/') ? target : '/projekte');
         } catch (loginError) {
-          setError(loginError instanceof Error ? loginError.message : 'Anmeldung fehlgeschlagen.');
+          setError(loginError instanceof Error ? loginError.message : t('login.failed'));
         } finally {
           setBusy(false);
         }
@@ -87,7 +85,7 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
     >
       <BrandMark />
       <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>
-        Review und Freigabe für Videoproduktionen
+        {t('login.tagline')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -107,13 +105,13 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
         </a>
       ) : null}
 
-      {methods.microsoft && methods.local ? <div className="login__or">oder</div> : null}
+      {methods.microsoft && methods.local ? <div className="login__or">{t('login.or')}</div> : null}
 
       {methods.local ? (
         <>
           <div className="field">
             <label className="field__label" htmlFor="email">
-              E-Mail-Adresse
+              {t('common.email')}
             </label>
             <input
               id="email"
@@ -128,7 +126,7 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
 
           <div className="field">
             <label className="field__label" htmlFor="password">
-              Passwort
+              {t('common.password')}
             </label>
             <input
               id="password"
@@ -147,26 +145,26 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
             style={{ width: '100%', marginTop: 12 }}
             disabled={busy}
           >
-            {busy ? 'Wird angemeldet …' : 'Anmelden'}
+            {busy ? t('login.submitting') : t('login.submit')}
           </button>
         </>
       ) : (
         <p className="hint" style={{ textAlign: 'center' }}>
-          Für Team-Konten ist in diesem Workspace nur die Anmeldung über Microsoft 365 vorgesehen.
+          {t('login.microsoftOnly')}
         </p>
       )}
 
-      <div className="login__or">oder</div>
+      <div className="login__or">{t('login.or')}</div>
       <button
         type="button"
         className="button button--ghost"
         style={{ width: '100%' }}
         onClick={aufGast}
       >
-        Gastzugang
+        {t('login.guestAccess')}
       </button>
       <p className="hint" style={{ textAlign: 'center', marginBottom: 0 }}>
-        Für Kunden, die schon eine Freigabe haben – ohne Passwort, mit einem Code per Mail.
+        {t('login.guestHint')}
       </p>
     </form>
   );

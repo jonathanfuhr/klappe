@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useT } from '@/lib/i18n';
 
 /** Luft zum Fensterrand, damit nie etwas bündig an der Kante klebt. */
 const RAND = 8;
@@ -26,13 +27,14 @@ const RAND = 8;
  * Kopfzeile hängt so am Namenskürzel (Phase 24).
  */
 export function Menu({
-  label = 'Aktionen',
+  label,
   trigger,
   triggerClassName = 'iconbutton menu__trigger',
   align = 'right',
   closeOnSelect = true,
   children,
 }: {
+  /** Ohne Angabe steht dort das übersetzte „Aktionen“. */
   label?: string;
   trigger?: ReactNode;
   triggerClassName?: string;
@@ -46,6 +48,7 @@ export function Menu({
   closeOnSelect?: boolean;
   children: ReactNode;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [platz, setPlatz] = useState<{ top: number; left: number } | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -143,7 +146,7 @@ export function Menu({
         ref={triggerRef}
         type="button"
         className={triggerClassName}
-        aria-label={label}
+        aria-label={label ?? t('common.actions')}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={umschalten}

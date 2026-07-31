@@ -4,6 +4,7 @@
  * im Frontend.
  */
 import type { Annotation } from './annotations';
+import type { Locale } from './i18n';
 import type { PasswordPolicy } from './password-policy';
 import type { FrameRate } from './timecode';
 
@@ -27,6 +28,11 @@ export interface UserDto {
   role: UserRole;
   isActive: boolean;
   notificationsEnabled: boolean;
+  /**
+   * Selbst gewählte Sprache (Phase 26). `null` heißt: der Vorgabe des
+   * Workspace folgen – das ist der Normalfall.
+   */
+  locale: Locale | null;
   createdAt: string;
 }
 

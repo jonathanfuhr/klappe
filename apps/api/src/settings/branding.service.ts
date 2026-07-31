@@ -10,6 +10,7 @@ import type { AppIconMimeType, BrandingDto, FaviconMimeType, LogoMimeType } from
 import {
   APP_ICON_MIME_TYPES,
   DEFAULT_BRAND_ACCENT,
+  DEFAULT_LOCALE,
   FAVICON_MIME_TYPES,
   LOGO_MIME_TYPES,
   MAX_APP_ICON_BYTES,
@@ -18,6 +19,7 @@ import {
   MAX_FAVICON_BYTES,
   MAX_LOGO_BYTES,
   deriveBrandColors,
+  isLocale,
   normalizeBrandTitle,
   normalizeCompanyText,
   normalizeHexColor,
@@ -47,6 +49,8 @@ const PNG_SIGNATUR = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
 
 export interface UpdateBrandingInput {
   title?: string | null;
+  /** Sprache des Workspace (Phase 26). */
+  defaultLocale?: string;
   accent?: string | null;
   companyName?: string | null;
   companyShort?: string | null;
@@ -78,6 +82,8 @@ export class BrandingService {
 
     return {
       title: normalizeBrandTitle(row.brandTitle),
+      // Sprache des Workspace (Phase 26); Unsinn in der Spalte gilt als Deutsch.
+      defaultLocale: isLocale(row.defaultLocale) ? row.defaultLocale : DEFAULT_LOCALE,
       ...colors,
       logoUrl,
       /*
@@ -119,6 +125,7 @@ export class BrandingService {
       .update(appSettings)
       .set({
         brandTitle: input.title === undefined ? undefined : input.title?.trim() || null,
+        defaultLocale: isLocale(input.defaultLocale) ? input.defaultLocale : undefined,
         brandAccent: accent,
         companyName:
           input.companyName === undefined
