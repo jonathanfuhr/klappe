@@ -146,6 +146,10 @@ services:
       NODE_ENV: production
       PORT: '3000'
       SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-klappe_session}
+      # Auch zur Laufzeit nötig, nicht nur als Bauargument oben: Das
+      # Web-App-Manifest (Phase 24) wird bei jedem Abruf gebaut und holt sich
+      # Titel, Farbe und Symbol dafür von der API.
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3001}
       # **Nicht** auf Nodes Standard von 5 Sekunden zurückstellen. Node macht
       # eine ruhende Keep-Alive-Verbindung dann so früh zu, dass Safari sie noch
       # für benutzbar hält und den nächsten Upload-Block hineinschreibt – der
