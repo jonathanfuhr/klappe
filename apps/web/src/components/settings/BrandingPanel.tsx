@@ -2,6 +2,8 @@
 
 import {
   APP_ICON_SIZE,
+  LOCALES,
+  LOCALE_NAMES,
   DEFAULT_BRAND_ACCENT,
   FAVICON_RECOMMENDED_SIZES,
   LOGO_MIME_TYPES,
@@ -14,6 +16,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { useBranding } from '@/lib/branding';
+import { useT } from '@/lib/i18n';
 
 /**
  * Erscheinungsbild des Workspace (Phase 10).
@@ -24,6 +27,7 @@ import { useBranding } from '@/lib/branding';
  */
 export function BrandingPanel() {
   const { branding, apply } = useBranding();
+  const t = useT();
   const [title, setTitle] = useState(branding.title);
   const [accent, setAccent] = useState(branding.accent);
   const [companyName, setCompanyName] = useState(branding.companyName ?? '');
@@ -197,6 +201,38 @@ export function BrandingPanel() {
             onChange={(event) => setTitle(event.target.value)}
           />
           <p className="hint">Steht im Kopf, im Browser-Tab und als Absenderzeile in den Mails.</p>
+        </div>
+
+        {/* Sprache des Workspace (Phase 26) – wirkt sofort, nicht erst mit
+            „Speichern": Wer hier umstellt, will das Ergebnis gleich sehen. */}
+        <div className="field">
+          <label className="field__label" htmlFor="workspace-locale">
+            {t('locale.workspaceLabel')}
+          </label>
+          <select
+            id="workspace-locale"
+            className="select"
+            style={{ maxWidth: 320 }}
+            disabled={busy}
+            value={branding.defaultLocale}
+            onChange={(event) => {
+              setBusy(true);
+              void api
+                .updateBranding({ defaultLocale: event.target.value })
+                .then(apply)
+                .catch((fehler) =>
+                  setError(fehler instanceof Error ? fehler.message : t('common.saveFailed')),
+                )
+                .finally(() => setBusy(false));
+            }}
+          >
+            {LOCALES.map((eintrag) => (
+              <option key={eintrag} value={eintrag}>
+                {LOCALE_NAMES[eintrag]}
+              </option>
+            ))}
+          </select>
+          <p className="hint">{t('locale.workspaceHint')}</p>
         </div>
 
         <div className="grid-two">

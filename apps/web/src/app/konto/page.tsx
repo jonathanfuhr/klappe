@@ -1,11 +1,19 @@
 'use client';
 
 import type { PasswordPolicy } from '@klappe/shared';
-import { DEFAULT_PASSWORD_POLICY, describePasswordPolicy, validatePassword } from '@klappe/shared';
+import {
+  DEFAULT_PASSWORD_POLICY,
+  LOCALES,
+  LOCALE_NAMES,
+  describePasswordPolicy,
+  validatePassword,
+} from '@klappe/shared';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { api } from '@/lib/api';
+import { useBranding } from '@/lib/branding';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 /**
@@ -19,6 +27,8 @@ import { useSession } from '@/lib/session';
  */
 export default function AccountPage() {
   const { user, refresh } = useSession();
+  const { branding } = useBranding();
+  const t = useT();
   const istGast = user?.role === 'GUEST';
 
   const [name, setName] = useState('');
@@ -72,6 +82,40 @@ export default function AccountPage() {
             <p className="muted" style={{ marginBottom: 0 }}>
               {user ? `${user.name} · ${user.email}` : '…'}
             </p>
+          </div>
+        </div>
+
+        {/*
+          * Sprache (Phase 26). Steht bewusst vor dem Passwort: Wer die
+          * Oberfläche nicht versteht, soll das zuerst ändern können. Gilt auch
+          * für Gäste – deren Mails gehen danach ebenfalls in dieser Sprache
+          * raus.
+          */}
+        <div className="card card--form">
+          <h2 className="card__title">{t('locale.label')}</h2>
+          <div className="field">
+            <label className="field__label" htmlFor="own-locale">
+              {t('locale.label')}
+            </label>
+            <select
+              id="own-locale"
+              className="select"
+              style={{ maxWidth: 320 }}
+              value={user?.locale ?? ''}
+              onChange={(event) => {
+                void api.updateMe({ locale: event.target.value }).then(() => refresh());
+              }}
+            >
+              <option value="">
+                {t('locale.followWorkspace', { name: LOCALE_NAMES[branding.defaultLocale] })}
+              </option>
+              {LOCALES.map((eintrag) => (
+                <option key={eintrag} value={eintrag}>
+                  {LOCALE_NAMES[eintrag]}
+                </option>
+              ))}
+            </select>
+            <p className="hint">{t('locale.ownHint')}</p>
           </div>
         </div>
 

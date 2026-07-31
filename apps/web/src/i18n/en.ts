@@ -121,4 +121,13 @@ export const en: Record<MessageKey, Message> = {
   },
   'projects.removeCustomerEntry': 'Remove client entry',
   'tags.label': 'Tags',
+
+  // ---------- Language choice ----------
+  'locale.label': 'Language',
+  'locale.followWorkspace': 'Same as workspace ({name})',
+  'locale.ownHint':
+    'Applies to the interface, to error messages and to the emails Klappe sends you.',
+  'locale.workspaceLabel': 'Workspace language',
+  'locale.workspaceHint':
+    'Applies to the sign-in page, guest access and everyone who has not picked their own under “Profile and security” – including their emails.',
 };

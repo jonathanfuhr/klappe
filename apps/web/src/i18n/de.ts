@@ -123,6 +123,15 @@ export const de = {
   },
   'projects.removeCustomerEntry': 'Kundeneintrag entfernen',
   'tags.label': 'Schlagworte',
+
+  // ---------- Sprachwahl ----------
+  'locale.label': 'Sprache',
+  'locale.followWorkspace': 'Wie im Workspace ({name})',
+  'locale.ownHint':
+    'Gilt für die Oberfläche, für Fehlermeldungen und für die E-Mails, die du von Klappe bekommst.',
+  'locale.workspaceLabel': 'Sprache des Workspace',
+  'locale.workspaceHint':
+    'Gilt für die Anmeldeseite, den Gastzugang und für alle, die unter „Profil und Sicherheit" nichts eigenes gewählt haben – auch für deren E-Mails.',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

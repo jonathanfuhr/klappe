@@ -121,7 +121,7 @@ export const api = {
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
   /** Eigenen Namen und/oder Benachrichtigungseinstellung ändern – auch für Gäste. */
-  updateMe: (dto: { name?: string; notificationsEnabled?: boolean }) =>
+  updateMe: (dto: { name?: string; notificationsEnabled?: boolean; locale?: string }) =>
     request<UserDto>('/v1/me', {
       method: 'PATCH',
       body: JSON.stringify(dto),
@@ -615,6 +615,8 @@ export const api = {
   getBranding: () => request<BrandingDto>('/v1/branding'),
   updateBranding: (input: {
     title?: string;
+    /** Sprache des Workspace (Phase 26). */
+    defaultLocale?: string;
     accent?: string;
     companyName?: string;
     companyShort?: string;
