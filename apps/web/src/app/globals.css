@@ -1843,6 +1843,9 @@ a.badge:hover {
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+  /* Rechtsbündig: Die Werkzeuge stehen damit unter „Neues Projekt" in einer
+     Flucht, statt links unter der Überschrift zu schweben (Phase 24). */
+  justify-content: flex-end;
   padding: 4px 0 14px;
   border-bottom: 1px solid var(--klappe-border);
   margin-bottom: 18px;

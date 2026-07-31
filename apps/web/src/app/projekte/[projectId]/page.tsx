@@ -11,8 +11,8 @@ import { ProjectFieldValues } from '@/components/ProjectFieldValues';
 import { ProjectFiles } from '@/components/ProjectFiles';
 import { ProjectTags } from '@/components/ProjectTags';
 import { ShareManager } from '@/components/ShareManager';
-import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
+import { IconButton } from '@/components/ui/Icon';
 import { Menu, MenuItem } from '@/components/ui/Menu';
 import {
   ArchiveProjectDialog,
@@ -23,6 +23,7 @@ import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
 import { formatFrameRate, formatRelative } from '@/lib/format';
 import { useFallbackInterval, useLive } from '@/lib/live';
+import { VIDEO_ACCEPT, pickFiles } from '@/lib/pick-files';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 
@@ -44,7 +45,7 @@ export default function ProjectPage() {
   const [seitenTab, setSeitenTab] = useState<'freigaben' | 'benachrichtigungen'>('freigaben');
   const router = useRouter();
   const { user } = useSession();
-  const { completedCount } = useUploads();
+  const { completedCount, enqueue } = useUploads();
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
   /**
    * Team oder externer Projektadmin (Phase 21): darf Videos anlegen und
@@ -52,6 +53,17 @@ export default function ProjectPage() {
    * Videos umbenennen/löschen bleiben dem Team vorbehalten.
    */
   const canManage = isTeam || (project?.canManage ?? false);
+
+  /**
+   * Videodateien hinzufügen (Phase 24): direkt die Dateiauswahl, ohne
+   * Ablagefläche. `videos` geht mit, damit das Upload-Fenster eine Datei als
+   * neue Fassung eines vorhandenen Videos erkennen kann.
+   */
+  const videosHinzufuegen = useCallback(async () => {
+    const files = (await pickFiles({ accept: VIDEO_ACCEPT })).filter((file) => file.size > 0);
+    if (files.length === 0) return;
+    enqueue({ files, target: 'video', projectId, videos });
+  }, [enqueue, projectId, videos]);
 
   const load = useCallback(async () => {
     try {
@@ -117,6 +129,19 @@ export default function ProjectPage() {
           <div className="shell__spacer" />
           {canManage ? (
             <>
+              {/*
+               * Videos hinzufügen: ein Symbol neben dem „…"-Menü, das direkt
+               * die Dateiauswahl öffnet – wie das „+" am Video (Phase 24).
+               * Vorher stand hier eine große Ablagefläche samt Erklärung
+               * mitten auf der Seite, obwohl auf dem Handy nichts zu ziehen
+               * ist und der Text bei jedem Besuch derselbe war.
+               */}
+              <IconButton
+                icon="plus"
+                label="Videodateien hinzufügen"
+                onClick={() => void videosHinzufuegen()}
+              />
+
               {/* Der große „Freigeben"-Knopf ist in die Spalte rechts gewandert
                   (Phase 16) – dort steht er neben denen, die es betrifft.
                   Umbenennen, Archivieren und Löschen bleiben dem Team
@@ -146,8 +171,6 @@ export default function ProjectPage() {
         ) : null}
 
         {project ? <ProjectFieldValues project={project} isTeam={isTeam} onChanged={load} /> : null}
-
-        {canManage ? <Uploader projectId={projectId} videos={videos} /> : null}
 
         <h2 style={{ fontSize: 16, margin: '26px 0 12px' }}>
           Videos {videos.length > 0 ? <span className="faint">({videos.length})</span> : null}

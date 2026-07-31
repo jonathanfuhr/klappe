@@ -15,7 +15,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { NotificationPanel } from '@/components/NotificationPanel';
 import { ShareManager } from '@/components/ShareManager';
-import { Uploader, VIDEO_ACCEPT } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
 import { CommentPanel } from '@/components/comments/CommentPanel';
 import { type CommentMarker, type PlayerHandle, VideoPlayer } from '@/components/player/VideoPlayer';
@@ -29,7 +28,7 @@ import { EmbedDialog } from '@/components/EmbedDialog';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
 import { useFallbackInterval, useLiveTopic } from '@/lib/live';
-import { pickFiles } from '@/lib/pick-files';
+import { VIDEO_ACCEPT, pickFiles } from '@/lib/pick-files';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 import { useUserName } from '@/lib/user-name';
@@ -501,9 +500,19 @@ export default function ReviewPage() {
             !loading && (
               <div className="empty">
                 Für dieses Video wurde noch keine Datei hochgeladen.
-                <div style={{ marginTop: 12 }}>
-                  {video ? <Uploader projectId={video.projectId} videoId={video.id} /> : null}
-                </div>
+                {canManage ? (
+                  <div style={{ marginTop: 12 }}>
+                    {/* Ein Knopf statt einer zweiten Ablagefläche (Phase 24) –
+                        derselbe Weg wie das „+" oben in der Leiste. */}
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      onClick={() => void neueFassung()}
+                    >
+                      Datei auswählen …
+                    </button>
+                  </div>
+                ) : null}
               </div>
             )
           )}

@@ -1,3 +1,6 @@
+/** Was als Video durchgeht; für die Kunden-Ablage gilt keine Einschränkung. */
+export const VIDEO_ACCEPT = 'video/*,.mov,.mp4,.mxf,.mkv,.avi,.m4v';
+
 /**
  * Dateiauswahl ohne sichtbares Eingabefeld (Phase 24).
  *

@@ -355,6 +355,22 @@ export default function ProjectsPage() {
          * und brach auf dem Handy in vier Zeilen um.
          */}
         <div className="listbar">
+          {/* Steht links von den Symbolen, damit die rechte Flucht mit
+              „Neues Projekt" darüber sauber bleibt. */}
+          {filterAktiv ? (
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => {
+                setSelectedTags([]);
+                setSelectedCustomers([]);
+                setSelectedFieldValues({});
+              }}
+            >
+              Filter zurücksetzen
+            </button>
+          ) : null}
+
           <SearchBox
             value={search}
             onChange={setSearch}
@@ -438,22 +454,6 @@ export default function ProjectsPage() {
                 </label>
               ) : null}
             </>
-          ) : null}
-
-          <div className="shell__spacer" />
-
-          {filterAktiv ? (
-            <button
-              type="button"
-              className="button button--ghost"
-              onClick={() => {
-                setSelectedTags([]);
-                setSelectedCustomers([]);
-                setSelectedFieldValues({});
-              }}
-            >
-              Filter zurücksetzen
-            </button>
           ) : null}
         </div>
 
