@@ -1,4 +1,4 @@
-import type { UserRole } from '@klappe/shared';
+import type { Locale, UserRole } from '@klappe/shared';
 import type { Request } from 'express';
 
 export interface RequestUser {
@@ -6,6 +6,8 @@ export interface RequestUser {
   email: string;
   name: string;
   role: UserRole;
+  /** Eigene Sprachwahl; `null` heißt: Vorgabe des Workspace (Phase 26). */
+  locale: Locale | null;
 }
 
 export interface AuthenticatedRequest extends Request {

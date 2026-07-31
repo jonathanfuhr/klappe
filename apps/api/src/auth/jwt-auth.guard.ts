@@ -9,6 +9,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import type { UserRole } from '@klappe/shared';
+import { isLocale } from '@klappe/shared';
 import { eq } from 'drizzle-orm';
 import type { Request } from 'express';
 import { AppConfig, CONFIG } from '../config/configuration';
@@ -53,6 +54,7 @@ export class JwtAuthGuard implements CanActivate {
         name: users.name,
         role: users.role,
         isActive: users.isActive,
+        locale: users.locale,
       })
       .from(users)
       .where(eq(users.id, userId))
@@ -62,7 +64,15 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Konto existiert nicht mehr oder ist deaktiviert.');
     }
 
-    request.user = { id: user.id, email: user.email, name: user.name, role: user.role };
+    request.user = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      // Für den Fehlerfilter und die Mails: Ohne eigene Wahl bleibt es `null`,
+      // dann zählt die Vorgabe des Workspace (Phase 26).
+      locale: isLocale(user.locale) ? user.locale : null,
+    };
 
     const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
       context.getHandler(),
