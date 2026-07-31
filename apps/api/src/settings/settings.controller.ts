@@ -14,6 +14,8 @@ import {
 import {
   HLS_MODES,
   MAX_ENVIRONMENT_NOTES_LENGTH,
+  PASSWORD_MIN_LENGTH_CEILING,
+  PASSWORD_MIN_LENGTH_FLOOR,
   RENDITION_CONTAINERS,
   SMTP_AUTH_METHODS,
   TRANSCODE_TIMINGS,
@@ -334,6 +336,29 @@ class UpdateAuthDto {
   @IsString()
   @MaxLength(80)
   buttonLabel?: string;
+
+  /** Passwort-Richtlinie (Phase 24) – jedes Feld für sich änderbar. */
+  @IsOptional()
+  @IsInt()
+  @Min(PASSWORD_MIN_LENGTH_FLOOR)
+  @Max(PASSWORD_MIN_LENGTH_CEILING)
+  passwordMinLength?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  passwordRequireLetter?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  passwordRequireDigit?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  passwordRequireMixedCase?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  passwordRequireSymbol?: boolean;
 }
 
 @Controller('v1/settings')
@@ -479,6 +504,13 @@ export class SettingsController {
       autoProvision: dto.autoProvision,
       allowedDomains: dto.allowedDomains,
       buttonLabel: dto.buttonLabel,
+      passwordPolicy: {
+        minLength: dto.passwordMinLength,
+        requireLetter: dto.passwordRequireLetter,
+        requireDigit: dto.passwordRequireDigit,
+        requireMixedCase: dto.passwordRequireMixedCase,
+        requireSymbol: dto.passwordRequireSymbol,
+      },
     });
   }
 

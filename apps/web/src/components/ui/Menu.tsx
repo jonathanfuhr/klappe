@@ -1,7 +1,11 @@
 'use client';
 
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+
+/** Luft zum Fensterrand, damit nie etwas bündig an der Kante klebt. */
+const RAND = 8;
 
 /**
  * Das „…“-Menü für Aktionen, die keinen eigenen Knopf verdienen – Umbenennen,
@@ -17,10 +21,33 @@ import { createPortal } from 'react-dom';
  * Beim Rollen und bei Größenänderungen schließt es. Mitzuwandern hieße, an
  * jedem Scroll-Container zu lauschen; das Menü ist ohnehin eine kurze
  * Entscheidung.
+ *
+ * `trigger` ersetzt bei Bedarf die „…“-Schaltfläche – das Benutzer-Menü in der
+ * Kopfzeile hängt so am Namenskürzel (Phase 24).
  */
-export function Menu({ label = 'Aktionen', children }: { label?: string; children: ReactNode }) {
+export function Menu({
+  label = 'Aktionen',
+  trigger,
+  triggerClassName = 'iconbutton menu__trigger',
+  align = 'right',
+  closeOnSelect = true,
+  children,
+}: {
+  label?: string;
+  trigger?: ReactNode;
+  triggerClassName?: string;
+  /** An welcher Kante des Auslösers das Panel hängt. */
+  align?: 'left' | 'right';
+  /**
+   * `false` für Panels, in denen mehrfach geklickt wird – das Filter-Panel der
+   * Projektliste etwa hakt mehrere Werte nacheinander an und dürfte nach dem
+   * ersten nicht zufallen.
+   */
+  closeOnSelect?: boolean;
+  children: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
-  const [platz, setPlatz] = useState<{ top: number; right: number } | null>(null);
+  const [platz, setPlatz] = useState<{ top: number; left: number } | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -37,7 +64,13 @@ export function Menu({ label = 'Aktionen', children }: { label?: string; childre
     const taste = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
     };
-    const wegdamit = () => setOpen(false);
+    // Beim Rollen der Seite schließen – aber nicht, wenn im Panel selbst
+    // gerollt wird. Eine lange Filterliste ließ sich sonst gar nicht bedienen:
+    // Die erste Bewegung ließ sie verschwinden (Phase 24).
+    const wegdamit = (event: Event) => {
+      if (panelRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
 
     document.addEventListener('mousedown', schliessen);
     document.addEventListener('keydown', taste);
@@ -52,15 +85,47 @@ export function Menu({ label = 'Aktionen', children }: { label?: string; childre
     };
   }, [open]);
 
+  /**
+   * Nach dem ersten Zeichnen nachmessen und ins Fenster rücken.
+   *
+   * Vorher stand nur `right` fest; ein breites Menü an einem Auslöser weit
+   * links lief damit über die **linke** Kante hinaus, und ein langes am unteren
+   * Rand hinaus nach unten. Beides war auf dem Handy regelmäßig zu sehen. Jetzt
+   * steht `left` fest, geklemmt auf das, was das Fenster hergibt; passt es nach
+   * unten nicht, klappt das Panel über den Auslöser (Phase 24).
+   */
+  useLayoutEffect(() => {
+    if (!open) return;
+    const panel = panelRef.current;
+    const rahmen = triggerRef.current?.getBoundingClientRect();
+    if (!panel || !rahmen) return;
+
+    const { width, height } = panel.getBoundingClientRect();
+    const maxLinks = Math.max(RAND, window.innerWidth - width - RAND);
+    const wunsch = align === 'right' ? rahmen.right - width : rahmen.left;
+    const left = Math.min(Math.max(RAND, wunsch), maxLinks);
+
+    let top = rahmen.bottom + 4;
+    if (top + height > window.innerHeight - RAND) {
+      // Über den Auslöser klappen – und wenn auch das nicht reicht, oben
+      // andocken; die Höhe deckelt `.menu__panel` selbst.
+      const darueber = rahmen.top - height - 4;
+      top = darueber >= RAND ? darueber : RAND;
+    }
+
+    setPlatz((bisher) =>
+      bisher && bisher.top === top && bisher.left === left ? bisher : { top, left },
+    );
+  }, [open, align]);
+
   const umschalten = () => {
     if (open) {
       setOpen(false);
       return;
     }
     const rahmen = triggerRef.current?.getBoundingClientRect();
-    if (rahmen) {
-      setPlatz({ top: rahmen.bottom + 4, right: window.innerWidth - rahmen.right });
-    }
+    // Erste Schätzung; der Layout-Effekt oben rückt sie nach dem Messen zurecht.
+    if (rahmen) setPlatz({ top: rahmen.bottom + 4, left: rahmen.left });
     setOpen(true);
   };
 
@@ -77,13 +142,13 @@ export function Menu({ label = 'Aktionen', children }: { label?: string; childre
       <button
         ref={triggerRef}
         type="button"
-        className="iconbutton menu__trigger"
+        className={triggerClassName}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={umschalten}
       >
-        ⋯
+        {trigger ?? '⋯'}
       </button>
       {open && platz
         ? createPortal(
@@ -91,11 +156,11 @@ export function Menu({ label = 'Aktionen', children }: { label?: string; childre
               ref={panelRef}
               className="menu__panel"
               role="menu"
-              style={{ top: platz.top, right: platz.right }}
+              style={{ top: platz.top, left: platz.left }}
               // Auch im Portal: Der Klick soll nichts darunter auslösen.
               onClick={(event) => {
                 event.stopPropagation();
-                setOpen(false);
+                if (closeOnSelect) setOpen(false);
               }}
             >
               {children}
@@ -126,4 +191,30 @@ export function MenuItem({
       {children}
     </button>
   );
+}
+
+/**
+ * Menü-Eintrag, der auf eine Seite führt (Phase 24). Bewusst ein `Link` und
+ * kein Knopf mit `router.push`: So funktionieren Mittelklick und „in neuem Tab
+ * öffnen“ wie überall sonst.
+ */
+export function MenuLink({
+  children,
+  href,
+  active = false,
+}: {
+  children: ReactNode;
+  href: string;
+  active?: boolean;
+}) {
+  return (
+    <Link role="menuitem" className="menu__item" href={href} data-active={active}>
+      {children}
+    </Link>
+  );
+}
+
+/** Trennlinie zwischen zwei Gruppen von Einträgen. */
+export function MenuSeparator() {
+  return <hr className="menu__separator" />;
 }

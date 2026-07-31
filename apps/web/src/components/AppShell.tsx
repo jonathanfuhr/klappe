@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { NotificationBell } from '@/components/NotificationBell';
+import { Menu, MenuItem, MenuLink, MenuSeparator } from '@/components/ui/Menu';
 import { useBranding } from '@/lib/branding';
 import { initialsOf } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -12,6 +13,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useSession();
   const { branding } = useBranding();
   const pathname = usePathname();
+  const istTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
 
   return (
     <div className="shell">
@@ -30,25 +32,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           {branding.title}
         </Link>
 
+        {/* Seit Phase 24 trägt die Kopfzeile nur noch, was täglich gebraucht
+            wird. Handbuch, „Über diese Software" und die Einstellungen sind ins
+            Benutzer-Menü rechts gewandert – auf dem Handy brach die Reihe sonst
+            in eine zweite, rollbare Zeile um. */}
         <nav className="shell__nav">
           <Link href="/projekte" data-active={pathname.startsWith('/projekte')}>
             Projekte
           </Link>
-          {/* Für Team und Gäste gleichermaßen gedacht – anders als
-              „Einstellungen" unten, das dem Team vorbehalten bleibt. */}
-          <Link href="/handbuch" data-active={pathname.startsWith('/handbuch')}>
-            Handbuch
-          </Link>
-          <Link href="/ueber" data-active={pathname.startsWith('/ueber')}>
-            Über diese Software
-          </Link>
-          {/* Gäste und Benutzer stehen seit Phase 17 in den Einstellungen –
-              die Kopfzeile trägt nur noch, was täglich gebraucht wird. */}
-          {user?.role === 'ADMIN' || user?.role === 'MEMBER' ? (
-            <Link href="/einstellungen" data-active={pathname.startsWith('/einstellungen')}>
-              Einstellungen
-            </Link>
-          ) : null}
         </nav>
 
         <div className="shell__spacer" />
@@ -58,18 +49,51 @@ export function AppShell({ children }: { children: ReactNode }) {
             {/* Die Zentrale gilt für alle Angemeldeten – auch Gäste werden
                 erwähnt und bekommen Antworten (Phase 18). */}
             <NotificationBell />
-            <span className="avatar" title={user.email}>
-              {initialsOf(user.name)}
-            </span>
-            {/* Gäste haben kein Passwort, aber seit Phase 21 trotzdem ein Konto
-                mit Namen – der Link führt beiden Rollen zur selben Seite. */}
-            <Link href="/konto" className="muted" data-active={pathname.startsWith('/konto')}>
-              {user.name}
-            </Link>
-            {user.role === 'GUEST' ? <span className="badge">Gast</span> : null}
-            <button type="button" className="button button--ghost" onClick={() => void logout()}>
-              Abmelden
-            </button>
+            {/*
+             * Der Klick aufs Namenskürzel führte bisher stur auf die
+             * Konto-Seite; wer die Einstellungen suchte, landete beim Passwort.
+             * Jetzt öffnet er ein Menü. Auf dem Handy bleibt davon nur das
+             * Kürzel stehen – der ausgeschriebene Name fraß die halbe Zeile.
+             */}
+            <Menu
+              label="Benutzermenü"
+              triggerClassName="usermenu"
+              trigger={
+                <>
+                  <span className="avatar" aria-hidden>
+                    {initialsOf(user.name)}
+                  </span>
+                  <span className="usermenu__name">{user.name}</span>
+                  {user.role === 'GUEST' ? <span className="badge">Gast</span> : null}
+                </>
+              }
+            >
+              <div className="menu__head">
+                <strong>{user.name}</strong>
+                <span className="faint">{user.email}</span>
+              </div>
+              <MenuSeparator />
+              {/* Gäste haben kein Passwort, aber seit Phase 21 trotzdem ein
+                  Konto mit Namen – die Seite gilt für beide Rollen. */}
+              <MenuLink href="/konto" active={pathname.startsWith('/konto')}>
+                Profil und Sicherheit
+              </MenuLink>
+              {/* Für Team und Gäste gleichermaßen gedacht – anders als die
+                  Einstellungen, die dem Team vorbehalten bleiben. */}
+              <MenuLink href="/handbuch" active={pathname.startsWith('/handbuch')}>
+                Handbuch
+              </MenuLink>
+              <MenuLink href="/ueber" active={pathname.startsWith('/ueber')}>
+                Über diese Software
+              </MenuLink>
+              {istTeam ? (
+                <MenuLink href="/einstellungen" active={pathname.startsWith('/einstellungen')}>
+                  Einstellungen
+                </MenuLink>
+              ) : null}
+              <MenuSeparator />
+              <MenuItem onSelect={() => void logout()}>Abmelden</MenuItem>
+            </Menu>
           </div>
         ) : null}
       </header>

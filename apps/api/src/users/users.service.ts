@@ -11,11 +11,16 @@ import { hashPassword, validatePasswordStrength } from '../auth/password';
 import { normalizeEmail, normalizeName } from '../common/normalize';
 import { DB, type Database } from '../db/db.module';
 import { type UserRow, users } from '../db/schema';
+import { AuthSettingsService } from '../settings/auth-settings.service';
 import type { CreateUserDto, UpdateMeDto, UpdateUserDto } from './users.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    /* Für die Passwort-Richtlinie des Workspace (Phase 24). */
+    private readonly authSettings: AuthSettingsService,
+  ) {}
 
   toDto(row: UserRow): UserDto {
     return {
@@ -95,7 +100,7 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto): Promise<UserDto> {
-    const problem = validatePasswordStrength(dto.password);
+    const problem = validatePasswordStrength(dto.password, await this.authSettings.getPasswordPolicy());
     if (problem) throw new BadRequestException(problem);
 
     const email = normalizeEmail(dto.email);
@@ -119,7 +124,10 @@ export class UsersService {
     if (!existing) throw new NotFoundException('Benutzer nicht gefunden.');
 
     if (dto.password) {
-      const problem = validatePasswordStrength(dto.password);
+      const problem = validatePasswordStrength(
+        dto.password,
+        await this.authSettings.getPasswordPolicy(),
+      );
       if (problem) throw new BadRequestException(problem);
     }
 

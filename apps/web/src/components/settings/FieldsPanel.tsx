@@ -2,6 +2,7 @@
 
 import type { ProjectFieldDefDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { TagManager } from '@/components/TagManager';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
 
@@ -179,7 +180,14 @@ export function FieldsPanel() {
         )}
       </form>
 
-      <div className="card" style={{ padding: 20, marginTop: 16 }}>
+      {/* Schlagworte sind das zweite, was ein Projekt beschreibt – und seit
+          Phase 24 stehen Schalter und Verwaltung beieinander statt in einem
+          eigenen Fenster über der Projektliste. */}
+      <div className="card" style={{ padding: 20 }}>
+        <h2 className="section__title" style={{ marginBottom: 12 }}>
+          Schlagworte
+        </h2>
+
         <label className="switch">
           <input
             type="checkbox"
@@ -193,10 +201,16 @@ export function FieldsPanel() {
           />
           Schlagworte verwenden
         </label>
-        <p className="hint" style={{ marginBottom: 0 }}>
-          Aus heißt: Schlagworte verschwinden aus Filterleiste, Projektkacheln und Projektseiten.
-          Die Zuordnungen bleiben gespeichert und kommen beim Wiedereinschalten zurück.
+        <p className="hint">
+          Aus heißt: Schlagworte verschwinden aus Filter, Projektkacheln und Projektseiten. Die
+          Zuordnungen bleiben gespeichert und kommen beim Wiedereinschalten zurück.
         </p>
+
+        {tagsEnabled ? (
+          <div style={{ marginTop: 18, borderTop: '1px solid var(--klappe-border)', paddingTop: 16 }}>
+            <TagManager />
+          </div>
+        ) : null}
       </div>
 
       {umbenennen ? (

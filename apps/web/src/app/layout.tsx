@@ -23,6 +23,14 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Klappe',
   description: 'Review und Freigabe für Videoproduktionen',
+  /**
+   * Das Manifest wird zur Laufzeit gebaut (Phase 24): Name, Farbe und Symbol
+   * stammen aus dem Erscheinungsbild des Workspace. Erst damit legt ein iPhone
+   * beim „Zum Home-Bildschirm" eine App-Kachel mit eigenem Symbol an statt
+   * eines Lesezeichens mit Bildschirmausschnitt.
+   */
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Klappe' },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

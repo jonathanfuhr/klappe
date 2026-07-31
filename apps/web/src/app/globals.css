@@ -320,6 +320,48 @@ button {
   font-size: 14px;
 }
 
+/*
+ * Auslöser des Benutzer-Menüs (Phase 24): Kürzel, Name und – bei Gästen – das
+ * Abzeichen. Sieht aus wie Text, ist aber ein Knopf; deshalb alle Knopf-Vorgaben
+ * zurücknehmen.
+ */
+.usermenu {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--klappe-text-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.usermenu:hover {
+  background: var(--klappe-surface-hover);
+  color: var(--klappe-text);
+}
+
+.usermenu[aria-expanded='true'] {
+  background: var(--klappe-surface-hover);
+  border-color: var(--klappe-border);
+  color: var(--klappe-text);
+}
+
+/* Kopf des Benutzer-Menüs: wer hier angemeldet ist. */
+.menu__head {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px 8px;
+  font-size: 13px;
+  /* Lange Adressen dürfen das Panel nicht auseinanderziehen. */
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+
 .avatar {
   width: 28px;
   height: 28px;
@@ -1764,14 +1806,119 @@ a.badge:hover {
   font-variant-numeric: tabular-nums;
 }
 
-.filterbar {
+/* Die Filterleiste selbst ist in Phase 24 der Symbolleiste `.listbar`
+   gewichen; `.filterbar__tags` unten lebt weiter (Schlagwortauswahl an der
+   Projektseite). */
+
+/*
+ * Werkzeugleiste der Projektliste (Phase 24): Suche, Filter, Sortierung und
+ * Gruppierung als Symbole. Was früher `.filterbar` in voller Breite auswalzte,
+ * passt jetzt in eine Zeile – auch auf einem Handy.
+ */
+.listbar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
-  padding: 10px 0 16px;
+  padding: 4px 0 14px;
   border-bottom: 1px solid var(--klappe-border);
   margin-bottom: 18px;
+  /* Fingerziel: Die Reihe darf nicht niedriger werden als ein Knopf. */
+  min-height: 44px;
+}
+
+.listbar__button {
+  position: relative;
+  width: 38px;
+  height: 38px;
+}
+
+/* Zahl der gesetzten Filterwerte, als Plakette am Trichter. */
+.listbar__count {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--klappe-accent);
+  color: var(--klappe-accent-contrast);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* Stiller Hinweis „hier ist etwas eingestellt" ohne Zahl. */
+.listbar__dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--klappe-accent);
+}
+
+.listbar__switch {
+  font-size: 13px;
+}
+
+/* Suchfeld, das erst auf Klick erscheint (`SearchBox`). */
+.searchbox {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchbox__icon {
+  position: absolute;
+  left: 9px;
+  display: flex;
+  color: var(--klappe-text-faint);
+  pointer-events: none;
+}
+
+.searchbox__input {
+  width: 240px;
+  padding-left: 32px;
+}
+
+/* Abschnitt je Dimension im Filter-Panel. */
+.filtermenu__group + .filtermenu__group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--klappe-border);
+}
+
+.filtermenu__title {
+  margin: 4px 0 2px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--klappe-text-faint);
+}
+
+.filtermenu__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.filtermenu__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.filtermenu__reset {
+  margin-top: 4px;
+  border-top: 1px solid var(--klappe-border);
 }
 
 .filterbar__tags {
@@ -1812,6 +1959,25 @@ a.badge:hover {
   align-items: center;
   gap: 10px;
   padding: 8px 0;
+  flex-wrap: wrap;
+}
+
+.tagrow__name {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.tagrow__rest {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tagrow__count {
+  font-size: 12px;
+  min-width: 62px;
+  text-align: right;
 }
 
 .tagrow__colors {
@@ -1927,13 +2093,16 @@ a.badge:hover {
 
 /*
  * Liegt per Portal am `body` und wird in Fensterkoordinaten gesetzt – sonst
- * schnitten Vorfahren mit `overflow: hidden` es ab (siehe `Menu.tsx`).
- * `.filterbar` benutzt dieselbe Optik, dort aber absolut im Container: Die
- * Leiste beschneidet nichts, und ein mitwanderndes Panel ist dort angenehmer.
+ * schnitten Vorfahren mit `overflow: hidden` es ab (siehe `Menu.tsx`). Seit
+ * Phase 24 klemmt `Menu.tsx` die Stelle zusätzlich ans Fenster, damit nichts
+ * über die Kante hinausläuft.
  */
 .menu__panel {
   position: fixed;
   min-width: 200px;
+  /* Nie breiter als das Fenster – auf einem schmalen Handy lief ein Menü mit
+     langen Einträgen sonst über die Kante hinaus (Phase 24). */
+  max-width: calc(100vw - 16px);
   max-height: min(60vh, 420px);
   overflow-y: auto;
   background: var(--klappe-surface-raised);
@@ -1968,6 +2137,79 @@ a.badge:hover {
   color: var(--klappe-danger, #e5484d);
 }
 
+/* Ein Eintrag, der auf die Seite führt, auf der man schon steht. */
+.menu__item[data-active='true'] {
+  background: var(--klappe-surface-hover);
+  font-weight: 600;
+}
+
+.menu__separator {
+  height: 1px;
+  margin: 4px 6px;
+  border: none;
+  background: var(--klappe-border);
+}
+
+/* ---------- Ablagefläche für Uploads (Phase 24) ---------- */
+
+.dropzone {
+  padding: 24px 20px;
+}
+
+.dropzone[data-dragging='true'] {
+  border-color: var(--klappe-accent);
+}
+
+.dropzone__title {
+  color: var(--klappe-text);
+}
+
+.dropzone__hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.dropzone__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+/*
+ * Ohne Zeiger gibt es nichts zu ziehen – dort steht nur der Knopf. Die Fläche
+ * bleibt trotzdem stehen: Sie fasst zusammen, worum es geht.
+ */
+@media (hover: none) {
+  .dropzone__draghint {
+    display: none;
+  }
+}
+
+/* ---------- Kopfleiste der Video-Seite (Phase 24) ---------- */
+
+.videobar {
+  flex-wrap: wrap;
+}
+
+.videobar__title {
+  font-size: 19px;
+  /* Ein langer Videoname darf die Leiste nicht aufblähen. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.videobar__versions {
+  width: auto;
+}
+
+.videobar__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Gruppenkopf der nach Kunden gruppierten Projektliste (Phase 15). */
 .grouphead {
   display: flex;
@@ -1988,11 +2230,6 @@ a.badge:hover {
 /* ---------- Freigaben-Spalte (Phase 16) ---------- */
 
 /* Die Mehrfachauswahl der Filterleiste bleibt im Fluss ihres Knopfes. */
-.filterbar .menu__panel {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-}
 
 .sidetabs {
   display: flex;
@@ -2073,7 +2310,12 @@ a.badge:hover {
   margin-top: 2px;
 }
 
-/* ---------- Einstellungen mit senkrechtem Menü (Phase 17) ---------- */
+/* ---------- Seiten mit senkrechtem Menü (Phase 17, erweitert in 24) ----------
+ *
+ * Einstellungen und Handbuch teilen sich dasselbe Gerüst: links das Menü,
+ * rechts der Inhalt. Auf schmalen Schirmen klappt das Menü hinter einem
+ * Hamburger-Symbol auf (siehe `SectionNav.tsx`).
+ */
 
 .settingspage {
   display: grid;
@@ -2083,7 +2325,7 @@ a.badge:hover {
   max-width: 1100px;
 }
 
-.settingsnav {
+.sectionnav {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2091,13 +2333,38 @@ a.badge:hover {
   top: calc(var(--klappe-header-height) + 20px);
 }
 
-.settingsnav__title {
+.sectionnav__title {
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 10px;
 }
 
-.settingsnav__item {
+/* Nur auf schmalen Schirmen sichtbar. */
+.sectionnav__toggle {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--klappe-border);
+  border-radius: var(--klappe-radius-sm);
+  background: var(--klappe-surface-raised);
+  color: var(--klappe-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  /* Fingerziel, kein Textlink. */
+  min-height: 44px;
+}
+
+.sectionnav__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sectionnav__item {
+  display: block;
   text-align: left;
   padding: 8px 12px;
   border: none;
@@ -2109,12 +2376,12 @@ a.badge:hover {
   cursor: pointer;
 }
 
-.settingsnav__item:hover {
+.sectionnav__item:hover {
   background: var(--klappe-surface-hover);
   color: var(--klappe-text);
 }
 
-.settingsnav__item[data-active='true'] {
+.sectionnav__item[data-active='true'] {
   background: var(--klappe-surface-raised);
   color: var(--klappe-text);
   font-weight: 600;
@@ -2124,6 +2391,35 @@ a.badge:hover {
   min-width: 0;
 }
 
+.settingspage__heading {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+
+/*
+ * Gleichmäßige Abstände im Einstellungsbereich (Phase 24).
+ *
+ * Die Panels setzten ihre Ränder bisher jedes für sich per `style` – mal 16,
+ * mal 14, mal gar nichts. Zwischen zwei Karten klebte der Text dann aneinander.
+ * Hier steht der Abstand einmal, und die Panels müssen ihn nicht mehr kennen.
+ */
+.settingspage__body > .card + .card,
+.settingspage__body > form + .card,
+.settingspage__body > .card + form,
+.settingspage__body > form + form {
+  margin-top: 16px;
+}
+
+.settingspage__body > .page__subtitle {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+/* Ein Absatz direkt an einer Überschrift braucht keinen doppelten Abstand. */
+.settingspage__heading + .page__subtitle {
+  margin-top: 0;
+}
+
 /*
  * Tabellen bekommen einen eigenen Rollbereich, statt die Seite zu sprengen –
  * die Benutzer- und Gästeliste sind auf einem Handy sonst nicht zu lesen.
@@ -2131,6 +2427,12 @@ a.badge:hover {
 .tablewrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Zahlenfelder in der Formattabelle: am Schreibtisch schmal, auf dem Handy
+   über die volle Kartenbreite (siehe `.table--cards`). */
+.transcode__num {
+  width: 110px;
 }
 
 /*
@@ -2166,6 +2468,9 @@ a.badge:hover {
 
 .manual__section {
   padding: 22px 24px;
+  /* Die Kopfzeile klebt oben fest; ohne diesen Vorlauf schöbe ein Sprung aus
+     dem Inhaltsverzeichnis die Überschrift genau darunter (Phase 24). */
+  scroll-margin-top: calc(var(--klappe-header-height) + 16px);
 }
 
 .manual__section h2 {
@@ -2198,17 +2503,8 @@ a.badge:hover {
   margin-bottom: 4px;
 }
 
-.manual__toc {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  padding: 16px 20px;
-  font-size: 13px;
-}
-
-.manual__toc a:hover {
-  text-decoration: underline;
-}
+/* Das Inhaltsverzeichnis über dem Text ist in Phase 24 dem senkrechten Menü
+   links gewichen (`SectionNav`); `.manual__toc` gibt es deshalb nicht mehr. */
 
 /* Ein Tastenkürzel als kleine Taste, kein Fließtext. */
 .kbd {
@@ -2242,21 +2538,92 @@ a.badge:hover {
     gap: 16px;
   }
 
-  /* Waagerecht und rollbar, statt eine halbe Seite Menü vor dem Inhalt. */
-  .settingsnav {
+  /*
+   * Bis Phase 23 stand hier eine waagerecht rollbare Reiterreihe. Sie war
+   * schlicht nicht zu erraten: Was rechts noch kam, verriet sie nicht. Jetzt
+   * bleibt die Liste senkrecht und steckt hinter dem Hamburger-Knopf.
+   */
+  .sectionnav {
     position: static;
-    flex-direction: row;
-    overflow-x: auto;
-    gap: 4px;
-    padding-bottom: 4px;
+    gap: 6px;
   }
 
-  .settingsnav__title {
+  .sectionnav__title {
     display: none;
   }
 
-  .settingsnav__item {
-    white-space: nowrap;
+  .sectionnav__toggle {
+    display: inline-flex;
+  }
+
+  .sectionnav__list {
+    display: none;
+    padding: 4px;
+    border: 1px solid var(--klappe-border);
+    border-radius: var(--klappe-radius-sm);
+    background: var(--klappe-surface);
+  }
+
+  .sectionnav[data-open='true'] .sectionnav__list {
+    display: flex;
+  }
+
+  .sectionnav__item {
+    /* Fingerziel statt Textzeile. */
+    padding: 11px 12px;
+  }
+
+  /*
+   * Aus einer Tabellenzeile wird eine Karte mit beschrifteten Feldern
+   * (Phase 24). Die Beschriftung kommt aus `data-label` am `<td>`, damit am
+   * Schreibtisch weiterhin eine echte Tabelle mit Kopfzeile steht.
+   */
+  .table--cards thead {
+    display: none;
+  }
+
+  .table--cards,
+  .table--cards tbody,
+  .table--cards tr,
+  .table--cards td {
+    display: block;
+    width: 100%;
+  }
+
+  .table--cards tr {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--klappe-border);
+    border-radius: var(--klappe-radius-sm);
+    background: var(--klappe-surface);
+  }
+
+  .table--cards td {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+    border: none;
+  }
+
+  .table--cards td::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    font-size: 12px;
+    color: var(--klappe-text-faint);
+  }
+
+  /* Die letzte Spalte trägt nur den Löschen-Knopf und braucht keine Marke. */
+  .table--cards td:not([data-label])::before {
+    content: none;
+  }
+
+  .table--cards td .input,
+  .table--cards td .select,
+  .table--cards td .transcode__num {
+    flex: 1;
+    width: auto;
+    min-width: 0;
   }
 }
 
@@ -2290,6 +2657,19 @@ a.badge:hover {
     white-space: nowrap;
   }
 
+  /*
+   * Rechts bleibt auf dem Handy nur das Namenskürzel stehen (Phase 24). Der
+   * ausgeschriebene Name plus „Abmelden“ füllte vorher die halbe Zeile; beides
+   * steckt jetzt im Menü, das sich hinter dem Kürzel öffnet.
+   */
+  .usermenu__name {
+    display: none;
+  }
+
+  .usermenu {
+    padding: 4px;
+  }
+
   .manual__section {
     padding: 16px 16px;
   }
@@ -2306,6 +2686,30 @@ a.badge:hover {
   .page__header .input {
     width: 100% !important;
     flex: 1 1 180px;
+  }
+
+  /* Das aufgeklappte Suchfeld nimmt die Zeile für sich (Phase 24). */
+  .searchbox {
+    flex: 1 1 100%;
+    order: -1;
+  }
+
+  .searchbox__input {
+    width: 100%;
+  }
+
+  /*
+   * Video-Kopfleiste: Fassungswahl und Aktionen bekommen je eine eigene Zeile,
+   * die Aktionen rechtsbündig darunter (Phase 24).
+   */
+  .videobar__versions {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .videobar__actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
   }
 
   .review__main {

@@ -1,6 +1,5 @@
 import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { USER_ROLES, type UserRole } from '@klappe/shared';
-import { MIN_PASSWORD_LENGTH } from '../auth/password';
+import { PASSWORD_MAX_LENGTH, USER_ROLES, type UserRole } from '@klappe/shared';
 
 export class CreateUserDto {
   @IsEmail({}, { message: 'Bitte eine gültige E-Mail-Adresse angeben.' })
@@ -12,11 +11,10 @@ export class CreateUserDto {
   @MaxLength(200)
   name!: string;
 
+  /* Länge und Zusammensetzung prüft die Richtlinie im Dienst (Phase 24). */
   @IsString()
-  @MinLength(MIN_PASSWORD_LENGTH, {
-    message: `Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`,
-  })
-  @MaxLength(512)
+  @MinLength(1, { message: 'Bitte ein Passwort angeben.' })
+  @MaxLength(PASSWORD_MAX_LENGTH)
   password!: string;
 
   @IsOptional()
@@ -41,8 +39,8 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(MIN_PASSWORD_LENGTH)
-  @MaxLength(512)
+  @MinLength(1)
+  @MaxLength(PASSWORD_MAX_LENGTH)
   password?: string;
 }
 

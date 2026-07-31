@@ -66,8 +66,7 @@ export function GuestsPanel() {
       <div>
         <div className="page__header">
           <div>
-            <h2 className="page__title" style={{ fontSize: 20 }}>Gäste</h2>
-            <p className="page__subtitle">
+            <p className="page__subtitle" style={{ marginTop: 0 }}>
               {guests.length} {guests.length === 1 ? 'Gast' : 'Gäste'} insgesamt, {mitZugang} davon
               mit gültigem Zugang
             </p>

@@ -45,6 +45,19 @@ export const FAVICON_MIME_TYPES = [
 ] as const;
 export type FaviconMimeType = (typeof FAVICON_MIME_TYPES)[number];
 
+/**
+ * Kantenlänge des gerasterten App-Symbols (Phase 24).
+ *
+ * 512 ist die größte Größe, die ein Web-App-Manifest üblicherweise verlangt;
+ * Browser und iOS rechnen daraus alles Kleinere selbst herunter. Eine einzige
+ * Datei genügt also – mehrere Größen vorzuhalten hieße, denselben Zustand an
+ * mehreren Stellen zu pflegen.
+ */
+export const APP_ICON_SIZE = 512;
+
+/** Ein 512er PNG bleibt weit darunter; die Grenze fängt nur Unfug ab. */
+export const MAX_APP_ICON_BYTES = 512 * 1024;
+
 export interface BrandingDto {
   title: string;
   accent: string;
@@ -62,6 +75,12 @@ export interface BrandingDto {
    * gewählten Quelle (noch) keine Datei vorliegt.
    */
   faviconUrl: string | null;
+  /**
+   * Das gerasterte App-Symbol als PNG (Phase 24) – für den Browser-Tab, den
+   * iOS-Startbildschirm und das Web-App-Manifest. `null`, solange keines
+   * hinterlegt ist; dann bleibt es beim mitgelieferten Zeichen.
+   */
+  appIconUrl: string | null;
   /**
    * Das Haus, dem der Workspace gehört (Phase 20). Der Name steht in den
    * Einstellungen, das Kürzel in Klammern hinter jedem Namen aus dem eigenen

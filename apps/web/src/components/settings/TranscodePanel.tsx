@@ -226,8 +226,15 @@ export function TranscodePanel() {
         {/* Aus heißt: der ganze Abschnitt ist stumpf. `fieldset[disabled]`
             sperrt alles darin von selbst – kein Haken einzeln. */}
         <fieldset className="abschnitt" disabled={!form.downloadFormatsEnabled}>
+          {/*
+           * `table--cards`: Auf schmalen Schirmen wird aus jeder Zeile eine
+           * Karte mit beschrifteten Feldern (Phase 24). Sieben Spalten mit
+           * Eingabefeldern passen auf kein Handy – der seitliche Rollbereich
+           * schnitt „Name" und „Qualität" schlicht ab, und dass dort überhaupt
+           * noch etwas kam, war nicht zu sehen.
+           */}
           <div className="tablewrap">
-            <table className="table" style={{ marginBottom: 12 }}>
+            <table className="table table--cards" style={{ marginBottom: 12 }}>
               <thead>
                 <tr>
                   <th>Name</th>
@@ -242,9 +249,10 @@ export function TranscodePanel() {
               <tbody>
                 {settings.presets.map((format) => (
                   <tr key={format.id}>
-                    <td>
+                    <td data-label="Name">
                       <input
                         className="input"
+                        aria-label="Name des Formats"
                         defaultValue={format.name}
                         onKeyDown={beendeMitEingabe}
                         onBlur={(event) => {
@@ -253,13 +261,13 @@ export function TranscodePanel() {
                         }}
                       />
                     </td>
-                    <td>
+                    <td data-label="Kurze Kante">
                       <input
-                        className="input"
+                        className="input transcode__num"
                         type="number"
                         min={144}
                         max={4320}
-                        style={{ width: 100 }}
+                        aria-label="Kurze Kante in Pixeln"
                         defaultValue={format.shortEdge}
                         onKeyDown={beendeMitEingabe}
                         onBlur={(event) => {
@@ -270,13 +278,13 @@ export function TranscodePanel() {
                         }}
                       />
                     </td>
-                    <td>
+                    <td data-label="Bitrate">
                       <input
-                        className="input"
+                        className="input transcode__num"
                         type="number"
                         min={100}
                         max={200000}
-                        style={{ width: 110 }}
+                        aria-label="Bitrate in kbit/s"
                         defaultValue={format.videoBitrateKbps}
                         onKeyDown={beendeMitEingabe}
                         onBlur={(event) => {
@@ -290,9 +298,10 @@ export function TranscodePanel() {
                         kbit/s
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Qualität">
                       <select
                         className="select"
+                        aria-label="Qualitätsstufe"
                         value={format.preset}
                         onChange={(event) =>
                           void aendereFormat(format.id, {
@@ -307,9 +316,10 @@ export function TranscodePanel() {
                         ))}
                       </select>
                     </td>
-                    <td>
+                    <td data-label="Container">
                       <select
                         className="select"
+                        aria-label="Container"
                         value={format.container}
                         onChange={(event) =>
                           void aendereFormat(format.id, {
@@ -324,10 +334,11 @@ export function TranscodePanel() {
                         ))}
                       </select>
                     </td>
-                    <td>
+                    <td data-label="Angeboten">
                       <label className="switch">
                         <input
                           type="checkbox"
+                          aria-label="Dieses Format anbieten"
                           checked={format.isActive}
                           onChange={(event) =>
                             void aendereFormat(format.id, { isActive: event.target.checked })

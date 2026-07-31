@@ -1,8 +1,12 @@
 'use client';
 
 import type { ProjectDto, VideoDto } from '@klappe/shared';
-import { type DragEvent, useRef, useState } from 'react';
+import { type DragEvent, useState } from 'react';
+import { pickFiles } from '@/lib/pick-files';
 import { useUploads } from '@/lib/uploads-context';
+
+/** Was als Video durchgeht; für die Kunden-Ablage gilt keine Einschränkung. */
+export const VIDEO_ACCEPT = 'video/*,.mov,.mp4,.mxf,.mkv,.avi,.m4v';
 
 interface UploaderProps {
   projectId: string;
@@ -23,6 +27,11 @@ interface UploaderProps {
  * Sie nimmt nur entgegen – Zuordnung, Fortschritt und Abbruch stehen im
  * Upload-Fenster (`UploadPanel`), das über allen Seiten liegt und beim
  * Blättern nicht verschwindet.
+ *
+ * Seit Phase 24 steht hier ein richtiger Knopf. „Hierher ziehen" ist auf einem
+ * Handy eine Anweisung ins Leere: Es gibt nichts zu ziehen, und dass die Fläche
+ * insgesamt anklickbar war, sah man ihr nicht an. Der Ziehen-Hinweis bleibt
+ * Geräten mit Zeiger vorbehalten.
  */
 export function Uploader({
   projectId,
@@ -32,8 +41,6 @@ export function Uploader({
   projects,
   videos,
 }: UploaderProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const { enqueue } = useUploads();
 
@@ -49,83 +56,51 @@ export function Uploader({
     accept(Array.from(event.dataTransfer.files));
   };
 
+  const waehlen = async (directory = false) => {
+    accept(
+      await pickFiles({
+        accept: target === 'project-file' ? undefined : VIDEO_ACCEPT,
+        directory,
+      }),
+    );
+  };
+
+  const titel =
+    target === 'project-file'
+      ? 'Material hinzufügen'
+      : videoId
+        ? 'Neue Fassung hinzufügen'
+        : 'Videodateien hinzufügen';
+
   return (
     <div
-      className="empty"
-      style={{
-        borderColor: dragging ? 'var(--klappe-accent)' : undefined,
-        cursor: 'pointer',
-        padding: '28px 20px',
-      }}
+      className="empty dropzone"
+      data-dragging={dragging}
       onDragOver={(event) => {
         event.preventDefault();
         setDragging(true);
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
-      onClick={() => inputRef.current?.click()}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') inputRef.current?.click();
-      }}
     >
-      <strong style={{ color: 'var(--klappe-text)' }}>
-        {target === 'project-file'
-          ? 'Material hierher ziehen'
-          : videoId
-            ? 'Neue Fassung hierher ziehen'
-            : 'Videodateien hierher ziehen'}
-      </strong>
-      <div style={{ fontSize: 13, marginTop: 4 }}>
+      <strong className="dropzone__title">{titel}</strong>
+
+      <p className="dropzone__hint">
+        <span className="dropzone__draghint">Dateien hierher ziehen oder unten auswählen. </span>
         Mehrere Dateien auf einmal sind möglich. Zuordnung und Fortschritt stehen danach im
         Upload-Fenster; abgerissene Übertragungen werden fortgesetzt.
+      </p>
+
+      <div className="dropzone__actions">
+        <button type="button" className="button button--primary" onClick={() => void waehlen()}>
+          Dateien auswählen …
+        </button>
         {target === 'project-file' ? (
-          <>
-            {' '}
-            <button
-              type="button"
-              className="button button--ghost"
-              style={{ marginLeft: 6, padding: '2px 10px', fontSize: 12 }}
-              onClick={(event) => {
-                event.stopPropagation();
-                folderInputRef.current?.click();
-              }}
-            >
-              Ganzen Ordner wählen …
-            </button>
-          </>
+          <button type="button" className="button" onClick={() => void waehlen(true)}>
+            Ganzen Ordner wählen …
+          </button>
         ) : null}
       </div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={target === 'project-file' ? undefined : 'video/*,.mov,.mp4,.mxf,.mkv,.avi,.m4v'}
-        multiple
-        hidden
-        onChange={(event) => {
-          const files = Array.from(event.target.files ?? []);
-          event.target.value = '';
-          accept(files);
-        }}
-      />
-      {target === 'project-file' ? (
-        // Ein zweites Eingabefeld nur für Ordner: `webkitdirectory` liefert
-        // jede Datei mit ihrem relativen Pfad, aus dem die Ordnerkette entsteht.
-        <input
-          ref={folderInputRef}
-          type="file"
-          hidden
-          multiple
-          // @ts-expect-error – Nicht im Standard, aber in allen Browsern.
-          webkitdirectory=""
-          onChange={(event) => {
-            const files = Array.from(event.target.files ?? []);
-            event.target.value = '';
-            accept(files);
-          }}
-        />
-      ) : null}
     </div>
   );
 }

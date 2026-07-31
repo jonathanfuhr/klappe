@@ -4,6 +4,7 @@ export * from './branding';
 export * from './company';
 export * from './filenames';
 export * from './mentions';
+export * from './password-policy';
 export * from './tags';
 export * from './timecode';
 export * from './types';

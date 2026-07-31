@@ -11,10 +11,11 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { TagChip } from '@/components/TagChip';
-import { TagManager } from '@/components/TagManager';
 import { Dialog } from '@/components/ui/Dialog';
-import { FilterSelect } from '@/components/ui/FilterSelect';
+import { type FilterDimension, FilterMenu } from '@/components/ui/FilterMenu';
+import { Icon } from '@/components/ui/Icon';
 import { Menu, MenuItem } from '@/components/ui/Menu';
+import { SearchBox } from '@/components/ui/SearchBox';
 import { DeleteProjectDialog, EditProjectDialog } from '@/components/ProjectDialogs';
 import { api } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
@@ -41,7 +42,6 @@ export default function ProjectsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
-  const [managingTags, setManagingTags] = useState(false);
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagMatch, setTagMatch] = useState<'any' | 'all'>('any');
@@ -185,6 +185,80 @@ export default function ProjectsPage() {
   const filterAktiv =
     selectedTags.length > 0 || selectedCustomers.length > 0 || aktiveFeldFilter.length > 0;
 
+  /**
+   * Die Dimensionen fürs Filter-Panel: Kunde, jedes als filterbar geschaltete
+   * Freifeld und – wenn eingeschaltet – die Schlagworte (Phasen 16 und 22).
+   */
+  const filterDimensionen: FilterDimension[] = [
+    {
+      id: 'customer',
+      label: 'Kunde',
+      options: customers.map((kunde) => ({
+        value: kunde.name,
+        label: kunde.name,
+        count: kunde.projectCount,
+      })),
+      selected: selectedCustomers,
+      onChange: setSelectedCustomers,
+    },
+    ...fieldDefs
+      .filter((def) => def.filterable)
+      .map((def) => ({
+        id: def.id,
+        label: def.name,
+        options: (fieldValues[def.id] ?? []).map((wert) => ({
+          value: wert.value,
+          label: wert.value,
+          count: wert.projectCount,
+        })),
+        selected: selectedFieldValues[def.id] ?? [],
+        onChange: (values: string[]) =>
+          setSelectedFieldValues((current) => ({ ...current, [def.id]: values })),
+      })),
+    ...(tagsEnabled
+      ? [
+          {
+            id: 'tags',
+            label: 'Schlagworte',
+            options: tags.map((tag) => ({
+              value: tag.id,
+              label: tag.name,
+              count: tag.projectCount,
+              color: tag.color,
+            })),
+            selected: selectedTags,
+            onChange: setSelectedTags,
+          },
+        ]
+      : []),
+  ];
+
+  const sortOptionen = [
+    ...BASIS_SORTS,
+    ...fieldDefs
+      .filter((def) => def.sortable)
+      .map((def) => ({ id: `field:${def.id}`, label: def.name })),
+  ];
+
+  const gruppenOptionen = [
+    { id: '', label: 'Nicht gruppieren' },
+    { id: 'customer', label: 'Nach Kunde' },
+    ...fieldDefs
+      .filter((def) => def.groupable)
+      .map((def) => ({ id: def.id, label: `Nach ${def.name}` })),
+  ];
+
+  /*
+   * Beschriftungen für die Symbolknöpfe. Ein Symbol allein sagt nie, was
+   * eingestellt ist – der Stand gehört deshalb in `aria-label` und `title`.
+   */
+  const sortLabel = `Sortierung: ${
+    sortOptionen.find((eintrag) => eintrag.id === sort)?.label ?? 'unbekannt'
+  }`;
+  const gruppenMenueLabel = groupBy
+    ? `Gruppierung: ${gruppenOptionen.find((eintrag) => eintrag.id === groupBy)?.label ?? 'Feld'}`
+    : 'Gruppierung: keine';
+
   /** Felder, deren Wert laut Einstellung auf die Kachel gehört (Phase 22). */
   const kachelFeldIds = useMemo(
     () => new Set(fieldDefs.filter((def) => def.showOnTile).map((def) => def.id)),
@@ -251,6 +325,8 @@ export default function ProjectsPage() {
   return (
     <AppShell>
       <div className="page">
+        {/* „Neues Projekt" steht seit Phase 24 rechtsbündig neben der
+            Überschrift – die Zeile darunter trägt nur noch Werkzeuge. */}
         <div className="page__header">
           <div>
             <h1 className="page__title">Projekte</h1>
@@ -260,13 +336,6 @@ export default function ProjectsPage() {
             </p>
           </div>
           <div className="shell__spacer" />
-          <input
-            className="input"
-            style={{ width: 220 }}
-            placeholder="Suchen …"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
           {isTeam ? (
             <button
               type="button"
@@ -278,129 +347,115 @@ export default function ProjectsPage() {
           ) : null}
         </div>
 
-        {isTeam ? (
-          <div className="filterbar">
-            {/* Jede Dimension ein Mehrfachauswahl-Filter – Kunde, jedes
-                benutzerdefinierte Feld und (wenn eingeschaltet) die
-                Schlagworte. Keine Sonderrolle mehr für einzelne (Phase 16). */}
-            <FilterSelect
-              label="Kunde"
-              options={customers.map((kunde) => ({
-                value: kunde.name,
-                label: kunde.name,
-                count: kunde.projectCount,
-              }))}
-              selected={selectedCustomers}
-              onChange={setSelectedCustomers}
-            />
-            {/* Nur Felder, die laut Einstellung filterbar sind (Phase 22). */}
-            {fieldDefs
-              .filter((def) => def.filterable)
-              .map((def) => (
-                <FilterSelect
-                  key={def.id}
-                  label={def.name}
-                  options={(fieldValues[def.id] ?? []).map((wert) => ({
-                    value: wert.value,
-                    label: wert.value,
-                    count: wert.projectCount,
-                  }))}
-                  selected={selectedFieldValues[def.id] ?? []}
-                  onChange={(values) =>
-                    setSelectedFieldValues((current) => ({ ...current, [def.id]: values }))
-                  }
-                />
-              ))}
-            {tagsEnabled ? (
-              <FilterSelect
-                label="Schlagworte"
-                options={tags.map((tag) => ({
-                  value: tag.id,
-                  label: tag.name,
-                  count: tag.projectCount,
-                  color: tag.color,
-                }))}
-                selected={selectedTags}
-                onChange={setSelectedTags}
-              />
-            ) : null}
+        {/*
+         * Werkzeugleiste (Phase 24): Suche, Filter, Sortierung und Gruppierung
+         * stecken hinter Symbolen mit Untermenü. Vorher stand jede Dimension als
+         * beschrifteter Knopf nebeneinander – bei Kunde, mehreren Freifeldern
+         * und Schlagworten war die Leiste breiter als die Projektliste selbst
+         * und brach auf dem Handy in vier Zeilen um.
+         */}
+        <div className="listbar">
+          <SearchBox
+            value={search}
+            onChange={setSearch}
+            placeholder="Projekt, Kunde oder Feld …"
+          />
 
-            {tagsEnabled && selectedTags.length > 1 ? (
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={tagMatch === 'all'}
-                  onChange={(event) => setTagMatch(event.target.checked ? 'all' : 'any')}
-                />
-                alle gewählten
-              </label>
-            ) : null}
-
-            {filterAktiv ? (
-              <button
-                type="button"
-                className="button button--ghost"
-                onClick={() => {
+          {isTeam ? (
+            <>
+              <FilterMenu
+                dimensions={filterDimensionen}
+                onReset={() => {
                   setSelectedTags([]);
                   setSelectedCustomers([]);
                   setSelectedFieldValues({});
                 }}
+              />
+
+              {/* Gruppieren stellt die Sortierung selbst her; die beiden
+                  schließen sich aus und teilen sich deshalb kein Menü. */}
+              <Menu
+                label={groupBy ? `Sortierung (von der Gruppierung bestimmt)` : sortLabel}
+                align="left"
+                triggerClassName="iconbutton listbar__button"
+                trigger={<Icon name="sort" />}
               >
-                Filter zurücksetzen
-              </button>
-            ) : null}
+                <h3 className="filtermenu__title">Sortierung</h3>
+                {groupBy ? (
+                  <span className="faint" style={{ fontSize: 12, padding: '2px 10px 6px' }}>
+                    Solange gruppiert wird, gibt die Gruppierung die Reihenfolge vor.
+                  </span>
+                ) : (
+                  sortOptionen.map((eintrag) => (
+                    <button
+                      key={eintrag.id}
+                      type="button"
+                      className="menu__item"
+                      data-active={sort === eintrag.id}
+                      onClick={() => setSort(eintrag.id)}
+                    >
+                      {eintrag.label}
+                    </button>
+                  ))
+                )}
+              </Menu>
 
-            <div className="shell__spacer" />
+              <Menu
+                label={gruppenMenueLabel}
+                align="left"
+                triggerClassName="iconbutton listbar__button"
+                trigger={
+                  <>
+                    <Icon name="group" />
+                    {groupBy ? <span className="listbar__dot" aria-hidden /> : null}
+                  </>
+                }
+              >
+                <h3 className="filtermenu__title">Gruppierung</h3>
+                {gruppenOptionen.map((eintrag) => (
+                  <button
+                    key={eintrag.id || 'keine'}
+                    type="button"
+                    className="menu__item"
+                    data-active={groupBy === eintrag.id}
+                    onClick={() => setGroupBy(eintrag.id)}
+                  >
+                    {eintrag.label}
+                  </button>
+                ))}
+              </Menu>
 
-            <select
-              className="select"
-              style={{ width: 'auto' }}
-              value={groupBy}
-              onChange={(event) => setGroupBy(event.target.value)}
-              aria-label="Gruppieren"
+              {/* Nur sinnvoll, wenn mehr als ein Schlagwort gewählt ist:
+                  „alle" gegen „irgendeines". */}
+              {tagsEnabled && selectedTags.length > 1 ? (
+                <label className="switch listbar__switch">
+                  <input
+                    type="checkbox"
+                    checked={tagMatch === 'all'}
+                    onChange={(event) => setTagMatch(event.target.checked ? 'all' : 'any')}
+                  />
+                  alle Schlagworte
+                </label>
+              ) : null}
+            </>
+          ) : null}
+
+          <div className="shell__spacer" />
+
+          {filterAktiv ? (
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => {
+                setSelectedTags([]);
+                setSelectedCustomers([]);
+                setSelectedFieldValues({});
+              }}
             >
-              <option value="">Nicht gruppieren</option>
-              <option value="customer">Nach Kunde</option>
-              {/* Nur Felder, die laut Einstellung gruppierbar sind (Phase 22). */}
-              {fieldDefs
-                .filter((def) => def.groupable)
-                .map((def) => (
-                  <option key={def.id} value={def.id}>
-                    Nach {def.name}
-                  </option>
-                ))}
-            </select>
-
-            {groupBy ? null : (
-              <select
-                className="select"
-                style={{ width: 'auto' }}
-                value={sort}
-                onChange={(event) => setSort(event.target.value)}
-                aria-label="Sortierung"
-              >
-                {BASIS_SORTS.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.label}
-                  </option>
-                ))}
-                {fieldDefs
-                  .filter((def) => def.sortable)
-                  .map((def) => (
-                    <option key={def.id} value={`field:${def.id}`}>
-                      {def.name}
-                    </option>
-                  ))}
-              </select>
-            )}
-
-            {tagsEnabled ? (
-              <button type="button" className="button" onClick={() => setManagingTags(true)}>
-                Schlagworte
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+              Filter zurücksetzen
+            </button>
+          ) : null}
+        </div>
 
         {error ? <div className="notice">{error}</div> : null}
         {loading ? <p className="muted">Wird geladen …</p> : null}
@@ -484,15 +539,9 @@ export default function ProjectsPage() {
         />
       ) : null}
 
-      {managingTags ? (
-        <TagManager
-          onClose={() => setManagingTags(false)}
-          onChanged={async () => {
-            await loadMeta();
-            await load();
-          }}
-        />
-      ) : null}
+      {/* Schlagworte anlegen und einfärben liegt seit Phase 24 in den
+          Einstellungen bei den benutzerdefinierten Feldern – dort, wo auch der
+          Schalter „Schlagworte verwenden" sitzt. */}
     </AppShell>
   );
 }

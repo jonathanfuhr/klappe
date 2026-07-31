@@ -1,6 +1,8 @@
 'use client';
 
+import type { BrandingDto } from '@klappe/shared';
 import {
+  APP_ICON_SIZE,
   DEFAULT_BRAND_ACCENT,
   FAVICON_MIME_TYPES,
   type FaviconMode,
@@ -12,6 +14,7 @@ import {
 } from '@klappe/shared';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { rasterizeAppIcon } from '@/lib/app-icon';
 import { useBranding } from '@/lib/branding';
 
 /**
@@ -55,6 +58,38 @@ export function BrandingPanel() {
     }
   };
 
+  /**
+   * Das App-Symbol neu aus der gewählten Quelle rastern (Phase 24).
+   *
+   * Läuft nach jeder Änderung, die die Quelle betrifft – neues Logo, neues
+   * eigenes Symbol, anderer Modus. Nur so bleibt das PNG das, was oben links
+   * zu sehen ist; ein einmal erzeugtes Symbol würde sonst beim nächsten
+   * Logo-Wechsel stehen bleiben.
+   */
+  const syncAppIcon = async (stand: BrandingDto): Promise<BrandingDto> => {
+    const quelle =
+      stand.faviconMode === 'logo'
+        ? stand.logoUrl
+        : stand.faviconMode === 'eigenes'
+          ? stand.faviconUrl
+          : null;
+
+    if (!quelle) return api.removeAppIcon();
+
+    try {
+      return await api.uploadAppIcon(await rasterizeAppIcon(quelle));
+    } catch {
+      // Das Rastern ist Beiwerk: Schlägt es fehl, ist das Logo trotzdem
+      // gespeichert. Es bleibt dann beim mitgelieferten Tab-Symbol, und das
+      // sagt der Hinweis auch.
+      setError(
+        'Das Bild wurde gespeichert, ließ sich aber nicht in ein Tab-Symbol umrechnen. ' +
+          'Im Tab bleibt vorerst das Klappe-Zeichen.',
+      );
+      return stand;
+    }
+  };
+
   const uploadLogo = async (file: File) => {
     setBusy(true);
     setError(null);
@@ -63,7 +98,7 @@ export function BrandingPanel() {
       if (file.size > MAX_LOGO_BYTES) {
         throw new Error(`Das Logo darf höchstens ${Math.round(MAX_LOGO_BYTES / 1024)} KB haben.`);
       }
-      apply(await api.uploadLogo(file));
+      apply(await syncAppIcon(await api.uploadLogo(file)));
       setInfo('Logo übernommen.');
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'Hochladen fehlgeschlagen.');
@@ -78,7 +113,7 @@ export function BrandingPanel() {
     setError(null);
     setInfo(null);
     try {
-      apply(await api.removeLogo());
+      apply(await syncAppIcon(await api.removeLogo()));
       setInfo('Logo entfernt.');
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : 'Entfernen fehlgeschlagen.');
@@ -97,7 +132,7 @@ export function BrandingPanel() {
     setError(null);
     setInfo(null);
     try {
-      apply(await api.updateBranding({ faviconMode }));
+      apply(await syncAppIcon(await api.updateBranding({ faviconMode })));
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
     } finally {
@@ -115,7 +150,7 @@ export function BrandingPanel() {
           `Das Symbol darf höchstens ${Math.round(MAX_FAVICON_BYTES / 1024)} KB haben.`,
         );
       }
-      apply(await api.uploadFavicon(file));
+      apply(await syncAppIcon(await api.uploadFavicon(file)));
       setInfo('Tab-Symbol übernommen.');
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'Hochladen fehlgeschlagen.');
@@ -130,7 +165,7 @@ export function BrandingPanel() {
     setError(null);
     setInfo(null);
     try {
-      apply(await api.removeFavicon());
+      apply(await syncAppIcon(await api.removeFavicon()));
       setInfo('Tab-Symbol entfernt.');
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : 'Entfernen fehlgeschlagen.');
@@ -302,10 +337,10 @@ export function BrandingPanel() {
           </p>
         </div>
 
-        {/* Tab-Symbol (Phase 23) */}
+        {/* Tab-Symbol (Phase 23), seit Phase 24 auch das Symbol der Web-App */}
         <div className="field">
           <label className="field__label" htmlFor="favicon-mode">
-            Symbol im Browser-Tab
+            Symbol im Browser-Tab und auf dem Startbildschirm
           </label>
           <select
             id="favicon-mode"
@@ -321,8 +356,26 @@ export function BrandingPanel() {
           </select>
           <p className="hint">
             Ein Tab-Symbol ist 16 Pixel groß. Ein breiter Schriftzug wird darin zu Brei – dafür
-            gibt es die dritte Möglichkeit.
+            gibt es die dritte Möglichkeit. Aus dem gewählten Bild rechnet Klappe beim Speichern
+            ein quadratisches PNG ({APP_ICON_SIZE} Pixel); nur damit legt ein iPhone unter „Zum
+            Home-Bildschirm" eine Kachel mit diesem Symbol an – ein SVG nimmt es dafür nicht.
           </p>
+
+          {branding.appIconUrl ? (
+            <div className="toolbar" style={{ marginTop: 10 }}>
+              <span className="faint" style={{ fontSize: 13 }}>
+                So sieht die Kachel aus:
+              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={branding.appIconUrl}
+                alt="Symbol auf dem Startbildschirm"
+                width={44}
+                height={44}
+                style={{ borderRadius: 10, background: 'var(--klappe-surface-raised)' }}
+              />
+            </div>
+          ) : null}
 
           {branding.faviconMode === 'logo' && !branding.logoUrl ? (
             <div className="notice notice--warn">

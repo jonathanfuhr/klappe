@@ -572,6 +572,12 @@ export const api = {
     autoProvision?: boolean;
     allowedDomains?: string;
     buttonLabel?: string;
+    /** Passwort-Richtlinie (Phase 24). */
+    passwordMinLength?: number;
+    passwordRequireLetter?: boolean;
+    passwordRequireDigit?: boolean;
+    passwordRequireMixedCase?: boolean;
+    passwordRequireSymbol?: boolean;
   }) => request<AuthSettingsDto>('/v1/settings/auth', { method: 'PUT', body: JSON.stringify(input) }),
 
   // ---------- Erscheinungsbild (Phase 10) ----------
@@ -607,6 +613,14 @@ export const api = {
       body: file,
     }),
   removeFavicon: () => request<BrandingDto>('/v1/settings/branding/favicon', { method: 'DELETE' }),
+  /** Gerastertes App-Symbol (Phase 24) – erzeugt vom Browser, siehe `app-icon.ts`. */
+  uploadAppIcon: (png: Blob) =>
+    request<BrandingDto>('/v1/settings/branding/app-icon', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/png' },
+      body: png,
+    }),
+  removeAppIcon: () => request<BrandingDto>('/v1/settings/branding/app-icon', { method: 'DELETE' }),
   sendTestMail: (to?: string) =>
     request<void>('/v1/settings/smtp/test', {
       method: 'POST',

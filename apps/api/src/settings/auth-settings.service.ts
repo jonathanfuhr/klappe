@@ -6,7 +6,8 @@
  * sich nicht selbst aussperren.
  */
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
-import type { AuthSettingsDto, LoginMethodsDto } from '@klappe/shared';
+import type { AuthSettingsDto, LoginMethodsDto, PasswordPolicy } from '@klappe/shared';
+import { normalizePasswordPolicy } from '@klappe/shared';
 import { eq } from 'drizzle-orm';
 import { decryptSecret, encryptSecret } from '../common/secret-box';
 import { AppConfig, CONFIG } from '../config/configuration';
@@ -35,6 +36,8 @@ export interface UpdateAuthSettingsInput {
   autoProvision?: boolean;
   allowedDomains?: string | null;
   buttonLabel?: string | null;
+  /** Regeln für Team-Passwörter (Phase 24); nur die gesetzten Felder ändern sich. */
+  passwordPolicy?: Partial<PasswordPolicy>;
 }
 
 @Injectable()
@@ -75,8 +78,24 @@ export class AuthSettingsService {
       allowedDomains: parseDomainList(row.oidcAllowedDomains),
       buttonLabel: row.oidcButtonLabel?.trim() || DEFAULT_BUTTON_LABEL,
       redirectUri: `${this.config.publicUrl.replace(/\/+$/, '')}/v1/auth/microsoft/callback`,
+      passwordPolicy: await this.getPasswordPolicy(),
       updatedAt: row.updatedAt.toISOString(),
     };
+  }
+
+  /**
+   * Die geltende Passwort-Richtlinie (Phase 24). Jede Stelle, die ein Passwort
+   * entgegennimmt, holt sie sich hier – die Regeln stehen nur an einem Ort.
+   */
+  async getPasswordPolicy(): Promise<PasswordPolicy> {
+    const row = await this.settingsService.getRow();
+    return normalizePasswordPolicy({
+      minLength: row.passwordMinLength,
+      requireLetter: row.passwordRequireLetter,
+      requireDigit: row.passwordRequireDigit,
+      requireMixedCase: row.passwordRequireMixedCase,
+      requireSymbol: row.passwordRequireSymbol,
+    });
   }
 
   /** Was die Anmeldeseite ohne Anmeldung wissen muss. */
@@ -89,6 +108,7 @@ export class AuthSettingsService {
       local: row.localLoginEnabled || !microsoft,
       microsoft,
       microsoftLabel: row.oidcButtonLabel?.trim() || DEFAULT_BUTTON_LABEL,
+      passwordPolicy: await this.getPasswordPolicy(),
     };
   }
 
@@ -127,9 +147,29 @@ export class AuthSettingsService {
       );
     }
 
+    /*
+     * Die Richtlinie wird auf dem Stand aufgesetzt, der schon gilt – Feld für
+     * Feld, nicht per Spread: Ein `undefined` im Eingabeobjekt heißt
+     * „unverändert" und dürfte den gespeicherten Wert nicht überschreiben.
+     * `normalizePasswordPolicy` fängt unsinnige Werte ab, statt sie abzuweisen.
+     */
+    const gewuenscht = input.passwordPolicy ?? {};
+    const policy = normalizePasswordPolicy({
+      minLength: gewuenscht.minLength ?? row.passwordMinLength,
+      requireLetter: gewuenscht.requireLetter ?? row.passwordRequireLetter,
+      requireDigit: gewuenscht.requireDigit ?? row.passwordRequireDigit,
+      requireMixedCase: gewuenscht.requireMixedCase ?? row.passwordRequireMixedCase,
+      requireSymbol: gewuenscht.requireSymbol ?? row.passwordRequireSymbol,
+    });
+
     await this.db
       .update(appSettings)
       .set({
+        passwordMinLength: policy.minLength,
+        passwordRequireLetter: policy.requireLetter,
+        passwordRequireDigit: policy.requireDigit,
+        passwordRequireMixedCase: policy.requireMixedCase,
+        passwordRequireSymbol: policy.requireSymbol,
         localLoginEnabled: input.localLoginEnabled,
         oidcEnabled: input.oidcEnabled,
         oidcTenantId: input.tenantId === undefined ? undefined : input.tenantId?.trim() || null,

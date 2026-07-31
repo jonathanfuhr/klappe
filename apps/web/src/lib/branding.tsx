@@ -27,6 +27,7 @@ const fallback: BrandingDto = {
   logoUrl: null,
   faviconMode: 'standard',
   faviconUrl: null,
+  appIconUrl: null,
   companyName: null,
   companyShort: null,
   updatedAt: new Date(0).toISOString(),
@@ -75,26 +76,42 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   }, [branding.title]);
 
   /**
-   * Tab-Symbol (Phase 23).
+   * Tab-Symbol und App-Symbol (Phasen 23 und 24).
    *
    * Next legt aus `app/icon.svg` selbst einen `<link rel="icon">` an. Statt
-   * den zu entfernen, wird ein eigener **dahinter** gehängt: Browser nehmen
-   * bei mehreren den zuletzt passenden, und bleibt unserer aus (Modus
-   * `standard`), steht das mitgelieferte Zeichen unverändert da.
+   * den zu entfernen, werden eigene **dahinter** gehängt: Browser nehmen bei
+   * mehreren den zuletzt passenden, und bleiben unsere aus (Modus `standard`),
+   * steht das mitgelieferte Zeichen unverändert da.
+   *
+   * Angehängt wird bevorzugt das gerasterte PNG. Ein SVG nahm der Tab nicht
+   * überall an, und der iOS-Startbildschirm braucht für `apple-touch-icon`
+   * ohnehin zwingend ein PNG – ein SVG dort lässt Safari das Symbol schlicht
+   * weg und malt stattdessen einen Bildschirmausschnitt der Seite.
    */
   useEffect(() => {
-    const vorhanden = document.querySelector<HTMLLinkElement>(`link[${FAVICON_ATTRIBUT}]`);
-    if (!branding.faviconUrl) {
-      vorhanden?.remove();
-      return;
+    for (const alt of document.querySelectorAll(`link[${FAVICON_ATTRIBUT}]`)) alt.remove();
+
+    const png = branding.appIconUrl;
+    const quellen: { rel: string; href: string; type?: string }[] = [];
+
+    if (png) {
+      quellen.push({ rel: 'icon', href: png, type: 'image/png' });
+      quellen.push({ rel: 'apple-touch-icon', href: png });
+    } else if (branding.faviconUrl) {
+      // Kein PNG erzeugt (etwa weil das Rastern scheiterte): Wenigstens im Tab
+      // soll das eigene Symbol stehen.
+      quellen.push({ rel: 'icon', href: branding.faviconUrl });
     }
 
-    const link = vorhanden ?? document.createElement('link');
-    link.rel = 'icon';
-    link.setAttribute(FAVICON_ATTRIBUT, '');
-    if (link.href !== branding.faviconUrl) link.href = branding.faviconUrl;
-    if (!vorhanden) document.head.append(link);
-  }, [branding.faviconUrl]);
+    for (const quelle of quellen) {
+      const link = document.createElement('link');
+      link.rel = quelle.rel;
+      link.href = quelle.href;
+      if (quelle.type) link.type = quelle.type;
+      link.setAttribute(FAVICON_ATTRIBUT, '');
+      document.head.append(link);
+    }
+  }, [branding.appIconUrl, branding.faviconUrl]);
 
   const value = useMemo<BrandingState>(
     () => ({ branding, apply: setBranding, reload }),

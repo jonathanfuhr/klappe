@@ -636,6 +636,20 @@ export const appSettings = pgTable('app_settings', {
   faviconUpdatedAt: timestamp('favicon_updated_at', { withTimezone: true }),
 
   /**
+   * Das gerasterte App-Symbol (Phase 24).
+   *
+   * Aus der gewählten Quelle – Logo oder eigenes Tab-Symbol – im Browser des
+   * Admins auf ein quadratisches PNG gebracht und hier abgelegt. Nötig, weil
+   * ein SVG als Symbol auf dem iOS-Startbildschirm gar nicht angenommen wird
+   * und in älteren Browser-Tabs unzuverlässig ist. Das Rastern läuft bewusst
+   * im Browser: Der Server bräuchte dafür eine Bildbibliothek mit nativen
+   * Abhängigkeiten, die dem Stack sonst nirgends fehlt.
+   */
+  appIconKey: text('app_icon_key'),
+  /** Wechselt bei jedem neuen Symbol und bricht damit den Browser-Cache auf. */
+  appIconUpdatedAt: timestamp('app_icon_updated_at', { withTimezone: true }),
+
+  /**
    * Datenbanksicherung (Phase 23). Ab Werk aus – eine Sicherung, die niemand
    * bestellt hat, schreibt sonst still Dateien auf ein Volume, dessen Größe
    * der Betreiber selbst kalkuliert hat.
@@ -680,6 +694,18 @@ export const appSettings = pgTable('app_settings', {
   oidcAllowedDomains: text('oidc_allowed_domains'),
   /** Beschriftung der Schaltfläche auf der Anmeldeseite. */
   oidcButtonLabel: text('oidc_button_label'),
+
+  /**
+   * Passwort-Richtlinie für Team-Konten (Phase 24). Vorher standen diese
+   * Regeln fest im Code; die Vorgabewerte hier sind genau die alten, damit ein
+   * Update kein bestehendes Passwort ungültig macht. Gäste betrifft das nicht –
+   * sie melden sich per Code an und haben gar kein Passwort.
+   */
+  passwordMinLength: integer('password_min_length').notNull().default(10),
+  passwordRequireLetter: boolean('password_require_letter').notNull().default(true),
+  passwordRequireDigit: boolean('password_require_digit').notNull().default(true),
+  passwordRequireMixedCase: boolean('password_require_mixed_case').notNull().default(false),
+  passwordRequireSymbol: boolean('password_require_symbol').notNull().default(false),
 
   // ---------- Projektliste (Phase 16) ----------
   /**

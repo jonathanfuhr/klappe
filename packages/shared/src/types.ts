@@ -4,6 +4,7 @@
  * im Frontend.
  */
 import type { Annotation } from './annotations';
+import type { PasswordPolicy } from './password-policy';
 import type { FrameRate } from './timecode';
 
 export const USER_ROLES = ['ADMIN', 'MEMBER', 'GUEST'] as const;
@@ -767,6 +768,8 @@ export interface AuthSettingsDto {
   buttonLabel: string;
   /** Diese Adresse muss in der App-Registrierung eingetragen sein. */
   redirectUri: string;
+  /** Regeln, denen ein Team-Passwort genügen muss (Phase 24). */
+  passwordPolicy: PasswordPolicy;
   updatedAt: string;
 }
 
@@ -775,6 +778,15 @@ export interface LoginMethodsDto {
   local: boolean;
   microsoft: boolean;
   microsoftLabel: string;
+  /**
+   * Die geltenden Passwort-Regeln (Phase 24) – damit jede Seite, auf der ein
+   * Passwort gesetzt wird, sie **vorher** nennen kann statt hinterher
+   * abzulehnen. Auch für Nicht-Admins lesbar: Die Einstellungen selbst sind
+   * dem Admin vorbehalten, aber wer ein Passwort vergibt, muss die Regeln
+   * kennen. Ein Angreifer gewinnt daraus nichts, was ein Versuch nicht auch
+   * verriete.
+   */
+  passwordPolicy: PasswordPolicy;
 }
 
 export interface LoginResponseDto {

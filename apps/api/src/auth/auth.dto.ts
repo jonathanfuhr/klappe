@@ -1,5 +1,5 @@
+import { PASSWORD_MAX_LENGTH } from '@klappe/shared';
 import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
-import { MIN_PASSWORD_LENGTH } from './password';
 
 export class LoginDto {
   @IsEmail({}, { message: 'Bitte eine gültige E-Mail-Adresse angeben.' })
@@ -17,10 +17,13 @@ export class ChangePasswordDto {
   @MaxLength(512)
   currentPassword!: string;
 
+  /*
+   * Nur „nicht leer" – die Länge gibt seit Phase 24 die Richtlinie des
+   * Workspace vor, und die kennt erst der Dienst. Eine feste Zahl hier würde
+   * eine niedriger eingestellte Richtlinie stillschweigend aushebeln.
+   */
   @IsString()
-  @MinLength(MIN_PASSWORD_LENGTH, {
-    message: `Das neue Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`,
-  })
-  @MaxLength(512)
+  @MinLength(1, { message: 'Bitte ein neues Passwort angeben.' })
+  @MaxLength(PASSWORD_MAX_LENGTH)
   newPassword!: string;
 }

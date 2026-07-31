@@ -171,6 +171,17 @@ export class StorageService {
     return join('branding', `favicon.${extension}`);
   }
 
+  /**
+   * Das gerasterte App-Symbol (Phase 24).
+   *
+   * Abgeleitet aus Logo oder eigenem Tab-Symbol, immer als quadratisches PNG.
+   * Ein SVG taugt weder für den Startbildschirm eines iPhones noch für ältere
+   * Browser-Tabs; ein PNG nimmt jeder.
+   */
+  keyForAppIcon(): string {
+    return join('branding', 'app-icon.png');
+  }
+
   /** Schreibt eine kleine Datei am Stück – für Logos und Ähnliches. */
   async writeFile(key: string, data: Buffer): Promise<void> {
     await this.ensureDirForKey(key);

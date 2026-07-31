@@ -12,6 +12,7 @@ import {
   FAVICON_MIME_TYPES,
   FAVICON_MODES,
   LOGO_MIME_TYPES,
+  MAX_APP_ICON_BYTES,
   MAX_COMPANY_NAME_LENGTH,
   MAX_COMPANY_SHORT_LENGTH,
   MAX_FAVICON_BYTES,
@@ -42,6 +43,9 @@ const FAVICON_EXTENSIONS: Record<FaviconMimeType, string> = {
 };
 
 const SETTINGS_ID = 1;
+
+/** Die acht Bytes, mit denen jede PNG-Datei anfängt. */
+const PNG_SIGNATUR = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 export interface UpdateBrandingInput {
   title?: string | null;
@@ -92,6 +96,15 @@ export class BrandingService {
           : faviconMode === 'eigenes' && row.faviconKey
             ? `/v1/branding/favicon?v=${row.faviconUpdatedAt?.getTime() ?? 0}`
             : null,
+      /**
+       * Das gerasterte PNG (Phase 24). Es entsteht nur, wenn eine Quelle
+       * gewählt ist – bei `standard` bleibt es beim mitgelieferten Zeichen,
+       * und ein liegengebliebenes PNG von vorher darf dann nicht mehr gelten.
+       */
+      appIconUrl:
+        faviconMode !== 'standard' && row.appIconKey
+          ? `/v1/branding/app-icon.png?v=${row.appIconUpdatedAt?.getTime() ?? 0}`
+          : null,
       companyName: normalizeCompanyText(row.companyName, MAX_COMPANY_NAME_LENGTH),
       companyShort: normalizeCompanyText(row.companyShort, MAX_COMPANY_SHORT_LENGTH),
       updatedAt: row.updatedAt.toISOString(),
@@ -211,6 +224,60 @@ export class BrandingService {
     if (!row.faviconKey) return null;
     if (!(await this.storage.exists(row.faviconKey))) return null;
     return { key: row.faviconKey, mimeType: row.faviconMime ?? 'application/octet-stream' };
+  }
+
+  /**
+   * Das gerasterte App-Symbol ablegen (Phase 24).
+   *
+   * Gerastert wird im Browser des Admins – der Server nimmt nur das fertige
+   * PNG entgegen. Eine Bildbibliothek auf dem Server wäre die einzige native
+   * Abhängigkeit im ganzen Stack, und ein Canvas kann jeder Browser.
+   */
+  async setAppIcon(data: Buffer): Promise<BrandingDto> {
+    if (data.length === 0) throw new BadRequestException('Die Datei ist leer.');
+    if (data.length > MAX_APP_ICON_BYTES) {
+      throw new PayloadTooLargeException(
+        `Das App-Symbol darf höchstens ${Math.round(MAX_APP_ICON_BYTES / 1024)} KB groß sein.`,
+      );
+    }
+    // PNG-Signatur. Der Rumpf kommt zwar aus der eigenen Oberfläche, aber der
+    // Endpunkt ist erreichbar – und was hier landet, geht später als
+    // `image/png` wieder hinaus.
+    if (!data.subarray(0, 8).equals(PNG_SIGNATUR)) {
+      throw new UnsupportedMediaTypeException('Als App-Symbol geht nur PNG.');
+    }
+
+    await this.settingsService.getRow();
+    const key = this.storage.keyForAppIcon();
+    await this.storage.writeFile(key, data);
+
+    await this.db
+      .update(appSettings)
+      .set({ appIconKey: key, appIconUpdatedAt: new Date(), updatedAt: new Date() })
+      .where(eq(appSettings.id, SETTINGS_ID));
+
+    this.logger.log(`App-Symbol ersetzt (${data.length} Bytes).`);
+    return this.get();
+  }
+
+  async removeAppIcon(): Promise<BrandingDto> {
+    const row = await this.settingsService.getRow();
+    if (row.appIconKey) await this.storage.remove(row.appIconKey);
+
+    await this.db
+      .update(appSettings)
+      .set({ appIconKey: null, appIconUpdatedAt: null, updatedAt: new Date() })
+      .where(eq(appSettings.id, SETTINGS_ID));
+
+    return this.get();
+  }
+
+  /** Datei des gerasterten App-Symbols – `null`, solange keines da ist. */
+  async getAppIconFile(): Promise<{ key: string } | null> {
+    const row = await this.settingsService.getRow();
+    if (!row.appIconKey) return null;
+    if (!(await this.storage.exists(row.appIconKey))) return null;
+    return { key: row.appIconKey };
   }
 
   /**
