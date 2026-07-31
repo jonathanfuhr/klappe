@@ -307,10 +307,12 @@ export function SmtpPanel() {
             <p className="hint">
               Nötig, sobald Microsoft 365 Mehrfaktor-Anmeldung erzwingt – dann lehnt der Server ein
               Passwort ab, auch ein App-Passwort hilft nicht mehr zuverlässig. Die App-Registrierung
-              in Entra ID braucht die Microsoft-Graph-Anwendungsberechtigung{' '}
-              <strong>SMTP.SendAsApp</strong> mit Admin-Zustimmung sowie eine per
-              Exchange-Online-PowerShell angelegte <strong>New-ApplicationAccessPolicy</strong>, die
-              die App auf das Absender-Postfach einschränkt.
+              braucht die Anwendungsberechtigung <strong>SMTP.SendAsApp</strong> der API{' '}
+              <strong>Office 365 Exchange Online</strong> (nicht Microsoft Graph) mit
+              Admin-Zustimmung, dazu per Exchange-Online-PowerShell{' '}
+              <strong>New-ServicePrincipal</strong> (Objekt-ID der Unternehmensanwendung!) und{' '}
+              <strong>Add-MailboxPermission</strong> fürs Absender-Postfach – Schritt für Schritt
+              steht das in der README.
             </p>
           ) : null}
         </div>

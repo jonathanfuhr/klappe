@@ -556,24 +556,47 @@ Anmeldefenster):
 
 1. Im Entra Admin Center eine App-Registrierung anlegen (kann dieselbe sein
    wie für die Anmeldung, muss es aber nicht).
-2. Unter *API-Berechtigungen* die **Microsoft-Graph-Anwendungsberechtigung**
-   `SMTP.SendAsApp` hinzufügen und die Admin-Zustimmung erteilen.
+2. Unter *API-Berechtigungen* → *Berechtigung hinzufügen* im Reiter **Von
+   meiner Organisation verwendete APIs** nach **Office 365 Exchange Online**
+   suchen, dort die **Anwendungsberechtigung** `SMTP.SendAsApp` hinzufügen und
+   die Admin-Zustimmung erteilen. Die Berechtigung steht *nicht* unter
+   Microsoft Graph – dort gibt es nur das delegierte `SMTP.Send`, das für den
+   App-only-Versand nicht reicht.
 3. Unter *Zertifikate & Geheimnisse* einen geheimen Clientschlüssel erzeugen.
-4. Per Exchange Online PowerShell die App auf das sendende Postfach
-   einschränken – ohne diesen Schritt dürfte sie tenant-weit als jedes
-   Postfach senden:
+4. Per Exchange Online PowerShell den Service Principal der App eintragen und
+   für das sendende Postfach freischalten. Die Objekt-ID stammt aus
+   **Unternehmensanwendungen** – die gleichnamige ID aus *App-Registrierungen*
+   ist eine andere und führt zu `535 5.7.3 Authentication unsuccessful`:
    ```powershell
-   New-ApplicationAccessPolicy -AppId "<Anwendungs-ID>" `
-     -PolicyScopeGroupId "versand@contoso.de" -AccessRight RestrictAccess `
-     -Description "Nur Klappe darf als dieses Postfach senden"
+   New-ServicePrincipal -AppId "<Anwendungs-ID>" `
+     -ObjectId "<Objekt-ID der Unternehmensanwendung>" -DisplayName "Klappe"
+   Add-MailboxPermission -Identity "versand@contoso.de" `
+     -User "<Objekt-ID der Unternehmensanwendung>" -AccessRights FullAccess
    ```
+   Die Freischaltung ist zugleich die Eingrenzung: Die App kommt nur an
+   Postfächer, die so freigegeben wurden. Bis neue Rechte greifen, kann bis zu
+   einer Stunde vergehen.
 5. In den Einstellungen unter *Authentifizierung* auf **OAuth2** umstellen und
    Verzeichnis-ID, Anwendungs-ID, Client-Secret sowie das absendende Postfach
-   eintragen.
+   eintragen. Als Postfach und als Absenderadresse muss genau das Postfach aus
+   Schritt 4 stehen.
 
 Klappe holt sich das Zugriffstoken bei Bedarf selbst (Gültigkeit rund eine
 Stunde) und hält es bis kurz vor Ablauf vor – ein Neustart ist dafür nicht
 nötig.
+
+Schlägt die Anmeldung weiter mit `535 5.7.3` fehl: das Zugriffstoken auf
+<https://jwt.ms> ansehen – enthält `roles` kein `SMTP.SendAsApp`, fehlt die
+Berechtigung oder die Zustimmung aus Schritt 2; stimmt das Token, passt fast
+immer die Objekt-ID aus Schritt 4 nicht (Unternehmensanwendung, nicht
+App-Registrierung). Alternativ lässt sich der Zugriff statt über Schritt 2
+komplett in Exchange vergeben und dort auf Postfächer eingrenzen („RBAC for
+Applications“: `New-ManagementRoleAssignment` mit der Rolle `Application
+SMTP.SendAsApp` und einem Scope). Bei diesem Weg bleibt `roles` im Token
+leer – das ist dort normal, denn Exchange entscheidet selbst. Änderungen an
+solchen Zuweisungen greifen wegen eines Caches erst nach 30 Minuten bis zwei
+Stunden; `Test-ServicePrincipalAuthorization` prüft sofort, aber am Cache
+vorbei.
 
 ### Anmeldung über Microsoft 365
 

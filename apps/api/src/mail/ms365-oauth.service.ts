@@ -5,10 +5,14 @@
  * Nötig, weil SMTP AUTH mit Benutzername und Kennwort an erzwungener
  * Mehrfaktor-Anmeldung scheitert – auch ein App-Kennwort hilft dabei nicht
  * zuverlässig (siehe `settings/smtp-presets.ts`). Die App-Registrierung
- * braucht dafür die Microsoft-Graph-Anwendungsberechtigung `SMTP.SendAsApp`
- * mit Admin-Zustimmung, dazu eine `New-ApplicationAccessPolicy` in Exchange
- * Online PowerShell, die die App auf das sendende Postfach einschränkt – ohne
- * die Einschränkung dürfte die App tenant-weit als jedes Postfach senden.
+ * braucht dafür die Anwendungsberechtigung `SMTP.SendAsApp` der API
+ * „Office 365 Exchange Online" (nicht Microsoft Graph – dort existiert sie
+ * nicht) mit Admin-Zustimmung. Zusätzlich muss der Service Principal in
+ * Exchange Online registriert und je Postfach freigeschaltet sein
+ * (`New-ServicePrincipal`, `Add-MailboxPermission`); die Freischaltung ist
+ * zugleich die Eingrenzung, als welche Postfächer die App senden darf. Die
+ * Schritte im Einzelnen stehen in der README unter „OAuth2 für Microsoft
+ * 365".
  *
  * Anders als beim Anmelde-Fluss (`auth/microsoft/microsoft.service.ts`) gibt
  * es hier keinen Benutzer und kein Redirect – nur die drei Werte aus der
