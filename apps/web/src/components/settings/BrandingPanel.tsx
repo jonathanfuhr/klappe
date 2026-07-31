@@ -59,6 +59,33 @@ export function BrandingPanel() {
   };
 
   /**
+   * Nachträglich rastern, wenn eine Quelle gewählt ist, aber noch kein PNG
+   * dazu existiert (Phase 24).
+   *
+   * Der Fall tritt genau einmal auf: bei einer Anlage, die vor Phase 24
+   * eingerichtet wurde. Ohne das hier müsste der Admin sein Logo erst neu
+   * hochladen, damit im Tab endlich etwas erscheint – für einen Zustand, den
+   * er gar nicht verursacht hat. Ein Besuch dieser Seite genügt.
+   */
+  const nachgeholt = useRef(false);
+  useEffect(() => {
+    if (nachgeholt.current) return;
+    if (branding.faviconMode === 'standard' || branding.appIconUrl) return;
+    const quelle = branding.faviconMode === 'logo' ? branding.logoUrl : branding.faviconUrl;
+    if (!quelle) return;
+
+    nachgeholt.current = true;
+    void rasterizeAppIcon(quelle)
+      .then((png) => api.uploadAppIcon(png))
+      .then(apply)
+      .catch(() => {
+        // Stillschweigend: Wer die Seite nur öffnet, hat nichts angefordert
+        // und braucht deshalb auch keine Fehlermeldung. Der Knopf „Logo
+        // ersetzen" meldet sich, wenn es dabei erneut hakt.
+      });
+  }, [branding.faviconMode, branding.appIconUrl, branding.logoUrl, branding.faviconUrl, apply]);
+
+  /**
    * Das App-Symbol neu aus der gewählten Quelle rastern (Phase 24).
    *
    * Läuft nach jeder Änderung, die die Quelle betrifft – neues Logo, neues
