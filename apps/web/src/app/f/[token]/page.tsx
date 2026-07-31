@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { BrandMark } from '@/components/BrandMark';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 /**
@@ -25,6 +26,7 @@ export default function ShareGatePage() {
   const token = params.token;
   const router = useRouter();
   const { refresh } = useSession();
+  const t = useT();
 
   const [share, setShare] = useState<SharePreviewDto | null>(null);
   const [step, setStep] = useState<'mail' | 'code' | 'name'>('mail');
@@ -75,7 +77,7 @@ export default function ShareGatePage() {
       setInfo(`Wir haben einen Code an ${email} geschickt. Er gilt 15 Minuten.`);
     } catch (requestError) {
       setError(
-        requestError instanceof Error ? requestError.message : 'Der Code ließ sich nicht verschicken.',
+        requestError instanceof Error ? requestError.message : t('gate.codeSendFailed'),
       );
     } finally {
       setBusy(false);
@@ -90,11 +92,7 @@ export default function ShareGatePage() {
       // Wie beim Team-Login: Ein verworfenes Cookie ist kein Fehler der API –
       // ohne diese Prüfung stünde der Gast wortlos wieder vor der Code-Abfrage.
       if (!(await refresh())) {
-        setError(
-          'Der Code stimmt, aber der Browser hat das Sitzungs-Cookie verworfen. ' +
-            'Das passiert, wenn SESSION_COOKIE_SECURE=1 gesetzt ist, die Seite aber ' +
-            'über http:// statt https:// aufgerufen wird.',
-        );
+        setError(t('gate.cookieRejected'));
         return;
       }
 
@@ -108,7 +106,7 @@ export default function ShareGatePage() {
       }
       router.replace(result.redirectPath);
     } catch (verifyError) {
-      setError(verifyError instanceof Error ? verifyError.message : 'Der Code stimmt nicht.');
+      setError(verifyError instanceof Error ? verifyError.message : t('gate.codeWrong'));
     } finally {
       setBusy(false);
     }
@@ -122,7 +120,7 @@ export default function ShareGatePage() {
       await refresh();
       router.replace(ziel ?? '/projekte');
     } catch (nameError) {
-      setError(nameError instanceof Error ? nameError.message : 'Der Name ließ sich nicht speichern.');
+      setError(nameError instanceof Error ? nameError.message : t('gate.nameSaveFailed'));
     } finally {
       setBusy(false);
     }
@@ -131,7 +129,7 @@ export default function ShareGatePage() {
   if (loading) {
     return (
       <div className="gate">
-        <div className="card gate__card">Wird geladen …</div>
+        <div className="card gate__card">{t('common.loading')}</div>
       </div>
     );
   }
@@ -141,7 +139,7 @@ export default function ShareGatePage() {
       <div className="gate">
         <div className="card gate__card">
           <BrandMark />
-          <div className="notice">{error ?? 'Diese Freigabe gibt es nicht.'}</div>
+          <div className="notice">{error ?? t('gate.notFound')}</div>
         </div>
       </div>
     );
@@ -152,19 +150,18 @@ export default function ShareGatePage() {
       <div className="card gate__card">
         <BrandMark />
         <p className="gate__target">
-          {share.scope === 'PROJECT' ? 'Projekt' : 'Video'} <strong>{share.targetName}</strong>
-          {share.scope === 'VIDEO' ? ` · Projekt ${share.projectName}` : ''}
+          {share.scope === 'PROJECT' ? t('gate.project') : t('gate.video')}{' '}
+          <strong>{share.targetName}</strong>
+          {share.scope === 'VIDEO' ? t('gate.videoInProject', { name: share.projectName ?? '' }) : ''}
         </p>
 
         {!share.isActive ? (
           <div className="notice">
-            Diese Freigabe ist abgelaufen oder wurde zurückgezogen. Bitte wende dich an deinen
-            Ansprechpartner.
+            {t('gate.expired')}
           </div>
         ) : !share.mailReady ? (
           <div className="notice">
-            Der Mailversand ist auf diesem Server noch nicht eingerichtet, deshalb kann kein
-            Anmeldecode verschickt werden. Ein Administrator kann das unter Einstellungen nachholen.
+            {t('gate.noMail')}
           </div>
         ) : step === 'mail' ? (
           <form
@@ -174,12 +171,12 @@ export default function ShareGatePage() {
             }}
           >
             <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>
-              Bitte deine E-Mail-Adresse angeben. Wir schicken dir einen Code zur Bestätigung.
+              {t('gate.askMail')}
             </p>
 
             <div className="field">
               <label className="field__label" htmlFor="gast-email">
-                E-Mail-Adresse
+                {t('common.email')}
               </label>
               <input
                 id="gast-email"
@@ -201,7 +198,7 @@ export default function ShareGatePage() {
               style={{ width: '100%', marginTop: 10 }}
               disabled={busy}
             >
-              {busy ? 'Code wird geschickt …' : 'Code anfordern'}
+              {busy ? t('gate.sendingCode') : t('gate.requestCode')}
             </button>
           </form>
         ) : step === 'code' ? (
@@ -219,7 +216,7 @@ export default function ShareGatePage() {
 
             <div className="field">
               <label className="field__label" htmlFor="gast-code">
-                Code aus der E-Mail
+                {t('gate.codeLabel')}
               </label>
               <input
                 id="gast-code"
@@ -243,7 +240,7 @@ export default function ShareGatePage() {
               style={{ width: '100%', marginTop: 10 }}
               disabled={busy || code.length !== 6}
             >
-              {busy ? 'Wird geprüft …' : 'Anmelden'}
+              {busy ? t('gate.checking') : t('login.submit')}
             </button>
             <button
               type="button"
@@ -255,7 +252,7 @@ export default function ShareGatePage() {
                 setError(null);
               }}
             >
-              Zurück
+              {t('gate.back')}
             </button>
           </form>
         ) : (
@@ -266,13 +263,12 @@ export default function ShareGatePage() {
             }}
           >
             <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>
-              Willkommen. Wie sollen wir dich nennen? Das steht künftig an deinen Kommentaren – und
-              wir fragen nur dieses eine Mal.
+              {t('gate.askName')}
             </p>
 
             <div className="field">
               <label className="field__label" htmlFor="gast-name">
-                Name
+                {t('common.name')}
               </label>
               <input
                 id="gast-name"
@@ -294,7 +290,7 @@ export default function ShareGatePage() {
               style={{ width: '100%', marginTop: 10 }}
               disabled={busy || name.trim().length < 2}
             >
-              {busy ? 'Wird gespeichert …' : 'Weiter'}
+              {busy ? t('common.saving') : t('gate.continue')}
             </button>
           </form>
         )}

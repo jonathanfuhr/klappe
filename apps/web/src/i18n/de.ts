@@ -132,6 +132,44 @@ export const de = {
   'locale.workspaceLabel': 'Sprache des Workspace',
   'locale.workspaceHint':
     'Gilt für die Anmeldeseite, den Gastzugang und für alle, die unter „Profil und Sicherheit" nichts eigenes gewählt haben – auch für deren E-Mails.',
+
+  // ---------- Gast-Gatter und Gastliste ----------
+  'gate.notFound': 'Diese Freigabe gibt es nicht.',
+  'gate.project': 'Projekt',
+  'gate.video': 'Video',
+  'gate.videoInProject': ' · Projekt {name}',
+  'gate.expired':
+    'Diese Freigabe ist abgelaufen oder wurde zurückgezogen. Bitte wende dich an deinen Ansprechpartner.',
+  'gate.noMail':
+    'Der Mailversand ist auf diesem Server noch nicht eingerichtet, deshalb kann kein Anmeldecode verschickt werden. Ein Administrator kann das unter Einstellungen nachholen.',
+  'gate.askMail': 'Bitte deine E-Mail-Adresse angeben. Wir schicken dir einen Code zur Bestätigung.',
+  'gate.codeLabel': 'Code aus der E-Mail',
+  'gate.requestCode': 'Code anfordern',
+  'gate.sendingCode': 'Code wird geschickt …',
+  'gate.checking': 'Wird geprüft …',
+  'gate.back': 'Zurück',
+  'gate.askName':
+    'Willkommen. Wie sollen wir dich nennen? Das steht künftig an deinen Kommentaren – und wir fragen nur dieses eine Mal.',
+  'gate.continue': 'Weiter',
+  'gate.codeSendFailed': 'Der Code ließ sich nicht verschicken.',
+  'gate.codeWrong': 'Der Code stimmt nicht.',
+  'gate.nameSaveFailed': 'Der Name ließ sich nicht speichern.',
+  'gate.cookieRejected':
+    'Der Code stimmt, aber der Browser hat das Sitzungs-Cookie verworfen. Das passiert, wenn SESSION_COOKIE_SECURE=1 gesetzt ist, die Seite aber über http:// statt https:// aufgerufen wird.',
+  'guests.empty':
+    'Noch niemand von außen. Gäste erscheinen hier, sobald sie einen Freigabe-Link benutzt haben.',
+  'guests.lastSeen': 'zuletzt {when}',
+  'guests.blocked': 'Konto gesperrt',
+  'guests.canView': 'sieht mit',
+  'guests.canComment': 'kommentiert',
+  'guests.canDownload': 'lädt herunter',
+  'guests.canUpload': 'lädt hoch',
+  'guests.noAccess': 'kein Zugriff mehr',
+  'guests.revoked': 'entzogen',
+  'guests.linkRevoked': 'Link zurückgezogen',
+  'guests.giveBack': 'Zugriff zurückgeben',
+  'guests.revoke': 'Zugriff entziehen',
+  'guests.revokeHint': 'Entzogen wird am Projekt – dort gilt es für alle Videos gleichzeitig.',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

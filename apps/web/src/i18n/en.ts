@@ -130,4 +130,42 @@ export const en: Record<MessageKey, Message> = {
   'locale.workspaceLabel': 'Workspace language',
   'locale.workspaceHint':
     'Applies to the sign-in page, guest access and everyone who has not picked their own under “Profile and security” – including their emails.',
+
+  // ---------- Guest gate and guest list ----------
+  'gate.notFound': 'This share does not exist.',
+  'gate.project': 'Project',
+  'gate.video': 'Video',
+  'gate.videoInProject': ' · Project {name}',
+  'gate.expired':
+    'This share has expired or was withdrawn. Please get in touch with your contact person.',
+  'gate.noMail':
+    'Email delivery is not set up on this server yet, so no sign-in code can be sent. An administrator can add it under Settings.',
+  'gate.askMail': 'Please enter your email address. We will send you a code to confirm it.',
+  'gate.codeLabel': 'Code from the email',
+  'gate.requestCode': 'Request code',
+  'gate.sendingCode': 'Sending code …',
+  'gate.checking': 'Checking …',
+  'gate.back': 'Back',
+  'gate.askName':
+    'Welcome. What should we call you? This will appear on your comments – and we only ask this once.',
+  'gate.continue': 'Continue',
+  'gate.codeSendFailed': 'The code could not be sent.',
+  'gate.codeWrong': 'That code is not correct.',
+  'gate.nameSaveFailed': 'The name could not be saved.',
+  'gate.cookieRejected':
+    'The code was correct, but your browser discarded the session cookie. This happens when SESSION_COOKIE_SECURE=1 is set while the site is served over http:// instead of https://.',
+  'guests.empty':
+    'Nobody from outside yet. Guests appear here as soon as they use a share link.',
+  'guests.lastSeen': 'last seen {when}',
+  'guests.blocked': 'Account blocked',
+  'guests.canView': 'can view',
+  'guests.canComment': 'can comment',
+  'guests.canDownload': 'can download',
+  'guests.canUpload': 'can upload',
+  'guests.noAccess': 'no access',
+  'guests.revoked': 'revoked',
+  'guests.linkRevoked': 'Link withdrawn',
+  'guests.giveBack': 'Restore access',
+  'guests.revoke': 'Revoke access',
+  'guests.revokeHint': 'Access is revoked at project level – it applies to all videos at once.',
 };
