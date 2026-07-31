@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
 import { formatRelative, initialsOf } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { CommentBody } from './CommentBody';
 import { CommentComposer } from './CommentComposer';
 
@@ -56,6 +57,7 @@ export function CommentPanel({
 }: CommentPanelProps) {
   const [filter, setFilter] = useState<Filter>('alle');
   const zeigeName = useUserName();
+  const t = useT();
   const [sortierung, setSortierung] = useState<Sortierung>('timecode');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -94,7 +96,7 @@ export function CommentPanel({
   return (
     <div className="comments">
       <div className="comments__header">
-        <span className="comments__title">Kommentare</span>
+        <span className="comments__title">{t('comments.title')}</span>
         <span className="badge">{openCount} offen</span>
         <div className="shell__spacer" />
         <select
@@ -104,9 +106,9 @@ export function CommentPanel({
           onChange={(event) => setFilter(event.target.value as Filter)}
           aria-label="Filter"
         >
-          <option value="alle">Alle</option>
-          <option value="offen">Offen</option>
-          <option value="erledigt">Erledigt</option>
+          <option value="alle">{t('comments.filterAll')}</option>
+          <option value="offen">{t('comments.filterOpen')}</option>
+          <option value="erledigt">{t('comments.filterDone')}</option>
         </select>
         <select
           className="select"
@@ -115,16 +117,17 @@ export function CommentPanel({
           onChange={(event) => setSortierung(event.target.value as Sortierung)}
           aria-label="Sortierung"
         >
-          <option value="timecode">nach Timecode</option>
-          <option value="erstellt">nach Zeitpunkt</option>
+          <option value="timecode">{t('comments.sortTimecode')}</option>
+          <option value="erstellt">{t('comments.sortCreated')}</option>
         </select>
       </div>
 
       <div className="comments__list">
         {visible.length === 0 ? (
           <p className="muted" style={{ padding: '18px 4px', fontSize: 14 }}>
-            Noch keine Kommentare. Mit <span className="shortcuts__key">C</span> setzt du einen am
-            aktuellen Bild.
+            {t('comments.emptyBefore')}
+            <span className="shortcuts__key">C</span>
+            {t('comments.emptyAfter')}
           </p>
         ) : null}
 
@@ -159,7 +162,7 @@ export function CommentPanel({
                   {comment.timecode}
                 </button>
               ) : (
-                <span className="badge">allgemein</span>
+                <span className="badge">{t('comments.general')}</span>
               )}
               <span className="shell__spacer" />
               <span className="comment__time">{formatRelative(comment.createdAt)}</span>
@@ -186,7 +189,7 @@ export function CommentPanel({
               ) : null}
               {comment.editedAt ? (
                 <span className="faint" style={{ fontSize: 11 }}>
-                  bearbeitet
+                  {t('comments.edited')}
                 </span>
               ) : null}
             </div>
@@ -200,7 +203,7 @@ export function CommentPanel({
                     setReplyTo(replyTo === comment.id ? null : comment.id);
                   }}
                 >
-                  Antworten
+                  {t('comments.reply')}
                 </button>
               ) : null}
               <button
@@ -212,7 +215,7 @@ export function CommentPanel({
                     .then(() => onChanged());
                 }}
               >
-                {comment.resolvedAt ? 'Wieder öffnen' : 'Erledigt'}
+                {comment.resolvedAt ? t('comments.reopen') : t('comments.filterDone')}
               </button>
               {canModify(comment, currentUser, canManageComments) ? (
                 <>
@@ -223,17 +226,17 @@ export function CommentPanel({
                       setEditing(comment.id);
                     }}
                   >
-                    Bearbeiten
+                    {t('common.edit')}
                   </button>
                   <button
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      if (!window.confirm('Diesen Kommentar löschen?')) return;
+                      if (!window.confirm(t('comments.confirmDelete'))) return;
                       void api.deleteComment(comment.id).then(() => onChanged());
                     }}
                   >
-                    Löschen
+                    {t('common.delete')}
                   </button>
                 </>
               ) : null}
@@ -272,17 +275,17 @@ export function CommentPanel({
                             setEditing(reply.id);
                           }}
                         >
-                          Bearbeiten
+                          {t('common.edit')}
                         </button>
                         <button
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
-                            if (!window.confirm('Diese Antwort löschen?')) return;
+                            if (!window.confirm(t('comments.confirmDeleteReply'))) return;
                             void api.deleteComment(reply.id).then(() => onChanged());
                           }}
                         >
-                          Löschen
+                          {t('common.delete')}
                         </button>
                       </div>
                     ) : null}
@@ -299,7 +302,7 @@ export function CommentPanel({
                   pinned={false}
                   onPinnedChange={() => undefined}
                   placeholder="Antwort schreiben …"
-                  submitLabel="Antworten"
+                  submitLabel={t('comments.reply')}
                   autoFocus
                   onCancel={() => setReplyTo(null)}
                   onSubmit={async (body) => {
@@ -332,7 +335,7 @@ export function CommentPanel({
       ) : (
         <div className="composer">
           <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            Für diese Freigabe ist das Kommentieren nicht erlaubt.
+            {t('comments.notAllowed')}
           </p>
         </div>
       )}
@@ -363,7 +366,7 @@ function EditForm({
       <div className="composer__row">
         <div className="shell__spacer" />
         <button type="button" className="button button--ghost" onClick={onCancel}>
-          Abbrechen
+          {t('common.cancel')}
         </button>
         <button
           type="button"
@@ -377,7 +380,7 @@ function EditForm({
               .finally(() => setBusy(false));
           }}
         >
-          Speichern
+          {t('common.save')}
         </button>
       </div>
     </div>
