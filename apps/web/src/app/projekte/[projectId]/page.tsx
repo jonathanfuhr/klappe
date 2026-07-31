@@ -153,9 +153,16 @@ export default function ProjectPage() {
                 onClick={() => void videosHinzufuegen()}
               />
 
-              {/* Der große „Freigeben"-Knopf ist in die Spalte rechts gewandert
-                  (Phase 16) – dort steht er neben denen, die es betrifft.
-                  Umbenennen, Archivieren und Löschen bleiben dem Team
+              {/* Wie am Video: Freigeben als eigenes Symbol neben dem „…"-Menü
+                  (Phase 24) – der häufigste Handgriff verdient den direkten
+                  Knopf, nicht erst den Umweg übers Menü. */}
+              <IconButton
+                icon="share"
+                label="Freigabe-Links verwalten"
+                onClick={() => setSharing(true)}
+              />
+
+              {/* Umbenennen, Archivieren und Löschen bleiben dem Team
                   vorbehalten, auch für den externen Projektadmin (Phase 21). */}
               <Menu label="Aktionen für dieses Projekt">
                 <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
