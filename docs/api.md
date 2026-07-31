@@ -273,15 +273,28 @@ und löschen.
 
 | Route | Zweck |
 | --- | --- |
-| `GET /v1/branding` | ohne Anmeldung – Titel, Farben, Logo-Adresse |
+| `GET /v1/branding` | ohne Anmeldung – Titel, Farben, Adressen von Logo, Favicon und App-Symbol |
 | `GET /v1/branding/logo` | ohne Anmeldung – die Logodatei |
-| `PUT /v1/settings/branding` | Admin – `{ title?, accent? }` |
+| `GET /v1/branding/favicon` | ohne Anmeldung – die `.ico` fürs Browser-Tab |
+| `GET /v1/branding/app-icon.png` | ohne Anmeldung – das PNG für den Startbildschirm |
+| `PUT /v1/settings/branding` | Admin – `{ title?, accent?, companyName?, companyShort? }` |
 | `PUT /v1/settings/branding/logo` | Admin – rohe Bytes, Format im `Content-Type` |
 | `DELETE /v1/settings/branding/logo` | Admin |
+| `PUT /v1/settings/branding/favicon` | Admin – rohe Bytes einer `.ico` |
+| `DELETE /v1/settings/branding/favicon` | Admin |
+| `PUT /v1/settings/branding/app-icon` | Admin – rohe Bytes eines PNG |
+| `DELETE /v1/settings/branding/app-icon` | Admin |
 
 Gesetzt wird **eine** Farbe; `accentHover` und `accentContrast` werden daraus
-berechnet. Als Logo gehen PNG, JPEG, WebP und SVG bis 512 KB. Die Logo-Adresse
-trägt einen Zeitstempel, damit ein Wechsel sofort sichtbar wird.
+berechnet. Als Logo gehen PNG, JPEG, WebP und SVG bis 512 KB. Alle drei
+Adressen tragen einen Zeitstempel, damit ein Wechsel sofort sichtbar wird.
+
+Die beiden Symbole werden **fertig hochgeladen**, nichts wird abgeleitet
+(Phase 24): fürs Tab eine `.ico` bis 256 KB (empfohlen 16, 32 und 48 Pixel in
+einer Datei), für den Startbildschirm ein quadratisches PNG bis 512 KB
+(empfohlen 512×512). Ein PNG wird zusätzlich an seiner Signatur geprüft – die
+Angabe im `Content-Type` allein genügt nicht, weil die Datei später als
+`image/png` wieder ausgeliefert wird.
 
 ## Anmeldung (Phase 11)
 

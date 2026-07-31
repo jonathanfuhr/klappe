@@ -236,9 +236,12 @@ Workspace-weite Einstellungen – genau eine Zeile. Drei Gruppen:
   Angaben zum Logo. Aus der einen Farbe werden Hover-Ton und Schriftfarbe
   berechnet, nicht gespeichert. `brand_logo_updated_at` wandert in die
   Bild-Adresse und bricht damit den Browser-Cache auf.
-- **Tab-Symbol** (Phase 23): `favicon_mode` (`standard` | `logo` | `eigenes`)
-  und, für die dritte Möglichkeit, `favicon_key` / `favicon_mime` /
-  `favicon_updated_at` wie beim Logo.
+- **Tab-Symbol und App-Symbol** (Phase 23, vereinfacht in 24):
+  `favicon_key` / `favicon_mime` / `favicon_updated_at` für die hochgeladene
+  `.ico` und `app_icon_key` / `app_icon_updated_at` für das quadratische PNG
+  auf dem Startbildschirm – beide wie beim Logo. Bis Phase 24 stand daneben ein
+  `favicon_mode`, mit dem sich das Symbol aus dem Logo ableiten ließ; das
+  Ergebnis passte selten, die Spalte ist mit Migration 0035 entfallen.
 - **Datenbanksicherung** (Phase 23): `backup_enabled`, `backup_interval_hours`
   (Vorgabe 24), `backup_retention_days` (Vorgabe 30), dazu `backup_last_run_at`
   und `backup_last_error`. Der Zeitpunkt wird nur bei Erfolg fortgeschrieben –
