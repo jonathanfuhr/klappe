@@ -4,6 +4,7 @@ import type { CustomerDto, ProjectDto } from '@klappe/shared';
 import { useEffect, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 /** Name, Kunde und Beschreibung ändern – vom „…“-Menü der Kachel (Phase 15). */
 export function EditProjectDialog({
@@ -15,6 +16,7 @@ export function EditProjectDialog({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const t = useT();
   const [name, setName] = useState(project.name);
   const [customer, setCustomer] = useState(project.customer ?? '');
   const [kunden, setKunden] = useState<CustomerDto[]>([]);
@@ -31,7 +33,7 @@ export function EditProjectDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <Dialog title="Projekt bearbeiten" onClose={onClose}>
+    <Dialog title={t('projectDialog.editTitle')} onClose={onClose}>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
@@ -41,7 +43,7 @@ export function EditProjectDialog({
             await api.updateProject(project.id, { name, customer, description });
             await onSaved();
           } catch (saveError) {
-            setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+            setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
           } finally {
             setBusy(false);
           }
@@ -49,7 +51,7 @@ export function EditProjectDialog({
       >
         <div className="field">
           <label className="field__label" htmlFor="edit-project-name">
-            Name
+            {t('common.name')}
           </label>
           <input
             id="edit-project-name"
@@ -62,7 +64,7 @@ export function EditProjectDialog({
         </div>
         <div className="field">
           <label className="field__label" htmlFor="edit-project-customer">
-            Kunde
+            {t('projects.customer')}
           </label>
           <input
             id="edit-project-customer"
@@ -76,11 +78,11 @@ export function EditProjectDialog({
               <option key={eintrag.name} value={eintrag.name} />
             ))}
           </datalist>
-          <p className="hint">Leer lassen, um den Kundeneintrag zu entfernen.</p>
+          <p className="hint">{t('projectDialog.customerHint')}</p>
         </div>
         <div className="field">
           <label className="field__label" htmlFor="edit-project-description">
-            Beschreibung
+            {t('projectDialog.description')}
           </label>
           <textarea
             id="edit-project-description"
@@ -94,10 +96,10 @@ export function EditProjectDialog({
 
         <div className="dialog__actions">
           <button type="button" className="button" onClick={onClose}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="submit" className="button button--primary" disabled={busy || !name.trim()}>
-            Speichern
+            {t('common.save')}
           </button>
         </div>
       </form>
@@ -115,21 +117,25 @@ export function DeleteProjectDialog({
   onClose: () => void;
   onDeleted: () => Promise<void>;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <Dialog title={`„${project.name}“ löschen?`} onClose={onClose}>
+    <Dialog title={t('projectDialog.deleteTitle', { name: project.name })} onClose={onClose}>
       <p>
-        Das Projekt verschwindet mit allen {project.videoCount}{' '}
-        {project.videoCount === 1 ? 'Video' : 'Videos'}, sämtlichen Fassungen, Kommentaren,
-        Freigabe-Links{project.fileCount > 0 ? ` und ${project.fileCount} Dateien im Kunden-Ordner` : ''}.
-        Das lässt sich nicht rückgängig machen.
+        {t('projectDialog.deleteBody', {
+          count: project.videoCount,
+          files:
+            project.fileCount > 0
+              ? t('projectDialog.deleteFiles', { count: project.fileCount })
+              : '',
+        })}
       </p>
       {error ? <div className="notice">{error}</div> : null}
       <div className="dialog__actions">
         <button type="button" className="button" onClick={onClose}>
-          Abbrechen
+          {t('common.cancel')}
         </button>
         <button
           type="button"
@@ -143,13 +149,13 @@ export function DeleteProjectDialog({
               await onDeleted();
             } catch (deleteError) {
               setError(
-                deleteError instanceof Error ? deleteError.message : 'Löschen fehlgeschlagen.',
+                deleteError instanceof Error ? deleteError.message : t('common.deleteFailed'),
               );
               setBusy(false);
             }
           }}
         >
-          Endgültig löschen
+          {t('common.deleteFinally')}
         </button>
       </div>
     </Dialog>
@@ -175,6 +181,7 @@ export function ArchiveProjectDialog({
   onClose: () => void;
   onDone: () => Promise<void>;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tage, setTage] = useState<number | null>(null);
@@ -193,26 +200,29 @@ export function ArchiveProjectDialog({
 
   return (
     <Dialog
-      title={archiviert ? `„${project.name}“ zurückholen?` : `„${project.name}“ archivieren?`}
+      title={
+        archiviert
+          ? t('projectDialog.unarchiveTitle', { name: project.name })
+          : t('projectDialog.archiveTitle', { name: project.name })
+      }
       onClose={onClose}
     >
       {archiviert ? (
-        <p>
-          Das Projekt wird wieder ein gewöhnliches: alle noch vorhandenen Fassungen sichtbar,
-          kommentieren wieder möglich. Bereits gelöschte Fassungen kommen nicht zurück.
-        </p>
+        <p>{t('projectDialog.unarchiveBody')}</p>
       ) : (
         <>
           <p>
-            Das Projekt bleibt sichtbar und abspielbar. Aber: Je Video ist nur noch die{' '}
-            <strong>neueste Fassung</strong> zu sehen, und <strong>kommentieren geht nicht mehr</strong>.
+            {t('projectDialog.archiveBodyStart')}{' '}
+            <strong>{t('projectDialog.archiveBodyNewest')}</strong>{' '}
+            {t('projectDialog.archiveBodyMiddle')}{' '}
+            <strong>{t('projectDialog.archiveBodyNoComments')}</strong>.
           </p>
           <p className="hint" style={{ marginTop: 0 }}>
             {tage === null
-              ? 'Die älteren Fassungen werden nach der in den Einstellungen hinterlegten Frist gelöscht.'
+              ? t('projectDialog.archiveRetentionUnknown')
               : tage === 0
-                ? 'Achtung: Die Frist steht auf 0 Tage – die älteren Fassungen werden beim nächsten Aufräumen gelöscht.'
-                : `Die älteren Fassungen bleiben noch ${tage} Tage liegen und werden dann gelöscht, um Platz zu schaffen. Die Frist steht unter Einstellungen → E-Mail-Versand.`}
+                ? t('projectDialog.archiveRetentionZero')
+                : t('projectDialog.archiveRetentionDays', { days: tage })}
           </p>
         </>
       )}
@@ -221,7 +231,7 @@ export function ArchiveProjectDialog({
 
       <div className="dialog__actions">
         <button type="button" className="button" onClick={onClose}>
-          Abbrechen
+          {t('common.cancel')}
         </button>
         <button
           type="button"
@@ -234,12 +244,12 @@ export function ArchiveProjectDialog({
               await api.setProjectArchived(project.id, !archiviert);
               await onDone();
             } catch (saveError) {
-              setError(saveError instanceof Error ? saveError.message : 'Hat nicht geklappt.');
+              setError(saveError instanceof Error ? saveError.message : t('projectDialog.failed'));
               setBusy(false);
             }
           }}
         >
-          {archiviert ? 'Zurückholen' : 'Archivieren'}
+          {archiviert ? t('projectDialog.unarchive') : t('projectDialog.archive')}
         </button>
       </div>
     </Dialog>

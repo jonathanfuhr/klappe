@@ -387,4 +387,113 @@ export const en: Record<MessageKey, Message> = {
   'shareManager.shareVideo': 'Share video',
   'shareManager.shareProject': 'Share project',
   'shareManager.candidateVia': '{email} · via {projects}',
+
+  'download.title': 'Download',
+  'download.notAllowed': 'No download is enabled for this version.',
+  'download.notFinalTitle': 'Not a final version yet.',
+  'download.notFinalBody':
+    'What leaves the house here is an interim state for review – colour, sound and edit may still change. That is why the filename carries',
+  'download.original': 'Original',
+  'download.get': 'Download',
+  'download.smallerVersions': 'Smaller versions. Anything not yet generated is created on click.',
+  'download.shortEdge': 'short edge {px} px',
+  'download.queued': 'Waiting for a free slot …',
+  'download.failed': 'Failed',
+  'download.inQueue': 'In the queue',
+  'download.again': 'Try again',
+  'download.generate': 'Generate',
+  'download.autoStart':
+    'The download starts by itself as soon as the chosen version is ready – the window may stay open until then.',
+  'download.requestFailed': 'Request failed.',
+  'download.previewWord': 'Preview',
+
+  'embed.title': 'Embed “{name}”',
+  'embed.intro':
+    'A dedicated link for the {code} on someone else’s page – separate from the shares. Nobody can sign in through it; it only shows the player.',
+  'embed.noFinalTitle': 'Not a final version yet.',
+  'embed.noFinalBody':
+    'Only the newest version with the final-version tick is embedded – an embed sits on a foreign page where nobody will explain it. As long as there is none, the player stays empty.',
+  'embed.bullet1': 'Only the playback version is served, never the original.',
+  'embed.bullet2': 'No comments, no guest list, no download.',
+  'embed.bullet3':
+    'Anyone with the address sees the video – an {code} cannot carry a sign-in, because browsers do not allow third-party cookies there.',
+  'embed.bullet4': 'Withdrawing takes effect immediately.',
+  'embed.create': 'Create embed link',
+  'embed.snippetLabel': 'To paste into the other page',
+  'embed.ratioHint':
+    'The frame follows the width via {code} – a fixed height would be too tall on a phone and too short on a wide page.',
+  'embed.urlLabel': 'Address only',
+  'embed.disable': 'Turn off embedding',
+  'embed.disableConfirm': 'Turn off the embed right away? The embedded player will then stay empty.',
+  'embed.disableFailed': 'Withdrawing failed.',
+
+  'projectDialog.editTitle': 'Edit project',
+  'projectDialog.customerHint': 'Leave empty to remove the client entry.',
+  'projectDialog.description': 'Description',
+  'projectDialog.deleteTitle': 'Delete “{name}”?',
+  'projectDialog.deleteBody': {
+    one: 'The project disappears along with its {count} video, all versions, comments and share links{files}. This cannot be undone.',
+    other:
+      'The project disappears along with all {count} videos, all versions, comments and share links{files}. This cannot be undone.',
+  },
+  'projectDialog.deleteFiles': { one: ' and {count} file in the client folder', other: ' and {count} files in the client folder' },
+  'projectDialog.unarchiveTitle': 'Restore “{name}”?',
+  'projectDialog.archiveTitle': 'Archive “{name}”?',
+  'projectDialog.unarchiveBody':
+    'The project becomes an ordinary one again: every remaining version visible, commenting possible again. Versions already deleted do not come back.',
+  'projectDialog.archiveBodyStart': 'The project stays visible and playable. But: per video only the',
+  'projectDialog.archiveBodyNewest': 'newest version',
+  'projectDialog.archiveBodyMiddle': 'remains visible, and',
+  'projectDialog.archiveBodyNoComments': 'commenting is no longer possible',
+  'projectDialog.archiveRetentionUnknown':
+    'The older versions are deleted after the period configured in the settings.',
+  'projectDialog.archiveRetentionZero':
+    'Careful: the period is set to 0 days – the older versions will be deleted at the next cleanup.',
+  'projectDialog.archiveRetentionDays':
+    'The older versions stay for another {days} days and are then deleted to free up space. The period is under Settings → Email delivery.',
+  'projectDialog.unarchive': 'Restore',
+  'projectDialog.archive': 'Archive',
+  'projectDialog.failed': 'That did not work.',
+
+  'videoDialog.editTitle': 'Edit video',
+  'videoDialog.nameHint': 'The name also appears in the download filenames of future versions.',
+  'videoDialog.deleteTitle': 'Delete “{name}”?',
+  'videoDialog.deleteBody': {
+    one: 'The video disappears along with {count} version, all comments and drawings as well as the share links pointing to it. This cannot be undone.',
+    other:
+      'The video disappears along with {count} versions, all comments and drawings as well as the share links pointing to it. This cannot be undone.',
+  },
+
+  'bell.title': 'Notifications',
+  'bell.unreadLabel': 'Notifications ({count} unread)',
+  'bell.unreadTitle': '{count} unread',
+  'bell.markAllRead': 'Mark all read',
+  'bell.empty': 'Nothing new. Comments on films you follow and mentions land here.',
+  'bell.mentioned': 'mentioned',
+  'bell.reply': ' · reply',
+  'notifications.title': 'Notifications',
+  'notifications.hintVideo':
+    'Whoever is listed here gets mail about every comment on this video – across all versions.',
+  'notifications.hintProject':
+    'Whoever is listed here gets mail about every comment in this project – across all videos.',
+  'notifications.noTeam': 'There are no team accounts yet.',
+  'notifications.inherited':
+    'Subscribed via the project – applies to every video. Change it in the project.',
+  'tags.add': 'Add tag',
+  'tags.change': 'Change tags',
+  'tags.noneInWorkspace': 'No tags in this workspace yet.',
+  'tags.newPlaceholder': 'New tag …',
+  'tags.createAndAssign': 'Create and assign',
+  'tags.managerHint':
+    'Tags apply to the whole workspace – that is what they are for: grouping several projects, for instance all of one client.',
+  'tags.nameLabel': 'Name of the tag {name}',
+  'tags.colorLabel': 'Colour {color}',
+  'tags.colorAutoTitle': 'Derive the colour from the name',
+  'tags.colorAutoLabel': 'Colour automatic',
+  'tags.projectCount': { one: '{count} project', other: '{count} projects' },
+  'tags.none': 'No tags yet.',
+  'tags.deleteConfirm': {
+    one: '“{name}” is attached to {count} project and will disappear there too. Delete anyway?',
+    other: '“{name}” is attached to {count} projects and will disappear there too. Delete anyway?',
+  },
 };

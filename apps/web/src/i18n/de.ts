@@ -389,6 +389,115 @@ export const de = {
   'shareManager.shareVideo': 'Video freigeben',
   'shareManager.shareProject': 'Projekt freigeben',
   'shareManager.candidateVia': '{email} · über {projects}',
+
+  'download.title': 'Herunterladen',
+  'download.notAllowed': 'Für diese Fassung ist kein Download freigegeben.',
+  'download.notFinalTitle': 'Noch keine Endfassung.',
+  'download.notFinalBody':
+    'Was hier das Haus verlässt, ist ein Zwischenstand zur Abstimmung – Farbe, Ton und Schnitt können sich noch ändern. Der Dateiname trägt deshalb',
+  'download.original': 'Original',
+  'download.get': 'Laden',
+  'download.smallerVersions': 'Kleinere Fassungen. Was noch nicht erzeugt ist, entsteht beim Klick.',
+  'download.shortEdge': 'kurze Kante {px} px',
+  'download.queued': 'Wartet auf einen freien Platz …',
+  'download.failed': 'Fehlgeschlagen',
+  'download.inQueue': 'In der Warteschlange',
+  'download.again': 'Noch einmal',
+  'download.generate': 'Erzeugen',
+  'download.autoStart':
+    'Der Download startet von selbst, sobald die gewählte Fassung fertig ist – das Fenster darf so lange offen bleiben.',
+  'download.requestFailed': 'Anfordern fehlgeschlagen.',
+  'download.previewWord': 'Vorschau',
+
+  'embed.title': '„{name}" einbetten',
+  'embed.intro':
+    'Ein eigener Link für den {code} auf einer fremden Seite – getrennt von den Freigaben. Über ihn kann sich niemand anmelden; er zeigt nur den Player.',
+  'embed.noFinalTitle': 'Noch keine Endfassung.',
+  'embed.noFinalBody':
+    'Eingebettet wird ausschließlich die neueste Fassung mit gesetztem Endfassungs-Haken – eine Einbettung steht auf einer fremden Seite und wird dort niemandem erklärt. Solange keine da ist, bleibt der Player leer.',
+  'embed.bullet1': 'Ausgeliefert wird nur die Abspielfassung, nie das Original.',
+  'embed.bullet2': 'Keine Kommentare, keine Gästeliste, kein Download.',
+  'embed.bullet3':
+    'Wer die Adresse hat, sieht das Video – ein {code} kann keine Anmeldung mitbringen, weil Browser dort keine fremden Cookies zulassen.',
+  'embed.bullet4': 'Zurückziehen wirkt sofort.',
+  'embed.create': 'Einbett-Link erzeugen',
+  'embed.snippetLabel': 'Zum Einfügen in die fremde Seite',
+  'embed.ratioHint':
+    'Der Rahmen richtet sich über {code} nach der Breite – eine feste Höhe wäre auf dem Telefon zu hoch und auf einer breiten Seite zu niedrig.',
+  'embed.urlLabel': 'Adresse allein',
+  'embed.disable': 'Einbettung abschalten',
+  'embed.disableConfirm':
+    'Die Einbettung sofort abschalten? Der eingebettete Player bleibt dann leer.',
+  'embed.disableFailed': 'Zurückziehen fehlgeschlagen.',
+
+  'projectDialog.editTitle': 'Projekt bearbeiten',
+  'projectDialog.customerHint': 'Leer lassen, um den Kundeneintrag zu entfernen.',
+  'projectDialog.description': 'Beschreibung',
+  'projectDialog.deleteTitle': '„{name}" löschen?',
+  'projectDialog.deleteBody': {
+    one: 'Das Projekt verschwindet mit seinem {count} Video, sämtlichen Fassungen, Kommentaren und Freigabe-Links{files}. Das lässt sich nicht rückgängig machen.',
+    other:
+      'Das Projekt verschwindet mit allen {count} Videos, sämtlichen Fassungen, Kommentaren und Freigabe-Links{files}. Das lässt sich nicht rückgängig machen.',
+  },
+  'projectDialog.deleteFiles': { one: ' und {count} Datei im Kunden-Ordner', other: ' und {count} Dateien im Kunden-Ordner' },
+  'projectDialog.unarchiveTitle': '„{name}" zurückholen?',
+  'projectDialog.archiveTitle': '„{name}" archivieren?',
+  'projectDialog.unarchiveBody':
+    'Das Projekt wird wieder ein gewöhnliches: alle noch vorhandenen Fassungen sichtbar, kommentieren wieder möglich. Bereits gelöschte Fassungen kommen nicht zurück.',
+  'projectDialog.archiveBodyStart': 'Das Projekt bleibt sichtbar und abspielbar. Aber: Je Video ist nur noch die',
+  'projectDialog.archiveBodyNewest': 'neueste Fassung',
+  'projectDialog.archiveBodyMiddle': 'zu sehen, und',
+  'projectDialog.archiveBodyNoComments': 'kommentieren geht nicht mehr',
+  'projectDialog.archiveRetentionUnknown':
+    'Die älteren Fassungen werden nach der in den Einstellungen hinterlegten Frist gelöscht.',
+  'projectDialog.archiveRetentionZero':
+    'Achtung: Die Frist steht auf 0 Tage – die älteren Fassungen werden beim nächsten Aufräumen gelöscht.',
+  'projectDialog.archiveRetentionDays':
+    'Die älteren Fassungen bleiben noch {days} Tage liegen und werden dann gelöscht, um Platz zu schaffen. Die Frist steht unter Einstellungen → E-Mail-Versand.',
+  'projectDialog.unarchive': 'Zurückholen',
+  'projectDialog.archive': 'Archivieren',
+  'projectDialog.failed': 'Hat nicht geklappt.',
+
+  'videoDialog.editTitle': 'Video bearbeiten',
+  'videoDialog.nameHint': 'Der Name steht auch in den Download-Dateinamen künftiger Fassungen.',
+  'videoDialog.deleteTitle': '„{name}" löschen?',
+  'videoDialog.deleteBody': {
+    one: 'Das Video verschwindet mit {count} Fassung, allen Kommentaren und Zeichnungen sowie den Freigabe-Links auf dieses Video. Das lässt sich nicht rückgängig machen.',
+    other:
+      'Das Video verschwindet mit {count} Fassungen, allen Kommentaren und Zeichnungen sowie den Freigabe-Links auf dieses Video. Das lässt sich nicht rückgängig machen.',
+  },
+
+  'bell.title': 'Benachrichtigungen',
+  'bell.unreadLabel': 'Benachrichtigungen ({count} ungelesen)',
+  'bell.unreadTitle': '{count} ungelesen',
+  'bell.markAllRead': 'Alle gelesen',
+  'bell.empty': 'Nichts Neues. Hier landen Kommentare zu Filmen, die du verfolgst, und Erwähnungen.',
+  'bell.mentioned': 'erwähnt',
+  'bell.reply': ' · Antwort',
+  'notifications.title': 'Benachrichtigungen',
+  'notifications.hintVideo':
+    'Wer hier steht, bekommt Post zu jedem Kommentar an diesem Video – über alle Fassungen hinweg.',
+  'notifications.hintProject':
+    'Wer hier steht, bekommt Post zu jedem Kommentar in diesem Projekt – über alle Videos hinweg.',
+  'notifications.noTeam': 'Es gibt noch keine Team-Konten.',
+  'notifications.inherited': 'Übers Projekt eingetragen – gilt für alle Videos. Zum Ändern ins Projekt.',
+  'tags.add': 'Schlagwort hinzufügen',
+  'tags.change': 'Schlagworte ändern',
+  'tags.noneInWorkspace': 'Noch keine Schlagworte im Workspace.',
+  'tags.newPlaceholder': 'Neues Schlagwort …',
+  'tags.createAndAssign': 'Anlegen und zuweisen',
+  'tags.managerHint':
+    'Schlagworte gelten für den ganzen Workspace – dafür sind sie da: mehrere Projekte zusammenzufassen, etwa alle eines Kunden.',
+  'tags.nameLabel': 'Name des Schlagworts {name}',
+  'tags.colorLabel': 'Farbe {color}',
+  'tags.colorAutoTitle': 'Farbe aus dem Namen ableiten',
+  'tags.colorAutoLabel': 'Farbe automatisch',
+  'tags.projectCount': { one: '{count} Projekt', other: '{count} Projekte' },
+  'tags.none': 'Noch keine Schlagworte.',
+  'tags.deleteConfirm': {
+    one: '„{name}" hängt an {count} Projekt und verschwindet dort mit. Trotzdem löschen?',
+    other: '„{name}" hängt an {count} Projekten und verschwindet dort mit. Trotzdem löschen?',
+  },
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

@@ -4,6 +4,7 @@ import type { VideoDto } from '@klappe/shared';
 import { useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 /** Video umbenennen – vom „…“-Menü der Kachel und der Videoseite (Phase 15). */
 export function EditVideoDialog({
@@ -15,13 +16,14 @@ export function EditVideoDialog({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const t = useT();
   const [name, setName] = useState(video.name);
   const [description, setDescription] = useState(video.description ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <Dialog title="Video bearbeiten" onClose={onClose}>
+    <Dialog title={t('videoDialog.editTitle')} onClose={onClose}>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
@@ -31,7 +33,7 @@ export function EditVideoDialog({
             await api.updateVideo(video.id, { name, description });
             await onSaved();
           } catch (saveError) {
-            setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+            setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
           } finally {
             setBusy(false);
           }
@@ -39,7 +41,7 @@ export function EditVideoDialog({
       >
         <div className="field">
           <label className="field__label" htmlFor="edit-video-name">
-            Name
+            {t('common.name')}
           </label>
           <input
             id="edit-video-name"
@@ -49,11 +51,11 @@ export function EditVideoDialog({
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <p className="hint">Der Name steht auch in den Download-Dateinamen künftiger Fassungen.</p>
+          <p className="hint">{t('videoDialog.nameHint')}</p>
         </div>
         <div className="field">
           <label className="field__label" htmlFor="edit-video-description">
-            Beschreibung
+            {t('projectDialog.description')}
           </label>
           <textarea
             id="edit-video-description"
@@ -67,10 +69,10 @@ export function EditVideoDialog({
 
         <div className="dialog__actions">
           <button type="button" className="button" onClick={onClose}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="submit" className="button button--primary" disabled={busy || !name.trim()}>
-            Speichern
+            {t('common.save')}
           </button>
         </div>
       </form>
@@ -88,20 +90,17 @@ export function DeleteVideoDialog({
   onClose: () => void;
   onDeleted: () => Promise<void>;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <Dialog title={`„${video.name}“ löschen?`} onClose={onClose}>
-      <p>
-        Das Video verschwindet mit {video.versionCount}{' '}
-        {video.versionCount === 1 ? 'Fassung' : 'Fassungen'}, allen Kommentaren und Zeichnungen
-        sowie den Freigabe-Links auf dieses Video. Das lässt sich nicht rückgängig machen.
-      </p>
+    <Dialog title={t('videoDialog.deleteTitle', { name: video.name })} onClose={onClose}>
+      <p>{t('videoDialog.deleteBody', { count: video.versionCount })}</p>
       {error ? <div className="notice">{error}</div> : null}
       <div className="dialog__actions">
         <button type="button" className="button" onClick={onClose}>
-          Abbrechen
+          {t('common.cancel')}
         </button>
         <button
           type="button"
@@ -115,13 +114,13 @@ export function DeleteVideoDialog({
               await onDeleted();
             } catch (deleteError) {
               setError(
-                deleteError instanceof Error ? deleteError.message : 'Löschen fehlgeschlagen.',
+                deleteError instanceof Error ? deleteError.message : t('common.deleteFailed'),
               );
               setBusy(false);
             }
           }}
         >
-          Endgültig löschen
+          {t('common.deleteFinally')}
         </button>
       </div>
     </Dialog>

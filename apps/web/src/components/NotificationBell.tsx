@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { api } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { useFallbackInterval, useLive } from '@/lib/live';
 
 /** Wie oft nach neuen Einträgen gesehen wird, solange die Seite offen ist. */
@@ -25,6 +26,7 @@ const POLL_MS = 60_000;
  */
 export function NotificationBell() {
   const router = useRouter();
+  const t = useT();
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<NotificationDto[] | null>(null);
@@ -124,8 +126,10 @@ export function NotificationBell() {
         type="button"
         className="iconbutton bell__button"
         onClick={() => void oeffnen()}
-        aria-label={unread > 0 ? `Benachrichtigungen (${unread} ungelesen)` : 'Benachrichtigungen'}
-        title={unread > 0 ? `${unread} ungelesen` : 'Benachrichtigungen'}
+        aria-label={
+          unread > 0 ? t('bell.unreadLabel', { count: unread }) : t('bell.title')
+        }
+        title={unread > 0 ? t('bell.unreadTitle', { count: unread }) : t('bell.title')}
         aria-expanded={open}
       >
         <Icon name="bell" />
@@ -133,23 +137,21 @@ export function NotificationBell() {
       </button>
 
       {open ? (
-        <div className="bell__panel" role="dialog" aria-label="Benachrichtigungen">
+        <div className="bell__panel" role="dialog" aria-label={t('bell.title')}>
           <div className="bell__head">
-            <strong>Benachrichtigungen</strong>
+            <strong>{t('bell.title')}</strong>
             <div className="shell__spacer" />
             {unread > 0 ? (
               <button type="button" className="button button--ghost" onClick={() => void allesGelesen()}>
-                Alle gelesen
+                {t('bell.markAllRead')}
               </button>
             ) : null}
           </div>
 
           <div className="bell__list">
-            {busy && entries === null ? <p className="bell__leer">Wird geladen …</p> : null}
+            {busy && entries === null ? <p className="bell__leer">{t('common.loading')}</p> : null}
             {entries !== null && entries.length === 0 ? (
-              <p className="bell__leer">
-                Nichts Neues. Hier landen Kommentare zu Filmen, die du verfolgst, und Erwähnungen.
-              </p>
+              <p className="bell__leer">{t('bell.empty')}</p>
             ) : null}
 
             {(entries ?? []).map((entry) => (
@@ -163,14 +165,14 @@ export function NotificationBell() {
               >
                 <span className="bell__zeile">
                   <strong>{entry.authorName}</strong>
-                  {entry.mentioned ? <span className="badge">erwähnt</span> : null}
+                  {entry.mentioned ? <span className="badge">{t('bell.mentioned')}</span> : null}
                   <span className="shell__spacer" />
                   <span className="faint">{formatRelative(entry.createdAt)}</span>
                 </span>
                 <span className="bell__wo">
                   {entry.projectName} · {entry.videoName} · {entry.versionLabel}
                   {entry.timecode ? ` · ${entry.timecode}` : ''}
-                  {entry.isReply ? ' · Antwort' : ''}
+                  {entry.isReply ? t('bell.reply') : ''}
                 </span>
                 <span className="bell__text">{entry.excerpt}</span>
               </button>
