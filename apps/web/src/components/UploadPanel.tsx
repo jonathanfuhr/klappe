@@ -4,6 +4,7 @@ import { type ProjectDto, type VideoDto, suggestVideoName, versionLabel } from '
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatBytes } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { type UploadJob, useUploads } from '@/lib/uploads-context';
 
@@ -20,6 +21,7 @@ import { type UploadJob, useUploads } from '@/lib/uploads-context';
 export function UploadPanel() {
   const { jobs, open, setOpen, update, start, save, cancel, remove, clearFinished } = useUploads();
   const { user } = useSession();
+  const t = useT();
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [videosByProject, setVideosByProject] = useState<Record<string, VideoDto[]>>({});
 
@@ -85,7 +87,7 @@ export function UploadPanel() {
             transcodeProgress:
               sitzung.transcodeStatus === 'READY' ? 100 : sitzung.transcodeProgress,
             ...(sitzung.transcodeStatus === 'FAILED'
-              ? { message: sitzung.transcodeError ?? 'Verarbeitung fehlgeschlagen.' }
+              ? { message: sitzung.transcodeError ?? t('upload.processingFailed') }
               : {}),
           });
         } catch {
@@ -101,7 +103,7 @@ export function UploadPanel() {
         } else if (version.status === 'FAILED') {
           update(job.id, {
             state: 'fehler',
-            message: version.processingError ?? 'Verarbeitung fehlgeschlagen.',
+            message: version.processingError ?? t('upload.processingFailed'),
           });
         } else {
           update(job.id, { transcodeProgress: version.progress });
@@ -126,12 +128,12 @@ export function UploadPanel() {
 
   const summary = useMemo(() => {
     const bereit = jobs.filter((job) => job.state === 'bereit').length;
-    if (active.length > 0) return `${active.length} laufend`;
-    if (bereit > 0) return `${bereit} nicht gespeichert`;
-    if (pending.length > 0) return `${pending.length} wartet`;
+    if (active.length > 0) return t('upload.summaryRunning', { count: active.length });
+    if (bereit > 0) return t('upload.summaryUnsaved', { count: bereit });
+    if (pending.length > 0) return t('upload.summaryWaiting', { count: pending.length });
     const failed = jobs.filter((job) => job.state === 'fehler').length;
-    if (failed > 0) return `${failed} fehlgeschlagen`;
-    return `${jobs.length} fertig`;
+    if (failed > 0) return t('upload.summaryFailed', { count: failed });
+    return t('upload.summaryDone', { count: jobs.length });
   }, [active.length, pending.length, jobs]);
 
   if (jobs.length === 0) return null;
@@ -139,11 +141,11 @@ export function UploadPanel() {
   return (
     <div className="uploadpanel" data-open={open}>
       <button type="button" className="uploadpanel__bar" onClick={() => setOpen(!open)}>
-        <span className="uploadpanel__title">Uploads</span>
+        <span className="uploadpanel__title">{t('upload.title')}</span>
         <span className="badge">{summary}</span>
         <span className="shell__spacer" />
         <span className="faint" style={{ fontSize: 12 }}>
-          {open ? 'Minimieren' : 'Öffnen'}
+          {open ? t('upload.minimize') : t('upload.open')}
         </span>
         <span aria-hidden>{open ? '▾' : '▴'}</span>
       </button>
@@ -170,7 +172,7 @@ export function UploadPanel() {
 
           <div className="uploadpanel__actions">
             <button type="button" className="button button--ghost" onClick={clearFinished}>
-              Erledigte ausblenden
+              {t('upload.hideFinished')}
             </button>
             <div className="shell__spacer" />
             {/* Alles mit Projekt läuft von selbst los. Der Knopf bleibt für
@@ -183,11 +185,11 @@ export function UploadPanel() {
                 disabled={pending.every((job) => !job.projectId)}
                 title={
                   pending.some((job) => !job.projectId)
-                    ? 'Erst ein Projekt wählen, dann geht es los'
+                    ? t('upload.startHint')
                     : undefined
                 }
               >
-                {pending.length === 1 ? 'Upload starten' : `${pending.length} Uploads starten`}
+                {pending.length === 1 ? t('upload.start') : t('upload.startMany', { count: pending.length })}
               </button>
             ) : null}
           </div>
@@ -216,6 +218,7 @@ function JobRow({
   onCancel: () => void;
   onRemove: () => void;
 }) {
+  const t = useT();
   const uploadFraction = job.sizeBytes > 0 ? job.uploadedBytes / job.sizeBytes : 0;
   const isVideo = job.target === 'video';
 
@@ -250,30 +253,30 @@ function JobRow({
             disabled={!job.projectId || (!job.videoId && !job.newVideoName.trim())}
             title={
               !job.projectId
-                ? 'Erst ein Projekt wählen'
+                ? t('upload.needProject')
                 : !job.videoId && !job.newVideoName.trim()
-                  ? 'Erst ein Video wählen oder benennen'
+                  ? t('upload.needVideo')
                   : job.state === 'lädt'
                     ? 'Wird aufgenommen, sobald die Übertragung durch ist'
                     : undefined
             }
           >
-            Speichern
+            {t('common.save')}
           </button>
         ) : null}
         {job.state === 'lädt' ? (
           <button type="button" className="button button--ghost" onClick={onCancel}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
         ) : null}
         {job.state === 'bereit' ? (
           <button type="button" className="button button--ghost" onClick={onCancel}>
-            Verwerfen
+            {t('upload.discard')}
           </button>
         ) : null}
         {job.state === 'wartet' || job.state === 'fehler' || job.state === 'abgebrochen' ? (
           <button type="button" className="button button--ghost" onClick={onRemove}>
-            Entfernen
+            {t('common.remove')}
           </button>
         ) : null}
       </div>
@@ -281,13 +284,13 @@ function JobRow({
       {editable && isVideo ? (
         <div className="uploadjob__fields">
           <label className="field" style={{ margin: 0 }}>
-            <span className="field__label">Projekt</span>
+            <span className="field__label">{t('upload.project')}</span>
             <select
               className="select"
               value={job.projectId}
               onChange={(event) => onChange({ projectId: event.target.value, videoId: '' })}
             >
-              <option value="">Bitte wählen …</option>
+              <option value="">{t('upload.pickPlease')}</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.customer ? `${project.customer} · ` : ''}
@@ -304,7 +307,7 @@ function JobRow({
               value={job.videoId}
               onChange={(event) => onChange({ videoId: event.target.value })}
             >
-              <option value="">Neues Video anlegen</option>
+              <option value="">{t('upload.newVideo')}</option>
               {videos.map((video) => (
                 <option key={video.id} value={video.id}>
                   {video.name} (nächste Fassung: v{video.versionCount + 1})
@@ -315,7 +318,7 @@ function JobRow({
 
           {job.videoId ? null : (
             <label className="field" style={{ margin: 0 }}>
-              <span className="field__label">Name des neuen Videos</span>
+              <span className="field__label">{t('upload.newVideoName')}</span>
               <input
                 className="input"
                 value={job.newVideoName}
@@ -342,17 +345,19 @@ function JobRow({
               data-version={nextVersion}
             />
             {gewaehlt !== null && Number.isFinite(gewaehlt) ? (
-              <p className="hint">Wird als {versionLabel(gewaehlt)} angelegt.</p>
+              <p className="hint">{t('upload.versionWillBe', { label: versionLabel(gewaehlt) })}</p>
             ) : versionMismatch ? (
               <p className="hint">
-                Im Dateinamen steht v{job.detectedVersion} – ohne Eingabe wird v{nextVersion}
-                {' '}daraus.
+                {t('upload.versionMismatch', {
+                  detected: job.detectedVersion ?? '',
+                  next: nextVersion,
+                })}
               </p>
             ) : null}
           </label>
 
           <label className="field" style={{ margin: 0 }}>
-            <span className="field__label">Datum im Dateinamen</span>
+            <span className="field__label">{t('upload.fileDate')}</span>
             <input
               className="input"
               type="date"
@@ -365,8 +370,7 @@ function JobRow({
 
       {job.state === 'bereit' ? (
         <div className="uploadjob__hint">
-          Die Datei liegt vollständig auf dem Server, taucht aber noch nirgends auf. Erst
-          „Speichern“ legt Video und Fassung an – bis dahin lassen sich alle Angaben ändern.
+          {t('upload.readyHint')}
         </div>
       ) : null}
 
@@ -383,7 +387,7 @@ function JobRow({
           {isVideo && job.state !== 'lädt' && job.state !== 'bereit' ? (
             <div className="uploadjob__transcode">
               <span className="faint" style={{ fontSize: 12 }}>
-                Verarbeitung
+                {t('upload.processing')}
               </span>
               <div className="progress" style={{ flex: 1 }}>
                 <div
@@ -408,34 +412,35 @@ function JobRow({
 }
 
 function StateBadge({ job }: { job: UploadJob }) {
+  const t = useT();
   switch (job.state) {
     case 'fertig':
-      return <span className="badge badge--ready">Fertig</span>;
+      return <span className="badge badge--ready">{t('upload.stateDone')}</span>;
     case 'fehler':
-      return <span className="badge badge--failed">Fehler</span>;
+      return <span className="badge badge--failed">{t('upload.stateError')}</span>;
     case 'verarbeitet':
-      return <span className="badge badge--processing">Verarbeitung</span>;
+      return <span className="badge badge--processing">{t('upload.processing')}</span>;
     case 'lädt':
       // Wer schon gespeichert hat, wartet nur noch auf die letzten Bytes –
       // danach läuft alles von selbst weiter (Phase 18).
       return job.gespeichert ? (
-        <span className="badge badge--ready">Gespeichert · lädt</span>
+        <span className="badge badge--ready">{t('upload.stateSavedUploading')}</span>
       ) : (
-        <span className="badge">Lädt</span>
+        <span className="badge">{t('upload.stateUploading')}</span>
       );
     case 'bereit':
       // Die Bytes sind da und die Verarbeitung läuft schon (Phase 18) – nur
       // aufgenommen wird erst auf Knopfdruck.
       return job.transcodeProgress > 0 && job.transcodeProgress < 100 ? (
         <span className="badge badge--processing">
-          Nicht gespeichert · Verarbeitung {job.transcodeProgress} %
+          {t('upload.stateUnsavedProcessing', { percent: job.transcodeProgress })}
         </span>
       ) : (
-        <span className="badge badge--processing">Nicht gespeichert</span>
+        <span className="badge badge--processing">{t('upload.stateUnsaved')}</span>
       );
     case 'abgebrochen':
-      return <span className="badge">Abgebrochen</span>;
+      return <span className="badge">{t('upload.stateAborted')}</span>;
     default:
-      return <span className="badge">Wartet</span>;
+      return <span className="badge">{t('upload.stateWaiting')}</span>;
   }
 }

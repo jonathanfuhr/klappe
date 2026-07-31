@@ -1,9 +1,9 @@
 'use client';
 
-import type { Locale } from '@klappe/shared';
+import type { Locale, Vars } from '@klappe/shared';
 import { DEFAULT_LOCALE, createTranslator, resolveLocale } from '@klappe/shared';
 import { type ReactNode, createContext, useContext, useEffect, useMemo } from 'react';
-import { de } from '@/i18n/de';
+import { type MessageKey, de } from '@/i18n/de';
 import { en } from '@/i18n/en';
 import { useBranding } from './branding';
 import { useSession } from './session';
@@ -20,9 +20,16 @@ import { useSession } from './session';
  */
 const WOERTERBUECHER = { de, en };
 
+/**
+ * Die Übersetzungsfunktion, auf die Schlüssel des deutschen Wörterbuchs
+ * eingeengt. Ein Tippfehler im Schlüssel ist damit ein Typfehler und kein
+ * Text, der erst in der Oberfläche als Rohschlüssel auffällt.
+ */
+export type Translator = (key: MessageKey, vars?: Vars) => string;
+
 interface I18nState {
   locale: Locale;
-  t: ReturnType<typeof createTranslator>;
+  t: Translator;
 }
 
 const I18nContext = createContext<I18nState | null>(null);
@@ -68,7 +75,7 @@ function useI18n(): I18nState {
 }
 
 /** Die Übersetzungsfunktion – der Normalfall in Komponenten. */
-export function useT(): I18nState['t'] {
+export function useT(): Translator {
   return useI18n().t;
 }
 

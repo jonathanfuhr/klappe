@@ -7,6 +7,7 @@ import { ShareManager } from '@/components/ShareManager';
 import { IconButton } from '@/components/ui/Icon';
 import { api } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
+import { type Translator, useT } from '@/lib/i18n';
 
 /**
  * Die Spalte „Freigaben“ (Phase 16) – am Video und am Projekt dieselbe.
@@ -31,18 +32,22 @@ import { formatRelative } from '@/lib/format';
  * ein voller Projektzugang (Phase 18). Am Video selbst wäre der Name nur eine
  * Wiederholung der Überschrift.
  */
-function herkunft(link: GuestAccessDto['links'][number], scope: ShareScope): string {
+function herkunft(
+  link: GuestAccessDto['links'][number],
+  scope: ShareScope,
+  t: Translator,
+): string {
   if (link.isDirect) {
     return link.scope === 'PROJECT'
-      ? 'direkt fürs ganze Projekt freigegeben'
+      ? t('shares.directProject')
       : scope === 'PROJECT'
-        ? `direkt freigegeben · nur „${link.targetName}“`
-        : 'direkt für dieses Video freigegeben';
+        ? t('shares.directVideoOnly', { name: link.targetName })
+        : t('shares.directVideo');
   }
-  if (link.scope === 'PROJECT') return 'über die Projektfreigabe';
+  if (link.scope === 'PROJECT') return t('shares.viaProjectShare');
   return scope === 'PROJECT'
-    ? `über eine Videofreigabe · nur „${link.targetName}“`
-    : 'über die Videofreigabe';
+    ? t('shares.viaVideoShareOnly', { name: link.targetName })
+    : t('shares.viaVideoShare');
 }
 
 /** Zählt nur, was auch wirkt: gültiger Link, nicht entzogen. */
@@ -73,6 +78,7 @@ export function SharePanel({
   videoId?: string;
   targetLabel: string;
 }) {
+  const t = useT();
   const [guests, setGuests] = useState<GuestAccessDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const zeigeName = useUserName();
@@ -94,9 +100,9 @@ export function SharePanel({
       );
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, [scope, projectId, videoId]);
+  }, [scope, projectId, videoId, t]);
 
   useEffect(() => {
     void load();
@@ -112,7 +118,7 @@ export function SharePanel({
       await api.setShareGuestRights(shareLinkId, userId, { [recht]: wert });
       await load();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
     }
   };
 
@@ -128,7 +134,7 @@ export function SharePanel({
       try {
         setVideos(await api.listVideos(projectId));
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+        setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
       }
     }
   };
@@ -144,7 +150,7 @@ export function SharePanel({
       setGewaehlt([]);
       setError(null);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Freigeben fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('shares.shareFailed'));
     } finally {
       setBusy(false);
     }
@@ -153,10 +159,10 @@ export function SharePanel({
   return (
     <div className="sharepanel">
       <div className="sharepanel__head">
-        <span className="sharepanel__title">Freigaben</span>
+        <span className="sharepanel__title">{t('shares.title')}</span>
         {guests.length > 0 ? <span className="badge">{guests.length}</span> : null}
         <div className="shell__spacer" />
-        <IconButton icon="share" label="Freigabe-Links verwalten" onClick={() => setVerwaltung(true)} />
+        <IconButton icon="share" label={t('shares.manage')} onClick={() => setVerwaltung(true)} />
       </div>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -164,7 +170,7 @@ export function SharePanel({
       <div className="sharepanel__body">
         {guests.length === 0 ? (
           <p className="muted" style={{ fontSize: 13, padding: '0 14px' }}>
-            Noch niemand hier. Über das Symbol oben rechts entsteht ein Freigabe-Link.
+            {t('shares.empty')}
           </p>
         ) : (
           guests.map((guest) => (
@@ -179,7 +185,7 @@ export function SharePanel({
               <span className="faint" style={{ fontSize: 12 }}>
                 {guest.user.email}
               </span>
-              {!guest.isActive ? <div className="notice">Konto gesperrt.</div> : null}
+              {!guest.isActive ? <div className="notice">{t('shares.accountBlocked')}</div> : null}
 
               {guest.links.map((link) => {
                 const geerbt = scope === 'VIDEO' && link.scope === 'PROJECT';
@@ -187,14 +193,14 @@ export function SharePanel({
                 return (
                   <div key={link.shareLinkId} className="sharepanel__link">
                     <div className="faint" style={{ fontSize: 12 }}>
-                      {herkunft(link, scope)}
+                      {herkunft(link, scope, t)}
                       {link.label && !link.isDirect ? ` · ${link.label}` : ''}
-                      {aktiv ? '' : ' · zurückgezogen'}
-                      {link.hasOverride ? ' · abweichend vom Link' : ''}
+                      {aktiv ? '' : t('shares.withdrawn')}
+                      {link.hasOverride ? t('shares.differsFromLink') : ''}
                     </div>
                     {geerbt ? (
                       <div className="hint" style={{ margin: '2px 0 4px' }}>
-                        Vom Projekt geerbt – eine Änderung hier gilt für alle Videos des Projekts.
+                        {t('shares.inheritedHint')}
                       </div>
                     ) : null}
                     <div className="sharepanel__rights">
@@ -212,7 +218,7 @@ export function SharePanel({
                             )
                           }
                         />
-                        kommentieren
+                        {t('shares.canComment')}
                       </label>
                       <label className="switch">
                         <input
@@ -228,7 +234,7 @@ export function SharePanel({
                             )
                           }
                         />
-                        herunterladen
+                        {t('shares.canDownload')}
                       </label>
                       {link.scope === 'PROJECT' ? (
                         <label className="switch">
@@ -245,7 +251,7 @@ export function SharePanel({
                               )
                             }
                           />
-                          hochladen
+                          {t('shares.canUpload')}
                         </label>
                       ) : null}
                     </div>
@@ -255,7 +261,7 @@ export function SharePanel({
                       <label
                         className="switch"
                         style={{ marginTop: 6 }}
-                        title="Darf im Projekt Videos anlegen, Fassungen hochladen und löschen, weiter freigeben und fremde Kommentare verwalten – für Agenturen, die eigenes Material einstellen."
+                        title={t('shares.projectAdminHint')}
                       >
                         <input
                           type="checkbox"
@@ -270,7 +276,7 @@ export function SharePanel({
                             )
                           }
                         />
-                        Externer Projektadmin
+                        {t('shares.projectAdmin')}
                       </label>
                     ) : null}
                   </div>
@@ -283,7 +289,7 @@ export function SharePanel({
                 erweitert === guest.user.id ? (
                   <div className="sharepanel__erweitern">
                     <div className="faint" style={{ fontSize: 12, marginBottom: 6 }}>
-                      Zugriff erweitern – ohne neuen Link, der Gast bleibt angemeldet.
+                      {t('shares.extendHint')}
                     </div>
 
                     {/* Sichtbar, bevor der Klick kommt: Sonst ginge unbemerkt
@@ -295,7 +301,7 @@ export function SharePanel({
                         disabled={busy}
                         onChange={(event) => setBescheid(event.target.checked)}
                       />
-                      Per Mail Bescheid geben
+                      {t('shares.notifyByMail')}
                     </label>
 
                     <button
@@ -304,15 +310,15 @@ export function SharePanel({
                       disabled={busy}
                       onClick={() => void erweitern(guest.user.id, { scope: 'PROJECT' })}
                     >
-                      Ganzes Projekt freigeben
+                      {t('shares.shareWholeProject')}
                     </button>
 
                     <div className="faint" style={{ fontSize: 12, margin: '10px 0 4px' }}>
-                      …oder einzelne weitere Videos:
+                      {t('shares.orSingleVideos')}
                     </div>
                     {videos.length === 0 ? (
                       <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-                        Dieses Projekt hat noch keine Videos.
+                        {t('shares.projectHasNoVideos')}
                       </p>
                     ) : (
                       videos.map((video) => {
@@ -332,7 +338,7 @@ export function SharePanel({
                               }
                             />
                             {video.name}
-                            {schon ? <span className="faint"> · sieht er schon</span> : null}
+                            {schon ? <span className="faint">{t('shares.alreadySees')}</span> : null}
                           </label>
                         );
                       })
@@ -344,7 +350,7 @@ export function SharePanel({
                         className="button button--ghost"
                         onClick={() => setErweitert(null)}
                       >
-                        Abbrechen
+                        {t('common.cancel')}
                       </button>
                       <div className="shell__spacer" />
                       <button
@@ -356,8 +362,8 @@ export function SharePanel({
                         }
                       >
                         {gewaehlt.length > 1
-                          ? `${gewaehlt.length} Videos übernehmen`
-                          : 'Video übernehmen'}
+                          ? t('shares.takeOverVideos', { count: gewaehlt.length })
+                          : t('shares.takeOverVideo')}
                       </button>
                     </div>
                   </div>
@@ -370,9 +376,9 @@ export function SharePanel({
                     type="button"
                     className="button button--ghost"
                     onClick={() => void kastenAuf(guest.user.id)}
-                    title="Weitere Videos oder das ganze Projekt freigeben – ohne neuen Link."
+                    title={t('shares.extendTitle')}
                   >
-                    {erweitert === guest.user.id ? 'Weniger' : 'Zugriff erweitern'}
+                    {erweitert === guest.user.id ? t('shares.less') : t('shares.extend')}
                   </button>
                 ) : null}
                 <div className="shell__spacer" />
@@ -386,13 +392,13 @@ export function SharePanel({
                       await load();
                     } catch (saveError) {
                       setError(
-                        saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.',
+                        saveError instanceof Error ? saveError.message : t('common.saveFailed'),
                       );
                     }
                   }}
-                  title="Wirkt am Projekt – dort gilt es für alle Videos gleichzeitig."
+                  title={t('shares.revokeTitle')}
                 >
-                  {guest.canView ? 'Zugriff entziehen' : 'Zugriff zurückgeben'}
+                  {guest.canView ? t('shares.revoke') : t('shares.giveBack')}
                 </button>
               </div>
             </div>

@@ -331,6 +331,64 @@ export const de = {
   'shares.revoke': 'Zugriff entziehen',
   'shares.giveBack': 'Zugriff zurückgeben',
   'shares.shareFailed': 'Freigeben fehlgeschlagen.',
+
+  'upload.startMany': '{count} Uploads starten',
+  'upload.versionWillBe': 'Wird als {label} angelegt.',
+  'upload.versionMismatch': 'Im Dateinamen steht v{detected} – ohne Eingabe wird v{next} daraus.',
+  'upload.readyHint':
+    'Die Datei liegt vollständig auf dem Server, taucht aber noch nirgends auf. Erst „Speichern" legt Video und Fassung an – bis dahin lassen sich alle Angaben ändern.',
+  'upload.stateUnsavedProcessing': 'Nicht gespeichert · Verarbeitung {percent} %',
+
+  'shares.manage': 'Freigabe-Links verwalten',
+  'shares.directVideoOnly': 'direkt freigegeben · nur „{name}"',
+  'shares.viaVideoShareOnly': 'über eine Videofreigabe · nur „{name}"',
+  'shares.orSingleVideos': '…oder einzelne weitere Videos:',
+  'shares.alreadySees': ' · sieht er schon',
+  'shares.takeOverVideos': '{count} Videos übernehmen',
+  'shares.less': 'Weniger',
+  'shares.projectAdminHint':
+    'Darf im Projekt Videos anlegen, Fassungen hochladen und löschen, weiter freigeben und fremde Kommentare verwalten – für Agenturen, die eigenes Material einstellen.',
+  'shares.extendTitle': 'Weitere Videos oder das ganze Projekt freigeben – ohne neuen Link.',
+  'shares.revokeTitle': 'Wirkt am Projekt – dort gilt es für alle Videos gleichzeitig.',
+
+  'shareManager.title': 'Freigaben für {name}',
+  'shareManager.introProject':
+    'Eine Projektfreigabe umfasst alle Videos des Projekts – auch die, die später dazukommen.',
+  'shareManager.introVideo': 'Eine Videofreigabe zeigt genau dieses eine Video.',
+  'shareManager.empty': 'Noch keine Freigabe. Der Link entsteht erst, wenn du eine anlegst.',
+  'shareManager.create': 'Freigabe-Link erstellen',
+  'shareManager.scopeProject': 'Projekt',
+  'shareManager.scopeVideo': 'Video',
+  'shareManager.direct': 'direkt',
+  'shareManager.active': 'aktiv',
+  'shareManager.revoked': 'zurückgezogen',
+  'shareManager.createdAt': 'angelegt {date}',
+  'shareManager.directHint':
+    'Direkt in der Gästeliste freigegeben – ohne Link zum Verschicken. Die eingetragenen Gäste kommen mit ihrem bestehenden Zugang herein.',
+  'shareManager.allowDownload': 'Download erlaubt',
+  'shareManager.allowComments': 'Kommentieren erlaubt',
+  'shareManager.allowUpload': 'Kunden-Upload erlaubt',
+  'shareManager.hideGuests': 'Gäste ausblenden',
+  'shareManager.showGuests': 'Gäste ({count})',
+  'shareManager.revoke': 'Zurückziehen',
+  'shareManager.reactivate': 'Wieder freigeben',
+  'shareManager.deleteConfirm': 'Diesen Freigabe-Link endgültig löschen?',
+  'shareManager.noGuestsYet': 'Noch niemand hat diesen Link benutzt.',
+  'shareManager.lastSeen': 'zuletzt {when}',
+  'shareManager.grantAccess': 'Zugriff geben',
+  'shareManager.knownGuests': 'Bekannte Gäste',
+  'shareManager.noCustomer':
+    'Das Projekt hat keinen Kunden. Ohne Kunden lässt sich nicht sagen, wer dazugehört – trage am Projekt einen ein, dann stehen hier die Gäste seiner übrigen Projekte.',
+  'shareManager.noneLeftVideo': 'Bei „{customer}" gibt es sonst niemanden, der dieses Video nicht schon sieht.',
+  'shareManager.noneLeftProject': 'Bei „{customer}" gibt es sonst niemanden, der nicht schon hier wäre.',
+  'shareManager.candidatesVideo':
+    'Gäste von „{customer}", die dieses Video noch nicht sehen. Ein Klick gibt genau dieses Video frei – ohne neuen Link, sie melden sich mit ihrem bestehenden Zugang an.',
+  'shareManager.candidatesProject':
+    'Gäste aus anderen Projekten von „{customer}". Ein Klick gibt das ganze Projekt frei – ohne neuen Link, sie melden sich mit ihrem bestehenden Zugang an.',
+  'shareManager.candidatesRights': 'Kommentieren ist dabei, Download und Kunden-Upload bleiben zunächst aus.',
+  'shareManager.shareVideo': 'Video freigeben',
+  'shareManager.shareProject': 'Projekt freigeben',
+  'shareManager.candidateVia': '{email} · über {projects}',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

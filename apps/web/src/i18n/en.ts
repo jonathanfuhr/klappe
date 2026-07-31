@@ -329,4 +329,62 @@ export const en: Record<MessageKey, Message> = {
   'shares.revoke': 'Revoke access',
   'shares.giveBack': 'Restore access',
   'shares.shareFailed': 'Sharing failed.',
+
+  'upload.startMany': 'Start {count} uploads',
+  'upload.versionWillBe': 'Will be created as {label}.',
+  'upload.versionMismatch': 'The filename says v{detected} – without an entry it becomes v{next}.',
+  'upload.readyHint':
+    'The file is fully on the server but does not appear anywhere yet. Only “Save” creates the video and version – until then every field can still be changed.',
+  'upload.stateUnsavedProcessing': 'Not saved · processing {percent} %',
+
+  'shares.manage': 'Manage share links',
+  'shares.directVideoOnly': 'shared directly · only “{name}”',
+  'shares.viaVideoShareOnly': 'via a video share · only “{name}”',
+  'shares.orSingleVideos': '…or individual further videos:',
+  'shares.alreadySees': ' · already visible',
+  'shares.takeOverVideos': 'Add {count} videos',
+  'shares.less': 'Less',
+  'shares.projectAdminHint':
+    'May create videos in the project, upload and delete versions, share further and manage other people’s comments – for agencies that add their own material.',
+  'shares.extendTitle': 'Share further videos or the whole project – without a new link.',
+  'shares.revokeTitle': 'Applies at project level – it covers all videos at once.',
+
+  'shareManager.title': 'Shares for {name}',
+  'shareManager.introProject':
+    'A project share covers every video in the project – including those added later.',
+  'shareManager.introVideo': 'A video share shows exactly this one video.',
+  'shareManager.empty': 'No share yet. The link is created once you add one.',
+  'shareManager.create': 'Create share link',
+  'shareManager.scopeProject': 'Project',
+  'shareManager.scopeVideo': 'Video',
+  'shareManager.direct': 'direct',
+  'shareManager.active': 'active',
+  'shareManager.revoked': 'withdrawn',
+  'shareManager.createdAt': 'created {date}',
+  'shareManager.directHint':
+    'Shared directly from the guest list – no link to send around. The listed guests come in with their existing access.',
+  'shareManager.allowDownload': 'Download allowed',
+  'shareManager.allowComments': 'Commenting allowed',
+  'shareManager.allowUpload': 'Client upload allowed',
+  'shareManager.hideGuests': 'Hide guests',
+  'shareManager.showGuests': 'Guests ({count})',
+  'shareManager.revoke': 'Withdraw',
+  'shareManager.reactivate': 'Share again',
+  'shareManager.deleteConfirm': 'Delete this share link for good?',
+  'shareManager.noGuestsYet': 'Nobody has used this link yet.',
+  'shareManager.lastSeen': 'last seen {when}',
+  'shareManager.grantAccess': 'Grant access',
+  'shareManager.knownGuests': 'Known guests',
+  'shareManager.noCustomer':
+    'The project has no client. Without one there is no way to tell who belongs – add a client to the project and the guests of its other projects will appear here.',
+  'shareManager.noneLeftVideo': 'At “{customer}” there is nobody left who cannot already see this video.',
+  'shareManager.noneLeftProject': 'At “{customer}” there is nobody left who is not already here.',
+  'shareManager.candidatesVideo':
+    'Guests of “{customer}” who cannot see this video yet. One click shares exactly this video – without a new link, they sign in with their existing access.',
+  'shareManager.candidatesProject':
+    'Guests from other projects of “{customer}”. One click shares the whole project – without a new link, they sign in with their existing access.',
+  'shareManager.candidatesRights': 'Commenting is included; download and client upload stay off for now.',
+  'shareManager.shareVideo': 'Share video',
+  'shareManager.shareProject': 'Share project',
+  'shareManager.candidateVia': '{email} · via {projects}',
 };
