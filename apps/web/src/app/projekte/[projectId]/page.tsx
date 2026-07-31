@@ -25,6 +25,7 @@ import { api, mediaUrl } from '@/lib/api';
 import { formatFrameRate, formatRelative } from '@/lib/format';
 import { useFallbackInterval, useLive } from '@/lib/live';
 import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 
@@ -47,6 +48,7 @@ export default function ProjectPage() {
   const router = useRouter();
   const { user } = useSession();
   const { completedCount, enqueue } = useUploads();
+  const t = useT();
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
   /**
    * Team oder externer Projektadmin (Phase 21): darf Videos anlegen und
@@ -87,7 +89,7 @@ export default function ProjectPage() {
       setVideos(videoData);
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -125,7 +127,7 @@ export default function ProjectPage() {
       <div className={isTeam ? 'review' : ''}>
       <div className="page">
         <div className="breadcrumb">
-          <Link href="/projekte">Projekte</Link>
+          <Link href="/projekte">{t('shell.projects')}</Link>
           <span>/</span>
           <span>{project?.name ?? '…'}</span>
         </div>
@@ -133,8 +135,8 @@ export default function ProjectPage() {
         <div className="page__header">
           <div>
             <h1 className="page__title">
-              {project?.name ?? 'Projekt'}
-              {project?.archivedAt ? <span className="badge">archiviert</span> : null}
+              {project?.name ?? t('project.title')}
+              {project?.archivedAt ? <span className="badge">{t('projects.archived')}</span> : null}
             </h1>
             {project?.description ? <p className="page__subtitle">{project.description}</p> : null}
           </div>
@@ -149,7 +151,7 @@ export default function ProjectPage() {
                */}
               <IconButton
                 icon="plus"
-                label="Videodateien hinzufügen"
+                label={t('project.addVideos')}
                 onClick={() => void videosHinzufuegen()}
               />
 
@@ -158,22 +160,24 @@ export default function ProjectPage() {
                   Knopf, nicht erst den Umweg übers Menü. */}
               <IconButton
                 icon="share"
-                label="Freigabe-Links verwalten"
+                label={t('video.manageShares')}
                 onClick={() => setSharing(true)}
               />
 
               {/* Umbenennen, Archivieren und Löschen bleiben dem Team
                   vorbehalten, auch für den externen Projektadmin (Phase 21). */}
-              <Menu label="Aktionen für dieses Projekt">
-                <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
+              <Menu label={t('project.actions')}>
+                <MenuItem onSelect={() => setSharing(true)}>{t('video.shareEllipsis')}</MenuItem>
                 {isTeam ? (
                   <>
-                    <MenuItem onSelect={() => setEditing(true)}>Umbenennen …</MenuItem>
+                    <MenuItem onSelect={() => setEditing(true)}>{t('projects.renameEllipsis')}</MenuItem>
                     <MenuItem onSelect={() => setArchiving(true)}>
-                      {project?.archivedAt ? 'Aus dem Archiv holen …' : 'Archivieren …'}
+                      {project?.archivedAt
+                        ? t('project.unarchiveEllipsis')
+                        : t('project.archiveEllipsis')}
                     </MenuItem>
                     <MenuItem danger onSelect={() => setDeleting(true)}>
-                      Löschen …
+                      {t('projects.deleteEllipsis')}
                     </MenuItem>
                   </>
                 ) : null}
@@ -197,12 +201,12 @@ export default function ProjectPage() {
         ) : null}
 
         <h2 style={{ fontSize: 16, margin: '26px 0 12px' }}>
-          Videos {videos.length > 0 ? <span className="faint">({videos.length})</span> : null}
+          {t('project.videos')} {videos.length > 0 ? <span className="faint">({videos.length})</span> : null}
         </h2>
 
-        {loading ? <p className="muted">Wird geladen …</p> : null}
+        {loading ? <p className="muted">{t('common.loading')}</p> : null}
         {!loading && videos.length === 0 ? (
-          <div className="empty">Noch keine Videos in diesem Projekt.</div>
+          <div className="empty">{t('project.noVideos')}</div>
         ) : null}
 
         <div className="grid">
@@ -217,7 +221,7 @@ export default function ProjectPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={mediaUrl.poster(version.id)} alt="" loading="lazy" />
                   ) : (
-                    <span>Keine Vorschau</span>
+                    <span>{t('project.noPreview')}</span>
                   )}
                 </div>
                 <div className="tile__body">
@@ -235,7 +239,7 @@ export default function ProjectPage() {
                     ) : null}
                   </div>
                   <div className="tile__meta">
-                    {version ? <VersionStatusBadge version={version} /> : <span className="badge">leer</span>}
+                    {version ? <VersionStatusBadge version={version} /> : <span className="badge">{t('project.empty')}</span>}
                     {version ? <span>v{version.versionNumber}</span> : null}
                     {version?.media.frameRate ? (
                       <span>{formatFrameRate(version.media.frameRate)}</span>
@@ -277,7 +281,7 @@ export default function ProjectPage() {
               data-active={seitenTab === 'freigaben'}
               onClick={() => setSeitenTab('freigaben')}
             >
-              Freigaben
+              {t('video.tabShares')}
             </button>
             <button
               type="button"
@@ -286,7 +290,7 @@ export default function ProjectPage() {
               onClick={() => setSeitenTab('benachrichtigungen')}
               title="Wer bekommt Post zu diesem Projekt?"
             >
-              Benachrichtigungen
+              {t('video.tabNotifications')}
             </button>
           </div>
 
