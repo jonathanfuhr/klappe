@@ -43,7 +43,7 @@ ein eigenes Konto.
 | `GET/PATCH/DELETE /v1/projects/:id` | einzeln |
 | `GET /v1/projects/:id/videos` | Videos mit jeweils neuester Version |
 | `POST /v1/projects/:id/videos` | `{ name, description? }` |
-| `GET/PATCH/DELETE /v1/videos/:id` | einzeln; `PATCH` kennt `downloadsEnabled` |
+| `GET/PATCH/DELETE /v1/videos/:id` | einzeln; `PATCH` kennt `downloadsEnabled`, `aiContent` und `aiKindIds` |
 | `GET /v1/videos/:id/versions` | alle Versionen, neueste zuerst |
 | `GET/PATCH/DELETE /v1/versions/:id` | einzeln; die letzte Version eines Videos lässt sich nicht löschen |
 
@@ -328,6 +328,22 @@ zerfallen ist, lebt die lokale Anmeldung automatisch wieder auf.
 
 Namen sind eindeutig ohne Rücksicht auf die Schreibweise; ein Duplikat ergibt
 `409`.
+
+## KI-Kennzeichnung (Phase 24, Nachtrag)
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/ai-kinds` | Team – globaler Schalter und Katalog der Arten mit Videozahl |
+| `PATCH /v1/ai-kinds/settings` | Admin – `{ enabled }` |
+| `POST /v1/ai-kinds` | Admin – `{ name }` |
+| `PATCH /v1/ai-kinds/:id` | Admin – `{ name }` |
+| `DELETE /v1/ai-kinds/:id` | Admin – verschwindet auch aus allen Video-Kennzeichnungen |
+
+Der Haken selbst wird über `PATCH /v1/videos/:id` gesetzt (`aiContent`,
+`aiKindIds` ersetzt die Auswahl als Ganzes). Im Video-DTO stehen `aiContent`
+und `aiKinds` für alle Betrachter – auch Gäste sehen so den Hinweis. Ist die
+Funktion global abgeschaltet, liefert das DTO immer `false` und eine leere
+Liste.
 
 ## Adaptive Wiedergabe und Medien-Links (Phase 13)
 

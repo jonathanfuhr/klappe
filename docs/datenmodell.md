@@ -63,6 +63,19 @@ Löschen kaskadiert auf Versionen, Uploads und Kommentare.
 `downloads_enabled` ist der Schalter am Video – einer von dreien, die dem
 Download eines Gastes zustimmen müssen.
 
+`ai_content` ist die KI-Kennzeichnung nach Art. 50 EU AI Act (Phase 24,
+Nachtrag). Sie hängt bewusst am Video, nicht an der Fassung – ob KI-Stimme
+oder KI-Musik im Schnitt stecken, ändert sich nicht von v2 auf v3.
+
+## ai_content_kinds und video_ai_kinds
+
+Der Katalog der KI-Arten (ab Werk KI-Stimme, KI-Video, KI-Sounds, KI-Musik;
+Name eindeutig über `lower(name)`, Reihenfolge per `sort_order`) und die
+Zuordnung ans Video – aufgebaut wie `tags`/`project_tags`. Löschen einer Art
+kaskadiert auf die Zuordnungen. Der globale Schalter dazu ist
+`app_settings.ai_content_enabled`: Aus blendet Haken, Auswahl und Hinweis
+überall aus, die Zuordnungen bleiben gespeichert.
+
 ## video_versions
 
 Eine hochgeladene Fassung. **Kommentare hängen an der Version, nicht am

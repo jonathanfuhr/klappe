@@ -220,6 +220,30 @@ export interface TagDto {
   createdAt: string;
 }
 
+/** Eine Art von KI-Inhalt, z. B. „KI-Stimme" (Phase 24, Nachtrag). */
+export interface AiKindDto {
+  id: string;
+  name: string;
+}
+
+export interface AiKindWithCountDto extends AiKindDto {
+  /** An wie vielen Videos die Art hängt – fürs Löschen mit Warnung. */
+  videoCount: number;
+}
+
+/** Längste erlaubte Bezeichnung einer KI-Art. */
+export const MAX_AI_KIND_NAME_LENGTH = 60;
+
+/**
+ * KI-Kennzeichnung des Workspace: der globale Schalter und der Katalog der
+ * Arten. Team-weit lesbar (die Videoseite bietet die Auswahl an), ändern darf
+ * nur der Admin.
+ */
+export interface AiContentSettingsDto {
+  enabled: boolean;
+  kinds: AiKindWithCountDto[];
+}
+
 export interface VideoDto {
   id: string;
   projectId: string;
@@ -235,6 +259,14 @@ export interface VideoDto {
   latestVersion: VersionDto | null;
   /** Schalter am Video; der tatsächliche Download hängt zusätzlich am Link. */
   downloadsEnabled: boolean;
+  /**
+   * KI-Kennzeichnung nach Art. 50 EU AI Act (Phase 24, Nachtrag). Gilt –
+   * anders als der Endfassungs-Haken – für **alle** Fassungen des Videos.
+   * Ist die Funktion im Workspace abgeschaltet, kommt hier immer `false` an.
+   */
+  aiContent: boolean;
+  /** Die gewählten Arten, z. B. „KI-Stimme"; leer, wenn keine gewählt sind. */
+  aiKinds: AiKindDto[];
   /** Darf der anfragende Benutzer hier kommentieren und zeichnen? */
   canComment: boolean;
   /**

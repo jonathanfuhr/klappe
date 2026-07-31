@@ -1,4 +1,14 @@
-import { IsBoolean, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class CreateVideoDto {
   @IsString()
@@ -33,4 +43,15 @@ export class UpdateVideoDto {
   @IsOptional()
   @IsBoolean()
   downloadsEnabled?: boolean;
+
+  /** KI-Kennzeichnung (Phase 24, Nachtrag); gilt für alle Fassungen. */
+  @IsOptional()
+  @IsBoolean()
+  aiContent?: boolean;
+
+  /** Ersetzt die Auswahl der Arten als Ganzes. */
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  aiKindIds?: string[];
 }

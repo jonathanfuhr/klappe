@@ -24,6 +24,7 @@ import { EmbedModule } from './embed/embed.module';
 import { SharesModule } from './shares/shares.module';
 import { StorageModule } from './storage/storage.module';
 import { TagsModule } from './tags/tags.module';
+import { AiContentModule } from './ai/ai-content.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
 import { VersionsModule } from './versions/versions.module';
@@ -61,6 +62,7 @@ import { VideosModule } from './videos/videos.module';
     ProjectFilesModule,
     SettingsModule,
     TagsModule,
+    AiContentModule,
   ],
   controllers: [HealthController],
   providers: [
