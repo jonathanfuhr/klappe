@@ -641,6 +641,17 @@ oft noch anderes, und genau das soll man sehen. Die Klappe-Summe stammt dagegen
 aus der Datenbank; Posterframes, Sprite-Streifen und HLS-Segmente führt Klappe
 ohne Größe und fehlen darin. Sie ist damit eine Untergrenze, kein `du`.
 
+Steht statt des Balkens ein Hinweis, liegt der Medienordner auf einer
+**Durchreiche aus einer virtuellen Maschine** – so ist es bei Docker Desktop
+auf dem Mac (VirtioFS) und unter WSL2 (`9p`). Die API läuft dort in der VM und
+bekommt vom Betriebssystem Größen genannt, die zur Zwischenschicht gehören und
+nicht zur Platte: Auf einer 2-TB-SSD kamen so 57 TB heraus. Klappe erkennt das
+inzwischen und zeigt lieber nichts als eine erfundene Zahl. Der echte Wert
+steht auf dem Wirtssystem selbst – `df -h` auf den Medienordner. Die
+Aufschlüsselung darunter ist davon nicht betroffen. Unraid-User-Shares
+(`/mnt/user/…`) sind ausdrücklich **nicht** betroffen: Die sind zwar ebenfalls
+FUSE, melden aber die wahre Größe des Arrays.
+
 ---
 
 ## Eingebetteter Player

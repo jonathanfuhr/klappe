@@ -81,11 +81,28 @@ export function StoragePanel() {
       <div className="card" style={{ padding: 20 }}>
         <h3 style={{ margin: '0 0 4px' }}>Freier Platz</h3>
         <p className="hint" style={{ marginTop: 0 }}>
-          Gemessen am Dateisystem hinter <code>{status.path}</code>. Liegt dort noch anderes,
-          zählt es mit – der Balken zeigt die Platte, nicht Klappe allein.
+          Gemessen am Dateisystem hinter <code>{status.path}</code>, so wie der API-Dienst es
+          sieht.
+          {status.passthroughFs ? null : (
+            <> Liegt dort noch anderes, zählt es mit – der Balken zeigt die Platte, nicht Klappe allein.</>
+          )}
         </p>
 
-        {!status.available || anteil === null ? (
+        {status.passthroughFs ? (
+          /* Bewusst keine Zahl und kein Balken: Was das Betriebssystem hier
+             meldet, beschreibt die virtuelle Maschine und nicht die Platte,
+             auf der das Material liegt. Eine falsche Antwort auf „passt das
+             noch drauf?" ist schlimmer als gar keine. */
+          <div className="notice">
+            <strong>Der freie Platz lässt sich von hier aus nicht ermitteln.</strong> Der
+            Medienordner ist über <code>{status.passthroughFs}</code> aus einer virtuellen Maschine
+            durchgereicht – so läuft es etwa bei Docker Desktop auf dem Mac. Die Größen, die das
+            Betriebssystem dazu meldet, gehören der Zwischenschicht und nicht der echten Platte,
+            deshalb steht hier lieber nichts als eine erfundene Zahl. Auf dem Rechner selbst sagt
+            es <code>df -h</code> auf den Medienordner. Die Aufschlüsselung unten stimmt
+            unabhängig davon.
+          </div>
+        ) : !status.available || anteil === null ? (
           <div className="notice">
             Das Betriebssystem gibt zu diesem Pfad keine Auskunft über den freien Platz. Die
             Aufschlüsselung unten stimmt trotzdem.

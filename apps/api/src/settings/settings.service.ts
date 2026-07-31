@@ -236,7 +236,10 @@ export class SettingsService {
     const platz = await this.storage.freeSpace();
     return {
       path: platz?.path ?? this.config.storage.root,
-      available: platz !== null,
+      // Eine Durchreiche liefert zwar Zahlen, aber die falschen – sie zählt
+      // hier wie „keine Auskunft", nur mit einer besseren Begründung.
+      available: platz !== null && platz.totalBytes !== null,
+      passthroughFs: platz?.passthroughFs ?? null,
       totalBytes: platz?.totalBytes ?? null,
       freeBytes: platz?.freeBytes ?? null,
       usedBytes: platz?.usedBytes ?? null,

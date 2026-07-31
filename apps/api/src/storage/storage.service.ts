@@ -1,8 +1,78 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdir, rename, rm, stat, statfs, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, stat, statfs, writeFile } from 'node:fs/promises';
 import { dirname, join, normalize, resolve, sep } from 'node:path';
 import { AppConfig, CONFIG } from '../config/configuration';
+
+/**
+ * Dateisysteme, die einen Ordner aus einer *anderen* Maschine durchreichen –
+ * aus dem Wirtssystem in eine virtuelle Maschine und von dort in den
+ * Container. Ihre Größenangaben beziehen sich nicht auf die Platte, auf der
+ * die Dateien tatsächlich liegen; `statfs` bekommt hier Zahlen der
+ * Zwischenschicht und nicht der echten Ablage.
+ *
+ * Praktischer Fall: Docker Desktop auf dem Mac. Der Stack läuft dort in einer
+ * Linux-VM, `MEDIA_DIR` wird per VirtioFS aus macOS hineingereicht – die API
+ * sieht die APFS-Volume nie und meldete stur die Zahlen der VM. Dasselbe gilt
+ * für WSL2 (`9p`) und die alten Docker-Toolbox-Freigaben (`vboxsf`).
+ *
+ * Bewusst **nicht** in der Liste: `fuse.shfs`. Das sind die User-Shares auf
+ * einem Unraid (`/mnt/user/...`), ebenfalls FUSE – die melden aber die echte
+ * Größe des Arrays. Deshalb wird hier nach der konkreten Art gefragt und
+ * nicht pauschal alles FUSE verworfen; sonst verlöre der Hauptanwendungsfall
+ * seine Anzeige.
+ */
+const DURCHGEREICHTE_DATEISYSTEME = new Set([
+  'virtiofs',
+  'grpcfuse',
+  'fuse.grpcfuse',
+  'osxfs',
+  'fuse.osxfs',
+  'fuse.sshfs',
+  '9p',
+  'vboxsf',
+]);
+
+/**
+ * Einhängepunkte stehen in `mountinfo` mit oktal maskierten Sonderzeichen –
+ * ein Leerzeichen im Pfad wäre sonst nicht vom Feldtrenner zu unterscheiden.
+ */
+function entmaskiere(pfad: string): string {
+  return pfad.replace(/\\([0-7]{3})/g, (_, oktal: string) =>
+    String.fromCharCode(parseInt(oktal, 8)),
+  );
+}
+
+/**
+ * Sucht in einer `/proc/self/mountinfo` die Art des Dateisystems, auf dem ein
+ * Pfad liegt. Eigene Funktion, weil hier die eigentliche Denkarbeit steckt und
+ * sie sich so ohne echtes `/proc` prüfen lässt.
+ *
+ * Genommen wird der **längste** passende Einhängepunkt: Für `/data/originals`
+ * treffen `/` und `/data` beide zu, gemeint ist der speziellere.
+ */
+export function dateisystemArtAus(mountinfo: string, pfad: string): string | null {
+  let treffer: { punkt: string; art: string } | null = null;
+  for (const zeile of mountinfo.split('\n')) {
+    // Vor dem " - " stehen die Felder mit dem Einhängepunkt, dahinter beginnt
+    // es mit der Art. Dazwischen liegen optionale Felder unbekannter Anzahl –
+    // deshalb der Trenner statt fester Indizes.
+    const trenner = zeile.indexOf(' - ');
+    if (trenner < 0) continue;
+    const punkt = entmaskiere(zeile.slice(0, trenner).split(' ')[4] ?? '');
+    const art = zeile.slice(trenner + 3).split(' ')[0] ?? '';
+    if (!punkt || !art) continue;
+    const passt = pfad === punkt || punkt === '/' || pfad.startsWith(punkt + sep);
+    if (!passt) continue;
+    if (!treffer || punkt.length > treffer.punkt.length) treffer = { punkt, art };
+  }
+  return treffer?.art ?? null;
+}
+
+/** Reicht diese Dateisystemart ihre Größenangaben aus einer VM durch? */
+export function istDurchgereicht(art: string | null): boolean {
+  return art !== null && DURCHGEREICHTE_DATEISYSTEME.has(art);
+}
 
 /**
  * Ablage auf dem Docker-Volume. Alles läuft über *Schlüssel* (relative Pfade
@@ -130,6 +200,28 @@ export class StorageService {
   }
 
   /**
+   * Art des Dateisystems, auf dem ein Pfad liegt – oder `null`, wenn sich das
+   * nicht feststellen lässt.
+   *
+   * Nur unter Linux beantwortbar, denn nur dort gibt es `/proc`. Das genügt:
+   * Die Frage stellt sich ausschließlich für den Prozess *im Container*.
+   * Läuft Klappe nativ (der Worker auf einem Mac), schaut es ohnehin direkt
+   * auf die echte Platte, und dann ist die Antwort „unbekannt" richtig – wir
+   * verwerfen die Zahlen dann nicht.
+   *
+   * Gesucht wird der *längste* passende Einhängepunkt: `/data` und `/` können
+   * beide zutreffen, gültig ist der speziellere von beiden.
+   */
+  private async dateisystemArt(pfad: string): Promise<string | null> {
+    if (process.platform !== 'linux') return null;
+    try {
+      return dateisystemArtAus(await readFile('/proc/self/mountinfo', 'utf8'), pfad);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Platz auf dem Dateisystem, auf dem die Ablage liegt (Phase 22).
    *
    * Gemessen wird das **Dateisystem**, nicht der Ordner: Im Container ist das
@@ -137,21 +229,37 @@ export class StorageService {
    * kann. Ein rekursives Durchzählen des Baums wäre etwas anderes und viel
    * teurer – bei HLS geht es um Zehntausende Segmentdateien.
    *
-   * `null`, wenn das Betriebssystem keine Auskunft gibt. Der Aufrufer zeigt
-   * dann eben nichts an; ein Fehler ist es nicht.
+   * `null`, wenn das Betriebssystem keine Auskunft gibt. Ist der Ordner aus
+   * einer virtuellen Maschine durchgereicht, kommen zwar Zahlen zurück, sie
+   * beschreiben aber die falsche Platte – dann wird `passthroughFs` gesetzt
+   * und die Größen bleiben leer. Lieber keine Zahl als eine erfundene: Die
+   * Anzeige beantwortet die Frage „passt der nächste Dreh noch drauf?", und
+   * darauf eine falsche Antwort zu geben ist schlimmer als gar keine.
    */
   async freeSpace(): Promise<{
     path: string;
-    totalBytes: number;
-    freeBytes: number;
-    usedBytes: number;
+    passthroughFs: string | null;
+    totalBytes: number | null;
+    freeBytes: number | null;
+    usedBytes: number | null;
   } | null> {
+    const art = await this.dateisystemArt(this.root);
+    if (istDurchgereicht(art)) {
+      this.logger.log(
+        `Freier Platz für ${this.root} wird nicht angezeigt: liegt auf "${art}", einer ` +
+          'Durchreiche aus einer virtuellen Maschine – die gemeldeten Größen gehören nicht ' +
+          'zur echten Platte.',
+      );
+      return { path: this.root, passthroughFs: art, totalBytes: null, freeBytes: null, usedBytes: null };
+    }
+
     try {
       const info = await statfs(this.root);
       const block = Number(info.bsize);
       const blocks = Number(info.blocks);
       return {
         path: this.root,
+        passthroughFs: null,
         totalBytes: blocks * block,
         // `bavail`, nicht `bfree`: Ein Teil bleibt für root reserviert und
         // steht dem Dienst nicht zur Verfügung. `df` zeigt aus demselben

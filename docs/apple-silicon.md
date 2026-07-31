@@ -265,3 +265,18 @@ Domain die Portfreigabe auf den Mac umstellen.
   schreibt – ohne Bestätigung bleibt der Auftrag hängen. Siehe
   „Erste Freigabe für den Medienordner" im Abschnitt „Worker bauen und von
   Hand probieren".
+- **Einstellungen → Speicher zeigt keinen freien Platz.** Statt des Balkens
+  steht dort ein Hinweis. Das ist auf dem Mac der richtige Zustand und kein
+  Fehler: Die API läuft in der Linux-VM und sieht `MEDIA_DIR` nur als
+  VirtioFS-Durchreiche. Was das Betriebssystem ihr über die Größe dieser
+  Einhängung erzählt, beschreibt die VM und nicht die APFS-Volume – auf einer
+  2-TB-SSD kamen so schon 57 TB heraus. Klappe erkennt die Durchreiche
+  inzwischen und schweigt lieber, als eine erfundene Zahl anzuzeigen. Der
+  echte Wert steht auf dem Mac selbst:
+
+  ```bash
+  df -h /Users/dein-benutzer/klappe-media
+  ```
+
+  Die Aufschlüsselung „Davon Klappe" darunter stimmt weiterhin – sie kommt
+  aus der Datenbank und nicht vom Dateisystem.

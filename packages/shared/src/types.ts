@@ -76,6 +76,14 @@ export interface StorageStatusDto {
    * drei Größen auf `null`, die Aufschlüsselung darunter gilt weiterhin.
    */
   available: boolean;
+  /**
+   * Gesetzt, wenn der Medienordner aus einer virtuellen Maschine durchgereicht
+   * ist (Docker Desktop auf dem Mac: `virtiofs`, WSL2: `9p`) – dann enthält es
+   * die Art des Dateisystems. Die Zahlen, die das Betriebssystem dazu meldet,
+   * gehören der Zwischenschicht und nicht der Platte, auf der die Dateien
+   * liegen; sie werden deshalb gar nicht erst geliefert.
+   */
+  passthroughFs: string | null;
   totalBytes: number | null;
   /** Was ein gewöhnlicher Prozess noch schreiben kann (ohne die root-Reserve). */
   freeBytes: number | null;
