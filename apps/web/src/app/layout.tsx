@@ -23,6 +23,12 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: 'Klappe',
+  /**
+   * Steht im Server-Markup und damit vor jeder Sitzung. Die eigentliche
+   * Sprache setzt der `I18nProvider` (Phase 26) am `<html lang>` nach, sobald
+   * Erscheinungsbild und Sitzung geladen sind – für die Vorschau in einer
+   * geteilten Adresse bleibt es bei der Quellsprache.
+   */
   description: 'Review und Freigabe für Videoproduktionen',
   /**
    * Das Manifest wird zur Laufzeit gebaut (Phase 24): Name, Farbe und Symbol
