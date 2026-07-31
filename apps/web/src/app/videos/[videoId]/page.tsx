@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { NotificationPanel } from '@/components/NotificationPanel';
 import { ShareManager } from '@/components/ShareManager';
+import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
 import { CommentPanel } from '@/components/comments/CommentPanel';
 import { type CommentMarker, type PlayerHandle, VideoPlayer } from '@/components/player/VideoPlayer';
@@ -28,7 +29,7 @@ import { EmbedDialog } from '@/components/EmbedDialog';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
 import { useFallbackInterval, useLiveTopic } from '@/lib/live';
-import { VIDEO_ACCEPT, pickFiles } from '@/lib/pick-files';
+import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 import { useUserName } from '@/lib/user-name';
@@ -104,16 +105,21 @@ export default function ReviewPage() {
     }
   }, []);
 
+  /** Ablagefläche sichtbar? Wird am Schreibtisch vom „+" auf- und zugeklappt. */
+  const [uploaderOffen, setUploaderOffen] = useState(false);
+
   /**
-   * Neue Fassung: direkt die Dateiauswahl, ohne Umweg über ein Ablagefeld
-   * (Phase 24).
-   *
-   * Das „+" klappte vorher eine Fläche zum Hineinziehen auf – auf einem Handy
-   * ein Feld, in das sich nichts ziehen lässt, und ein zusätzlicher Klick für
-   * alle anderen. Wohin die Datei gehört, ist an dieser Stelle ohnehin klar.
+   * Neue Fassung (Phase 24): Am Schreibtisch klappt das „+" die Ablagefläche
+   * auf – dorthin zieht man die Datei direkt aus dem Finder. Auf einem Gerät
+   * ohne Zeiger gibt es nichts zu ziehen; dort öffnet es gleich die
+   * Dateiauswahl.
    */
   const neueFassung = useCallback(async () => {
     if (!video) return;
+    if (hatZeiger()) {
+      setUploaderOffen((offen) => !offen);
+      return;
+    }
     const files = (await pickFiles({ accept: VIDEO_ACCEPT })).filter((file) => file.size > 0);
     if (files.length === 0) return;
     enqueue({ files, target: 'video', projectId: video.projectId, videoId: video.id });
@@ -397,6 +403,10 @@ export default function ReviewPage() {
             </div>
           </div>
 
+          {uploaderOffen && video && canManage ? (
+            <Uploader projectId={video.projectId} videoId={video.id} />
+          ) : null}
+
           {/* Solange keine Endfassung markiert ist, sagt es die Seite – zuerst
               dem Kunden, der sonst eine Zwischenfassung für das Ergebnis
               hält. Das Team sieht denselben Hinweis samt Schalter. */}
@@ -500,17 +510,12 @@ export default function ReviewPage() {
             !loading && (
               <div className="empty">
                 Für dieses Video wurde noch keine Datei hochgeladen.
-                {canManage ? (
+                {video && canManage ? (
                   <div style={{ marginTop: 12 }}>
-                    {/* Ein Knopf statt einer zweiten Ablagefläche (Phase 24) –
-                        derselbe Weg wie das „+" oben in der Leiste. */}
-                    <button
-                      type="button"
-                      className="button button--primary"
-                      onClick={() => void neueFassung()}
-                    >
-                      Datei auswählen …
-                    </button>
+                    {/* Auf einer leeren Seite darf die Fläche direkt stehen –
+                        sie ist hier die eine Handlung, die ansteht. Ihren
+                        Knopf bringt sie für Geräte ohne Zeiger selbst mit. */}
+                    <Uploader projectId={video.projectId} videoId={video.id} />
                   </div>
                 ) : null}
               </div>

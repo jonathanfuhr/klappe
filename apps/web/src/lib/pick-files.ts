@@ -2,6 +2,19 @@
 export const VIDEO_ACCEPT = 'video/*,.mov,.mp4,.mxf,.mkv,.avi,.m4v';
 
 /**
+ * Gibt es einen Zeiger, mit dem sich etwas ziehen lässt? (Phase 24)
+ *
+ * Entscheidet, was das „+" tut: Am Schreibtisch klappt es die Ablagefläche
+ * auf – dorthin zieht man Dateien direkt aus dem Finder. Auf einem Handy gibt
+ * es nichts zu ziehen; dort öffnet es gleich die Dateiauswahl. Dieselbe
+ * Abfrage wie im Stylesheet (`hover`), damit Verhalten und Darstellung nie
+ * auseinanderlaufen.
+ */
+export function hatZeiger(): boolean {
+  return window.matchMedia('(hover: hover)').matches;
+}
+
+/**
  * Dateiauswahl ohne sichtbares Eingabefeld (Phase 24).
  *
  * Ein `<input type="file">` lässt sich nur durch einen Klick öffnen, und der

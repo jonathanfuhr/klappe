@@ -11,6 +11,7 @@ import { ProjectFieldValues } from '@/components/ProjectFieldValues';
 import { ProjectFiles } from '@/components/ProjectFiles';
 import { ProjectTags } from '@/components/ProjectTags';
 import { ShareManager } from '@/components/ShareManager';
+import { Uploader } from '@/components/Uploader';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
 import { IconButton } from '@/components/ui/Icon';
 import { Menu, MenuItem } from '@/components/ui/Menu';
@@ -23,7 +24,7 @@ import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
 import { formatFrameRate, formatRelative } from '@/lib/format';
 import { useFallbackInterval, useLive } from '@/lib/live';
-import { VIDEO_ACCEPT, pickFiles } from '@/lib/pick-files';
+import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 
@@ -54,12 +55,23 @@ export default function ProjectPage() {
    */
   const canManage = isTeam || (project?.canManage ?? false);
 
+  /** Ablagefläche sichtbar? Wird am Schreibtisch vom „+" auf- und zugeklappt. */
+  const [uploaderOffen, setUploaderOffen] = useState(false);
+
   /**
-   * Videodateien hinzufügen (Phase 24): direkt die Dateiauswahl, ohne
-   * Ablagefläche. `videos` geht mit, damit das Upload-Fenster eine Datei als
+   * Videodateien hinzufügen (Phase 24).
+   *
+   * Am Schreibtisch klappt das „+" die Ablagefläche auf – dorthin zieht man
+   * Dateien direkt aus dem Finder, gerade mehrere auf einmal. Auf einem Gerät
+   * ohne Zeiger gibt es nichts zu ziehen; dort öffnet es gleich die
+   * Dateiauswahl. `videos` geht mit, damit das Upload-Fenster eine Datei als
    * neue Fassung eines vorhandenen Videos erkennen kann.
    */
   const videosHinzufuegen = useCallback(async () => {
+    if (hatZeiger()) {
+      setUploaderOffen((offen) => !offen);
+      return;
+    }
     const files = (await pickFiles({ accept: VIDEO_ACCEPT })).filter((file) => file.size > 0);
     if (files.length === 0) return;
     enqueue({ files, target: 'video', projectId, videos });
@@ -130,11 +142,10 @@ export default function ProjectPage() {
           {canManage ? (
             <>
               {/*
-               * Videos hinzufügen: ein Symbol neben dem „…"-Menü, das direkt
-               * die Dateiauswahl öffnet – wie das „+" am Video (Phase 24).
-               * Vorher stand hier eine große Ablagefläche samt Erklärung
-               * mitten auf der Seite, obwohl auf dem Handy nichts zu ziehen
-               * ist und der Text bei jedem Besuch derselbe war.
+               * Videos hinzufügen: ein Symbol neben dem „…"-Menü (Phase 24).
+               * Am Schreibtisch klappt es die Ablagefläche auf, ohne Zeiger
+               * öffnet es direkt die Dateiauswahl – siehe `videosHinzufuegen`.
+               * Vorher stand die Fläche dauerhaft mitten auf der Seite.
                */}
               <IconButton
                 icon="plus"
@@ -171,6 +182,12 @@ export default function ProjectPage() {
         ) : null}
 
         {project ? <ProjectFieldValues project={project} isTeam={isTeam} onChanged={load} /> : null}
+
+        {uploaderOffen && canManage ? (
+          <div style={{ marginTop: 16 }}>
+            <Uploader projectId={projectId} videos={videos} />
+          </div>
+        ) : null}
 
         <h2 style={{ fontSize: 16, margin: '26px 0 12px' }}>
           Videos {videos.length > 0 ? <span className="faint">({videos.length})</span> : null}

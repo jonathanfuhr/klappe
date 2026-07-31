@@ -138,7 +138,11 @@ export function ProjectFiles({
 
       {canUpload ? (
         <div style={{ marginBottom: 12 }}>
-          <Uploader projectId={projectId} folderId={aktuellerOrdner ?? undefined} />
+          <Uploader
+            projectId={projectId}
+            target="project-file"
+            folderId={aktuellerOrdner ?? undefined}
+          />
         </div>
       ) : null}
 
