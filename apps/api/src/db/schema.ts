@@ -626,24 +626,22 @@ export const appSettings = pgTable('app_settings', {
   brandLogoUpdatedAt: timestamp('brand_logo_updated_at', { withTimezone: true }),
 
   /**
-   * Tab-Symbol (Phase 23): `standard` (das mitgelieferte Zeichen), `logo`
-   * (dasselbe Bild wie oben links) oder `eigenes` (eigens dafür hochgeladen).
-   * Ab Werk `standard` – ein breites Schriftzug-Logo taugt im 16-px-Tab nicht.
+   * Das hochgeladene Tab-Symbol als `.ico` (Phase 23, vereinfacht in 24).
+   *
+   * Bis Phase 24 stand hier zusätzlich ein Modus: Standard-Zeichen, Logo oder
+   * eigene Datei – und im Fall „Logo" rechnete die Oberfläche das Symbol selbst
+   * aus. Das Ergebnis passte selten; ein Symbol, das im 16-Pixel-Tab bestehen
+   * soll, entsteht nicht durch Verkleinern. Jetzt wird eine fertige Datei
+   * hochgeladen oder eben keine.
    */
-  faviconMode: text('favicon_mode').notNull().default('standard'),
   faviconKey: text('favicon_key'),
   faviconMime: text('favicon_mime'),
   faviconUpdatedAt: timestamp('favicon_updated_at', { withTimezone: true }),
 
   /**
-   * Das gerasterte App-Symbol (Phase 24).
-   *
-   * Aus der gewählten Quelle – Logo oder eigenes Tab-Symbol – im Browser des
-   * Admins auf ein quadratisches PNG gebracht und hier abgelegt. Nötig, weil
-   * ein SVG als Symbol auf dem iOS-Startbildschirm gar nicht angenommen wird
-   * und in älteren Browser-Tabs unzuverlässig ist. Das Rastern läuft bewusst
-   * im Browser: Der Server bräuchte dafür eine Bildbibliothek mit nativen
-   * Abhängigkeiten, die dem Stack sonst nirgends fehlt.
+   * Das hochgeladene App-Symbol als quadratisches PNG (Phase 24) – für den
+   * iOS-Startbildschirm und das Web-App-Manifest. Ein SVG wird dort gar nicht
+   * angenommen, deshalb ein eigenes Feld neben dem Logo.
    */
   appIconKey: text('app_icon_key'),
   /** Wechselt bei jedem neuen Symbol und bricht damit den Browser-Cache auf. */

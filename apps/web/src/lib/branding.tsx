@@ -25,7 +25,6 @@ const fallback: BrandingDto = {
   title: DEFAULT_BRAND_TITLE,
   ...deriveBrandColors(DEFAULT_BRAND_ACCENT),
   logoUrl: null,
-  faviconMode: 'standard',
   faviconUrl: null,
   appIconUrl: null,
   companyName: null,
@@ -78,29 +77,24 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   /**
    * Tab-Symbol und App-Symbol (Phasen 23 und 24).
    *
-   * Next legt aus `app/icon.svg` selbst einen `<link rel="icon">` an. Statt
-   * den zu entfernen, werden eigene **dahinter** gehängt: Browser nehmen bei
-   * mehreren den zuletzt passenden, und bleiben unsere aus (Modus `standard`),
-   * steht das mitgelieferte Zeichen unverändert da.
+   * Next legt aus `app/icon.svg` selbst einen `<link rel="icon">` an. Statt den
+   * zu entfernen, werden eigene **dahinter** gehängt: Browser nehmen bei
+   * mehreren den zuletzt passenden, und ist keines hinterlegt, steht das
+   * mitgelieferte Zeichen unverändert da.
    *
-   * Angehängt wird bevorzugt das gerasterte PNG. Ein SVG nahm der Tab nicht
-   * überall an, und der iOS-Startbildschirm braucht für `apple-touch-icon`
-   * ohnehin zwingend ein PNG – ein SVG dort lässt Safari das Symbol schlicht
-   * weg und malt stattdessen einen Bildschirmausschnitt der Seite.
+   * Die beiden sind unabhängig voneinander. Das Tab bekommt die `.ico`, der
+   * Startbildschirm das PNG – ein SVG lässt Safari dort schlicht weg und malt
+   * stattdessen einen Bildschirmausschnitt der Seite.
    */
   useEffect(() => {
     for (const alt of document.querySelectorAll(`link[${FAVICON_ATTRIBUT}]`)) alt.remove();
 
-    const png = branding.appIconUrl;
     const quellen: { rel: string; href: string; type?: string }[] = [];
-
-    if (png) {
-      quellen.push({ rel: 'icon', href: png, type: 'image/png' });
-      quellen.push({ rel: 'apple-touch-icon', href: png });
-    } else if (branding.faviconUrl) {
-      // Kein PNG erzeugt (etwa weil das Rastern scheiterte): Wenigstens im Tab
-      // soll das eigene Symbol stehen.
-      quellen.push({ rel: 'icon', href: branding.faviconUrl });
+    if (branding.faviconUrl) {
+      quellen.push({ rel: 'icon', href: branding.faviconUrl, type: 'image/x-icon' });
+    }
+    if (branding.appIconUrl) {
+      quellen.push({ rel: 'apple-touch-icon', href: branding.appIconUrl });
     }
 
     for (const quelle of quellen) {
