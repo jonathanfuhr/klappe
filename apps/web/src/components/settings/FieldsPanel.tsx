@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { TagManager } from '@/components/TagManager';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 /**
  * Einstellungen → Felder (Phase 15): die Definitionen der benutzerdefinierten
@@ -12,6 +13,7 @@ import { api } from '@/lib/api';
  * ausfüllbares Feld – eine Projektnummer ist der Anlassfall.
  */
 export function FieldsPanel() {
+  const t = useT();
   const [fields, setFields] = useState<ProjectFieldDefDto[]>([]);
   const [neuerName, setNeuerName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +32,9 @@ export function FieldsPanel() {
       setTagsEnabled(einstellungen.tagsEnabled);
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -47,7 +49,7 @@ export function FieldsPanel() {
       setNeuerName('');
       await load();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Anlegen fehlgeschlagen.');
+      setError(createError instanceof Error ? createError.message : t('common.createFailed'));
     } finally {
       setBusy(false);
     }
@@ -56,8 +58,7 @@ export function FieldsPanel() {
   return (
     <>
       <p className="page__subtitle">
-        Benutzerdefinierte Felder erscheinen auf jeder Projektseite – zum Beispiel eine
-        Projektnummer. Die Werte trägt das Team pro Projekt ein.
+        {t('fields.subtitle')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -72,13 +73,13 @@ export function FieldsPanel() {
       >
         <div className="field">
           <label className="field__label" htmlFor="new-field-name">
-            Neues Feld
+            {t('fields.newField')}
           </label>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               id="new-field-name"
               className="input"
-              placeholder="z. B. Projektnummer"
+              placeholder={t('fields.newPlaceholder')}
               value={neuerName}
               onChange={(event) => setNeuerName(event.target.value)}
             />
@@ -87,14 +88,14 @@ export function FieldsPanel() {
               className="button button--primary"
               disabled={busy || !neuerName.trim()}
             >
-              Anlegen
+              {t('common.create')}
             </button>
           </div>
         </div>
 
         {fields.length === 0 ? (
           <p className="muted" style={{ marginBottom: 0 }}>
-            Noch keine Felder definiert.
+            {t('fields.none')}
           </p>
         ) : (
           <div className="list" style={{ marginTop: 8 }}>
@@ -113,7 +114,7 @@ export function FieldsPanel() {
                       void api
                         .updateProjectField(field.id, { [eigenschaft]: event.target.checked })
                         .then(load)
-                        .catch(() => setError('Speichern fehlgeschlagen.'));
+                        .catch(() => setError(t('common.saveFailed')));
                     }}
                   />
                   {label}
@@ -130,48 +131,28 @@ export function FieldsPanel() {
                     <span style={{ flex: 1 }}>{field.name}</span>
                     <span className="faint" style={{ fontSize: 13 }}>
                       {field.projectCount === 0
-                        ? 'unbenutzt'
-                        : `an ${field.projectCount} ${field.projectCount === 1 ? 'Projekt' : 'Projekten'}`}
+                        ? t('fields.unused')
+                        : t('fields.usedAt', { count: field.projectCount })}
                     </span>
                     <button type="button" className="button" onClick={() => setUmbenennen(field)}>
-                      Umbenennen
+                      {t('common.rename')}
                     </button>
                     <button
                       type="button"
                       className="button button--danger"
                       onClick={() => setLoeschen(field)}
                     >
-                      Löschen
+                      {t('common.delete')}
                     </button>
                   </div>
                   {/* Was das Feld in der Projektliste darf (Phase 22) – plus
                       die Tippvorschläge aus Phase 16. */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-                    {schalter(
-                      'suggest',
-                      'Vorschläge',
-                      'Beim Eintippen Werte aus den anderen Projekten vorschlagen – für einen Kundennamen hilfreich, für eine einmalige Projektnummer sinnlos.',
-                    )}
-                    {schalter(
-                      'filterable',
-                      'Filtern',
-                      'Das Feld als Filter über der Projektliste anbieten.',
-                    )}
-                    {schalter(
-                      'sortable',
-                      'Sortieren',
-                      'Das Feld in der Sortier-Auswahl der Projektliste anbieten.',
-                    )}
-                    {schalter(
-                      'groupable',
-                      'Gruppieren',
-                      'Das Feld in der Gruppier-Auswahl der Projektliste anbieten.',
-                    )}
-                    {schalter(
-                      'showOnTile',
-                      'Auf der Projektkachel',
-                      'Den eingetragenen Wert auf der Projektkachel anzeigen.',
-                    )}
+                    {schalter('suggest', t('fields.suggest'), t('fields.suggestTitle'))}
+                    {schalter('filterable', t('fields.filterable'), t('fields.filterableTitle'))}
+                    {schalter('sortable', t('fields.sortable'), t('fields.sortableTitle'))}
+                    {schalter('groupable', t('fields.groupable'), t('fields.groupableTitle'))}
+                    {schalter('showOnTile', t('fields.showOnTile'), t('fields.showOnTileTitle'))}
                   </div>
                 </div>
               );
@@ -185,7 +166,7 @@ export function FieldsPanel() {
           eigenen Fenster über der Projektliste. */}
       <div className="card" style={{ padding: 20 }}>
         <h2 className="section__title" style={{ marginBottom: 12 }}>
-          Schlagworte
+          {t('tags.label')}
         </h2>
 
         <label className="switch">
@@ -196,14 +177,13 @@ export function FieldsPanel() {
               void api
                 .updateProjectFieldSettings({ tagsEnabled: event.target.checked })
                 .then((einstellungen) => setTagsEnabled(einstellungen.tagsEnabled))
-                .catch(() => setError('Speichern fehlgeschlagen.'));
+                .catch(() => setError(t('common.saveFailed')));
             }}
           />
-          Schlagworte verwenden
+          {t('fields.tagsUse')}
         </label>
         <p className="hint">
-          Aus heißt: Schlagworte verschwinden aus Filter, Projektkacheln und Projektseiten. Die
-          Zuordnungen bleiben gespeichert und kommen beim Wiedereinschalten zurück.
+          {t('fields.tagsHint')}
         </p>
 
         {tagsEnabled ? (
@@ -225,17 +205,18 @@ export function FieldsPanel() {
       ) : null}
 
       {loeschen ? (
-        <Dialog title={`Feld „${loeschen.name}“ löschen?`} onClose={() => setLoeschen(null)}>
+        <Dialog
+          title={t('fields.deleteTitle', { name: loeschen.name })}
+          onClose={() => setLoeschen(null)}
+        >
           <p>
             {loeschen.projectCount > 0
-              ? `Die Einträge an ${loeschen.projectCount} ${
-                  loeschen.projectCount === 1 ? 'Projekt' : 'Projekten'
-                } gehen dabei verloren.`
-              : 'Das Feld ist an keinem Projekt belegt.'}
+              ? t('fields.deleteBody', { count: loeschen.projectCount })
+              : t('fields.deleteUnused')}
           </p>
           <div className="dialog__actions">
             <button type="button" className="button" onClick={() => setLoeschen(null)}>
-              Abbrechen
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -247,13 +228,13 @@ export function FieldsPanel() {
                   await load();
                 } catch (deleteError) {
                   setError(
-                    deleteError instanceof Error ? deleteError.message : 'Löschen fehlgeschlagen.',
+                    deleteError instanceof Error ? deleteError.message : t('common.deleteFailed'),
                   );
                   setLoeschen(null);
                 }
               }}
             >
-              Endgültig löschen
+              {t('common.deleteFinally')}
             </button>
           </div>
         </Dialog>
@@ -271,12 +252,13 @@ function RenameFieldDialog({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const t = useT();
   const [name, setName] = useState(field.name);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <Dialog title="Feld umbenennen" onClose={onClose}>
+    <Dialog title={t('fields.renameTitle')} onClose={onClose}>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
@@ -286,14 +268,14 @@ function RenameFieldDialog({
             await api.updateProjectField(field.id, { name: name.trim() });
             await onSaved();
           } catch (saveError) {
-            setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+            setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
             setBusy(false);
           }
         }}
       >
         <div className="field">
           <label className="field__label" htmlFor="rename-field-name">
-            Name
+            {t('common.name')}
           </label>
           <input
             id="rename-field-name"
@@ -303,15 +285,15 @@ function RenameFieldDialog({
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <p className="hint">Die eingetragenen Werte an den Projekten bleiben erhalten.</p>
+          <p className="hint">{t('fields.renameHint')}</p>
         </div>
         {error ? <div className="notice">{error}</div> : null}
         <div className="dialog__actions">
           <button type="button" className="button" onClick={onClose}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="submit" className="button button--primary" disabled={busy || !name.trim()}>
-            Speichern
+            {t('common.save')}
           </button>
         </div>
       </form>

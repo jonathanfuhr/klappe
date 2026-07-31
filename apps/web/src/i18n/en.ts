@@ -730,4 +730,85 @@ export const en: Record<MessageKey, Message> = {
   'auth.buttonLabel': 'Button label',
   'auth.tryHint':
     'To try it out: save first, then open the sign-in page in a private window. If it fails, Microsoft’s reason is stated there in plain text.',
+
+  'fields.subtitle':
+    'Custom fields appear on every project page – a project number, for instance. The team fills in the values per project.',
+  'fields.newField': 'New field',
+  'fields.newPlaceholder': 'e.g. project number',
+  'fields.none': 'No fields defined yet.',
+  'fields.unused': 'unused',
+  'fields.usedAt': { one: 'on {count} project', other: 'on {count} projects' },
+  'fields.suggest': 'Suggestions',
+  'fields.suggestTitle':
+    'Suggest values from the other projects while typing – useful for a client name, pointless for a one-off project number.',
+  'fields.filterable': 'Filter',
+  'fields.filterableTitle': 'Offer the field as a filter above the project list.',
+  'fields.sortable': 'Sort',
+  'fields.sortableTitle': 'Offer the field in the sort menu of the project list.',
+  'fields.groupable': 'Group',
+  'fields.groupableTitle': 'Offer the field in the grouping menu of the project list.',
+  'fields.showOnTile': 'On the project tile',
+  'fields.showOnTileTitle': 'Show the entered value on the project tile.',
+  'fields.tagsUse': 'Use tags',
+  'fields.tagsHint':
+    'Off means: tags disappear from the filter, project tiles and project pages. The assignments stay stored and come back when you switch them on again.',
+  'fields.deleteTitle': 'Delete field “{name}”?',
+  'fields.deleteBody': {
+    one: 'The entries on {count} project will be lost.',
+    other: 'The entries on {count} projects will be lost.',
+  },
+  'fields.deleteUnused': 'The field is not filled in on any project.',
+  'fields.renameTitle': 'Rename field',
+  'fields.renameHint': 'The values entered on the projects are kept.',
+
+  'backup.subtitle': 'Regular backup of the database – projects, comments, shares, settings.',
+  'backup.missingToolTitle': '{tool} is missing in this container.',
+  'backup.missingToolBody':
+    'Without the tool nothing can be backed up. It is part of the package {package} and ships with the image – after an update of Klappe the images have to be rebuilt once.',
+  'backup.autoTitle': 'Back up automatically',
+  'backup.directoryHint':
+    'The files live under {path} – a subfolder of the media directory. The daily cleanup leaves them alone.',
+  'backup.enable': 'Back up the database regularly',
+  'backup.intervalLabel': 'Interval (hours)',
+  'backup.intervalHint': 'Default 24 hours.',
+  'backup.retentionLabel': 'Keep for (days)',
+  'backup.retentionHint':
+    'Default 30 days. Older ones are removed after the next run – the newest always stays, even if it is older.',
+  'backup.running': 'Running …',
+  'backup.runNow': 'Back up now',
+  'backup.lastRun': 'last {when}',
+  'backup.neverRun': 'never backed up',
+  'backup.lastFailed': 'The last run failed:',
+  'backup.done': 'Backed up: {name} ({size}).',
+  'backup.runFailed': 'Backup failed.',
+  'backup.deleteConfirm': 'Delete the backup “{name}” for good?',
+  'backup.existingTitle': 'Existing backups',
+  'backup.existingHint':
+    'Restoring throws away the current state of the database and replaces it. Klappe takes a backup of the current state beforehand – so picking the wrong file can be undone.',
+  'backup.none': 'No backup available yet.',
+  'backup.colFile': 'File',
+  'backup.colCreated': 'Created',
+  'backup.colSize': 'Size',
+  'backup.restore': 'Restore',
+  'backup.restoreTitle': 'Restore database',
+  'backup.restoreWarnTitle': 'This replaces the entire current state of the database.',
+  'backup.restoreWarnBody':
+    'Everything created since {date} – comments, projects, shares, settings – will be gone afterwards.',
+  'backup.restoreFrom': 'Restoring from {file} ({size}).',
+  'backup.restoreBullet1':
+    'The current state is backed up first – its name is shown here afterwards, in case this was a mistake.',
+  'backup.restoreBullet2Bold': 'The media files are untouched.',
+  'backup.restoreBullet2':
+    'If the old database points to versions that have since been deleted, their files are missing.',
+  'backup.restoreBullet3Start': 'Afterwards',
+  'backup.restoreBullet3Bold': 'restart',
+  'backup.restoreBullet3End':
+    ' the stack: the running processes hold connections and intermediate state belonging to the previous database.',
+  'backup.confirmWord': 'RESTORE',
+  'backup.confirmLabelStart': 'Type',
+  'backup.confirmLabelEnd': 'to confirm',
+  'backup.restoreFinally': 'Restore for good',
+  'backup.restoreFailed': 'Restore failed.',
+  'backup.restoreDone':
+    'Restored from “{file}”. The previous state is available as “{previous}”. Please restart the stack.',
 };

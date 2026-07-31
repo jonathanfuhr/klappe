@@ -731,6 +731,88 @@ export const de = {
   'auth.buttonLabel': 'Beschriftung der Schaltfläche',
   'auth.tryHint':
     'Zum Ausprobieren: erst speichern, dann in einem privaten Fenster die Anmeldeseite öffnen. Schlägt es fehl, steht die Begründung von Microsoft dort im Klartext.',
+
+  'fields.subtitle':
+    'Benutzerdefinierte Felder erscheinen auf jeder Projektseite – zum Beispiel eine Projektnummer. Die Werte trägt das Team pro Projekt ein.',
+  'fields.newField': 'Neues Feld',
+  'fields.newPlaceholder': 'z. B. Projektnummer',
+  'fields.none': 'Noch keine Felder definiert.',
+  'fields.unused': 'unbenutzt',
+  'fields.usedAt': { one: 'an {count} Projekt', other: 'an {count} Projekten' },
+  'fields.suggest': 'Vorschläge',
+  'fields.suggestTitle':
+    'Beim Eintippen Werte aus den anderen Projekten vorschlagen – für einen Kundennamen hilfreich, für eine einmalige Projektnummer sinnlos.',
+  'fields.filterable': 'Filtern',
+  'fields.filterableTitle': 'Das Feld als Filter über der Projektliste anbieten.',
+  'fields.sortable': 'Sortieren',
+  'fields.sortableTitle': 'Das Feld in der Sortier-Auswahl der Projektliste anbieten.',
+  'fields.groupable': 'Gruppieren',
+  'fields.groupableTitle': 'Das Feld in der Gruppier-Auswahl der Projektliste anbieten.',
+  'fields.showOnTile': 'Auf der Projektkachel',
+  'fields.showOnTileTitle': 'Den eingetragenen Wert auf der Projektkachel anzeigen.',
+  'fields.tagsUse': 'Schlagworte verwenden',
+  'fields.tagsHint':
+    'Aus heißt: Schlagworte verschwinden aus Filter, Projektkacheln und Projektseiten. Die Zuordnungen bleiben gespeichert und kommen beim Wiedereinschalten zurück.',
+  'fields.deleteTitle': 'Feld „{name}" löschen?',
+  'fields.deleteBody': {
+    one: 'Die Einträge an {count} Projekt gehen dabei verloren.',
+    other: 'Die Einträge an {count} Projekten gehen dabei verloren.',
+  },
+  'fields.deleteUnused': 'Das Feld ist an keinem Projekt belegt.',
+  'fields.renameTitle': 'Feld umbenennen',
+  'fields.renameHint': 'Die eingetragenen Werte an den Projekten bleiben erhalten.',
+
+  'backup.subtitle':
+    'Regelmäßige Sicherung der Datenbank – Projekte, Kommentare, Freigaben, Einstellungen.',
+  'backup.missingToolTitle': 'In diesem Container fehlt {tool}.',
+  'backup.missingToolBody':
+    'Ohne das Werkzeug lässt sich nichts sichern. Es steckt im Paket {package} und wird mit dem Image ausgeliefert – nach einem Update von Klappe müssen die Images einmal neu gebaut werden.',
+  'backup.autoTitle': 'Automatisch sichern',
+  'backup.directoryHint':
+    'Die Dateien liegen unter {path} – einem Unterordner des Medienverzeichnisses. Der tägliche Aufräumer lässt sie in Ruhe.',
+  'backup.enable': 'Datenbank regelmäßig sichern',
+  'backup.intervalLabel': 'Abstand (Stunden)',
+  'backup.intervalHint': 'Vorgabe 24 Stunden.',
+  'backup.retentionLabel': 'Aufbewahren (Tage)',
+  'backup.retentionHint':
+    'Vorgabe 30 Tage. Ältere werden nach dem nächsten Lauf entfernt – die neueste bleibt immer stehen, auch wenn sie älter ist.',
+  'backup.running': 'Läuft …',
+  'backup.runNow': 'Jetzt sichern',
+  'backup.lastRun': 'zuletzt {when}',
+  'backup.neverRun': 'noch nie gesichert',
+  'backup.lastFailed': 'Der letzte Lauf ist gescheitert:',
+  'backup.done': 'Gesichert: {name} ({size}).',
+  'backup.runFailed': 'Sichern fehlgeschlagen.',
+  'backup.deleteConfirm': 'Die Sicherung „{name}" endgültig löschen?',
+  'backup.existingTitle': 'Vorhandene Sicherungen',
+  'backup.existingHint':
+    'Wiederherstellen wirft den jetzigen Stand der Datenbank weg und ersetzt ihn. Vorher legt Klappe von selbst eine Sicherung des jetzigen Standes an – wer die falsche Datei erwischt, kommt so zurück.',
+  'backup.none': 'Noch keine Sicherung vorhanden.',
+  'backup.colFile': 'Datei',
+  'backup.colCreated': 'Angelegt',
+  'backup.colSize': 'Größe',
+  'backup.restore': 'Wiederherstellen',
+  'backup.restoreTitle': 'Datenbank wiederherstellen',
+  'backup.restoreWarnTitle': 'Das ersetzt den gesamten jetzigen Stand der Datenbank.',
+  'backup.restoreWarnBody':
+    'Alles, was seit dem {date} entstanden ist – Kommentare, Projekte, Freigaben, Einstellungen –, ist danach weg.',
+  'backup.restoreFrom': 'Wiederhergestellt wird aus {file} ({size}).',
+  'backup.restoreBullet1':
+    'Der jetzige Stand wird zuvor selbst gesichert – der Name steht danach hier, falls das hier ein Irrtum war.',
+  'backup.restoreBullet2Bold': 'Die Mediendateien bleiben unberührt.',
+  'backup.restoreBullet2':
+    'Zeigt die alte Datenbank auf Fassungen, die inzwischen gelöscht wurden, fehlen deren Dateien.',
+  'backup.restoreBullet3Start': 'Danach den Stapel',
+  'backup.restoreBullet3Bold': 'neu starten',
+  'backup.restoreBullet3End':
+    ': Die laufenden Prozesse halten Verbindungen und Zwischenstände, die zur bisherigen Datenbank gehören.',
+  'backup.confirmWord': 'WIEDERHERSTELLEN',
+  'backup.confirmLabelStart': 'Zum Bestätigen',
+  'backup.confirmLabelEnd': 'eintippen',
+  'backup.restoreFinally': 'Endgültig wiederherstellen',
+  'backup.restoreFailed': 'Wiederherstellen fehlgeschlagen.',
+  'backup.restoreDone':
+    'Wiederhergestellt aus „{file}". Der Stand von vorher liegt als „{previous}" bereit. Bitte den Stapel neu starten.',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

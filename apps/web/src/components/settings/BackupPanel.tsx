@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
 import { formatBytes, formatDateTime } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 
 /**
  * Einstellungen → Datensicherung (Phase 23).
@@ -14,6 +15,7 @@ import { formatBytes, formatDateTime } from '@/lib/format';
  * eine Kopie davon daneben wäre keine Sicherung.
  */
 export function BackupPanel() {
+  const t = useT();
   const [settings, setSettings] = useState<BackupSettingsDto | null>(null);
   const [dateien, setDateien] = useState<BackupFileDto[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -28,9 +30,9 @@ export function BackupPanel() {
       setDateien(liste);
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -43,7 +45,7 @@ export function BackupPanel() {
     try {
       setSettings(await api.updateBackupSettings(input));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
@@ -55,37 +57,37 @@ export function BackupPanel() {
     setInfo(null);
     try {
       const datei = await api.runBackup();
-      setInfo(`Gesichert: ${datei.name} (${formatBytes(datei.sizeBytes)}).`);
+      setInfo(t('backup.done', { name: datei.name, size: formatBytes(datei.sizeBytes) }));
       await load();
     } catch (runError) {
-      setError(runError instanceof Error ? runError.message : 'Sichern fehlgeschlagen.');
+      setError(runError instanceof Error ? runError.message : t('backup.runFailed'));
     } finally {
       setBusy(false);
     }
   };
 
   const loesche = async (datei: BackupFileDto) => {
-    if (!window.confirm(`Die Sicherung „${datei.name}" endgültig löschen?`)) return;
+    if (!window.confirm(t('backup.deleteConfirm', { name: datei.name }))) return;
     setBusy(true);
     setError(null);
     try {
       await api.deleteBackup(datei.name);
       await load();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Löschen fehlgeschlagen.');
+      setError(deleteError instanceof Error ? deleteError.message : t('common.deleteFailed'));
     } finally {
       setBusy(false);
     }
   };
 
   if (!settings) {
-    return <div className="empty">{error ?? 'Wird geladen …'}</div>;
+    return <div className="empty">{error ?? t('common.loading')}</div>;
   }
 
   return (
     <>
       <p className="page__subtitle" style={{ marginTop: 0 }}>
-        Regelmäßige Sicherung der Datenbank – Projekte, Kommentare, Freigaben, Einstellungen.
+        {t('backup.subtitle')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -97,18 +99,15 @@ export function BackupPanel() {
 
       {!settings.toolsAvailable ? (
         <div className="notice">
-          <strong>In diesem Container fehlt <code>pg_dump</code>.</strong> Ohne das Werkzeug lässt
-          sich nichts sichern. Es steckt im Paket <code>postgresql-client-16</code> und wird mit
-          dem Image ausgeliefert – nach einem Update von Klappe müssen die Images einmal neu
-          gebaut werden.
+          <strong>{t('backup.missingToolTitle', { tool: 'pg_dump' })}</strong>{' '}
+          {t('backup.missingToolBody', { package: 'postgresql-client-16' })}
         </div>
       ) : null}
 
       <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ margin: '0 0 4px' }}>Automatisch sichern</h3>
+        <h3 style={{ margin: '0 0 4px' }}>{t('backup.autoTitle')}</h3>
         <p className="hint" style={{ marginTop: 0 }}>
-          Die Dateien liegen unter <code>{settings.directory}</code> – einem Unterordner des
-          Medienverzeichnisses. Der tägliche Aufräumer lässt sie in Ruhe.
+          {t('backup.directoryHint', { path: settings.directory })}
         </p>
 
         <label className="switch" style={{ display: 'flex', marginBottom: 12 }}>
@@ -118,14 +117,14 @@ export function BackupPanel() {
             disabled={busy}
             onChange={(event) => void speichere({ enabled: event.target.checked })}
           />
-          Datenbank regelmäßig sichern
+          {t('backup.enable')}
         </label>
 
         <fieldset className="abschnitt" disabled={!settings.enabled}>
           <div className="grid-two">
             <div className="field">
               <label className="field__label" htmlFor="backup-interval">
-                Abstand (Stunden)
+                {t('backup.intervalLabel')}
               </label>
               <input
                 id="backup-interval"
@@ -139,11 +138,11 @@ export function BackupPanel() {
                 }
                 onBlur={(event) => void speichere({ intervalHours: Number(event.target.value) })}
               />
-              <p className="hint">Vorgabe 24 Stunden.</p>
+              <p className="hint">{t('backup.intervalHint')}</p>
             </div>
             <div className="field">
               <label className="field__label" htmlFor="backup-retention">
-                Aufbewahren (Tage)
+                {t('backup.retentionLabel')}
               </label>
               <input
                 id="backup-retention"
@@ -158,8 +157,7 @@ export function BackupPanel() {
                 onBlur={(event) => void speichere({ retentionDays: Number(event.target.value) })}
               />
               <p className="hint">
-                Vorgabe 30 Tage. Ältere werden nach dem nächsten Lauf entfernt – die neueste
-                bleibt immer stehen, auch wenn sie älter ist.
+                {t('backup.retentionHint')}
               </p>
             </div>
           </div>
@@ -172,42 +170,40 @@ export function BackupPanel() {
             disabled={busy || !settings.toolsAvailable}
             onClick={() => void jetztSichern()}
           >
-            {busy ? 'Läuft …' : 'Jetzt sichern'}
+            {busy ? t('backup.running') : t('backup.runNow')}
           </button>
           <span className="faint" style={{ fontSize: 12 }}>
             {settings.lastRunAt
-              ? `zuletzt ${formatDateTime(settings.lastRunAt)}`
-              : 'noch nie gesichert'}
+              ? t('backup.lastRun', { when: formatDateTime(settings.lastRunAt) })
+              : t('backup.neverRun')}
           </span>
         </div>
 
         {settings.lastError ? (
           <div className="notice" style={{ marginTop: 10 }}>
-            <strong>Der letzte Lauf ist gescheitert:</strong> {settings.lastError}
+            <strong>{t('backup.lastFailed')}</strong> {settings.lastError}
           </div>
         ) : null}
       </div>
 
       <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ margin: '0 0 4px' }}>Vorhandene Sicherungen</h3>
+        <h3 style={{ margin: '0 0 4px' }}>{t('backup.existingTitle')}</h3>
         <p className="hint" style={{ marginTop: 0 }}>
-          Wiederherstellen wirft den jetzigen Stand der Datenbank weg und ersetzt ihn. Vorher legt
-          Klappe von selbst eine Sicherung des jetzigen Standes an – wer die falsche Datei
-          erwischt, kommt so zurück.
+          {t('backup.existingHint')}
         </p>
 
         {dateien.length === 0 ? (
           <p className="muted" style={{ marginBottom: 0 }}>
-            Noch keine Sicherung vorhanden.
+            {t('backup.none')}
           </p>
         ) : (
           <div className="tablewrap">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Datei</th>
-                  <th>Angelegt</th>
-                  <th style={{ textAlign: 'right' }}>Größe</th>
+                  <th>{t('backup.colFile')}</th>
+                  <th>{t('backup.colCreated')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('backup.colSize')}</th>
                   <th />
                 </tr>
               </thead>
@@ -228,7 +224,7 @@ export function BackupPanel() {
                         disabled={busy || !settings.toolsAvailable}
                         onClick={() => setWiederherstellen(datei)}
                       >
-                        Wiederherstellen
+                        {t('backup.restore')}
                       </button>
                       <button
                         type="button"
@@ -236,7 +232,7 @@ export function BackupPanel() {
                         disabled={busy}
                         onClick={() => void loesche(datei)}
                       >
-                        Löschen
+                        {t('common.delete')}
                       </button>
                     </td>
                   </tr>
@@ -262,9 +258,6 @@ export function BackupPanel() {
   );
 }
 
-/** Das Wort, das getippt werden muss. Ein Haken wäre hier zu wenig. */
-const BESTAETIGUNG = 'WIEDERHERSTELLEN';
-
 function RestoreDialog({
   datei,
   onClose,
@@ -274,34 +267,34 @@ function RestoreDialog({
   onClose: () => void;
   onDone: (meldung: string) => Promise<void>;
 }) {
+  const t = useT();
+  const bestaetigung = t('backup.confirmWord');
   const [wort, setWort] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <Dialog title="Datenbank wiederherstellen" onClose={onClose}>
+    <Dialog title={t('backup.restoreTitle')} onClose={onClose}>
       <div className="notice">
-        <strong>Das ersetzt den gesamten jetzigen Stand der Datenbank.</strong> Alles, was seit
-        dem {formatDateTime(datei.createdAt)} entstanden ist – Kommentare, Projekte, Freigaben,
-        Einstellungen –, ist danach weg.
+        <strong>{t('backup.restoreWarnTitle')}</strong>{' '}
+        {t('backup.restoreWarnBody', { date: formatDateTime(datei.createdAt) })}
       </div>
 
       <p style={{ fontSize: 14 }}>
-        Wiederhergestellt wird aus <code>{datei.name}</code> ({formatBytes(datei.sizeBytes)}).
+        {t('backup.restoreFrom', {
+          file: datei.name,
+          size: formatBytes(datei.sizeBytes),
+        })}
       </p>
 
       <ul className="hint" style={{ paddingLeft: 18, lineHeight: 1.7 }}>
+        <li>{t('backup.restoreBullet1')}</li>
         <li>
-          Der jetzige Stand wird zuvor selbst gesichert – der Name steht danach hier, falls das
-          hier ein Irrtum war.
+          <strong>{t('backup.restoreBullet2Bold')}</strong> {t('backup.restoreBullet2')}
         </li>
         <li>
-          <strong>Die Mediendateien bleiben unberührt.</strong> Zeigt die alte Datenbank auf
-          Fassungen, die inzwischen gelöscht wurden, fehlen deren Dateien.
-        </li>
-        <li>
-          Danach den Stapel <strong>neu starten</strong>: Die laufenden Prozesse halten
-          Verbindungen und Zwischenstände, die zur bisherigen Datenbank gehören.
+          {t('backup.restoreBullet3Start')} <strong>{t('backup.restoreBullet3Bold')}</strong>
+          {t('backup.restoreBullet3End')}
         </li>
       </ul>
 
@@ -309,7 +302,8 @@ function RestoreDialog({
 
       <div className="field">
         <label className="field__label" htmlFor="restore-confirm">
-          Zum Bestätigen <code>{BESTAETIGUNG}</code> eintippen
+          {t('backup.confirmLabelStart')} <code>{bestaetigung}</code>{' '}
+          {t('backup.confirmLabelEnd')}
         </label>
         <input
           id="restore-confirm"
@@ -322,31 +316,32 @@ function RestoreDialog({
 
       <div className="dialog__actions">
         <button type="button" className="button" onClick={onClose}>
-          Abbrechen
+          {t('common.cancel')}
         </button>
         <button
           type="button"
           className="button button--danger"
-          disabled={busy || wort.trim() !== BESTAETIGUNG}
+          disabled={busy || wort.trim() !== bestaetigung}
           onClick={async () => {
             setBusy(true);
             setError(null);
             try {
               const ergebnis = await api.restoreBackup(datei.name);
               await onDone(
-                `Wiederhergestellt aus „${datei.name}". Der Stand von vorher liegt als „${ergebnis.sicherungVorher}" bereit. Bitte den Stapel neu starten.`,
+                t('backup.restoreDone', {
+                  file: datei.name,
+                  previous: ergebnis.sicherungVorher,
+                }),
               );
             } catch (restoreError) {
               setError(
-                restoreError instanceof Error
-                  ? restoreError.message
-                  : 'Wiederherstellen fehlgeschlagen.',
+                restoreError instanceof Error ? restoreError.message : t('backup.restoreFailed'),
               );
               setBusy(false);
             }
           }}
         >
-          {busy ? 'Läuft …' : 'Endgültig wiederherstellen'}
+          {busy ? t('backup.running') : t('backup.restoreFinally')}
         </button>
       </div>
     </Dialog>
