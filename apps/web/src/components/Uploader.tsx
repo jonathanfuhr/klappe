@@ -2,6 +2,7 @@
 
 import type { VideoDto } from '@klappe/shared';
 import { type DragEvent, useState } from 'react';
+import { useT } from '@/lib/i18n';
 import { VIDEO_ACCEPT, pickFiles } from '@/lib/pick-files';
 import { useUploads } from '@/lib/uploads-context';
 
@@ -30,6 +31,7 @@ interface UploaderProps {
  * dort, und der Knopf darunter trägt den Fall allein (Phase 24).
  */
 export function Uploader({ projectId, videoId, target = 'video', folderId, videos }: UploaderProps) {
+  const t = useT();
   const [dragging, setDragging] = useState(false);
   const { enqueue } = useUploads();
 
@@ -69,25 +71,24 @@ export function Uploader({ projectId, videoId, target = 'video', folderId, video
     >
       <strong className="dropzone__title">
         {istKundenAblage
-          ? 'Material hinzufügen'
+          ? t('uploader.addMaterial')
           : videoId
-            ? 'Neue Fassung hinzufügen'
-            : 'Videodateien hinzufügen'}
+            ? t('uploader.addVersion')
+            : t('uploader.addVideos')}
       </strong>
 
       <p className="dropzone__hint">
-        <span className="dropzone__draghint">Dateien hierher ziehen oder unten auswählen. </span>
-        Mehrere Dateien auf einmal sind möglich. Zuordnung und Fortschritt stehen danach im
-        Upload-Fenster; abgerissene Übertragungen werden fortgesetzt.
+        <span className="dropzone__draghint">{t('uploader.dragHint')}</span>
+        {t('uploader.hint')}
       </p>
 
       <div className="dropzone__actions">
         <button type="button" className="button button--primary" onClick={() => void waehlen()}>
-          Dateien auswählen …
+          {t('uploader.pickFiles')}
         </button>
         {istKundenAblage ? (
           <button type="button" className="button" onClick={() => void waehlen(true)}>
-            Ganzen Ordner wählen …
+            {t('uploader.pickFolder')}
           </button>
         ) : null}
       </div>
