@@ -19,7 +19,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { MessageKey } from '@/i18n/de';
 import { api } from './api';
 import { type Translator, useT } from './i18n';
 import {
@@ -501,7 +500,7 @@ export function useUploads(): UploadsState {
  */
 function uebersetzeFehler(error: unknown, t: Translator): string {
   if (error instanceof UploadTransportError) {
-    return error.parts.map((teil) => t(teil.key as MessageKey, teil.vars)).join(' ');
+    return error.parts.map((teil) => t(teil.key, teil.vars)).join(' ');
   }
   return error instanceof Error ? error.message : t('upload.failed');
 }

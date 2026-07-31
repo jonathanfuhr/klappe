@@ -40,8 +40,17 @@ const MAX_RETRIES = 5;
  * `message` bleibt der deutsche Satz – so steht in der Konsole und in jedem
  * Protokoll etwas Lesbares.
  */
+export type UploadMeldungsKey =
+  | 'upload.transportAborted'
+  | 'upload.blockTimeout'
+  | 'upload.timeoutBodySent'
+  | 'upload.timeoutBodyStuck'
+  | 'upload.blockRejected'
+  | 'upload.noOffset'
+  | 'upload.stateUnavailable';
+
 export interface MeldungsTeil {
-  key: string;
+  key: UploadMeldungsKey;
   vars?: Record<string, string | number>;
 }
 
