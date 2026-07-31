@@ -57,6 +57,29 @@ describe('suggestVideoName', () => {
   it('lässt Namen mit Punkten unangetastet', () => {
     expect(suggestVideoName('Teil 1.2 Schnitt.mov')).toBe('Teil 1 2 Schnitt');
   });
+
+  /* Kunde und Projekt stehen im Download-Namen ohnehin davor (Phase 25). */
+  it('entfernt Kunden- und Projektnamen, wenn das Projekt feststeht', () => {
+    const projekt = { name: 'Firmencockpit', customer: 'SDK Medien' };
+    expect(suggestVideoName('SDK_Firmencockpit_Imagefilm_V2.mov', projekt)).toBe('Imagefilm');
+    expect(suggestVideoName('firmencockpit-erklaerfilm.mp4', projekt)).toBe('erklaerfilm');
+  });
+
+  it('entfernt auch mehrwortige Projektnamen wortweise', () => {
+    const projekt = { name: 'Sommer Kampagne', customer: 'Beispiel GmbH' };
+    expect(suggestVideoName('Beispiel_Sommer-Kampagne_Teaser_v1.mov', projekt)).toBe('Teaser');
+  });
+
+  it('faellt auf den ungeputzten Namen zurueck, wenn nichts uebrig bliebe', () => {
+    const projekt = { name: 'Firmencockpit', customer: 'SDK Medien' };
+    expect(suggestVideoName('SDK_Firmencockpit_V2.mov', projekt)).toBe('SDK Firmencockpit');
+  });
+
+  it('aendert ohne Projektangabe nichts', () => {
+    expect(suggestVideoName('SDK_Firmencockpit_Imagefilm_V2.mov')).toBe(
+      'SDK Firmencockpit Imagefilm',
+    );
+  });
 });
 
 describe('matchProject', () => {

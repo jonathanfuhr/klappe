@@ -81,8 +81,10 @@ kaskadiert auf die Zuordnungen. Der globale Schalter dazu ist
 Eine hochgeladene Fassung. **Kommentare hängen an der Version, nicht am
 Video** – ein Kommentar auf Frame 812 meint immer eine bestimmte Fassung.
 
-Die Nummer (`version_number`) ist pro Video eindeutig und fortlaufend ab 1;
-der eindeutige Index fängt zwei gleichzeitige Uploads ab.
+Die Nummer (`version_number`) ist pro Video eindeutig und beim Hochladen
+fortlaufend ab 1; der eindeutige Index fängt zwei gleichzeitige Uploads ab.
+Nachträglich lässt sie sich ändern (Phase 25) – dabei ist jede freie Nummer
+erlaubt, nur die Einmaligkeit bleibt.
 
 Statuskette:
 

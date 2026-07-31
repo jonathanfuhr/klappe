@@ -1,6 +1,6 @@
 'use client';
 
-import { type ProjectDto, type VideoDto, versionLabel } from '@klappe/shared';
+import { type ProjectDto, type VideoDto, suggestVideoName, versionLabel } from '@klappe/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatBytes } from '@/lib/format';
@@ -34,6 +34,26 @@ export function UploadPanel() {
       .then(setProjects)
       .catch(() => undefined);
   }, [jobs.length, isTeam]);
+
+  /**
+   * Namensvorschlag nachschärfen, sobald das Ziel-Projekt feststeht
+   * (Phase 25): Kunden- und Projektname fliegen aus dem Vorschlag – der
+   * Download-Dateiname trägt beides ohnehin vor dem Videonamen, sonst stünde
+   * es dort doppelt. Nur solange niemand den Namen selbst angefasst hat und
+   * die Zeile noch nicht gespeichert ist; ein Projektwechsel rechnet den
+   * Vorschlag entsprechend neu.
+   */
+  useEffect(() => {
+    for (const job of jobs) {
+      if (job.target !== 'video' || job.videoId || job.nameBeruehrt || job.gespeichert) continue;
+      const projekt = projects.find((eintrag) => eintrag.id === job.projectId);
+      const vorschlag = suggestVideoName(
+        job.filename,
+        projekt ? { name: projekt.name, customer: projekt.customer } : undefined,
+      );
+      if (vorschlag !== job.newVideoName) update(job.id, { newVideoName: vorschlag });
+    }
+  }, [jobs, projects, update]);
 
   /** Videos eines Projekts nachladen, sobald es in der Liste auftaucht. */
   useEffect(() => {
@@ -299,7 +319,11 @@ function JobRow({
               <input
                 className="input"
                 value={job.newVideoName}
-                onChange={(event) => onChange({ newVideoName: event.target.value })}
+                // `nameBeruehrt`: Ab jetzt gehört der Name dem Menschen – der
+                // automatische Vorschlag fasst ihn nicht mehr an (Phase 25).
+                onChange={(event) =>
+                  onChange({ newVideoName: event.target.value, nameBeruehrt: true })
+                }
               />
             </label>
           )}

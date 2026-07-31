@@ -92,3 +92,39 @@ export function nextVersionNumber(vorhanden: number[]): number {
   const hoechste = vorhanden.length > 0 ? Math.max(...vorhanden) : 0;
   return Math.floor(hoechste) + 1;
 }
+
+/**
+ * Prüft eine **neue** Nummer für eine bestehende Fassung (Phase 25).
+ *
+ * Anders als beim Anlegen gilt die Aufwärts-Regel hier nicht: Der ganze Zweck
+ * ist ja, eine Fehleingabe zu begradigen – aus einem versehentlichen v3 wieder
+ * ein v2.5 zu machen. Es bleibt: größer 0, höchstens `VERSION_NUMBER_MAX` und
+ * im Video einmalig.
+ *
+ * @param wunsch Die gewünschte Nummer.
+ * @param andere Die Nummern der **übrigen** Fassungen des Videos.
+ */
+export function checkVersionRenumber(wunsch: number, andere: number[]): VersionNumberProblem {
+  if (!Number.isFinite(wunsch) || wunsch <= 0) {
+    return { ok: false, reason: 'ungueltig', message: 'Die Versionsnummer muss größer als 0 sein.' };
+  }
+  if (wunsch > VERSION_NUMBER_MAX) {
+    return {
+      ok: false,
+      reason: 'zu-gross',
+      message: `Die Versionsnummer darf höchstens ${VERSION_NUMBER_MAX} sein.`,
+    };
+  }
+
+  const wert = Number(wunsch.toFixed(VERSION_NUMBER_DECIMALS));
+  const bestand = andere.map((eintrag) => Number(eintrag.toFixed(VERSION_NUMBER_DECIMALS)));
+  if (bestand.includes(wert)) {
+    return {
+      ok: false,
+      reason: 'vergeben',
+      message: `${versionLabel(wert)} gibt es in diesem Video schon.`,
+    };
+  }
+
+  return { ok: true, value: wert };
+}

@@ -84,7 +84,9 @@ kommt nie an. Details in `docker/klappe-routen.caddy`.
 
 Die Hierarchie ist **Projekt → Video → Fassung**. Ein Video trägt beliebig
 viele Fassungen; Versionsnummern sind frei wählbar, auch eine `v2.5` zwischen
-`v2` und `v3` – nur doppelt darf keine sein, und rückwärts geht es nicht.
+`v2` und `v3` – nur doppelt darf keine sein, und beim Hochladen geht es nicht
+rückwärts. Nachträglich lässt sich eine Nummer ändern (Phase 25), um
+Fehleingaben zu begradigen – dabei ist jede freie Nummer erlaubt.
 
 Ein Haken **Endfassung** trennt Zwischenstand von Fertigem. Ohne ihn sieht der
 Kunde einen Hinweis, und der Dateiname trägt `Vorschau`.
@@ -882,6 +884,7 @@ HTTPS-Wege.
 | 22 | Stufenwahl im HLS-Player (Auto mit Anzeige der laufenden Stufe oder feste Wahl), Felder je einzeln filter-/sortier-/gruppierbar und auf der Kachel anzeigbar, Kunde groß auf der Projektkachel, Transcode-Seite ohne überlappenden Haken · **Nachtrag:** Einstellungsseite *Speicher* mit freiem Platz und Aufschlüsselung |
 | 23 | Download-Fenster immer mit Dateiname und Vorschau-Warnung, eigenes Tab-Symbol, Einbetten als eigener Link im „…"-Menü (keine Anmeldung, nur Endfassungen, mit HLS), automatische Datenbanksicherung samt Wiederherstellen |
 | 24 | Benutzer-Menü in der Kopfzeile (Profil, Handbuch, Über, Einstellungen, Abmelden), senkrechtes Menü als Schublade in *Einstellungen* und *Handbuch*, Projektliste mit Suche/Filter/Sortierung/Gruppierung hinter Symbolen, Schlagwort-Verwaltung in den Freifeld-Einstellungen, Videos per Knopf statt Ablagefläche, Favicon (`.ico`) und App-Symbol (PNG) zum Hochladen samt Web-App-Manifest, einstellbare Passwort-Richtlinie, *Über diese Software* mit Quellcode und AGPL-3.0, Transcode-Formate auf schmalen Schirmen als Karten · **Nachtrag:** KI-Kennzeichnung nach Art. 50 EU AI Act – Haken am Video (gilt für alle Fassungen), wählbare Arten (ab Werk KI-Stimme/KI-Video/KI-Sounds/KI-Musik, unter *Einstellungen → KI-Inhalte* erweiterbar), Hinweis für alle Betrachter, global abschaltbar |
+| 25 | Fassungsnummern nachträglich änderbar („…“-Menü am Video; jede freie Nummer, die Aufwärts-Regel gilt nur beim Hochladen), Namensvorschlag im Upload-Fenster ohne Kunden- und Projektname (stünde im Download-Dateinamen doppelt), Vorschlag rechnet bei Projektwechsel nach – solange der Name nicht von Hand geändert wurde |
 
 ---
 
