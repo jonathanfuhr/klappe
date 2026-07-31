@@ -6,7 +6,8 @@ beschreibt, wie man sich anmeldet, Videos ansieht und kommentiert, Fassungen
 hochlädt, Freigaben verwaltet und wo man was findet.
 
 Es ist dasselbe Handbuch, das innerhalb der Anwendung unter **Handbuch** in
-der Kopfzeile steht. Wer wissen will, wer die Software gebaut hat und auf
+der Kopfzeile steht. Dort gibt es seit Phase 26 auch eine englische Fassung;
+diese Datei bleibt die deutsche. Wer wissen will, wer die Software gebaut hat und auf
 welcher Umgebung dieser Klappe-Stack läuft, findet das auf der Seite **Über
 diese Software** daneben.
 
@@ -300,6 +301,10 @@ Unter **Mein Konto** (Klick auf den eigenen Namen in der Kopfzeile) lässt
 sich der eigene **Name** ändern – so, wie er in Kommentaren, Listen und
 Benachrichtigungen erscheint. Das gilt für Team und Gäste gleichermaßen.
 
+Dort steht auch die **Sprache** – Deutsch oder Englisch. Sie gilt für die
+Oberfläche, für Fehlermeldungen und für die eigenen E-Mails. Ohne eigene Wahl
+gilt die Einstellung des Workspace.
+
 Team-Mitglieder ändern dort außerdem ihr **Passwort**. Gäste haben keines –
 ihr Zugang läuft über den Mail-Code.
 
@@ -313,7 +318,7 @@ Team-Mitglieder und Admins finden unter **Einstellungen** unter anderem:
   entziehen.
 - **Benutzer**, **Benutzerdefinierte Felder**, **Projekte** – Verwaltung, dem
   Admin vorbehalten.
-- **Erscheinungsbild** – Titel, Logo und Akzentfarbe des Workspace.
+- **Erscheinungsbild** – Titel, Logo, Akzentfarbe und Sprache des Workspace.
 - **Anmeldung** – lokale Konten und/oder Microsoft 365.
 - **E-Mail-Versand** – SMTP-Einrichtung, Bündel-Zeitfenster, unzustellbare
   Mails.

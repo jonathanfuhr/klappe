@@ -26,6 +26,7 @@ Konten für Team und Gäste.
 | `role` | `ADMIN` \| `MEMBER` \| `GUEST` |
 | `is_active` | gesperrte Konten kommen sofort nicht mehr durch den Guard |
 | `notifications_enabled` | steuert den Mailversand; der Abmeldelink setzt es auf `false` |
+| `locale` | eigene Sprachwahl `de`/`en`; `null` heißt „Vorgabe des Workspace" (Phase 26) |
 
 Der letzte aktive Administrator lässt sich weder herabstufen noch sperren.
 
@@ -248,7 +249,11 @@ Workspace-weite Einstellungen – genau eine Zeile. Drei Gruppen:
   in `smtp_oauth_client_secret_encrypted`. Nötig für Microsoft 365, sobald der
   Tenant Mehrfaktor-Anmeldung erzwingt – dann lehnt der Server ein Kennwort ab.
 - **Erscheinungsbild** (Phase 10): `brand_title`, `brand_accent` und die
-  Angaben zum Logo. Aus der einen Farbe werden Hover-Ton und Schriftfarbe
+  Angaben zum Logo. Seit Phase 26 steht hier auch `default_locale` (`de`/`en`,
+  Vorgabe `de`) – die Sprache für alle, die keine eigene gewählt haben. Sie
+  liegt im Erscheinungsbild, weil `GET /v1/branding` ohne Anmeldung
+  auslieferbar ist und damit schon die Anmeldeseite in der richtigen Sprache
+  steht. Aus der einen Farbe werden Hover-Ton und Schriftfarbe
   berechnet, nicht gespeichert. `brand_logo_updated_at` wandert in die
   Bild-Adresse und bricht damit den Browser-Cache auf.
 - **Tab-Symbol und App-Symbol** (Phase 23, vereinfacht in 24):

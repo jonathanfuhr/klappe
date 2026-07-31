@@ -242,6 +242,32 @@ das schlichter, und der Server kommt ohne Formularbibliothek aus. Ein
 SVG-Logo wird nur über `<img>` eingebunden, wo Skripte darin nicht laufen;
 beim direkten Aufruf verhindert eine strenge CSP dasselbe.
 
+### Zwei Sprachen ohne Bibliothek und ohne Sprachpfad
+
+Klappe spricht seit Phase 26 Deutsch und Englisch. Dafür steht kein `next-intl`
+im Projekt: Es legte die Sprache in die Adresse (`/de/projekte`), und damit
+hinge jeder Link, jede Weiterleitung und die Sitzungs-Middleware daran. Für
+zwei Sprachen ist das zu viel Umbau an zu vielen Stellen.
+
+Stattdessen ein kleiner Kern in `packages/shared/src/i18n.ts`: flache Schlüssel
+(`projects.new`), Einsetzungen als `{name}`, Plural über `{ one, other }`. Das
+englische Wörterbuch ist als `Record<MessageKey, Message>` getippt – ein
+fehlender Schlüssel bricht die Typprüfung, und `useT()` nimmt nur Schlüssel,
+die es wirklich gibt. **Deutsch ist Quellsprache und zugleich Rückfall:** Eine
+Stelle, die noch nicht umgezogen ist, zeigt Deutsch statt eines leeren Feldes.
+
+Für die API ist es umgekehrt gelöst: Dort ist der **deutsche Satz der
+Schlüssel** (`apps/api/src/i18n/api-messages.ts`), wie bei gettext. Die 229
+Stellen, die eine Ausnahme werfen, bleiben unangetastet und lesbar; ein
+globaler Fehlerfilter tauscht den Text erst beim Hinausgehen. Das hat einen
+zweiten Grund: Erst dort steht fest, *wer* fragt – und damit, in welcher
+Sprache er liest.
+
+Das Handbuch und „Über diese Software" liegen nicht als Satzfragmente im
+Wörterbuch, sondern je Sprache als eigene Datei. Ein Absatz mit `<strong>`,
+`<code>` und Tabellen ließe sich sonst nur zerstückelt übersetzen, und beim
+nächsten Umformulieren passte die Zerlegung nicht mehr.
+
 ### Anmeldung: zwei Wege, kein Weg in die Falle
 
 Microsoft 365 (Phase 11) läuft als Authorization-Code-Fluss mit PKCE. Das

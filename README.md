@@ -272,6 +272,22 @@ Jeder – Team wie Gast – ändert seinen Namen selbst unter **Mein Konto**; da
 Team dort auch sein Passwort. Nach dem ersten Wechsel darf `ADMIN_PASSWORD`
 aus der `.env` verschwinden.
 
+### Sprache
+
+Klappe spricht **Deutsch und Englisch**. Welche Sprache gilt, entscheidet sich
+in dieser Reihenfolge: die eigene Wahl unter *Profil und Sicherheit*, sonst die
+Vorgabe des Workspace unter *Einstellungen → Erscheinungsbild*, sonst die
+Einstellung des Browsers, sonst Deutsch.
+
+Die Wahl gilt durchgehend: Oberfläche, Fehlermeldungen der API und die eigenen
+E-Mails. Eine Sammelmail an mehrere Empfänger geht dabei je Empfänger in dessen
+Sprache hinaus. Handbuch und *Über diese Software* liegen in beiden Sprachen
+vor; die Anker der Handbuch-Abschnitte sind gleich, ein verschickter Link
+trifft also auch dann, wenn der Empfänger anders eingestellt ist.
+
+Deutsch ist die Quellsprache. Fehlt eine Übersetzung, erscheint der deutsche
+Text – nie ein leeres Feld oder ein Schlüssel.
+
 ### Handbuch und „Über diese Software“
 
 In der Kopfzeile stehen für jeden Angemeldeten – Team wie Gäste – zwei
@@ -610,6 +626,10 @@ ein breiter Schriftzug im 16-Pixel-Tab zu Brei wird. Aus der einen Farbe werden 
 lesbare Schriftfarbe berechnet. Es gilt überall – Anmeldeseite, Gastzugang und
 jede E-Mail.
 
+Dazu die **Sprache des Workspace** (Deutsch oder Englisch). Sie gilt für alle,
+die nichts Eigenes eingestellt haben, und wirkt sofort – auch auf der
+Anmeldeseite und im Gastzugang.
+
 Dazu **Firmenname und Kürzel**. Das Kürzel steht in Klammern hinter jedem Namen
 aus dem eigenen Team – in den Kommentaren, in den Gästelisten, bei „Hochgeladen
 von". In einem Projekt sitzen Leute aus zwei Häusern; so ist an jeder Stelle zu
@@ -885,6 +905,7 @@ HTTPS-Wege.
 | 23 | Download-Fenster immer mit Dateiname und Vorschau-Warnung, eigenes Tab-Symbol, Einbetten als eigener Link im „…"-Menü (keine Anmeldung, nur Endfassungen, mit HLS), automatische Datenbanksicherung samt Wiederherstellen |
 | 24 | Benutzer-Menü in der Kopfzeile (Profil, Handbuch, Über, Einstellungen, Abmelden), senkrechtes Menü als Schublade in *Einstellungen* und *Handbuch*, Projektliste mit Suche/Filter/Sortierung/Gruppierung hinter Symbolen, Schlagwort-Verwaltung in den Freifeld-Einstellungen, Videos per Knopf statt Ablagefläche, Favicon (`.ico`) und App-Symbol (PNG) zum Hochladen samt Web-App-Manifest, einstellbare Passwort-Richtlinie, *Über diese Software* mit Quellcode und AGPL-3.0, Transcode-Formate auf schmalen Schirmen als Karten · **Nachtrag:** KI-Kennzeichnung nach Art. 50 EU AI Act – Haken am Video (gilt für alle Fassungen), wählbare Arten (ab Werk KI-Stimme/KI-Video/KI-Sounds/KI-Musik, unter *Einstellungen → KI-Inhalte* erweiterbar), Hinweis für alle Betrachter, global abschaltbar |
 | 25 | Fassungsnummern nachträglich änderbar („…“-Menü am Video; jede freie Nummer, die Aufwärts-Regel gilt nur beim Hochladen), Namensvorschlag im Upload-Fenster ohne Kunden- und Projektname (stünde im Download-Dateinamen doppelt), Vorschlag rechnet bei Projektwechsel nach – solange der Name nicht von Hand geändert wurde |
+| 26 | **Zweisprachig (Deutsch/Englisch):** eigene Sprache unter *Profil und Sicherheit*, Vorgabe des Workspace unter *Erscheinungsbild*, Oberfläche, API-Meldungen und E-Mails folgen ihr, Handbuch und *Über diese Software* in beiden Sprachen |
 
 ---
 
