@@ -25,6 +25,16 @@
   --klappe-radius-sm: 5px;
   --klappe-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
   --klappe-header-height: 56px;
+  /*
+   * Aussparung oben (Phase 24). Im Browser 0 – Safari puffert Uhr und
+   * Dynamic Island selbst ab. Als installierte Web-App beginnt die Seite
+   * wegen `viewport-fit: cover` und `black-translucent` aber am obersten
+   * Bildschirmrand; ohne diesen Versatz säße die Kopfzeile hinter der
+   * Statusleiste. Alles, was mit der Kopfzeilenhöhe rechnet, nimmt deshalb
+   * `--klappe-header-total`.
+   */
+  --klappe-safe-top: env(safe-area-inset-top, 0px);
+  --klappe-header-total: calc(var(--klappe-header-height) + var(--klappe-safe-top));
 
   color-scheme: dark;
 }
@@ -281,11 +291,13 @@ button {
   position: sticky;
   top: 0;
   z-index: 20;
-  height: var(--klappe-header-height);
+  /* Die Aussparung gehört zur Kopfzeile: Ihr Hintergrund läuft als Web-App
+     bis unter die Uhr, der Inhalt beginnt darunter (Phase 24). */
+  height: var(--klappe-header-total);
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 20px;
+  padding: var(--klappe-safe-top) 20px 0;
   background: var(--klappe-surface);
   border-bottom: 1px solid var(--klappe-border);
 }
@@ -607,13 +619,13 @@ button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
   gap: 0;
-  height: calc(100vh - var(--klappe-header-height));
+  height: calc(100vh - var(--klappe-header-total));
   /*
    * `dvh` zählt die ein- und ausfahrende Adressleiste mobiler Browser mit;
    * `vh` tut das nicht und schiebt das Bild unter den Bildschirmrand. Die
    * `vh`-Zeile darüber bleibt als Rückfall für Browser ohne `dvh`.
    */
-  height: calc(100dvh - var(--klappe-header-height));
+  height: calc(100dvh - var(--klappe-header-total));
 }
 
 /*
@@ -2356,7 +2368,7 @@ a.badge:hover {
   flex-direction: column;
   gap: 2px;
   position: sticky;
-  top: calc(var(--klappe-header-height) + 20px);
+  top: calc(var(--klappe-header-total) + 20px);
 }
 
 .sectionnav__title {
@@ -2501,7 +2513,7 @@ a.badge:hover {
   padding: 22px 24px;
   /* Die Kopfzeile klebt oben fest; ohne diesen Vorlauf schöbe ein Sprung aus
      dem Inhaltsverzeichnis die Überschrift genau darunter (Phase 24). */
-  scroll-margin-top: calc(var(--klappe-header-height) + 16px);
+  scroll-margin-top: calc(var(--klappe-header-total) + 16px);
 }
 
 .manual__section h2 {
@@ -2732,10 +2744,12 @@ a.badge:hover {
   /* Die Kopfzeile quetschte sich bisher in starre 56 px. */
   .shell__header {
     height: auto;
-    min-height: var(--klappe-header-height);
+    min-height: var(--klappe-header-total);
     flex-wrap: wrap;
     gap: 8px 12px;
-    padding: 8px 14px;
+    /* Oben zusätzlich die Aussparung – als installierte Web-App beginnt die
+       Seite am obersten Bildschirmrand (siehe `--klappe-safe-top`). */
+    padding: calc(8px + var(--klappe-safe-top)) 14px 8px;
   }
 
   .shell__nav {
@@ -3031,6 +3045,25 @@ a.badge:hover {
   overflow: hidden;
 }
 
+/*
+ * Auf schmalen Schirmen löst sich das Panel vom Glöckchen (Phase 24).
+ *
+ * Rechtsbündig am Auslöser verankert lief es über die linke Kante hinaus:
+ * Das Glöckchen sitzt seit dem Benutzer-Menü nicht mehr am rechten Rand,
+ * und 420 Pixel nach links sind auf einem Handy schlicht nicht da. Fest
+ * unter der Kopfzeile, mit Luft zu beiden Kanten, passt es immer – und
+ * bleibt im DOM unter `.bell`, der Klick daneben schließt also weiterhin.
+ */
+@media (max-width: 860px) {
+  .bell__panel {
+    position: fixed;
+    top: calc(var(--klappe-header-total) + 6px);
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
+    width: auto;
+  }
+}
+
 .bell__head {
   display: flex;
   align-items: center;
@@ -3042,6 +3075,14 @@ a.badge:hover {
 .bell__list {
   max-height: min(60vh, 480px);
   overflow-y: auto;
+}
+
+/* Unterm fest sitzenden Panel (siehe oben) bemisst sich die Liste am
+   sichtbaren Ausschnitt – `dvh`, weil die iOS-Adressleiste sonst mitzählt. */
+@media (max-width: 860px) {
+  .bell__list {
+    max-height: min(55dvh, 480px);
+  }
 }
 
 .bell__leer {
