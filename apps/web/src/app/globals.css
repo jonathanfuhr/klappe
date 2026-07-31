@@ -3031,6 +3031,25 @@ a.badge:hover {
   overflow: hidden;
 }
 
+/*
+ * Auf schmalen Schirmen löst sich das Panel vom Glöckchen (Phase 24).
+ *
+ * Rechtsbündig am Auslöser verankert lief es über die linke Kante hinaus:
+ * Das Glöckchen sitzt seit dem Benutzer-Menü nicht mehr am rechten Rand,
+ * und 420 Pixel nach links sind auf einem Handy schlicht nicht da. Fest
+ * unter der Kopfzeile, mit Luft zu beiden Kanten, passt es immer – und
+ * bleibt im DOM unter `.bell`, der Klick daneben schließt also weiterhin.
+ */
+@media (max-width: 860px) {
+  .bell__panel {
+    position: fixed;
+    top: calc(var(--klappe-header-height) + 6px);
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
+    width: auto;
+  }
+}
+
 .bell__head {
   display: flex;
   align-items: center;
@@ -3042,6 +3061,14 @@ a.badge:hover {
 .bell__list {
   max-height: min(60vh, 480px);
   overflow-y: auto;
+}
+
+/* Unterm fest sitzenden Panel (siehe oben) bemisst sich die Liste am
+   sichtbaren Ausschnitt – `dvh`, weil die iOS-Adressleiste sonst mitzählt. */
+@media (max-width: 860px) {
+  .bell__list {
+    max-height: min(55dvh, 480px);
+  }
 }
 
 .bell__leer {
