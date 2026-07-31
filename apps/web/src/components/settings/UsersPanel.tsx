@@ -170,7 +170,7 @@ function CreateUserDialog({
   const [policy, setPolicy] = useState<PasswordPolicy>(DEFAULT_PASSWORD_POLICY);
   useEffect(() => {
     void api
-      .getLoginMethods()
+      .loginMethods()
       .then((methoden) => setPolicy(methoden.passwordPolicy))
       .catch(() => {
         // Verbindlich prüft ohnehin der Server.
