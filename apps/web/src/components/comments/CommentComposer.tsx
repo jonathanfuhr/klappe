@@ -153,7 +153,7 @@ export function CommentComposer({
       setChosen([]);
       setQuery(null);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Speichern fehlgeschlagen.');
+      setError(submitError instanceof Error ? submitError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
@@ -248,7 +248,7 @@ export function CommentComposer({
 
       {hasAnnotation ? (
         <div className="composer__row">
-          <span className="comment__pen">✎ Zeichnung wird mitgeschickt</span>
+          <span className="comment__pen">{t('comments.annotationAttached')}</span>
           {onClearAnnotation ? (
             <button type="button" className="button button--ghost" onClick={onClearAnnotation}>
               {t('comments.discard')}
@@ -270,8 +270,11 @@ export function CommentComposer({
           />
           {(pinned || hasAnnotation) && timecode ? (
             <>
-              An <span className="mono">{timecode}</span> heften
-              {frame !== null ? <span className="faint"> (Frame {frame})</span> : null}
+              {t('comments.pinAt')} <span className="mono">{timecode}</span>{' '}
+              {t('comments.pinAtSuffix')}
+              {frame !== null ? (
+                <span className="faint">{t('comments.frame', { frame })}</span>
+              ) : null}
             </>
           ) : (
             t('comments.noTimeRef')

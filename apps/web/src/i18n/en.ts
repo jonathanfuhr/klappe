@@ -552,4 +552,33 @@ export const en: Record<MessageKey, Message> = {
   'player.comment': 'Add a comment on the current frame',
   'player.comments': 'Comments',
   'player.closePanel': 'Close the comment column',
+
+  'comments.annotationAttached': '✎ Drawing will be attached',
+  'comments.pinAt': 'Pin to',
+  'comments.pinAtSuffix': '',
+  'comments.frame': ' (frame {frame})',
+  'unsubscribe.linkIncomplete': 'The link is incomplete.',
+  'unsubscribe.failed': 'That did not work.',
+  'unsubscribe.oneMoment': 'One moment …',
+  'unsubscribe.done': 'Notifications unsubscribed',
+  'unsubscribe.doneBody':
+    'You will no longer receive emails about comments, mentions and uploads. You can switch them back on any time in your profile.',
+  'embedPage.unavailable': 'Not available.',
+  'embedPage.preview': 'Preview',
+  'settings.teamOnly': 'This page is reserved for the team.',
+
+  'embedPage.notFound': 'This embed does not exist (any more).',
+
+  'settings.title': 'Settings',
+  'settings.navGuests': 'Guests',
+  'settings.navUsers': 'Users',
+  'settings.navFields': 'Custom fields',
+  'settings.navProjects': 'Projects',
+  'settings.navAi': 'AI content',
+  'settings.navBranding': 'Appearance',
+  'settings.navAuth': 'Sign-in',
+  'settings.navMail': 'Email delivery',
+  'settings.navTranscode': 'Transcode',
+  'settings.navStorage': 'Storage',
+  'settings.navBackup': 'Backup',
 };

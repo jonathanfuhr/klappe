@@ -554,6 +554,35 @@ export const de = {
   'player.comment': 'Kommentar am aktuellen Bild setzen',
   'player.comments': 'Kommentare',
   'player.closePanel': 'Kommentarspalte schließen',
+
+  'comments.annotationAttached': '✎ Zeichnung wird mitgeschickt',
+  'comments.pinAt': 'An',
+  'comments.pinAtSuffix': 'heften',
+  'comments.frame': ' (Frame {frame})',
+  'unsubscribe.linkIncomplete': 'Der Link ist unvollständig.',
+  'unsubscribe.failed': 'Das hat nicht geklappt.',
+  'unsubscribe.oneMoment': 'Einen Moment …',
+  'unsubscribe.done': 'Benachrichtigungen abbestellt',
+  'unsubscribe.doneBody':
+    'Du bekommst keine E-Mails mehr zu Kommentaren, Erwähnungen und Uploads. In deinem Profil lässt sich das jederzeit wieder einschalten.',
+  'embedPage.unavailable': 'Nicht verfügbar.',
+  'embedPage.preview': 'Vorschau',
+  'settings.teamOnly': 'Diese Seite ist dem Team vorbehalten.',
+
+  'embedPage.notFound': 'Diese Einbettung gibt es nicht (mehr).',
+
+  'settings.title': 'Einstellungen',
+  'settings.navGuests': 'Gäste',
+  'settings.navUsers': 'Benutzer',
+  'settings.navFields': 'Benutzerdefinierte Felder',
+  'settings.navProjects': 'Projekte',
+  'settings.navAi': 'KI-Inhalte',
+  'settings.navBranding': 'Erscheinungsbild',
+  'settings.navAuth': 'Anmeldung',
+  'settings.navMail': 'E-Mail-Versand',
+  'settings.navTranscode': 'Transcode',
+  'settings.navStorage': 'Speicher',
+  'settings.navBackup': 'Datensicherung',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */
