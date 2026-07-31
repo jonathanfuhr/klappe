@@ -48,6 +48,20 @@ export type Dictionary = Record<string, Message>;
  */
 export type Vars = Record<string, string | number>;
 
+/**
+ * Ein Textbaustein als Verweis statt als fertiger Satz (Phase 26).
+ *
+ * Wo Logik im gemeinsamen Paket etwas zu sagen hat – etwa die
+ * Passwort-Richtlinie –, kennt sie die Sprache des Empfängers nicht: Dieselbe
+ * Funktion bedient die API für einen Gast in Lissabon und die Oberfläche für
+ * das Team in München. Sie liefert deshalb Schlüssel und Werte; übersetzt wird
+ * dort, wo die Sprache feststeht.
+ */
+export interface MessageRef<Key extends string = string> {
+  key: Key;
+  vars?: Vars;
+}
+
 function fill(text: string, vars?: Vars): string {
   if (!vars) return text;
   return text.replace(/\{(\w+)\}/g, (treffer, schluessel: string) => {

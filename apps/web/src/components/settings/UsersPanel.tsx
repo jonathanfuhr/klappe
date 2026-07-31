@@ -5,16 +5,21 @@ import { DEFAULT_PASSWORD_POLICY, describePasswordPolicy } from '@klappe/shared'
 import { useCallback, useEffect, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
+import { type Translator, useT } from '@/lib/i18n';
 import { formatDateTime } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  ADMIN: 'Administrator',
-  MEMBER: 'Team-Mitglied',
-  GUEST: 'Gast',
-};
+/** Die Reihenfolge im Auswahlfeld; die Beschriftung kommt aus dem Wörterbuch. */
+const ROLLEN: UserRole[] = ['ADMIN', 'MEMBER', 'GUEST'];
+
+function rollenName(rolle: UserRole, t: Translator): string {
+  if (rolle === 'ADMIN') return t('users.roleAdmin');
+  if (rolle === 'MEMBER') return t('users.roleMember');
+  return t('users.roleGuest');
+}
 
 export function UsersPanel() {
+  const t = useT();
   const { user: currentUser } = useSession();
   const [users, setUsers] = useState<UserDto[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -25,9 +30,9 @@ export function UsersPanel() {
       setUsers(await api.listUsers());
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -39,13 +44,13 @@ export function UsersPanel() {
         <div className="page__header">
           <div>
             <p className="page__subtitle" style={{ marginTop: 0 }}>
-              Team-Mitglieder sehen alle Projekte des Workspace. Gäste stehen nicht hier, sondern
-              unter <strong>Gäste</strong> – sie sind Kundschaft, keine Belegschaft.
+              {t('users.subtitleStart')} <strong>{t('settings.navGuests')}</strong>{' '}
+              {t('users.subtitleEnd')}
             </p>
           </div>
           <div className="shell__spacer" />
           <button type="button" className="button button--primary" onClick={() => setCreating(true)}>
-            Benutzer anlegen
+            {t('users.create')}
           </button>
         </div>
 
@@ -56,11 +61,11 @@ export function UsersPanel() {
           <table className="table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>E-Mail</th>
-                <th>Rolle</th>
-                <th>Status</th>
-                <th>Angelegt</th>
+                <th>{t('common.name')}</th>
+                <th>{t('common.email')}</th>
+                <th>{t('users.colRole')}</th>
+                <th>{t('users.colStatus')}</th>
+                <th>{t('users.colCreated')}</th>
                 <th />
               </tr>
             </thead>
@@ -80,11 +85,7 @@ export function UsersPanel() {
                         // Liste – das soll niemanden erschrecken.
                         if (
                           rolle === 'GUEST' &&
-                          !window.confirm(
-                            `„${user.name}“ zum Gast machen?\n\n` +
-                              'Die Person sieht dann nur noch, wofür sie ausdrücklich freigegeben ' +
-                              'ist, und das Konto wandert in die Liste „Gäste“.',
-                          )
+                          !window.confirm(t('users.toGuestConfirm', { name: user.name }))
                         ) {
                           return;
                         }
@@ -93,23 +94,25 @@ export function UsersPanel() {
                           .then(load)
                           .catch((updateError: unknown) =>
                             setError(
-                              updateError instanceof Error ? updateError.message : 'Änderung fehlgeschlagen.',
+                              updateError instanceof Error
+                                ? updateError.message
+                                : t('common.changeFailed'),
                             ),
                           );
                       }}
                     >
-                      {(Object.keys(ROLE_LABELS) as UserRole[]).map((role) => (
+                      {ROLLEN.map((role) => (
                         <option key={role} value={role}>
-                          {ROLE_LABELS[role]}
+                          {rollenName(role, t)}
                         </option>
                       ))}
                     </select>
                   </td>
                   <td>
                     {user.isActive ? (
-                      <span className="badge badge--ready">aktiv</span>
+                      <span className="badge badge--ready">{t('users.active')}</span>
                     ) : (
-                      <span className="badge">gesperrt</span>
+                      <span className="badge">{t('users.blocked')}</span>
                     )}
                   </td>
                   <td className="muted">{formatDateTime(user.createdAt)}</td>
@@ -123,12 +126,14 @@ export function UsersPanel() {
                           .then(load)
                           .catch((updateError: unknown) =>
                             setError(
-                              updateError instanceof Error ? updateError.message : 'Änderung fehlgeschlagen.',
+                              updateError instanceof Error
+                                ? updateError.message
+                                : t('common.changeFailed'),
                             ),
                           );
                       }}
                     >
-                      {user.isActive ? 'Sperren' : 'Entsperren'}
+                      {user.isActive ? t('users.block') : t('users.unblock')}
                     </button>
                   </td>
                 </tr>
@@ -159,6 +164,7 @@ function CreateUserDialog({
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
+  const t = useT();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -178,7 +184,7 @@ function CreateUserDialog({
   }, []);
 
   return (
-    <Dialog title="Benutzer anlegen" onClose={onClose}>
+    <Dialog title={t('users.create')} onClose={onClose}>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
@@ -188,7 +194,7 @@ function CreateUserDialog({
             await api.createUser({ name, email, password, role });
             await onCreated();
           } catch (createError) {
-            setError(createError instanceof Error ? createError.message : 'Anlegen fehlgeschlagen.');
+            setError(createError instanceof Error ? createError.message : t('common.createFailed'));
           } finally {
             setBusy(false);
           }
@@ -196,7 +202,7 @@ function CreateUserDialog({
       >
         <div className="field">
           <label className="field__label" htmlFor="user-name">
-            Name
+            {t('common.name')}
           </label>
           <input
             id="user-name"
@@ -209,7 +215,7 @@ function CreateUserDialog({
         </div>
         <div className="field">
           <label className="field__label" htmlFor="user-email">
-            E-Mail-Adresse
+            {t('common.email')}
           </label>
           <input
             id="user-email"
@@ -222,7 +228,7 @@ function CreateUserDialog({
         </div>
         <div className="field">
           <label className="field__label" htmlFor="user-password">
-            Passwort
+            {t('common.password')}
           </label>
           <input
             id="user-password"
@@ -236,11 +242,16 @@ function CreateUserDialog({
           {/* Die Regeln kommen aus den Einstellungen (Phase 24) – hier stand
               vorher eine feste Zahl, die eine geänderte Richtlinie sofort zur
               Lüge gemacht hätte. */}
-          <p className="hint">{describePasswordPolicy(policy).join(', ')}.</p>
+          <p className="hint">
+            {describePasswordPolicy(policy)
+              .map((regel) => t(regel.key, regel.vars))
+              .join(', ')}
+            .
+          </p>
         </div>
         <div className="field">
           <label className="field__label" htmlFor="user-role">
-            Rolle
+            {t('users.colRole')}
           </label>
           <select
             id="user-role"
@@ -248,9 +259,9 @@ function CreateUserDialog({
             value={role}
             onChange={(event) => setRole(event.target.value as UserRole)}
           >
-            {(Object.keys(ROLE_LABELS) as UserRole[]).map((value) => (
+            {ROLLEN.map((value) => (
               <option key={value} value={value}>
-                {ROLE_LABELS[value]}
+                {rollenName(value, t)}
               </option>
             ))}
           </select>
@@ -260,10 +271,10 @@ function CreateUserDialog({
 
         <div className="dialog__actions">
           <button type="button" className="button" onClick={onClose}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="submit" className="button button--primary" disabled={busy}>
-            Anlegen
+            {t('common.create')}
           </button>
         </div>
       </form>

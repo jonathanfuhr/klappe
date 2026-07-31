@@ -661,4 +661,73 @@ export const en: Record<MessageKey, Message> = {
   'storage.total': 'Total',
   'storage.checking': 'Checking …',
   'storage.recheck': 'Check again',
+
+  'passwordError.minLength': 'The password must be at least {count} characters long.',
+  'passwordError.maxLength': 'The password may be at most {count} characters long.',
+  'passwordError.letter': 'The password must contain at least one letter.',
+  'passwordError.digit': 'The password must contain at least one digit.',
+  'passwordError.mixedCase': 'The password must contain upper and lower case letters.',
+  'passwordError.symbol': 'The password must contain at least one special character.',
+  'passwordRule.minLength': 'at least {count} characters',
+  'passwordRule.letter': 'at least one letter',
+  'passwordRule.digit': 'at least one digit',
+  'passwordRule.mixedCase': 'upper and lower case letters',
+  'passwordRule.symbol': 'at least one special character',
+
+  'users.subtitleStart':
+    'Team members see every project in the workspace. Guests are not listed here but under',
+  'users.subtitleEnd': '– they are clients, not staff.',
+  'users.create': 'Create user',
+  'users.colRole': 'Role',
+  'users.colStatus': 'Status',
+  'users.colCreated': 'Created',
+  'users.roleAdmin': 'Administrator',
+  'users.roleMember': 'Team member',
+  'users.roleGuest': 'Guest',
+  'users.active': 'active',
+  'users.blocked': 'blocked',
+  'users.block': 'Block',
+  'users.unblock': 'Unblock',
+  'users.toGuestConfirm':
+    'Turn “{name}” into a guest?\n\nThey will then only see what has been shared with them explicitly, and the account moves to the “Guests” list.',
+
+  'auth.subtitle':
+    'Team accounts sign in locally with a password, via Microsoft 365 – or both. Guests always come in through their share link with an email code, regardless.',
+  'auth.passwordTitle': 'Password',
+  'auth.allowLocal': 'Allow sign-in with email and password',
+  'auth.allowLocalHint':
+    'Can be switched off once Microsoft 365 is active and fully configured – otherwise nobody could get in.',
+  'auth.minLength': 'Minimum length',
+  'auth.minLengthHint':
+    'Between {min} and {max} characters. Length beats special characters – a long sequence of words is safer and easier to remember than “P4ssw!rd”.',
+  'auth.composition': 'Composition',
+  'auth.requireLetter': 'At least one letter',
+  'auth.requireDigit': 'At least one digit',
+  'auth.requireMixedCase': 'Upper and lower case letters',
+  'auth.requireSymbol': 'At least one special character',
+  'auth.policyHint':
+    'Applies to team accounts on creation and on every change. Existing passwords stay valid – only their hash is stored, so it could not be checked at all. Guests have no password and are unaffected.',
+  'auth.policyResult': 'That then means:',
+  'auth.offerOidc': 'Offer sign-in via Microsoft 365',
+  'auth.oidcOffHint':
+    'Off. Tick the box to set it up – the fields for the app registration in the Entra Admin Center then appear.',
+  'auth.redirectUri': 'Redirect URI for the app registration',
+  'auth.redirectHintStart': 'Enter it in the Entra Admin Center under',
+  'auth.redirectHintPath': 'App registrations → Authentication',
+  'auth.redirectHintEnd': 'as a web platform. If it does not match, Microsoft rejects the sign-in.',
+  'auth.tenant': 'Directory ID (tenant)',
+  'auth.tenantHint': 'The domain works too, for example contoso.onmicrosoft.com.',
+  'auth.clientId': 'Application ID (client)',
+  'auth.clientSecret': 'Client secret',
+  'auth.clientSecretStored': '•••••••• (stored)',
+  'auth.clientSecretHint':
+    'Leaving it empty keeps the stored secret. It is encrypted in the database and never shown again. Mind the expiry date Entra assigns.',
+  'auth.autoProvision': 'Automatically create unknown addresses as team members',
+  'auth.autoProvisionHint':
+    'Off by default for good reason: in a large tenant every employee would otherwise get access to all projects. Without this switch only people who already have an account get in.',
+  'auth.allowedDomains': 'Allowed domains for automatic creation',
+  'auth.allowedDomainsHint': 'Empty means: no restriction.',
+  'auth.buttonLabel': 'Button label',
+  'auth.tryHint':
+    'To try it out: save first, then open the sign-in page in a private window. If it fails, Microsoft’s reason is stated there in plain text.',
 };

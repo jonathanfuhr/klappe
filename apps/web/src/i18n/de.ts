@@ -663,6 +663,74 @@ export const de = {
   'storage.total': 'Zusammen',
   'storage.checking': 'Wird geprüft …',
   'storage.recheck': 'Neu prüfen',
+
+  'passwordError.minLength': 'Das Passwort muss mindestens {count} Zeichen lang sein.',
+  'passwordError.maxLength': 'Das Passwort darf höchstens {count} Zeichen lang sein.',
+  'passwordError.letter': 'Das Passwort muss mindestens einen Buchstaben enthalten.',
+  'passwordError.digit': 'Das Passwort muss mindestens eine Ziffer enthalten.',
+  'passwordError.mixedCase': 'Das Passwort muss Groß- und Kleinbuchstaben enthalten.',
+  'passwordError.symbol': 'Das Passwort muss mindestens ein Sonderzeichen enthalten.',
+  'passwordRule.minLength': 'mindestens {count} Zeichen',
+  'passwordRule.letter': 'mindestens ein Buchstabe',
+  'passwordRule.digit': 'mindestens eine Ziffer',
+  'passwordRule.mixedCase': 'Groß- und Kleinbuchstaben',
+  'passwordRule.symbol': 'mindestens ein Sonderzeichen',
+
+  'users.subtitleStart': 'Team-Mitglieder sehen alle Projekte des Workspace. Gäste stehen nicht hier, sondern unter',
+  'users.subtitleEnd': '– sie sind Kundschaft, keine Belegschaft.',
+  'users.create': 'Benutzer anlegen',
+  'users.colRole': 'Rolle',
+  'users.colStatus': 'Status',
+  'users.colCreated': 'Angelegt',
+  'users.roleAdmin': 'Administrator',
+  'users.roleMember': 'Team-Mitglied',
+  'users.roleGuest': 'Gast',
+  'users.active': 'aktiv',
+  'users.blocked': 'gesperrt',
+  'users.block': 'Sperren',
+  'users.unblock': 'Entsperren',
+  'users.toGuestConfirm':
+    '„{name}" zum Gast machen?\n\nDie Person sieht dann nur noch, wofür sie ausdrücklich freigegeben ist, und das Konto wandert in die Liste „Gäste".',
+
+  'auth.subtitle':
+    'Team-Konten melden sich lokal mit Passwort an, über Microsoft 365 – oder beides. Gäste kommen unabhängig davon immer über ihren Freigabe-Link mit E-Mail-Code herein.',
+  'auth.passwordTitle': 'Passwort',
+  'auth.allowLocal': 'Anmeldung mit E-Mail und Passwort erlauben',
+  'auth.allowLocalHint':
+    'Abschaltbar, sobald Microsoft 365 aktiv und vollständig eingetragen ist – sonst käme niemand mehr herein.',
+  'auth.minLength': 'Mindestlänge',
+  'auth.minLengthHint':
+    'Zwischen {min} und {max} Zeichen. Länge bringt mehr als Sonderzeichen – eine lange Wortfolge ist sicherer und leichter zu merken als „P4ssw!rt".',
+  'auth.composition': 'Zusammensetzung',
+  'auth.requireLetter': 'Mindestens ein Buchstabe',
+  'auth.requireDigit': 'Mindestens eine Ziffer',
+  'auth.requireMixedCase': 'Groß- und Kleinbuchstaben',
+  'auth.requireSymbol': 'Mindestens ein Sonderzeichen',
+  'auth.policyHint':
+    'Gilt für Team-Konten beim Anlegen und bei jeder Änderung. Bestehende Passwörter bleiben gültig – gespeichert ist nur ihr Hash, nachprüfen ließe sich das gar nicht. Gäste haben kein Passwort und sind nicht betroffen.',
+  'auth.policyResult': 'Es gilt dann:',
+  'auth.offerOidc': 'Anmeldung über Microsoft 365 anbieten',
+  'auth.oidcOffHint':
+    'Aus. Zum Einrichten den Haken setzen – dann erscheinen die Felder für die App-Registrierung im Entra Admin Center.',
+  'auth.redirectUri': 'Redirect-URI für die App-Registrierung',
+  'auth.redirectHintStart': 'Im Entra Admin Center unter',
+  'auth.redirectHintPath': 'App-Registrierungen → Authentifizierung',
+  'auth.redirectHintEnd': 'als Web-Plattform eintragen. Stimmt sie nicht, weist Microsoft die Anmeldung ab.',
+  'auth.tenant': 'Verzeichnis-ID (Tenant)',
+  'auth.tenantHint': 'Auch die Domäne geht, etwa contoso.onmicrosoft.com.',
+  'auth.clientId': 'Anwendungs-ID (Client)',
+  'auth.clientSecret': 'Geheimer Clientschlüssel',
+  'auth.clientSecretStored': '•••••••• (gespeichert)',
+  'auth.clientSecretHint':
+    'Leer lassen behält den gespeicherten Schlüssel. Er liegt verschlüsselt in der Datenbank und wird nie wieder angezeigt. Denk an das Ablaufdatum, das Entra vergibt.',
+  'auth.autoProvision': 'Unbekannte Adressen automatisch als Team-Mitglied anlegen',
+  'auth.autoProvisionHint':
+    'Aus gutem Grund standardmäßig aus: In einem großen Tenant bekäme sonst jeder Beschäftigte Zugriff auf alle Projekte. Ohne diesen Schalter kommt nur herein, wer hier schon ein Konto hat.',
+  'auth.allowedDomains': 'Erlaubte Domänen beim automatischen Anlegen',
+  'auth.allowedDomainsHint': 'Leer heißt: keine Einschränkung.',
+  'auth.buttonLabel': 'Beschriftung der Schaltfläche',
+  'auth.tryHint':
+    'Zum Ausprobieren: erst speichern, dann in einem privaten Fenster die Anmeldeseite öffnen. Schlägt es fehl, steht die Begründung von Microsoft dort im Klartext.',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

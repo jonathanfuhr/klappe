@@ -246,8 +246,10 @@ export default function AccountPage() {
               onChange={(event) => setNext(event.target.value)}
             />
             <p className="hint">
-              {describePasswordPolicy(policy).join(', ')}.
-              {verstoss ? ` ${verstoss}` : ''}
+              {describePasswordPolicy(policy)
+                .map((regel) => t(regel.key, regel.vars))
+                .join(', ')}
+              .{verstoss ? ` ${t(verstoss.key, verstoss.vars)}` : ''}
             </p>
           </div>
 
