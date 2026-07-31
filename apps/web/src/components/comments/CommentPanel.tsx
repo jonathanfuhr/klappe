@@ -354,6 +354,7 @@ function EditForm({
 }) {
   const [value, setValue] = useState(comment.body);
   const [busy, setBusy] = useState(false);
+  const t = useT();
 
   return (
     <div onClick={(event) => event.stopPropagation()}>
