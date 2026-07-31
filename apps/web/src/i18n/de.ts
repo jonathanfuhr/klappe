@@ -583,6 +583,86 @@ export const de = {
   'settings.navTranscode': 'Transcode',
   'settings.navStorage': 'Speicher',
   'settings.navBackup': 'Datensicherung',
+
+  'ai.subtitle':
+    'Videos lassen sich als KI-Inhalt kennzeichnen – über allen Fassungen erscheint dann der Hinweis zur Kennzeichnungspflicht nach Art. 50 EU AI Act, auch für Gäste.',
+  'ai.enable': 'KI-Kennzeichnung verwenden',
+  'ai.enableHint':
+    'Aus heißt: Haken, Auswahl und Hinweis verschwinden von allen Videoseiten. Gesetzte Kennzeichnungen bleiben gespeichert und kommen beim Wiedereinschalten zurück.',
+  'ai.kindsTitle': 'Arten von KI-Inhalten',
+  'ai.kindsHint': 'Stehen am Video zur Auswahl und werden im Hinweis mitgenannt – etwa „KI-Stimme, KI-Musik".',
+  'ai.newPlaceholder': 'Neue Art …',
+  'ai.kindNameLabel': 'Bezeichnung der Art {name}',
+  'ai.videoCount': { one: '{count} Video', other: '{count} Videos' },
+  'ai.none': 'Noch keine Arten angelegt.',
+  'ai.deleteConfirm': {
+    one: '„{name}" hängt an {count} Video und verschwindet dort aus der Kennzeichnung. Trotzdem löschen?',
+    other: '„{name}" hängt an {count} Videos und verschwindet dort aus der Kennzeichnung. Trotzdem löschen?',
+  },
+  'projectsSettings.subtitle': 'Wie Klappe mit Projekten umgeht, die aus dem Alltag heraus sind.',
+  'projectsSettings.archivedTitle': 'Archivierte Projekte',
+  'projectsSettings.archivedHint':
+    'Wird ein Projekt archiviert, bleibt je Video nur die neueste fertige Fassung sichtbar, und kommentieren geht nicht mehr. Vorhandene Kommentare bleiben lesbar.',
+  'projectsSettings.retentionLabel': 'Alte Fassungen aufbewahren (Tage)',
+  'projectsSettings.retentionHint':
+    'So lange bleiben die älteren Fassungen liegen – falls das Archivieren ein Irrtum war – und werden dann vom nächtlichen Aufräumer gelöscht, um Platz zu schaffen. Die neueste bleibt immer.',
+  'projectsSettings.retentionZero': 'löscht sie beim nächsten Aufräumen.',
+  'common.lastChanged': 'zuletzt geändert {when}',
+  'guestsSettings.summary': {
+    one: '{count} Gast insgesamt, {active} davon mit gültigem Zugang',
+    other: '{count} Gäste insgesamt, {active} davon mit gültigem Zugang',
+  },
+  'guestsSettings.searchPlaceholder': 'Name, Adresse oder Projekt …',
+  'guestsSettings.emptyNone':
+    'Noch niemand von außen. Gäste erscheinen hier, sobald sie einen Freigabe-Link benutzt haben.',
+  'guestsSettings.emptySearch': 'Kein Gast passt zur Suche.',
+  'guestsSettings.blocked': 'gesperrt',
+  'guestsSettings.lastSeen': 'zuletzt {when}',
+  'guestsSettings.neverSignedIn': 'noch nie angemeldet',
+  'guestsSettings.noShareLeft': 'Keine Freigabe mehr vorhanden',
+  'guestsSettings.linkSummary': {
+    one: '{active} von {count} Freigabe gültig · angelegt {created}',
+    other: '{active} von {count} Freigaben gültig · angelegt {created}',
+  },
+  'guestsSettings.block': 'Konto sperren',
+  'guestsSettings.unblock': 'Konto entsperren',
+  'storage.subtitle': 'Wie voll das Dateisystem ist, auf dem die Mediendateien liegen.',
+  'storage.freeTitle': 'Freier Platz',
+  'storage.measuredAt': 'Gemessen am Dateisystem hinter {path}, so wie der API-Dienst es sieht.',
+  'storage.sharedHint':
+    ' Liegt dort noch anderes, zählt es mit – der Balken zeigt die Platte, nicht Klappe allein.',
+  'storage.passthroughTitle': 'Der freie Platz lässt sich von hier aus nicht ermitteln.',
+  'storage.passthroughBody':
+    'Der Medienordner ist über {fs} aus einer virtuellen Maschine durchgereicht – so läuft es etwa bei Docker Desktop auf dem Mac. Die Größen, die das Betriebssystem dazu meldet, gehören der Zwischenschicht und nicht der echten Platte, deshalb steht hier lieber nichts als eine erfundene Zahl. Auf dem Rechner selbst sagt es {cmd} auf den Medienordner. Die Aufschlüsselung unten stimmt unabhängig davon.',
+  'storage.noInfo':
+    'Das Betriebssystem gibt zu diesem Pfad keine Auskunft über den freien Platz. Die Aufschlüsselung unten stimmt trotzdem.',
+  'storage.barLabel': '{percent} % belegt',
+  'storage.free': '{size} frei',
+  'storage.ofUsed': 'von {total} · {used} belegt ({percent} %)',
+  'storage.criticalTitle': 'Der Platz geht zu Ende.',
+  'storage.tightTitle': 'Es wird eng.',
+  'storage.warnBodyStart':
+    'Läuft das Dateisystem voll, brechen Uploads mitten in der Übertragung ab und die Verarbeitung schlägt fehl. Platz schaffen: alte Projekte archivieren (die Aufbewahrungsfrist steht unter',
+  'storage.warnBodyEnd':
+    '), nicht mehr gebrauchte Fassungen löschen oder die Platte vergrößern.',
+  'storage.klappeTitle': 'Davon Klappe',
+  'storage.klappeHint':
+    'Aus der Datenbank summiert. Posterframes, Sprite-Streifen und die HLS-Segmente führt Klappe ohne Größe – sie fehlen hier. Die Summe ist also eine Untergrenze, keine Messung des Ordners.',
+  'storage.colItem': 'Posten',
+  'storage.colSize': 'Größe',
+  'storage.originals': 'Originale',
+  'storage.originalsHint': 'Die hochgeladenen Dateien selbst – unangetastet.',
+  'storage.proxies': 'Abspielfassungen',
+  'storage.proxiesHint': 'Was im Browser läuft (Proxy).',
+  'storage.renditions': 'Download-Formate',
+  'storage.renditionsHint': 'Auf Vorrat oder auf Wunsch erzeugte Fassungen.',
+  'storage.projectFiles': 'Kundenmaterial',
+  'storage.projectFilesHint': 'Die Ablage je Projekt.',
+  'storage.uploads': 'Angefangene Uploads',
+  'storage.uploadsHint': 'Übertragungen im Zwischenspeicher.',
+  'storage.total': 'Zusammen',
+  'storage.checking': 'Wird geprüft …',
+  'storage.recheck': 'Neu prüfen',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

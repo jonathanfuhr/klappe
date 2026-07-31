@@ -4,6 +4,7 @@ import type { ProjectSettingsDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 
 /**
  * Einstellungen → Projekte (Phase 20).
@@ -13,6 +14,7 @@ import { formatDateTime } from '@/lib/format';
  * ohne jeden Zusammenhang. Wer sie suchte, suchte lange.
  */
 export function ProjectsPanel() {
+  const t = useT();
   const [settings, setSettings] = useState<ProjectSettingsDto | null>(null);
   const [tage, setTage] = useState(30);
   const [error, setError] = useState<string | null>(null);
@@ -25,9 +27,9 @@ export function ProjectsPanel() {
       setSettings(geladen);
       setTage(geladen.archiveRetentionDays);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -41,16 +43,16 @@ export function ProjectsPanel() {
       const gespeichert = await api.updateProjectSettings({ archiveRetentionDays: tage });
       setSettings(gespeichert);
       setTage(gespeichert.archiveRetentionDays);
-      setInfo('Gespeichert.');
+      setInfo(t('common.saved'));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
   };
 
   if (!settings) {
-    return <div className="empty">{error ?? 'Wird geladen …'}</div>;
+    return <div className="empty">{error ?? t('common.loading')}</div>;
   }
 
   return (
@@ -61,7 +63,7 @@ export function ProjectsPanel() {
       }}
     >
       <p className="page__subtitle" style={{ marginTop: 0 }}>
-        Wie Klappe mit Projekten umgeht, die aus dem Alltag heraus sind.
+        {t('projectsSettings.subtitle')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -72,15 +74,14 @@ export function ProjectsPanel() {
       ) : null}
 
       <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ margin: '0 0 4px' }}>Archivierte Projekte</h3>
+        <h3 style={{ margin: '0 0 4px' }}>{t('projectsSettings.archivedTitle')}</h3>
         <p className="hint" style={{ marginTop: 0 }}>
-          Wird ein Projekt archiviert, bleibt je Video nur die neueste fertige Fassung sichtbar,
-          und kommentieren geht nicht mehr. Vorhandene Kommentare bleiben lesbar.
+          {t('projectsSettings.archivedHint')}
         </p>
 
         <div className="field">
           <label className="field__label" htmlFor="archive-days">
-            Alte Fassungen aufbewahren (Tage)
+            {t('projectsSettings.retentionLabel')}
           </label>
           <input
             id="archive-days"
@@ -93,18 +94,17 @@ export function ProjectsPanel() {
             onChange={(event) => setTage(Number(event.target.value) || 0)}
           />
           <p className="hint">
-            So lange bleiben die älteren Fassungen liegen – falls das Archivieren ein Irrtum war –
-            und werden dann vom nächtlichen Aufräumer gelöscht, um Platz zu schaffen. Die neueste
-            bleibt immer. <strong>0</strong> löscht sie beim nächsten Aufräumen.
+            {t('projectsSettings.retentionHint')} <strong>0</strong>{' '}
+            {t('projectsSettings.retentionZero')}
           </p>
         </div>
 
         <div className="toolbar" style={{ marginTop: 8 }}>
           <button type="submit" className="button" disabled={busy}>
-            Speichern
+            {t('common.save')}
           </button>
           <span className="faint" style={{ fontSize: 12 }}>
-            zuletzt geändert {formatDateTime(settings.updatedAt)}
+            {t('common.lastChanged', { when: formatDateTime(settings.updatedAt) })}
           </span>
         </div>
       </div>

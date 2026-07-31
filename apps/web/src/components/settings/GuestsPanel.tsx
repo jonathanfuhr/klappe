@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateTime, formatRelative } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 /**
@@ -15,6 +16,7 @@ import { useSession } from '@/lib/session';
  * sich mit einem Klick aussperren, ohne jeden einzelnen Link zu suchen.
  */
 export function GuestsPanel() {
+  const t = useT();
   const { user } = useSession();
   const [guests, setGuests] = useState<GuestOverviewDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,11 +29,11 @@ export function GuestsPanel() {
       setGuests(await api.listAllGuests());
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -43,7 +45,7 @@ export function GuestsPanel() {
     try {
       setGuests(await api.setGuestActive(userId, isActive));
     } catch (changeError) {
-      setError(changeError instanceof Error ? changeError.message : 'Ändern fehlgeschlagen.');
+      setError(changeError instanceof Error ? changeError.message : t('common.changeFailed'));
     } finally {
       setBusy(null);
     }
@@ -67,28 +69,27 @@ export function GuestsPanel() {
         <div className="page__header">
           <div>
             <p className="page__subtitle" style={{ marginTop: 0 }}>
-              {guests.length} {guests.length === 1 ? 'Gast' : 'Gäste'} insgesamt, {mitZugang} davon
-              mit gültigem Zugang
+              {t('guestsSettings.summary', { count: guests.length, active: mitZugang })}
             </p>
           </div>
           <div className="shell__spacer" />
           <input
             className="input"
             style={{ width: 240 }}
-            placeholder="Name, Adresse oder Projekt …"
+            placeholder={t('guestsSettings.searchPlaceholder')}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
 
         {error ? <div className="notice">{error}</div> : null}
-        {loading ? <p className="muted">Wird geladen …</p> : null}
+        {loading ? <p className="muted">{t('common.loading')}</p> : null}
 
         {!loading && visible.length === 0 ? (
           <div className="empty">
             {guests.length === 0
-              ? 'Noch niemand von außen. Gäste erscheinen hier, sobald sie einen Freigabe-Link benutzt haben.'
-              : 'Kein Gast passt zur Suche.'}
+              ? t('guestsSettings.emptyNone')
+              : t('guestsSettings.emptySearch')}
           </div>
         ) : null}
 
@@ -100,19 +101,19 @@ export function GuestsPanel() {
                 <span className="faint" style={{ fontSize: 12 }}>
                   {guest.user.email}
                 </span>
-                {guest.isActive ? null : <span className="badge badge--failed">gesperrt</span>}
+                {guest.isActive ? null : <span className="badge badge--failed">{t('guestsSettings.blocked')}</span>}
                 <div className="shell__spacer" />
                 <span className="faint" style={{ fontSize: 12 }}>
                   {guest.lastSeenAt
-                    ? `zuletzt ${formatRelative(guest.lastSeenAt)}`
-                    : 'noch nie angemeldet'}
+                    ? t('guestsSettings.lastSeen', { when: formatRelative(guest.lastSeenAt) })
+                    : t('guestsSettings.neverSignedIn')}
                 </span>
               </div>
 
               <div className="guest__rights">
                 {guest.projects.length === 0 ? (
                   <span className="faint" style={{ fontSize: 13 }}>
-                    Keine Freigabe mehr vorhanden
+                    {t('guestsSettings.noShareLeft')}
                   </span>
                 ) : (
                   guest.projects.map((project) => (
@@ -125,9 +126,11 @@ export function GuestsPanel() {
 
               <div className="toolbar">
                 <span className="faint" style={{ fontSize: 12 }}>
-                  {guest.activeLinkCount} von {guest.linkCount}{' '}
-                  {guest.linkCount === 1 ? 'Freigabe' : 'Freigaben'} gültig · angelegt{' '}
-                  {formatDateTime(guest.createdAt)}
+                  {t('guestsSettings.linkSummary', {
+                    active: guest.activeLinkCount,
+                    count: guest.linkCount,
+                    created: formatDateTime(guest.createdAt),
+                  })}
                 </span>
                 <div className="shell__spacer" />
                 {user?.role === 'ADMIN' ? (
@@ -143,7 +146,7 @@ export function GuestsPanel() {
                     disabled={busy === guest.user.id}
                     onClick={() => void setActive(guest.user.id, !guest.isActive)}
                   >
-                    {guest.isActive ? 'Konto sperren' : 'Konto entsperren'}
+                    {guest.isActive ? t('guestsSettings.block') : t('guestsSettings.unblock')}
                   </button>
                 ) : null}
               </div>

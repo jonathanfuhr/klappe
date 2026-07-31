@@ -581,4 +581,84 @@ export const en: Record<MessageKey, Message> = {
   'settings.navTranscode': 'Transcode',
   'settings.navStorage': 'Storage',
   'settings.navBackup': 'Backup',
+
+  'ai.subtitle':
+    'Videos can be labelled as AI content – the notice about the labelling duty under Art. 50 EU AI Act then appears above all versions, for guests too.',
+  'ai.enable': 'Use AI labelling',
+  'ai.enableHint':
+    'Off means: tick, selection and notice disappear from every video page. Existing labels stay stored and come back when you switch it on again.',
+  'ai.kindsTitle': 'Kinds of AI content',
+  'ai.kindsHint':
+    'Offered for selection on the video and named in the notice – for instance “AI voice, AI music”.',
+  'ai.newPlaceholder': 'New kind …',
+  'ai.kindNameLabel': 'Name of the kind {name}',
+  'ai.videoCount': { one: '{count} video', other: '{count} videos' },
+  'ai.none': 'No kinds created yet.',
+  'ai.deleteConfirm': {
+    one: '“{name}” is attached to {count} video and will disappear from its labelling. Delete anyway?',
+    other: '“{name}” is attached to {count} videos and will disappear from their labelling. Delete anyway?',
+  },
+  'projectsSettings.subtitle': 'How Klappe treats projects that are out of everyday use.',
+  'projectsSettings.archivedTitle': 'Archived projects',
+  'projectsSettings.archivedHint':
+    'When a project is archived, only the newest finished version per video stays visible and commenting is no longer possible. Existing comments remain readable.',
+  'projectsSettings.retentionLabel': 'Keep old versions for (days)',
+  'projectsSettings.retentionHint':
+    'The older versions stay for that long – in case archiving was a mistake – and are then deleted by the nightly cleanup to free up space. The newest one always stays.',
+  'projectsSettings.retentionZero': 'deletes them at the next cleanup.',
+  'common.lastChanged': 'last changed {when}',
+  'guestsSettings.summary': {
+    one: '{count} guest in total, {active} of them with valid access',
+    other: '{count} guests in total, {active} of them with valid access',
+  },
+  'guestsSettings.searchPlaceholder': 'Name, address or project …',
+  'guestsSettings.emptyNone':
+    'Nobody from outside yet. Guests appear here as soon as they have used a share link.',
+  'guestsSettings.emptySearch': 'No guest matches the search.',
+  'guestsSettings.blocked': 'blocked',
+  'guestsSettings.lastSeen': 'last seen {when}',
+  'guestsSettings.neverSignedIn': 'never signed in',
+  'guestsSettings.noShareLeft': 'No share left',
+  'guestsSettings.linkSummary': {
+    one: '{active} of {count} share valid · created {created}',
+    other: '{active} of {count} shares valid · created {created}',
+  },
+  'guestsSettings.block': 'Block account',
+  'guestsSettings.unblock': 'Unblock account',
+  'storage.subtitle': 'How full the file system holding the media files is.',
+  'storage.freeTitle': 'Free space',
+  'storage.measuredAt': 'Measured on the file system behind {path}, as the API service sees it.',
+  'storage.sharedHint':
+    ' If anything else lives there it counts too – the bar shows the disk, not Klappe alone.',
+  'storage.passthroughTitle': 'The free space cannot be determined from here.',
+  'storage.passthroughBody':
+    'The media folder is passed through from a virtual machine via {fs} – that is how Docker Desktop on the Mac works, for instance. The sizes the operating system reports belong to the intermediate layer and not to the real disk, so rather nothing is shown here than an invented number. On the machine itself {cmd} on the media folder will tell you. The breakdown below is correct regardless.',
+  'storage.noInfo':
+    'The operating system gives no information about the free space for this path. The breakdown below is still correct.',
+  'storage.barLabel': '{percent} % used',
+  'storage.free': '{size} free',
+  'storage.ofUsed': 'of {total} · {used} used ({percent} %)',
+  'storage.criticalTitle': 'Space is running out.',
+  'storage.tightTitle': 'It is getting tight.',
+  'storage.warnBodyStart':
+    'If the file system fills up, uploads break off mid-transfer and processing fails. To free up space: archive old projects (the retention period is under',
+  'storage.warnBodyEnd': '), delete versions no longer needed or enlarge the disk.',
+  'storage.klappeTitle': 'Of that, Klappe',
+  'storage.klappeHint':
+    'Summed from the database. Poster frames, sprite strips and the HLS segments are kept without a size – they are missing here. The total is therefore a lower bound, not a measurement of the folder.',
+  'storage.colItem': 'Item',
+  'storage.colSize': 'Size',
+  'storage.originals': 'Originals',
+  'storage.originalsHint': 'The uploaded files themselves – untouched.',
+  'storage.proxies': 'Playback versions',
+  'storage.proxiesHint': 'What runs in the browser (proxy).',
+  'storage.renditions': 'Download formats',
+  'storage.renditionsHint': 'Versions generated ahead of time or on request.',
+  'storage.projectFiles': 'Client material',
+  'storage.projectFilesHint': 'The folder per project.',
+  'storage.uploads': 'Started uploads',
+  'storage.uploadsHint': 'Transfers in the staging area.',
+  'storage.total': 'Total',
+  'storage.checking': 'Checking …',
+  'storage.recheck': 'Check again',
 };

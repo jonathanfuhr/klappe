@@ -4,6 +4,7 @@ import type { AiContentSettingsDto } from '@klappe/shared';
 import { MAX_AI_KIND_NAME_LENGTH } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 /**
  * Einstellungen → KI-Inhalte (Phase 24, Nachtrag).
@@ -14,6 +15,7 @@ import { api } from '@/lib/api';
  * aus, löscht aber nichts.
  */
 export function AiPanel() {
+  const t = useT();
   const [settings, setSettings] = useState<AiContentSettingsDto | null>(null);
   const [neuerName, setNeuerName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -24,9 +26,9 @@ export function AiPanel() {
       setSettings(await api.getAiSettings());
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -39,7 +41,7 @@ export function AiPanel() {
     try {
       setSettings(await aktion());
     } catch (changeError) {
-      setError(changeError instanceof Error ? changeError.message : 'Speichern fehlgeschlagen.');
+      setError(changeError instanceof Error ? changeError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
@@ -54,11 +56,7 @@ export function AiPanel() {
   const loeschen = async (art: AiContentSettingsDto['kinds'][number]) => {
     if (
       art.videoCount > 0 &&
-      !window.confirm(
-        `„${art.name}" hängt an ${art.videoCount} ${
-          art.videoCount === 1 ? 'Video' : 'Videos'
-        } und verschwindet dort aus der Kennzeichnung. Trotzdem löschen?`,
-      )
+      !window.confirm(t('ai.deleteConfirm', { name: art.name, count: art.videoCount }))
     ) {
       return;
     }
@@ -66,14 +64,13 @@ export function AiPanel() {
   };
 
   if (!settings) {
-    return <div className="empty">{error ?? 'Wird geladen …'}</div>;
+    return <div className="empty">{error ?? t('common.loading')}</div>;
   }
 
   return (
     <>
       <p className="page__subtitle" style={{ marginTop: 0 }}>
-        Videos lassen sich als KI-Inhalt kennzeichnen – über allen Fassungen erscheint dann der
-        Hinweis zur Kennzeichnungspflicht nach Art. 50 EU AI Act, auch für Gäste.
+        {t('ai.subtitle')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -88,11 +85,10 @@ export function AiPanel() {
               void aendern(() => api.updateAiSettings({ enabled: event.target.checked }))
             }
           />
-          KI-Kennzeichnung verwenden
+          {t('ai.enable')}
         </label>
         <p className="hint">
-          Aus heißt: Haken, Auswahl und Hinweis verschwinden von allen Videoseiten. Gesetzte
-          Kennzeichnungen bleiben gespeichert und kommen beim Wiedereinschalten zurück.
+          {t('ai.enableHint')}
         </p>
 
         {settings.enabled ? (
@@ -100,17 +96,16 @@ export function AiPanel() {
             style={{ marginTop: 18, borderTop: '1px solid var(--klappe-border)', paddingTop: 16 }}
           >
             <h2 className="section__title" style={{ marginBottom: 12 }}>
-              Arten von KI-Inhalten
+              {t('ai.kindsTitle')}
             </h2>
             <p className="hint">
-              Stehen am Video zur Auswahl und werden im Hinweis mitgenannt – etwa „KI-Stimme,
-              KI-Musik".
+              {t('ai.kindsHint')}
             </p>
 
             <div className="toolbar" style={{ marginBottom: 14 }}>
               <input
                 className="input"
-                placeholder="Neue Art …"
+                placeholder={t('ai.newPlaceholder')}
                 maxLength={MAX_AI_KIND_NAME_LENGTH}
                 value={neuerName}
                 onChange={(event) => setNeuerName(event.target.value)}
@@ -127,7 +122,7 @@ export function AiPanel() {
                 disabled={busy || !neuerName.trim()}
                 onClick={() => void anlegen()}
               >
-                Anlegen
+                {t('common.create')}
               </button>
             </div>
 
@@ -138,7 +133,7 @@ export function AiPanel() {
                     className="input tagrow__name"
                     defaultValue={art.name}
                     maxLength={MAX_AI_KIND_NAME_LENGTH}
-                    aria-label={`Bezeichnung der Art ${art.name}`}
+                    aria-label={t('ai.kindNameLabel', { name: art.name })}
                     onBlur={(event) => {
                       const neu = event.target.value.trim();
                       if (neu && neu !== art.name) void aendern(() => api.renameAiKind(art.id, neu));
@@ -146,7 +141,7 @@ export function AiPanel() {
                   />
                   <div className="tagrow__rest">
                     <span className="faint tagrow__count">
-                      {art.videoCount} {art.videoCount === 1 ? 'Video' : 'Videos'}
+                      {t('ai.videoCount', { count: art.videoCount })}
                     </span>
                     <button
                       type="button"
@@ -154,7 +149,7 @@ export function AiPanel() {
                       disabled={busy}
                       onClick={() => void loeschen(art)}
                     >
-                      Löschen
+                      {t('common.delete')}
                     </button>
                   </div>
                 </div>
@@ -162,7 +157,7 @@ export function AiPanel() {
 
               {settings.kinds.length === 0 ? (
                 <p className="muted" style={{ fontSize: 13 }}>
-                  Noch keine Arten angelegt.
+                  {t('ai.none')}
                 </p>
               ) : null}
             </div>
