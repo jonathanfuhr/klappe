@@ -852,6 +852,71 @@ export const de = {
   'smtp.sendTestDisabled': 'Erst speichern und aktivieren',
   'smtp.testSent': 'Testmail an {email} verschickt.',
   'smtp.testFailed': 'Der Versand hat nicht geklappt.',
+
+  'transcode.subtitle':
+    'Was der Server nach dem Hochladen erzeugt: die Formate zum Herunterladen, wahlweise eine adaptive Stufenleiter und die Abspielfassung, die jeder im Browser zu sehen bekommt.',
+  'transcode.saved': 'Gespeichert. Wirkt ab dem nächsten Auftrag – kein Neustart nötig.',
+  'transcode.downloadTitle': 'Download in verschiedenen Formaten',
+  'transcode.downloadHint':
+    'Ist das eingeschaltet, öffnet der Herunterladen-Knopf ein Fenster mit dieser Auswahl. Fehlt eine Fassung noch, entsteht sie beim Klick – mit Fortschrittsbalken. Das Original steht dort immer an erster Stelle.',
+  'transcode.offerFormats': 'Formatauswahl anbieten',
+  'transcode.colShortEdge': 'Kurze Kante',
+  'transcode.colBitrate': 'Bitrate',
+  'transcode.colQuality': 'Qualität',
+  'transcode.colContainer': 'Container',
+  'transcode.colOffered': 'Angeboten',
+  'transcode.formatNameLabel': 'Name des Formats',
+  'transcode.shortEdgeLabel': 'Kurze Kante in Pixeln',
+  'transcode.bitrateLabel': 'Bitrate in kbit/s',
+  'transcode.qualityLabel': 'Qualitätsstufe',
+  'transcode.offerThisFormat': 'Dieses Format anbieten',
+  'transcode.noFormats': 'Noch kein Format angelegt.',
+  'transcode.newNamePlaceholder': 'z. B. 720p – Vorschau',
+  'transcode.newNameHint': 'Diesen Namen sieht der Kunde im Download-Fenster.',
+  'transcode.shortEdgeHint': '1080 heißt quer 1920×1080 und hoch 1080×1920. Vergrößert wird nie.',
+  'transcode.videoBitrate': 'Video-Bitrate (kbit/s)',
+  'transcode.audioBitrate': 'Ton-Bitrate (kbit/s)',
+  'transcode.presetHint': 'Langsamer heißt kleinere Datei bei gleichem Bild – und mehr Rechenzeit.',
+  'transcode.createFormat': 'Format anlegen',
+  'transcode.addFormat': 'Format hinzufügen …',
+  'transcode.finalOnly': 'Verschiedene Formate nur für Endfassungen anbieten',
+  'transcode.finalOnlyHint':
+    'An Zwischenständen bleibt es dann beim Original. Wird der Endfassungs-Haken später gesetzt, geht es genau dann los.',
+  'transcode.whenDownload': 'Wann sollen die Formate gerechnet werden?',
+  'transcode.timingOnDemand': 'Erst beim Download',
+  'transcode.timingUpload': 'Direkt beim Upload',
+  'transcode.timingSchedule': 'Nach Zeitplan',
+  'transcode.downloadOnDemandHint':
+    'Nichts entsteht im Voraus. Wer ein Format anfordert, wartet einmal darauf – danach liegt es bereit.',
+  'transcode.downloadUploadHint':
+    'Die Formate entstehen gleich nach dem Hochladen, der Download geht später ohne Wartezeit los. Die Abspielfassung behält immer Vorrang.',
+  'transcode.downloadScheduleHint':
+    'Die Formate entstehen erst im Zeitfenster – für Anlagen, auf denen tagsüber gearbeitet wird. Ein ausdrücklich angefordertes Format läuft trotzdem sofort.',
+  'transcode.hlsTitle': 'Adaptive Wiedergabe (HLS)',
+  'transcode.hlsHint':
+    'Eine Stufenleiter aus 2160p/1080p/720p/480p, aus der der Player je nach Leitung wählt. Sie kostet einen zweiten vollen Durchlauf über das Original und entsteht deshalb als Nacharbeit – die Fassung ist vorher schon abspielbar, der Proxy genügt dafür.',
+  'transcode.whenHls': 'Wann soll die Stufenleiter gerechnet werden?',
+  'transcode.hlsOff': 'Nicht rechnen',
+  'transcode.hlsUpload': 'Direkt nach dem Upload',
+  'transcode.hlsOffHint': 'Der Player nimmt die Abspielfassung. Für die meisten Anlagen genügt das.',
+  'transcode.hlsUploadHint': 'Die Stufenleiter entsteht als Nacharbeit, sobald die Abspielfassung steht.',
+  'transcode.hlsScheduleHint':
+    'Die Stufenleiter entsteht erst im Zeitfenster. Bis dahin spielt der Player die Abspielfassung – zu sehen ist der Unterschied nur bei schmaler Leitung.',
+  'transcode.fromEnvHint':
+    'Steht gerade auf dem Wert aus {var} in der {file}. Sobald hier gespeichert wird, gilt diese Einstellung.',
+  'transcode.proxyTitle': 'Abspielfassung',
+  'transcode.proxyHint':
+    'Der 1080p-Proxy, den jeder im Browser zu sehen bekommt. Er entsteht immer sofort nach dem Hochladen und hat vor aller Nacharbeit Vorrang – deshalb steht hier kein Zeitplan.',
+  'transcode.proxyWarn':
+    'Diese Werte am besten so lassen. Sie bestimmen, was jeder im Browser zu sehen bekommt – und was bereits verarbeitet wurde, ändert sich rückwirkend nicht mit.',
+  'transcode.appliesNextJob': 'Änderungen greifen ab dem nächsten Auftrag – ein Neustart ist nicht nötig.',
+  'transcode.windowFrom': 'Ab',
+  'transcode.windowTo': 'bis',
+  'transcode.windowHint':
+    'Ein Beginn hinter dem Ende meint die Nacht, etwa 22:00 bis 06:00. Gerechnet wird in der Ortszeit des Containers.',
+  'transcode.windowIncomplete': 'Beide Zeiten angeben – oder beide leer lassen.',
+  'transcode.deleteConfirm':
+    '„{name}" löschen?\n\nSchon erzeugte Dateien dieses Formats werden mit entfernt. Wer das Format nur aus der Auswahl nehmen will, schaltet es stattdessen aus.',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

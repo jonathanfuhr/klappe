@@ -851,4 +851,72 @@ export const en: Record<MessageKey, Message> = {
   'smtp.sendTestDisabled': 'Save and activate first',
   'smtp.testSent': 'Test email sent to {email}.',
   'smtp.testFailed': 'Sending did not work.',
+
+  'transcode.subtitle':
+    'What the server produces after an upload: the download formats, optionally an adaptive ladder, and the playback version everyone sees in the browser.',
+  'transcode.saved': 'Saved. Takes effect from the next job – no restart needed.',
+  'transcode.downloadTitle': 'Download in several formats',
+  'transcode.downloadHint':
+    'When this is on, the download button opens a window with this selection. If a version does not exist yet it is created on click – with a progress bar. The original is always first in that list.',
+  'transcode.offerFormats': 'Offer a choice of formats',
+  'transcode.colShortEdge': 'Short edge',
+  'transcode.colBitrate': 'Bitrate',
+  'transcode.colQuality': 'Quality',
+  'transcode.colContainer': 'Container',
+  'transcode.colOffered': 'Offered',
+  'transcode.formatNameLabel': 'Name of the format',
+  'transcode.shortEdgeLabel': 'Short edge in pixels',
+  'transcode.bitrateLabel': 'Bitrate in kbit/s',
+  'transcode.qualityLabel': 'Quality preset',
+  'transcode.offerThisFormat': 'Offer this format',
+  'transcode.noFormats': 'No format created yet.',
+  'transcode.newNamePlaceholder': 'e.g. 720p – preview',
+  'transcode.newNameHint': 'The client sees this name in the download window.',
+  'transcode.shortEdgeHint':
+    '1080 means 1920×1080 in landscape and 1080×1920 in portrait. Nothing is ever upscaled.',
+  'transcode.videoBitrate': 'Video bitrate (kbit/s)',
+  'transcode.audioBitrate': 'Audio bitrate (kbit/s)',
+  'transcode.presetHint':
+    'Slower means a smaller file at the same picture – and more computing time.',
+  'transcode.createFormat': 'Create format',
+  'transcode.addFormat': 'Add format …',
+  'transcode.finalOnly': 'Only offer several formats for final versions',
+  'transcode.finalOnlyHint':
+    'For interim versions the original then remains. If the final-version tick is set later, it starts at exactly that point.',
+  'transcode.whenDownload': 'When should the formats be computed?',
+  'transcode.timingOnDemand': 'Only on download',
+  'transcode.timingUpload': 'Right on upload',
+  'transcode.timingSchedule': 'On a schedule',
+  'transcode.downloadOnDemandHint':
+    'Nothing is produced in advance. Whoever requests a format waits for it once – afterwards it is ready.',
+  'transcode.downloadUploadHint':
+    'The formats are produced right after the upload, so the download starts without waiting later. The playback version always keeps priority.',
+  'transcode.downloadScheduleHint':
+    'The formats are only produced within the time window – for systems that are in use during the day. A format requested explicitly still runs immediately.',
+  'transcode.hlsTitle': 'Adaptive playback (HLS)',
+  'transcode.hlsHint':
+    'A ladder of 2160p/1080p/720p/480p from which the player picks according to the connection. It costs a second full pass over the original and is therefore produced as follow-up work – the version is already playable before that, the proxy is enough.',
+  'transcode.whenHls': 'When should the ladder be computed?',
+  'transcode.hlsOff': 'Do not compute',
+  'transcode.hlsUpload': 'Right after the upload',
+  'transcode.hlsOffHint': 'The player takes the playback version. That is enough for most systems.',
+  'transcode.hlsUploadHint':
+    'The ladder is produced as follow-up work as soon as the playback version is ready.',
+  'transcode.hlsScheduleHint':
+    'The ladder is only produced within the time window. Until then the player plays the playback version – the difference only shows on a narrow connection.',
+  'transcode.fromEnvHint':
+    'Currently set to the value of {var} in the {file}. As soon as you save here, this setting applies.',
+  'transcode.proxyTitle': 'Playback version',
+  'transcode.proxyHint':
+    'The 1080p proxy everyone sees in the browser. It is always produced right after the upload and takes priority over all follow-up work – which is why there is no schedule here.',
+  'transcode.proxyWarn':
+    'Best to leave these values as they are. They decide what everyone sees in the browser – and anything already processed does not change retroactively.',
+  'transcode.appliesNextJob': 'Changes take effect from the next job – a restart is not needed.',
+  'transcode.windowFrom': 'From',
+  'transcode.windowTo': 'to',
+  'transcode.windowHint':
+    'A start after the end means overnight, for instance 22:00 to 06:00. Computed in the container’s local time.',
+  'transcode.windowIncomplete': 'Give both times – or leave both empty.',
+  'transcode.deleteConfirm':
+    'Delete “{name}”?\n\nFiles already produced in this format are removed with it. If you only want to take the format out of the selection, switch it off instead.',
 };
