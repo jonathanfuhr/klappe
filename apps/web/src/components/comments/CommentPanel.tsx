@@ -183,8 +183,8 @@ export function CommentPanel({
 
             <div className="toolbar" style={{ gap: 10 }}>
               {comment.annotation ? (
-                <span className="comment__pen" title="Enthält eine Zeichnung auf dem Bild">
-                  ✎ Zeichnung
+                <span className="comment__pen" title={t('comments.hasAnnotationTitle')}>
+                  {t('comments.annotationBadge')}
                 </span>
               ) : null}
               {comment.editedAt ? (

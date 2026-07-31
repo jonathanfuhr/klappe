@@ -20,6 +20,7 @@ import {
   useState,
 } from 'react';
 import { api } from './api';
+import { useT } from './i18n';
 import { type UploadHandle, uploadProjectFile, uploadVersionFile } from './upload';
 
 export type UploadTarget = 'video' | 'project-file';
@@ -119,6 +120,7 @@ function todayIso(): string {
  * wieder öffnen, ohne dass etwas abbricht.
  */
 export function UploadsProvider({ children }: { children: ReactNode }) {
+  const t = useT();
   const [jobs, setJobs] = useState<UploadJob[]>([]);
   /**
    * `start` entsteht weiter unten, der Auto-Start braucht es aber schon hier.
@@ -153,11 +155,11 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
 
       const hints: string[] = [];
       if (!input.projectId && projectHint) {
-        hints.push(`Projekt anhand von „${projectHint.matched.join(', ')}“ vorgeschlagen`);
+        hints.push(t('upload.hintProject', { words: projectHint.matched.join(', ') }));
       }
-      if (!input.videoId && videoId) hints.push('als neue Fassung eines vorhandenen Videos erkannt');
+      if (!input.videoId && videoId) hints.push(t('upload.hintNewVersion'));
       const version = detectVersionNumber(file.name);
-      if (version) hints.push(`Version ${version} im Dateinamen erkannt`);
+      if (version) hints.push(t('upload.hintVersion', { number: version }));
 
       return {
         id: `${Date.now()}-${index}-${file.name}`,
@@ -172,7 +174,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         detectedVersion: version,
         versionNumber: '',
         fileDate: heute,
-        hint: hints.length > 0 ? `${hints.join(' · ')} – bitte prüfen` : null,
+        hint: hints.length > 0 ? t('upload.hintCheck', { hints: hints.join(' · ') }) : null,
         state: 'wartet',
         uploadedBytes: 0,
         transcodeProgress: 0,

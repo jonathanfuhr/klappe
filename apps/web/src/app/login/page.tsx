@@ -176,6 +176,7 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
  * sonst könnte sich jeder eintragen und Post von dieser Anlage bekommen.
  */
 function GastLogin({ zurueck }: { zurueck: () => void }) {
+  const t = useT();
   const router = useRouter();
   const { refresh } = useSession();
 
@@ -192,10 +193,10 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
     try {
       await api.requestGuestLoginCode(email);
       setSchritt('code');
-      setInfo(`Wir haben einen Code an ${email} geschickt. Er gilt 15 Minuten.`);
+      setInfo(t('login.codeSent', { email }));
     } catch (requestError) {
       setError(
-        requestError instanceof Error ? requestError.message : 'Der Code ließ sich nicht verschicken.',
+        requestError instanceof Error ? requestError.message : t('login.codeSendFailed'),
       );
     } finally {
       setBusy(false);
@@ -208,16 +209,12 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
     try {
       const result = await api.verifyGuestLogin({ email, code });
       if (!(await refresh())) {
-        setError(
-          'Der Code stimmt, aber der Browser hat das Sitzungs-Cookie verworfen. ' +
-            'Das passiert, wenn SESSION_COOKIE_SECURE=1 gesetzt ist, die Seite aber ' +
-            'über http:// statt https:// aufgerufen wird.',
-        );
+        setError(t('login.guestCookieRejected'));
         return;
       }
       router.replace(result.redirectPath);
     } catch (verifyError) {
-      setError(verifyError instanceof Error ? verifyError.message : 'Der Code stimmt nicht.');
+      setError(verifyError instanceof Error ? verifyError.message : t('login.codeWrong'));
     } finally {
       setBusy(false);
     }
@@ -233,7 +230,7 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
     >
       <BrandMark />
       <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>
-        Gastzugang – für Kunden mit einer Freigabe
+        {t('login.guestSubtitle')}
       </p>
 
       {info ? (
@@ -290,11 +287,11 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
       >
         {busy
           ? schritt === 'mail'
-            ? 'Code wird geschickt …'
-            : 'Wird geprüft …'
+            ? t('login.sendingCode')
+            : t('login.checking')
           : schritt === 'mail'
-            ? 'Code anfordern'
-            : 'Anmelden'}
+            ? t('login.requestCode')
+            : t('login.signIn')}
       </button>
 
       <button
@@ -312,7 +309,7 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
           zurueck();
         }}
       >
-        Zurück
+        {t('login.back')}
       </button>
     </form>
   );

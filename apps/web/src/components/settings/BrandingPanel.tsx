@@ -53,9 +53,9 @@ export function BrandingPanel() {
     setInfo(null);
     try {
       apply(await api.updateBranding({ title, accent, companyName, companyShort }));
-      setInfo('Gespeichert.');
+      setInfo(t('common.saved'));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
@@ -67,12 +67,12 @@ export function BrandingPanel() {
     setInfo(null);
     try {
       if (file.size > MAX_LOGO_BYTES) {
-        throw new Error(`Das Logo darf höchstens ${Math.round(MAX_LOGO_BYTES / 1024)} KB haben.`);
+        throw new Error(t('branding.logoTooBig', { kb: Math.round(MAX_LOGO_BYTES / 1024) }));
       }
       apply(await api.uploadLogo(file));
-      setInfo('Logo übernommen.');
+      setInfo(t('branding.logoTaken'));
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Hochladen fehlgeschlagen.');
+      setError(uploadError instanceof Error ? uploadError.message : t('common.uploadFailed'));
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -85,9 +85,9 @@ export function BrandingPanel() {
     setInfo(null);
     try {
       apply(await api.removeLogo());
-      setInfo('Logo entfernt.');
+      setInfo(t('branding.logoRemoved'));
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Entfernen fehlgeschlagen.');
+      setError(removeError instanceof Error ? removeError.message : t('common.removeFailed'));
     } finally {
       setBusy(false);
     }
@@ -100,7 +100,7 @@ export function BrandingPanel() {
     try {
       if (file.size > MAX_FAVICON_BYTES) {
         throw new Error(
-          `Das Favicon darf höchstens ${Math.round(MAX_FAVICON_BYTES / 1024)} KB haben.`,
+          t('branding.faviconTooBig', { kb: Math.round(MAX_FAVICON_BYTES / 1024) }),
         );
       }
       /*
@@ -110,9 +110,9 @@ export function BrandingPanel() {
        * fehlenden Angabe scheitern zu lassen; die API prüft ohnehin nach.
        */
       apply(await api.uploadFavicon(file, file.type || 'image/x-icon'));
-      setInfo('Favicon übernommen.');
+      setInfo(t('branding.faviconTaken'));
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Hochladen fehlgeschlagen.');
+      setError(uploadError instanceof Error ? uploadError.message : t('common.uploadFailed'));
     } finally {
       setBusy(false);
       if (faviconRef.current) faviconRef.current.value = '';
@@ -125,9 +125,9 @@ export function BrandingPanel() {
     setInfo(null);
     try {
       apply(await api.removeFavicon());
-      setInfo('Favicon entfernt.');
+      setInfo(t('branding.faviconRemoved'));
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Entfernen fehlgeschlagen.');
+      setError(removeError instanceof Error ? removeError.message : t('common.removeFailed'));
     } finally {
       setBusy(false);
     }
@@ -140,13 +140,13 @@ export function BrandingPanel() {
     try {
       if (file.size > MAX_APP_ICON_BYTES) {
         throw new Error(
-          `Das App-Symbol darf höchstens ${Math.round(MAX_APP_ICON_BYTES / 1024)} KB haben.`,
+          t('branding.appIconTooBig', { kb: Math.round(MAX_APP_ICON_BYTES / 1024) }),
         );
       }
       apply(await api.uploadAppIcon(file));
-      setInfo('App-Symbol übernommen.');
+      setInfo(t('branding.appIconTaken'));
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Hochladen fehlgeschlagen.');
+      setError(uploadError instanceof Error ? uploadError.message : t('common.uploadFailed'));
     } finally {
       setBusy(false);
       if (appIconRef.current) appIconRef.current.value = '';
@@ -159,9 +159,9 @@ export function BrandingPanel() {
     setInfo(null);
     try {
       apply(await api.removeAppIcon());
-      setInfo('App-Symbol entfernt.');
+      setInfo(t('branding.appIconRemoved'));
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Entfernen fehlgeschlagen.');
+      setError(removeError instanceof Error ? removeError.message : t('common.removeFailed'));
     } finally {
       setBusy(false);
     }
@@ -170,8 +170,7 @@ export function BrandingPanel() {
   return (
     <>
       <p className="page__subtitle" style={{ marginTop: 0 }}>
-        Titel, Logo und Farbe gelten überall – auch auf der Anmeldeseite, im Gastzugang und in jeder
-        E-Mail.
+        {t('branding.subtitle')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -191,7 +190,7 @@ export function BrandingPanel() {
       >
         <div className="field">
           <label className="field__label" htmlFor="brand-title">
-            Titel
+            {t('branding.title')}
           </label>
           <input
             id="brand-title"
@@ -200,7 +199,7 @@ export function BrandingPanel() {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
           />
-          <p className="hint">Steht im Kopf, im Browser-Tab und als Absenderzeile in den Mails.</p>
+          <p className="hint">{t('branding.titleHint')}</p>
         </div>
 
         {/* Sprache des Workspace (Phase 26) – wirkt sofort, nicht erst mit
@@ -238,42 +237,40 @@ export function BrandingPanel() {
         <div className="grid-two">
           <div className="field">
             <label className="field__label" htmlFor="company-name">
-              Firmenname
+              {t('branding.companyName')}
             </label>
             <input
               id="company-name"
               className="input"
               maxLength={MAX_COMPANY_NAME_LENGTH}
-              placeholder="z. B. Beispiel Medien GmbH"
+              placeholder={t('branding.companyPlaceholder')}
               value={companyName}
               onChange={(event) => setCompanyName(event.target.value)}
             />
-            <p className="hint">Das Haus, dem dieser Workspace gehört.</p>
+            <p className="hint">{t('branding.companyHint')}</p>
           </div>
 
           <div className="field">
             <label className="field__label" htmlFor="company-short">
-              Kürzel hinter den Benutzernamen
+              {t('branding.companyShort')}
             </label>
             <input
               id="company-short"
               className="input"
               maxLength={MAX_COMPANY_SHORT_LENGTH}
-              placeholder="z. B. BSP"
+              placeholder={t('branding.companyShortPlaceholder')}
               value={companyShort}
               onChange={(event) => setCompanyShort(event.target.value)}
             />
             <p className="hint">
-              Steht in Klammern hinter jedem Namen aus dem eigenen Team – an einem Kommentar ist
-              damit zu sehen, wer von welcher Seite schreibt. Gäste bekommen keines. Leer lassen
-              schaltet es ab.
+              {t('branding.companyShortHint')}
             </p>
           </div>
         </div>
 
         <div className="field">
           <label className="field__label" htmlFor="brand-accent">
-            Akzentfarbe
+            {t('branding.accent')}
           </label>
           <div className="toolbar">
             <input
@@ -288,42 +285,42 @@ export function BrandingPanel() {
               style={{ width: 130 }}
               value={accent}
               onChange={(event) => setAccent(event.target.value)}
-              aria-label="Akzentfarbe als Hex-Wert"
+              aria-label={t('branding.accentHex')}
             />
             <button
               type="button"
               className="button button--ghost"
               onClick={() => setAccent(DEFAULT_BRAND_ACCENT)}
             >
-              Zurücksetzen
+              {t('branding.reset')}
             </button>
           </div>
           <p className="hint">
-            Hover-Ton und Schriftfarbe darauf werden berechnet – eine Farbe genügt.
+            {t('branding.accentHint')}
           </p>
         </div>
 
         <div className="field">
-          <span className="field__label">Vorschau</span>
+          <span className="field__label">{t('branding.preview')}</span>
           <div className="brandpreview">
-            <span className="brandpreview__mark">Beispiel</span>
+            <span className="brandpreview__mark">{t('branding.previewMark')}</span>
             <button type="button" className="button button--primary">
-              Freigabe erstellen
+              {t('branding.previewButton')}
             </button>
-            <span className="badge badge--ready">bereit</span>
+            <span className="badge badge--ready">{t('branding.previewBadge')}</span>
           </div>
         </div>
 
         <div className="field">
-          <span className="field__label">Logo</span>
+          <span className="field__label">{t('branding.logo')}</span>
           <div className="toolbar">
             {branding.logoUrl ? (
               // Bewusst als <img>: ein SVG-Logo führt so keine Skripte aus.
               // eslint-disable-next-line @next/next/no-img-element
-              <img className="brandpreview__logo" src={branding.logoUrl} alt="Aktuelles Logo" />
+              <img className="brandpreview__logo" src={branding.logoUrl} alt={t('branding.currentLogo')} />
             ) : (
               <span className="faint" style={{ fontSize: 13 }}>
-                Noch kein Logo hinterlegt.
+                {t('branding.noLogo')}
               </span>
             )}
             <div className="shell__spacer" />
@@ -343,7 +340,7 @@ export function BrandingPanel() {
               disabled={busy}
               onClick={() => fileRef.current?.click()}
             >
-              {branding.logoUrl ? 'Logo ersetzen' : 'Logo hochladen'}
+              {branding.logoUrl ? t('branding.replaceLogo') : t('branding.uploadLogo')}
             </button>
             {branding.logoUrl ? (
               <button
@@ -357,8 +354,7 @@ export function BrandingPanel() {
             ) : null}
           </div>
           <p className="hint">
-            PNG, JPEG, WebP oder SVG, höchstens {Math.round(MAX_LOGO_BYTES / 1024)} KB. Es steht im
-            Kopf neben dem Titel, wird also in der Höhe auf 22 Pixel gebracht.
+            {t('branding.logoHint', { kb: Math.round(MAX_LOGO_BYTES / 1024) })}
           </p>
         </div>
 
@@ -374,20 +370,20 @@ export function BrandingPanel() {
          * hinterher zurechtbiegt.
          */}
         <div className="field">
-          <span className="field__label">Symbol im Browser-Tab (Favicon)</span>
+          <span className="field__label">{t('branding.favicon')}</span>
           <div className="toolbar">
             {branding.faviconUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={branding.faviconUrl}
-                alt="Aktuelles Tab-Symbol"
+                alt={t('branding.currentFavicon')}
                 width={32}
                 height={32}
                 style={{ borderRadius: 4 }}
               />
             ) : (
               <span className="faint" style={{ fontSize: 13 }}>
-                Noch keines hinterlegt – es gilt das Klappe-Zeichen.
+                {t('branding.noFavicon')}
               </span>
             )}
             <div className="shell__spacer" />
@@ -407,7 +403,7 @@ export function BrandingPanel() {
               disabled={busy}
               onClick={() => faviconRef.current?.click()}
             >
-              {branding.faviconUrl ? 'Favicon ersetzen' : 'Favicon hochladen'}
+              {branding.faviconUrl ? t('branding.replaceFavicon') : t('branding.uploadFavicon')}
             </button>
             {branding.faviconUrl ? (
               <button
@@ -421,30 +417,30 @@ export function BrandingPanel() {
             ) : null}
           </div>
           <p className="hint">
-            Eine fertige <strong>.ico</strong>-Datei, höchstens{' '}
-            {Math.round(MAX_FAVICON_BYTES / 1024)} KB.{' '}
-            <strong>Empfohlen: {FAVICON_RECOMMENDED_SIZES.join(', ')} Pixel in einer Datei</strong>{' '}
-            – eine .ico kann mehrere Größen zugleich enthalten, und der Browser nimmt sich die
-            passende. Quadratisch und schlicht wirkt am besten; ein Schriftzug ist bei 16 Pixeln
-            nicht mehr zu lesen. Erzeugen lässt sich so eine Datei mit jedem Favicon-Generator.
+            {t('branding.faviconHintStart')} <strong>.ico</strong>
+            {t('branding.faviconHintSize', { kb: Math.round(MAX_FAVICON_BYTES / 1024) })}{' '}
+            <strong>
+              {t('branding.faviconRecommended', { sizes: FAVICON_RECOMMENDED_SIZES.join(', ') })}
+            </strong>{' '}
+            {t('branding.faviconHintEnd')}
           </p>
         </div>
 
         <div className="field">
-          <span className="field__label">App-Symbol für den Startbildschirm</span>
+          <span className="field__label">{t('branding.appIcon')}</span>
           <div className="toolbar">
             {branding.appIconUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={branding.appIconUrl}
-                alt="Aktuelles App-Symbol"
+                alt={t('branding.currentAppIcon')}
                 width={44}
                 height={44}
                 style={{ borderRadius: 10, background: 'var(--klappe-surface-raised)' }}
               />
             ) : (
               <span className="faint" style={{ fontSize: 13 }}>
-                Noch keines hinterlegt.
+                {t('branding.noAppIcon')}
               </span>
             )}
             <div className="shell__spacer" />
@@ -464,7 +460,7 @@ export function BrandingPanel() {
               disabled={busy}
               onClick={() => appIconRef.current?.click()}
             >
-              {branding.appIconUrl ? 'App-Symbol ersetzen' : 'App-Symbol hochladen'}
+              {branding.appIconUrl ? t('branding.replaceAppIcon') : t('branding.uploadAppIcon')}
             </button>
             {branding.appIconUrl ? (
               <button
@@ -478,20 +474,17 @@ export function BrandingPanel() {
             ) : null}
           </div>
           <p className="hint">
-            Ein <strong>PNG</strong>, höchstens {Math.round(MAX_APP_ICON_BYTES / 1024)} KB.{' '}
-            <strong>
-              Empfohlen: quadratisch, {APP_ICON_SIZE}×{APP_ICON_SIZE} Pixel
-            </strong>{' '}
-            – daraus rechnen iOS und Android alle kleineren Größen selbst. Es erscheint, wenn
-            jemand Klappe über „Zum Home-Bildschirm" ablegt; ein SVG nimmt iOS dafür nicht an. Der
-            Rand wird auf dem iPhone rund beschnitten, das Motiv sollte also etwas Luft haben.
+            {t('branding.appIconHintStart')} <strong>PNG</strong>
+            {t('branding.appIconHintSize', { kb: Math.round(MAX_APP_ICON_BYTES / 1024) })}{' '}
+            <strong>{t('branding.appIconRecommended', { size: APP_ICON_SIZE })}</strong>{' '}
+            {t('branding.appIconHintEnd')}
           </p>
         </div>
 
         <div className="toolbar" style={{ marginTop: 18 }}>
           <div className="shell__spacer" />
           <button type="submit" className="button button--primary" disabled={busy}>
-            Speichern
+            {t('common.save')}
           </button>
         </div>
       </form>

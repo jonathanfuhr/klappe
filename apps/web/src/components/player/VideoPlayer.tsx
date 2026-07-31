@@ -553,7 +553,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
               type="button"
               className="pentools__width"
               data-active={entry === penWidth}
-              aria-label={`Strichstärke ${index + 1}`}
+              aria-label={t('player.strokeWidth', { number: index + 1 })}
               onClick={() => setPenWidth(entry)}
             >
               <span style={{ height: 2 + index * 3 }} />
