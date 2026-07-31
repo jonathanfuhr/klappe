@@ -811,4 +811,44 @@ export const en: Record<MessageKey, Message> = {
   'backup.restoreFailed': 'Restore failed.',
   'backup.restoreDone':
     'Restored from “{file}”. The previous state is available as “{previous}”. Please restart the stack.',
+
+  'smtp.subtitle':
+    'Needed for guests’ sign-in codes and for notifications about comments, mentions and client uploads.',
+  'smtp.undelivered': 'Not delivered',
+  'smtp.clearList': 'Clear list',
+  'smtp.attempts': '{count} attempts',
+  'smtp.acknowledge': 'Dismiss',
+  'smtp.failureHint': 'A successful send to the same address clears the entry by itself.',
+  'smtp.enabled': 'Delivery active',
+  'smtp.providerPreset': 'Provider preset',
+  'smtp.host': 'Server',
+  'smtp.port': 'Port',
+  'smtp.secure': 'Implicit TLS (port 465). Leave off for 587 – STARTTLS applies there.',
+  'smtp.authMethod': 'Authentication',
+  'smtp.authPassword': 'Username and password',
+  'smtp.authOauth': 'OAuth2 (Microsoft 365, app registration)',
+  'smtp.oauthHintStart':
+    'Needed as soon as Microsoft 365 enforces multi-factor sign-in – the server then rejects a password, and an app password no longer helps reliably either. The app registration in Entra ID needs the Microsoft Graph application permission',
+  'smtp.oauthHintMiddle': 'with admin consent plus a',
+  'smtp.oauthHintEnd':
+    ' created via Exchange Online PowerShell that restricts the app to the sending mailbox.',
+  'smtp.sendingMailbox': 'Sending mailbox',
+  'smtp.clientSecret': 'Client secret',
+  'smtp.secretKeepHint': 'Leaving it empty keeps the stored secret.',
+  'smtp.username': 'Username',
+  'smtp.passwordKeepHint': 'Leaving it empty keeps the stored password.',
+  'smtp.fromName': 'Sender name',
+  'smtp.fromEmail': 'Sender address',
+  'smtp.spfHint':
+    'So that codes and notifications do not end up in spam, the sender domain should have SPF and DKIM set.',
+  'smtp.digestTitle': 'Digest emails',
+  'smtp.digestLabel': 'Quiet period in minutes',
+  'smtp.digestHintStart':
+    'Anyone reviewing a video rarely leaves just one note. Instead of sending each one straight away, Klappe waits until no new comment has arrived for that many minutes and then sends one email with all of them – per recipient and video.',
+  'smtp.digestHintEnd':
+    'sends immediately, that is one email per comment. Mentions also appear in the subject of a digest.',
+  'smtp.sendTest': 'Send test email',
+  'smtp.sendTestDisabled': 'Save and activate first',
+  'smtp.testSent': 'Test email sent to {email}.',
+  'smtp.testFailed': 'Sending did not work.',
 };

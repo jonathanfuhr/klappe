@@ -813,6 +813,45 @@ export const de = {
   'backup.restoreFailed': 'Wiederherstellen fehlgeschlagen.',
   'backup.restoreDone':
     'Wiederhergestellt aus „{file}". Der Stand von vorher liegt als „{previous}" bereit. Bitte den Stapel neu starten.',
+
+  'smtp.subtitle':
+    'Nötig für Anmeldecodes der Gäste und für Benachrichtigungen zu Kommentaren, Erwähnungen und Kunden-Uploads.',
+  'smtp.undelivered': 'Nicht zugestellt',
+  'smtp.clearList': 'Liste leeren',
+  'smtp.attempts': '{count} Versuche',
+  'smtp.acknowledge': 'Abhaken',
+  'smtp.failureHint': 'Ein geglückter Versand an dieselbe Adresse räumt den Eintrag von selbst weg.',
+  'smtp.enabled': 'Versand aktiv',
+  'smtp.providerPreset': 'Anbieter-Vorlage',
+  'smtp.host': 'Server',
+  'smtp.port': 'Port',
+  'smtp.secure': 'Implizites TLS (Port 465). Bei 587 aus lassen – dort greift STARTTLS.',
+  'smtp.authMethod': 'Authentifizierung',
+  'smtp.authPassword': 'Benutzername und Passwort',
+  'smtp.authOauth': 'OAuth2 (Microsoft 365, App-Registrierung)',
+  'smtp.oauthHintStart':
+    'Nötig, sobald Microsoft 365 Mehrfaktor-Anmeldung erzwingt – dann lehnt der Server ein Passwort ab, auch ein App-Passwort hilft nicht mehr zuverlässig. Die App-Registrierung in Entra ID braucht die Microsoft-Graph-Anwendungsberechtigung',
+  'smtp.oauthHintMiddle': 'mit Admin-Zustimmung sowie eine per Exchange-Online-PowerShell angelegte',
+  'smtp.oauthHintEnd': ', die die App auf das Absender-Postfach einschränkt.',
+  'smtp.sendingMailbox': 'Absendendes Postfach',
+  'smtp.clientSecret': 'Client-Secret',
+  'smtp.secretKeepHint': 'Leer lassen behält das gespeicherte Secret.',
+  'smtp.username': 'Benutzername',
+  'smtp.passwordKeepHint': 'Leer lassen behält das gespeicherte Passwort.',
+  'smtp.fromName': 'Absender-Name',
+  'smtp.fromEmail': 'Absender-Adresse',
+  'smtp.spfHint':
+    'Damit Codes und Benachrichtigungen nicht im Spam landen, sollte die Absender-Domain SPF und DKIM gesetzt haben.',
+  'smtp.digestTitle': 'Sammelmails',
+  'smtp.digestLabel': 'Ruhezeit in Minuten',
+  'smtp.digestHintStart':
+    'Wer ein Video durchsieht, hinterlässt selten nur eine Anmerkung. Statt jede sofort zu verschicken, wartet Klappe, bis so viele Minuten lang kein neuer Kommentar mehr kam, und schickt dann eine Mail mit allen – je Empfänger und Video.',
+  'smtp.digestHintEnd':
+    'verschickt sofort, also eine Mail je Kommentar. Erwähnungen stehen auch in der Sammelmail im Betreff.',
+  'smtp.sendTest': 'Testmail senden',
+  'smtp.sendTestDisabled': 'Erst speichern und aktivieren',
+  'smtp.testSent': 'Testmail an {email} verschickt.',
+  'smtp.testFailed': 'Der Versand hat nicht geklappt.',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */
