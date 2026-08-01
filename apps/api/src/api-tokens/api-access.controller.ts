@@ -1,5 +1,5 @@
 /**
- * Der Admin-Bereich zum externen Zugriff (Phase 25): der Schalter selbst und
+ * Der Admin-Bereich zum externen Zugriff (Phase 27): der Schalter selbst und
  * die Liste aller verbundenen Geräte des Workspace.
  *
  * Liegt bewusst hier und nicht im `SettingsController`: Der Schalter allein

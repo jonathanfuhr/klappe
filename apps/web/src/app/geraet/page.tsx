@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 
 /**
- * Ein Gerät mit dem eigenen Konto verbinden (Phase 25).
+ * Ein Gerät mit dem eigenen Konto verbinden (Phase 27).
  *
  * Hierher schickt ein Plugin seinen Benutzer: „Öffne klappe.example.de/geraet
  * und gib KHFP-3RTM ein.“ Wer dem Link folgt, ist meist schon angemeldet –

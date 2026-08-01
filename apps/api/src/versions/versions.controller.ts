@@ -9,7 +9,7 @@ import {
   Patch,
 } from '@nestjs/common';
 import type { VersionDto } from '@klappe/shared';
-import { IsBoolean, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import { AccessService } from '../access/access.service';
 import { CurrentUser, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
@@ -37,6 +37,14 @@ class UpdateVersionDto {
   @IsOptional()
   @IsBoolean()
   isFinal?: boolean;
+
+  /**
+   * Neue Nummer für diese Fassung (Phase 25) – zum Begradigen von
+   * Fehleingaben. Geprüft wird im Dienst gegen die übrigen Fassungen.
+   */
+  @IsOptional()
+  @IsNumber()
+  versionNumber?: number;
 }
 
 @Controller('v1/versions')
@@ -72,6 +80,7 @@ export class VersionsController {
         downloadEnabled: dto.downloadEnabled,
         fileDate: dto.fileDate,
         isFinal: dto.isFinal,
+        versionNumber: dto.versionNumber,
       },
       scope,
     );

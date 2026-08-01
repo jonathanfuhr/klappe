@@ -880,14 +880,14 @@ export interface EmbedLinkDto {
   createdAt: string;
 }
 
-// ---------- Externe Anbindung (Phase 25) ----------
+// ---------- Externe Anbindung (Phase 27) ----------
 
 /** Wie ein Token entstanden ist – nur zur Anzeige, für die Rechte belanglos. */
 export const API_TOKEN_ORIGINS = ['device', 'manual'] as const;
 export type ApiTokenOrigin = (typeof API_TOKEN_ORIGINS)[number];
 
 /**
- * Ein verbundenes Gerät (Phase 25).
+ * Ein verbundenes Gerät (Phase 27).
  *
  * Der Token selbst steht hier nie – er existiert genau einmal, im Moment des
  * Verbindens. Was bleibt, ist `masked`: genug, um ein Gerät in der Liste
@@ -942,7 +942,7 @@ export interface DeviceTokenDto {
   user: Pick<UserDto, 'id' | 'name' | 'email' | 'role'> | null;
 }
 
-/** Der Admin-Schalter für den externen Zugriff (Phase 25). */
+/** Der Admin-Schalter für den externen Zugriff (Phase 27). */
 export interface ApiAccessSettingsDto {
   /**
    * Aus heißt: `Authorization: Bearer …` wird gar nicht erst geprüft – weder

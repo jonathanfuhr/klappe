@@ -736,7 +736,7 @@ export const appSettings = pgTable('app_settings', {
   oidcButtonLabel: text('oidc_button_label'),
 
   /**
-   * Externer API-Zugriff (Phase 25). Ab Werk **aus**: Wer Klappe nur im
+   * Externer API-Zugriff (Phase 27). Ab Werk **aus**: Wer Klappe nur im
    * Browser benutzt, soll keine zweite Tür offen haben, von der er nichts
    * weiß. Aus heißt, dass `Authorization: Bearer …` gar nicht erst geprüft
    * wird – weder ein API-Token noch ein Sitzungs-JWT im Header. Die Anmeldung
@@ -1039,7 +1039,7 @@ export const pendingNotifications = pgTable(
 );
 
 /**
- * API-Tokens für externe Anbindungen (Phase 25).
+ * API-Tokens für externe Anbindungen (Phase 27).
  *
  * Ein Token gehört immer zu **einem** Konto und trägt genau dessen Rechte –
  * ein Plugin sieht also das, was die Person auch im Browser sähe, nicht mehr.
@@ -1084,7 +1084,7 @@ export const apiTokens = pgTable(
 );
 
 /**
- * Wartende Gerätekopplungen (Phase 25).
+ * Wartende Gerätekopplungen (Phase 27).
  *
  * Der Ablauf, den ein Plugin durchläuft: Es meldet sich an dieser Stelle an,
  * zeigt den kurzen Benutzercode auf dem Schirm, und ein angemeldeter Mensch

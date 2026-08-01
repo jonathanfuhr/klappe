@@ -81,8 +81,10 @@ kaskadiert auf die Zuordnungen. Der globale Schalter dazu ist
 Eine hochgeladene Fassung. **Kommentare hängen an der Version, nicht am
 Video** – ein Kommentar auf Frame 812 meint immer eine bestimmte Fassung.
 
-Die Nummer (`version_number`) ist pro Video eindeutig und fortlaufend ab 1;
-der eindeutige Index fängt zwei gleichzeitige Uploads ab.
+Die Nummer (`version_number`) ist pro Video eindeutig und beim Hochladen
+fortlaufend ab 1; der eindeutige Index fängt zwei gleichzeitige Uploads ab.
+Nachträglich lässt sie sich ändern (Phase 25) – dabei ist jede freie Nummer
+erlaubt, nur die Einmaligkeit bleibt.
 
 Statuskette:
 
@@ -203,7 +205,7 @@ abgewiesen – die sollen sich anmelden.
 
 ## api_tokens
 
-Ein verbundenes Gerät (Phase 25): Plugin, Skript, später eine App. Gehört
+Ein verbundenes Gerät (Phase 27): Plugin, Skript, später eine App. Gehört
 immer zu genau **einem** Konto und trägt dessen Rechte – einen workspace-weiten
 Generalschlüssel gibt es bewusst nicht.
 
@@ -222,7 +224,7 @@ frisch.
 
 ## device_authorizations
 
-Eine wartende Gerätekopplung (Phase 25) – der Weg, auf dem ein Plugin an einen
+Eine wartende Gerätekopplung (Phase 27) – der Weg, auf dem ein Plugin an einen
 Token kommt, ohne je ein Passwort zu sehen.
 
 | Spalte | Anmerkung |
@@ -299,7 +301,7 @@ Workspace-weite Einstellungen – genau eine Zeile. Drei Gruppen:
   Client-Secret liegt wie das SMTP-Passwort verschlüsselt darin.
   `oidc_auto_provision` steht standardmäßig auf `false` – ohne diesen Schalter
   kommt über M365 nur herein, wer hier schon ein Konto hat.
-- **Externer API-Zugriff** (Phase 25): `api_access_enabled`, ab Werk `false`.
+- **Externer API-Zugriff** (Phase 27): `api_access_enabled`, ab Werk `false`.
   Steht der Schalter auf aus, prüft der Wächter den `Authorization`-Header
   gar nicht erst – weder ein API-Token noch ein Sitzungs-JWT. Das Cookie
   bleibt unberührt, die Oberfläche im Browser merkt davon nichts.

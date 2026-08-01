@@ -1,5 +1,5 @@
 /**
- * Gerätekopplung: ein Plugin mit einem Konto verbinden (Phase 25).
+ * Gerätekopplung: ein Plugin mit einem Konto verbinden (Phase 27).
  *
  * Der Ablauf ist der eines Fernsehers, den man mit einem Streamingdienst
  * verbindet – und aus demselben Grund so gebaut: Auf dem Gerät soll kein

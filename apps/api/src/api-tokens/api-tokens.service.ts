@@ -1,5 +1,5 @@
 /**
- * API-Tokens: ausstellen, prüfen, widerrufen (Phase 25).
+ * API-Tokens: ausstellen, prüfen, widerrufen (Phase 27).
  *
  * Ein Token vertritt eine Person, keine Anwendung. Er trägt weder eigene
  * Rechte noch einen eigenen Namen an Kommentaren – wer über ein Plugin

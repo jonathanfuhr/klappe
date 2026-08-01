@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { formatDateTime, formatRelative } from '@/lib/format';
 
 /**
- * Die Liste der verbundenen Geräte (Phase 25).
+ * Die Liste der verbundenen Geräte (Phase 27).
  *
  * Dieselbe Darstellung an zwei Stellen, mit einem einzigen Unterschied:
  *

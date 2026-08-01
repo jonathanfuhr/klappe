@@ -7,7 +7,7 @@ geht `Authorization: Bearer <token>`.
 Der Weg über den Header ist der für **externe Anbindungen** – Plugins, Skripte,
 später Desktop- und Telefon-Apps. Er funktioniert nur, wenn der Betreiber ihn
 freigeschaltet hat, und die Tokens dafür entstehen über die Gerätekopplung:
-siehe [Externe Anbindung](#externe-anbindung-phase-25). Wer ein Plugin bauen
+siehe [Externe Anbindung](#externe-anbindung-phase-27). Wer ein Plugin bauen
 will, findet den ganzen Ablauf mit Beispielen in
 [`plugin-entwicklung.md`](plugin-entwicklung.md).
 
@@ -54,9 +54,11 @@ ein eigenes Konto.
 | `GET /v1/videos/:id/versions` | alle Versionen, neueste zuerst |
 | `GET/PATCH/DELETE /v1/versions/:id` | einzeln; die letzte Version eines Videos lässt sich nicht löschen |
 
-`PATCH /v1/versions/:id` nimmt `{ label?, downloadEnabled?, fileDate? }`.
-`fileDate` steht als `JJJJ-MM-TT` und bestimmt das `JJMMTT` im
-Download-Dateinamen.
+`PATCH /v1/versions/:id` nimmt `{ label?, downloadEnabled?, fileDate?,
+isFinal?, versionNumber? }`. `fileDate` steht als `JJJJ-MM-TT` und bestimmt
+das `JJMMTT` im Download-Dateinamen. `versionNumber` (Phase 25) gibt der
+Fassung eine neue Nummer: jede freie Nummer über 0 ist erlaubt – die
+Aufwärts-Regel gilt nur beim Anlegen; eine vergebene Nummer ergibt `409`.
 
 Gäste sehen nur, was ihr Freigabe-Link hergibt. Fehlt der Zugriff, antwortet
 die API mit **404** statt 403 – ein 403 würde verraten, dass es die ID gibt.
@@ -442,7 +444,7 @@ nennt (`…_v1_720p25.mp4`), nicht die des Originals.
 Zeiten stehen als `HH:MM`; ein leerer String löscht das Zeitfenster. Beide
 Zeiten müssen gesetzt oder beide leer sein.
 
-## Externe Anbindung (Phase 25)
+## Externe Anbindung (Phase 27)
 
 Alles, was nicht der Browser ist, meldet sich mit einem **API-Token** im
 `Authorization`-Header:

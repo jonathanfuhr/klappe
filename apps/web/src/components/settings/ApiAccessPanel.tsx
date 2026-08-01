@@ -6,7 +6,7 @@ import { DeviceList } from '@/components/DeviceList';
 import { api } from '@/lib/api';
 
 /**
- * Einstellungen → API-Zugriff (Phase 25).
+ * Einstellungen → API-Zugriff (Phase 27).
  *
  * Der Schalter, nach dem im Konzept ausdrücklich gefragt wurde: Wer Klappe
  * nur im Browser benutzt, soll die Tür nach außen zulassen können. Ab Werk

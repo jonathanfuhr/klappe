@@ -52,7 +52,7 @@ export interface CleanupReport {
   pendingNotifications: number;
   /** Alte Fassungen archivierter Projekte (Phase 18). */
   archivedVersions: number;
-  /** Abgelaufene Gerätekopplungen (Phase 25). */
+  /** Abgelaufene Gerätekopplungen (Phase 27). */
   deviceAuthorizations: number;
 }
 
@@ -191,7 +191,7 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Abgelaufene Gerätekopplungen (Phase 25).
+   * Abgelaufene Gerätekopplungen (Phase 27).
    *
    * Eine Kopplung gilt zehn Minuten. Was danach übrig bleibt, ist wertlos –
    * der Klartext-Token ist beim Abholen ohnehin gelöscht worden. Dieselbe

@@ -49,7 +49,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Abgelaufene Sitzung: zurück zum Login, statt leere Seiten zu zeigen.
       if (error instanceof ApiError && error.isUnauthorized) {
         /*
-         * Mit Rückweg (Phase 25). Vorher landete jeder nach dem Anmelden auf
+         * Mit Rückweg (Phase 27). Vorher landete jeder nach dem Anmelden auf
          * der Projektliste – auch wer über einen Link mit Angaben in der
          * Adresse gekommen war. Beim Verbinden eines Geräts steht der Code
          * genau dort, und er war damit weg.

@@ -49,7 +49,7 @@ import { VideosModule } from './videos/videos.module';
     QueueModule,
     MailModule,
     // Vor `AuthModule`: Der global aktive Wächter dort greift auf den
-    // Token-Dienst zu (Phase 25).
+    // Token-Dienst zu (Phase 27).
     ApiTokensModule,
     AuthModule,
     UsersModule,

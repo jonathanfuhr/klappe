@@ -8,7 +8,7 @@ import { DeviceFlowController } from './device-flow.controller';
 import { DeviceFlowService } from './device-flow.service';
 
 /**
- * Externe Anbindung (Phase 25): API-Tokens und die Gerätekopplung.
+ * Externe Anbindung (Phase 27): API-Tokens und die Gerätekopplung.
  *
  * `ApiTokensService` wird ausgeführt, weil der global aktive `JwtAuthGuard`
  * ihn braucht – ohne diesen Export käme keine einzige Anfrage mit einem

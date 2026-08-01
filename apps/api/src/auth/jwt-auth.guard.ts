@@ -82,14 +82,14 @@ export class JwtAuthGuard implements CanActivate {
    * Wer stellt die Anfrage? Normalfall ist die Sitzung. Auf ausdrücklich
    * dafür markierten Medien-Routen gilt ersatzweise ein kurzlebiger Token in
    * `?t=` – gebunden an genau diese Fassung und genau diese Art von Datei.
-   * Seit Phase 25 kommt der API-Token externer Anbindungen dazu.
+   * Seit Phase 27 kommt der API-Token externer Anbindungen dazu.
    */
   private async identify(
     context: ExecutionContext,
     request: AuthenticatedRequest,
   ): Promise<string> {
     /*
-     * Zuerst der Weg von außen (Phase 25). Er hängt an einer Bedingung, die
+     * Zuerst der Weg von außen (Phase 27). Er hängt an einer Bedingung, die
      * es sonst nirgends gibt: Der Betreiber muss ihn freigeschaltet haben.
      * Deshalb steht die Prüfung vor allem anderen – und deshalb betrifft der
      * Schalter den **ganzen** Header, nicht nur API-Tokens: Ein Sitzungs-JWT
@@ -152,7 +152,7 @@ export class JwtAuthGuard implements CanActivate {
 
 /**
  * Sitzungs-Cookie ist der Normalfall (Browser). Der Bearer-Header trägt seit
- * Phase 25 die externen Anbindungen – API-Token oder, für Skripte, ein
+ * Phase 27 die externen Anbindungen – API-Token oder, für Skripte, ein
  * Sitzungs-JWT.
  */
 export function extractToken(request: Request, cookieName: string): string | null {

@@ -32,11 +32,22 @@ export function detectVersionNumber(filename: string): number | null {
 /** Auflösungs- und Formatschnipsel, die nicht in den Videonamen gehören. */
 const NOISE = /^(\d{3,4}p\d{0,4}|4k|uhd|hd|fullhd|prores|h264|h265|final|export|master)$/i;
 
+/** Kunde und Projekt, deren Namen nicht in den Videonamen gehören (Phase 25). */
+export interface VideoNameContext {
+  name?: string | null;
+  customer?: string | null;
+}
+
 /**
  * Vorschlag für den Videonamen: Endung, Versionskürzel, Datumsblöcke und
  * Format-Schnipsel raus, Trennzeichen zu Leerzeichen.
+ *
+ * Steht das Ziel-Projekt schon fest, fliegen auch Kunden- und Projektname aus
+ * dem Vorschlag (Phase 25): Der Download-Dateiname trägt beides ohnehin vor
+ * dem Videonamen – aus `SDK_Firmencockpit_Imagefilm_V2.mov` würde sonst
+ * `…_SDK_Firmencockpit_SDK Firmencockpit Imagefilm_v2_….mov`.
  */
-export function suggestVideoName(filename: string): string {
+export function suggestVideoName(filename: string, projekt?: VideoNameContext): string {
   const base = stripExtension(filename)
     .replace(/(?:^|[^a-z0-9])(?:version|v)[ ._-]?\d{1,3}(?![0-9])/gi, ' ')
     .replace(/(?:^|[^0-9])(\d{8}|\d{6})(?![0-9])/g, ' ')
@@ -47,7 +58,20 @@ export function suggestVideoName(filename: string): string {
     .map((word) => word.trim())
     .filter((word) => word.length > 0 && !NOISE.test(word));
 
-  const name = words.join(' ').trim();
+  // Verglichen wird wortweise über dieselbe Zerlegung wie beim Projekt-Match –
+  // Groß-/Kleinschreibung egal, sehr kurze Wörter bleiben stehen.
+  const verboten = new Set([
+    ...tokenize(projekt?.name ?? ''),
+    ...tokenize(projekt?.customer ?? ''),
+  ]);
+  const bereinigt =
+    verboten.size > 0
+      ? words.filter((word) => !verboten.has(word.toLowerCase().normalize('NFC')))
+      : words;
+
+  // Besteht der Dateiname *nur* aus Kunde und Projekt, wäre der Vorschlag
+  // leer – dann lieber der ungeputzte Name als gar keiner.
+  const name = (bereinigt.length > 0 ? bereinigt : words).join(' ').trim();
   return name || stripExtension(filename);
 }
 

@@ -252,7 +252,14 @@ export const api = {
   getVersion: (id: string) => request<VersionDto>(`/v1/versions/${id}`),
   updateVersion: (
     id: string,
-    input: { label?: string; downloadEnabled?: boolean; fileDate?: string; isFinal?: boolean },
+    input: {
+      label?: string;
+      downloadEnabled?: boolean;
+      fileDate?: string;
+      isFinal?: boolean;
+      /** Neue Nummer für diese Fassung (Phase 25) – zum Begradigen von Fehleingaben. */
+      versionNumber?: number;
+    },
   ) =>
     request<VersionDto>(`/v1/versions/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteVersion: (id: string) => request<void>(`/v1/versions/${id}`, { method: 'DELETE' }),
@@ -720,7 +727,7 @@ export const api = {
       method: 'POST',
     }),
 
-  // ---------- Externe Anbindung (Phase 25) ----------
+  // ---------- Externe Anbindung (Phase 27) ----------
 
   /** Die eigenen verbundenen Geräte – für jeden Angemeldeten, auch Gäste. */
   listDevices: () => request<ApiTokenDto[]>('/v1/geraete'),

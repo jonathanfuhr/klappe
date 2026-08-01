@@ -1,5 +1,5 @@
 /**
- * Die beiden Codes der Gerätekopplung (Phase 25).
+ * Die beiden Codes der Gerätekopplung (Phase 27).
  *
  * Beim Verbinden eines Plugins entstehen zwei sehr verschiedene Zeichenketten,
  * und die Unterschiede sind Absicht:

@@ -1,5 +1,5 @@
 /**
- * Verbundene Geräte verwalten (Phase 25).
+ * Verbundene Geräte verwalten (Phase 27).
  *
  * Zwei Sichten auf dieselbe Sache, und die Trennung ist Absicht:
  *

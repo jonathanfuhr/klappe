@@ -1,5 +1,5 @@
 /**
- * Die Endpunkte der Gerätekopplung (Phase 25).
+ * Die Endpunkte der Gerätekopplung (Phase 27).
  *
  * Drei davon sind öffentlich – sie müssen es sein, denn ein Plugin, das sich
  * gerade erst verbindet, hat noch keinen Ausweis. Geschützt sind sie durch

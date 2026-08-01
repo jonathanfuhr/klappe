@@ -1,5 +1,5 @@
 /**
- * Der Schalter „Externer API-Zugriff" (Phase 25).
+ * Der Schalter „Externer API-Zugriff" (Phase 27).
  *
  * Eine einzige Einstellung, aber mit Nebenwirkung: Der Wächter puffert ihren
  * Wert ein paar Sekunden, damit nicht jede Anfrage mit Bearer-Header eine

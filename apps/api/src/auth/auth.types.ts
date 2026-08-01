@@ -11,7 +11,7 @@ export interface RequestUser {
 export interface AuthenticatedRequest extends Request {
   user: RequestUser;
   /**
-   * Gesetzt, wenn die Anfrage über einen API-Token kam (Phase 25) – nicht
+   * Gesetzt, wenn die Anfrage über einen API-Token kam (Phase 27) – nicht
    * über den Browser. Für die Rechte macht das keinen Unterschied; die
    * Angabe steht für Protokolle und für Routen, die einer Anbindung etwas
    * verwehren wollen, das nur am Bildschirm sinnvoll ist.

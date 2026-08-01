@@ -1,5 +1,5 @@
 /**
- * Das Format der API-Tokens (Phase 25).
+ * Das Format der API-Tokens (Phase 27).
  *
  * Ein Token besteht aus zwei Teilen: einem **Merkmal**, das offen in der
  * Datenbank steht und nur zum Nachschlagen dient, und einem **Geheimnis**, von
