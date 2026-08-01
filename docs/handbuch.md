@@ -26,6 +26,7 @@ diese Software** daneben.
 - [Herunterladen](#herunterladen)
 - [Benachrichtigungen](#benachrichtigungen)
 - [Mein Konto](#mein-konto)
+- [Geräte verbinden](#geräte-verbinden)
 - [Einstellungen (Team)](#einstellungen-team)
 - [Häufige Fragen](#häufige-fragen)
 
@@ -305,6 +306,42 @@ ihr Zugang läuft über den Mail-Code.
 
 ---
 
+## Geräte verbinden
+
+Programme außerhalb des Browsers können mit Klappe arbeiten – ein Plugin im
+Schnittprogramm etwa, das Kommentare als Marker in die Timeline holt. Damit das
+geht, muss der Administrator unter *Einstellungen → API-Zugriff* den externen
+Zugriff erlaubt haben; ab Werk ist er aus.
+
+So verbindet man ein Gerät:
+
+1. Das Programm zeigt einen achtstelligen Code an, etwa `KHFP-3RTM`, dazu eine
+   Adresse.
+2. Diese Adresse im Browser öffnen (oder unter **Mein Konto → Verbundene
+   Geräte** auf *Gerät verbinden* gehen) und den Code eintragen.
+3. Es erscheint, welches Programm sich verbinden will. Bestätigen – fertig.
+   Das Programm meldet sich innerhalb weniger Sekunden von selbst.
+
+**Ein Passwort wird dabei nirgends eingetippt.** Es zählt die Anmeldung, die im
+Browser ohnehin schon steht – ob sie mit Passwort oder über Microsoft 365
+zustande kam, spielt keine Rolle.
+
+Ein verbundenes Programm bekommt **genau die eigenen Rechte**: Es sieht
+dieselben Projekte und Videos, kommentiert unter dem eigenen Namen und darf
+herunterladen und hochladen, soweit man selbst darf. Deshalb nur bestätigen,
+was man gerade selbst gestartet hat.
+
+Alle verbundenen Geräte stehen unter **Mein Konto**. *Trennen* wirkt sofort und
+trifft nur dieses eine Gerät – das Passwort bleibt unberührt, alle anderen
+Geräte laufen weiter. Wer einen Laptop verliert, trennt also genau ihn. Das
+geht ohne den Administrator; er kann seinerseits jedes Gerät im Workspace
+trennen und den externen Zugriff insgesamt wieder abschalten.
+
+Auch Gäste können Geräte verbinden. Ein solches Programm sieht dann genau das,
+was der Gast auch im Browser sieht – seine Freigaben, nicht mehr.
+
+---
+
 ## Einstellungen (Team)
 
 Team-Mitglieder und Admins finden unter **Einstellungen** unter anderem:
@@ -315,6 +352,8 @@ Team-Mitglieder und Admins finden unter **Einstellungen** unter anderem:
   Admin vorbehalten.
 - **Erscheinungsbild** – Titel, Logo und Akzentfarbe des Workspace.
 - **Anmeldung** – lokale Konten und/oder Microsoft 365.
+- **API-Zugriff** – ob Programme außerhalb des Browsers mit Klappe arbeiten
+  dürfen (ab Werk aus), und alle verbundenen Geräte des Workspace.
 - **E-Mail-Versand** – SMTP-Einrichtung, Bündel-Zeitfenster, unzustellbare
   Mails.
 - **Transcode** – welche Download-Formate angeboten werden und wann sie

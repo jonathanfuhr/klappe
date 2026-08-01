@@ -25,6 +25,7 @@ const ABSCHNITTE = [
   { id: 'downloads', label: 'Herunterladen', href: '#downloads' },
   { id: 'benachrichtigungen', label: 'Benachrichtigungen', href: '#benachrichtigungen' },
   { id: 'konto', label: 'Mein Konto', href: '#konto' },
+  { id: 'geraete', label: 'Geräte verbinden', href: '#geraete' },
   { id: 'einstellungen', label: 'Einstellungen (Team)', href: '#einstellungen' },
   { id: 'faq', label: 'Häufige Fragen', href: '#faq' },
 ] as const;
@@ -360,6 +361,53 @@ export default function HandbuchPage() {
             </p>
           </section>
 
+          <section id="geraete" className="card manual__section">
+            <h2>Geräte verbinden</h2>
+            <p>
+              Programme außerhalb des Browsers können mit Klappe arbeiten – ein Plugin im
+              Schnittprogramm etwa, das Kommentare als Marker in die Timeline holt. Damit das
+              geht, muss der Administrator unter <em>Einstellungen → API-Zugriff</em> den
+              externen Zugriff erlaubt haben; ab Werk ist er aus.
+            </p>
+            <ol>
+              <li>
+                Das Programm zeigt einen achtstelligen Code an, etwa <code>KHFP-3RTM</code>,
+                dazu eine Adresse.
+              </li>
+              <li>
+                Diese Adresse im Browser öffnen (oder unter{' '}
+                <Link href="/konto">Mein Konto</Link> auf <em>Gerät verbinden</em> gehen) und
+                den Code eintragen.
+              </li>
+              <li>
+                Es erscheint, welches Programm sich verbinden will. Bestätigen – fertig. Das
+                Programm meldet sich innerhalb weniger Sekunden von selbst.
+              </li>
+            </ol>
+            <p>
+              <strong>Ein Passwort wird dabei nirgends eingetippt.</strong> Es zählt die
+              Anmeldung, die im Browser ohnehin schon steht – ob sie mit Passwort oder über
+              Microsoft 365 zustande kam, spielt keine Rolle.
+            </p>
+            <p>
+              Ein verbundenes Programm bekommt <strong>genau die eigenen Rechte</strong>: Es
+              sieht dieselben Projekte und Videos, kommentiert unter dem eigenen Namen und darf
+              herunterladen und hochladen, soweit man selbst darf. Deshalb nur bestätigen, was
+              man gerade selbst gestartet hat.
+            </p>
+            <p>
+              Alle verbundenen Geräte stehen unter <Link href="/konto">Mein Konto</Link>.{' '}
+              <em>Trennen</em> wirkt sofort und trifft nur dieses eine Gerät – das Passwort
+              bleibt unberührt, alle anderen Geräte laufen weiter. Wer einen Laptop verliert,
+              trennt also genau ihn. Das geht ohne den Administrator; er kann seinerseits jedes
+              Gerät im Workspace trennen und den externen Zugriff insgesamt wieder abschalten.
+            </p>
+            <p>
+              Auch Gäste können Geräte verbinden. Ein solches Programm sieht dann genau das, was
+              der Gast auch im Browser sieht – seine Freigaben, nicht mehr.
+            </p>
+          </section>
+
           <section id="einstellungen" className="card manual__section">
             <h2>Einstellungen (Team)</h2>
             <p>Team-Mitglieder und Admins finden unter Einstellungen unter anderem:</p>
@@ -368,6 +416,7 @@ export default function HandbuchPage() {
               <li><strong>Benutzer</strong>, <strong>Benutzerdefinierte Felder</strong>, <strong>Projekte</strong> – dem Admin vorbehalten.</li>
               <li><strong>Erscheinungsbild</strong> – Titel, Logo und Akzentfarbe des Workspace.</li>
               <li><strong>Anmeldung</strong> – lokale Konten und/oder Microsoft 365.</li>
+              <li><strong>API-Zugriff</strong> – ob Programme außerhalb des Browsers mit Klappe arbeiten dürfen (ab Werk aus), und alle verbundenen Geräte des Workspace.</li>
               <li><strong>E-Mail-Versand</strong> – SMTP-Einrichtung, Bündel-Zeitfenster, unzustellbare Mails.</li>
               <li><strong>Transcode</strong> – welche Download-Formate angeboten und wann sie erzeugt werden.</li>
               <li><strong>Speicher</strong> – wie viel Platz auf der Platte noch frei ist und wie viel davon Klappe belegt.</li>

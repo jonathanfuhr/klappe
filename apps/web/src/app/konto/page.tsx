@@ -5,6 +5,7 @@ import { DEFAULT_PASSWORD_POLICY, describePasswordPolicy, validatePassword } fro
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { DeviceList } from '@/components/DeviceList';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 
@@ -237,6 +238,24 @@ export default function AccountPage() {
         ) : null}
         </>
         )}
+
+        {/* Auch für Gäste: Wer über ein Plugin auf seine Freigaben zugreift,
+            muss es genauso wieder trennen können wie das Team. */}
+        <div className="card card--form">
+          <h2 className="card__title">Verbundene Geräte</h2>
+          <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+            Programme außerhalb des Browsers, die mit deinem Konto arbeiten – etwa ein Plugin im
+            Schnittprogramm. Sie haben genau deine Rechte. Trennen wirkt sofort und trifft nur
+            dieses eine Gerät; dein Passwort bleibt unberührt.
+          </p>
+
+          <DeviceList scope="mine" />
+
+          <p className="hint" style={{ marginTop: 14 }}>
+            Ein neues Gerät verbindest du dort, wo es startet: Das Programm zeigt einen Code, den du
+            unter <Link href="/geraet">Gerät verbinden</Link> bestätigst.
+          </p>
+        </div>
       </div>
     </AppShell>
   );

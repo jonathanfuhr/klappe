@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { AiPanel } from '@/components/settings/AiPanel';
+import { ApiAccessPanel } from '@/components/settings/ApiAccessPanel';
 import { AuthPanel } from '@/components/settings/AuthPanel';
 import { BackupPanel } from '@/components/settings/BackupPanel';
 import { BrandingPanel } from '@/components/settings/BrandingPanel';
@@ -31,6 +32,7 @@ const BEREICHE = [
   { id: 'ki', label: 'KI-Inhalte', team: false },
   { id: 'branding', label: 'Erscheinungsbild', team: false },
   { id: 'auth', label: 'Anmeldung', team: false },
+  { id: 'api', label: 'API-Zugriff', team: false },
   { id: 'mail', label: 'E-Mail-Versand', team: false },
   { id: 'transcode', label: 'Transcode', team: false },
   { id: 'speicher', label: 'Speicher', team: false },
@@ -88,6 +90,7 @@ export default function SettingsPage() {
           {gewaehlt === 'ki' ? <AiPanel /> : null}
           {gewaehlt === 'branding' ? <BrandingPanel /> : null}
           {gewaehlt === 'auth' ? <AuthPanel /> : null}
+          {gewaehlt === 'api' ? <ApiAccessPanel /> : null}
           {gewaehlt === 'mail' ? <SmtpPanel /> : null}
           {gewaehlt === 'transcode' ? <TranscodePanel /> : null}
           {gewaehlt === 'speicher' ? <StoragePanel /> : null}

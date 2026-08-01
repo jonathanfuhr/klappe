@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { AccessModule } from './access/access.module';
+import { ApiTokensModule } from './api-tokens/api-tokens.module';
 import { EventsModule } from './events/events.module';
 import { BackupModule } from './backup/backup.module';
 import { AuthModule } from './auth/auth.module';
@@ -47,6 +48,9 @@ import { VideosModule } from './videos/videos.module';
     JwtModule.register({}),
     QueueModule,
     MailModule,
+    // Vor `AuthModule`: Der global aktive Wächter dort greift auf den
+    // Token-Dienst zu (Phase 27).
+    ApiTokensModule,
     AuthModule,
     UsersModule,
     ProjectsModule,

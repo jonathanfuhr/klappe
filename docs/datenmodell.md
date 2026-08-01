@@ -203,6 +203,42 @@ Sechsstellige Zugangscodes zu einem Link.
 Fünf Codes je Stunde und E-Mail-Adresse. Adressen von Team-Konten werden
 abgewiesen – die sollen sich anmelden.
 
+## api_tokens
+
+Ein verbundenes Gerät (Phase 27): Plugin, Skript, später eine App. Gehört
+immer zu genau **einem** Konto und trägt dessen Rechte – einen workspace-weiten
+Generalschlüssel gibt es bewusst nicht.
+
+| Spalte | Anmerkung |
+| --- | --- |
+| `selector` | offen, eindeutig indiziert; darüber wird nachgeschlagen |
+| `secret_hash` | SHA-256 des geheimen Teils. Kein scrypt: 40 zufällige Zeichen sind nicht zu raten, und ein langsames Verfahren kostete bei **jeder** Anfrage ~100 ms |
+| `origin` | `device` (über die Kopplung) oder `manual` (von Hand für Skripte) |
+| `last_used_at` | fortgeschrieben, aber höchstens einmal je Minute – die Angabe beantwortet „wird das noch benutzt?", dafür lohnt kein Schreibvorgang je Anfrage |
+| `revoked_at` | gesetzt heißt getrennt; die Zeile bleibt stehen, damit die Liste ehrlich ist |
+
+Getrennt wird von zwei Seiten: Jeder trennt seine eigenen Geräte unter *Mein
+Konto*, der Admin jedes in den Einstellungen. Ein deaktiviertes Konto sperrt
+seine Tokens automatisch mit – der Wächter lädt den Benutzer bei jeder Anfrage
+frisch.
+
+## device_authorizations
+
+Eine wartende Gerätekopplung (Phase 27) – der Weg, auf dem ein Plugin an einen
+Token kommt, ohne je ein Passwort zu sehen.
+
+| Spalte | Anmerkung |
+| --- | --- |
+| `device_code_hash` | der lange Code bleibt beim Plugin, hier steht nur sein Hash |
+| `user_code` | der kurze Code zum Abtippen (`KHFP-3RTM`); allein wertlos, er benennt nur eine wartende Anfrage |
+| `client_name` | wie sich das Gerät nennt; wird zum Namen des Tokens |
+| `token_encrypted` | der fertige Token bis zur Abholung, verschlüsselt wie die SMTP-Geheimnisse. Beim Abholen gelöscht – ein zweites Mal gibt es ihn nirgends |
+| `attempts` | Fehlversuche beim Abholen; bremst zu schnelles Nachfragen |
+| `expires_at` | zehn Minuten |
+
+Der tägliche Kehraus räumt abgelaufene Zeilen weg (mit einem Tag Karenz, wie
+bei den Anmeldecodes).
+
 ## share_link_grants
 
 Wer über welchen Link hereingekommen ist: Zuordnung Gastkonto → Link, mit
@@ -265,6 +301,10 @@ Workspace-weite Einstellungen – genau eine Zeile. Drei Gruppen:
   Client-Secret liegt wie das SMTP-Passwort verschlüsselt darin.
   `oidc_auto_provision` steht standardmäßig auf `false` – ohne diesen Schalter
   kommt über M365 nur herein, wer hier schon ein Konto hat.
+- **Externer API-Zugriff** (Phase 27): `api_access_enabled`, ab Werk `false`.
+  Steht der Schalter auf aus, prüft der Wächter den `Authorization`-Header
+  gar nicht erst – weder ein API-Token noch ein Sitzungs-JWT. Das Cookie
+  bleibt unberührt, die Oberfläche im Browser merkt davon nichts.
 - **Verarbeitung** (Phase 19): `download_formats_enabled`,
   `download_prebuild`, `download_final_only` und das Zeitfenster
   (`transcode_window_start` / `_end`, Minuten seit Mitternacht; Start hinter

@@ -4,6 +4,13 @@ Alle Routen liegen unter `/v1`. Angemeldet sein ist Pflicht, außer wo anders
 vermerkt. Die Sitzung steckt im Cookie `klappe_session` (httpOnly); alternativ
 geht `Authorization: Bearer <token>`.
 
+Der Weg über den Header ist der für **externe Anbindungen** – Plugins, Skripte,
+später Desktop- und Telefon-Apps. Er funktioniert nur, wenn der Betreiber ihn
+freigeschaltet hat, und die Tokens dafür entstehen über die Gerätekopplung:
+siehe [Externe Anbindung](#externe-anbindung-phase-27). Wer ein Plugin bauen
+will, findet den ganzen Ablauf mit Beispielen in
+[`plugin-entwicklung.md`](plugin-entwicklung.md).
+
 Die Antwortformen sind in `packages/shared/src/types.ts` typisiert – die
 Web-App benutzt exakt dieselben Typen.
 
@@ -437,6 +444,106 @@ nennt (`…_v1_720p25.mp4`), nicht die des Originals.
 Zeiten stehen als `HH:MM`; ein leerer String löscht das Zeitfenster. Beide
 Zeiten müssen gesetzt oder beide leer sein.
 
+## Externe Anbindung (Phase 27)
+
+Alles, was nicht der Browser ist, meldet sich mit einem **API-Token** im
+`Authorization`-Header:
+
+```
+Authorization: Bearer klp_a3f9x2m4qp71_hj28dnq4vs...
+```
+
+Ein Token gehört immer zu **einem Konto** und trägt genau dessen Rechte – nicht
+mehr und nicht weniger. Es gibt bewusst keinen workspace-weiten
+Generalschlüssel: An jedem Kommentar, jedem Upload und jeder Freigabe hinge
+sonst dieselbe namenlose Kennung, und die Rechteprüfung hätte einen zweiten
+Satz Regeln.
+
+### Der Schalter
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/settings/api-zugriff` | Admin – `{ enabled, activeTokens, updatedAt }` |
+| `PUT /v1/settings/api-zugriff` | Admin – `{ enabled }` |
+
+**Ab Werk aus.** Solange der Schalter steht, wird der `Authorization`-Header
+gar nicht erst geprüft – weder ein API-Token noch ein Sitzungs-JWT –, und
+Anfragen mit Header enden auf `403`. Das Sitzungs-Cookie ist davon nie
+betroffen: Die Oberfläche im Browser funktioniert unverändert weiter, auch wenn
+der externe Zugriff nie eingeschaltet wird.
+
+Abschalten wirkt sofort und für alle Geräte auf einmal. Die Tokens bleiben
+dabei bestehen und gelten wieder, sobald der Schalter zurückgeht – es ist ein
+Riegel, kein Löschknopf.
+
+### Gerätekopplung
+
+Der vorgesehene Weg für Plugins. Niemand tippt ein Passwort ins Plugin, und
+Microsoft-365-Konten funktionieren ohne Sonderbehandlung mit – der Mensch ist
+im Browser ja längst angemeldet.
+
+| Route | Zweck |
+| --- | --- |
+| `POST /v1/auth/geraet/start` | ohne Anmeldung – `{ clientName? }` → Gerätecode, Benutzercode, Adresse |
+| `POST /v1/auth/geraet/token` | ohne Anmeldung – `{ deviceCode }` → Token, oder `{ pending: true }` |
+| `GET /v1/auth/geraet/:userCode` | angemeldet – wer will sich hier verbinden? |
+| `POST /v1/auth/geraet/bestaetigen` | angemeldet – `{ userCode }`, stellt den Token aus |
+| `POST /v1/auth/geraet/ablehnen` | angemeldet – `{ userCode }` (204) |
+
+Der Ablauf:
+
+1. Das Plugin ruft `start` und bekommt zwei Zeichenketten. Den **Gerätecode**
+   behält es für sich; den **Benutzercode** (`KHFP-3RTM`) zeigt es an,
+   zusammen mit `verificationUrl`.
+2. Der Mensch öffnet `/geraet` im Browser – angemeldet, wie auch immer –, sieht
+   den Namen des Programms und bestätigt. Erst hier entsteht der Token.
+3. Das Plugin fragt alle `intervalSeconds` bei `token` nach. Solange niemand
+   bestätigt hat, kommt `{ pending: true }`; danach genau **einmal** der Token
+   im Klartext.
+
+Eine Kopplung gilt zehn Minuten. Der Benutzercode allein schaltet nichts frei –
+er benennt nur eine wartende Anfrage; den Token bekommt, wer den langen
+Gerätecode vorzeigt. Abgelehnt ergibt `403`, abgelaufen `400`, und ein zweiter
+Abholversuch mit demselben Gerätecode läuft in „abgelaufen".
+
+Gäste dürfen ebenfalls koppeln: Ihr Token trägt genau ihre Freigaben.
+
+### Geräte verwalten
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/geraete` | alle – die **eigenen** verbundenen Geräte |
+| `POST /v1/geraete` | alle – `{ name }`, stellt einen Token von Hand aus |
+| `DELETE /v1/geraete/:id` | alle – ein eigenes Gerät trennen |
+| `DELETE /v1/geraete` | alle – alle eigenen Geräte auf einmal |
+| `GET /v1/settings/geraete` | Admin – **alle** Geräte des Workspace, mit Konto |
+| `DELETE /v1/settings/geraete/:id` | Admin – jedes Gerät trennen |
+
+Widerrufen darf also **beides**: jeder seine eigenen Geräte, ohne jemanden zu
+fragen – und der Administrator alle. Ein fremdes Gerät ergibt für
+Nicht-Admins `404`, nicht `403`; wie überall würde ein 403 verraten, dass es
+die ID gibt.
+
+Trennen wirkt sofort: Die nächste Anfrage des Plugins fällt durch. Die Zeile
+bleibt ausgegraut stehen, damit die Liste die Frage „habe ich das eben wirklich
+getrennt?" beantwortet.
+
+`POST /v1/geraete` ist für Skripte gedacht, bei denen niemand am Bildschirm
+sitzt, um eine Kopplung zu bestätigen. Der Klartext steht **nur** in dieser
+einen Antwort; danach liegt in der Datenbank bloß der Hash.
+
+Ein deaktiviertes Konto sperrt seine Tokens automatisch mit – der Wächter lädt
+den Benutzer bei jeder Anfrage frisch.
+
+### Was in der Datenbank steht
+
+Nie der Token selbst. Er besteht aus einem offenen **Merkmal** zum Nachschlagen
+und einem **Geheimnis**, von dem nur ein SHA-256-Hash gespeichert wird.
+Absichtlich kein scrypt wie beim Passwort: Das Geheimnis sind 40 zufällige
+Zeichen, da ist nichts zu raten – ein absichtlich langsames Verfahren würde nur
+jede API-Anfrage um ~100 ms verzögern. In der Oberfläche steht `klp_a3f9…`,
+genug zum Wiedererkennen, zu wenig zum Benutzen.
+
 ## Anfragebremsen
 
 An den empfindlichen Routen zählt eine Bremse in einem gleitenden Fenster.
@@ -451,6 +558,10 @@ Wird sie ausgelöst, kommt `429` mit `Retry-After`; `X-RateLimit-Limit` und
 | `POST /v1/share/:token/verify` | 20 je Adresse und Stunde |
 | `POST /v1/unsubscribe` | 20 je Stunde |
 | `GET /v1/auth/microsoft/start` | 30 je Stunde |
+| `POST /v1/auth/geraet/start` | 20 je Stunde |
+| `POST /v1/auth/geraet/token` | 300 je Stunde – das Plugin *soll* nachfragen |
+| `POST /v1/auth/geraet/bestaetigen` | 30 je Stunde |
+| `POST /v1/geraete` | 20 je Stunde |
 
 Abgelehnte Versuche zählen nicht mit – sonst könnte sich jemand durch stures
 Weiterklopfen selbst dauerhaft aussperren.
