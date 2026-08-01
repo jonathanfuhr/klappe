@@ -177,6 +177,17 @@ export const en: Record<MessageKey, Message> = {
   'video.aiBody':
     'Under Art. 50 of the EU AI Act, AI-generated content may require labelling from 2 August 2026. Whether and how the AI content is labelled in the published material is the client’s decision.',
   'video.isFinal': 'Final version',
+  'video.internal': 'Internal',
+  'video.internalToggle': 'Internal version',
+  'video.internalTitle': 'Internal version.',
+  'video.internalBody':
+    'Only the team can see this version. Guests do not see it anywhere – not until it is released.',
+  'video.internalRelease': 'Release for guests',
+  'video.internalReleaseConfirm':
+    'Release this version for guests? After that it is visible like any other.',
+  'video.internalReleased': 'Released by {name} on {date}',
+  'video.internalHint':
+    'While the box is ticked the version is for the team only – external project admins included.',
   'video.downloadForGuests': 'Download for guests:',
   'video.wholeVideo': 'whole video',
   'video.downloadHint': 'Only takes effect together with the download right on the share link.',
@@ -272,6 +283,9 @@ export const en: Record<MessageKey, Message> = {
   'upload.newVideoName': 'Name of the new video',
   'upload.version': 'Version',
   'upload.fileDate': 'Date in the filename',
+  'upload.internal': 'Release',
+  'upload.internalLabel': 'Internal at first',
+  'upload.internalHint': 'Guests only see the version once someone from the team releases it.',
   'upload.needProject': 'Pick a project first',
   'upload.needVideo': 'Pick or name a video first',
   'upload.processing': 'Processing',

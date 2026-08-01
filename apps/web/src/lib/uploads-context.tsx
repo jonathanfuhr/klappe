@@ -63,6 +63,13 @@ export interface UploadJob {
   versionNumber: string;
   /** Datum im Dateinamen, `JJJJ-MM-TT`. */
   fileDate: string;
+  /**
+   * Interne Fassung (Phase 27): Sie geht erst nach ausdrücklicher Freigabe an
+   * den Kunden. Der Haken steht an jeder Zeile einzeln – im Multi-Upload
+   * kommen oft mehrere Filme zugleich, und nicht jeder braucht die interne
+   * Runde.
+   */
+  internal: boolean;
   /** Woher die Vorauswahl kommt – die Oberfläche bittet dann ums Prüfen. */
   hint: string | null;
   state: 'wartet' | 'lädt' | 'bereit' | 'verarbeitet' | 'fertig' | 'fehler' | 'abgebrochen';
@@ -178,6 +185,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         detectedVersion: version,
         versionNumber: '',
         fileDate: heute,
+        internal: false,
         hint: hints.length > 0 ? t('upload.hintCheck', { hints: hints.join(' · ') }) : null,
         state: 'wartet',
         uploadedBytes: 0,
@@ -337,6 +345,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
           videoId,
           fileDate: job.fileDate || undefined,
           ...(Number.isFinite(wunsch) ? { versionNumber: wunsch } : {}),
+          internal: job.internal,
         });
 
         update(job.id, {
@@ -415,6 +424,8 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
             detectedVersion: detectVersionNumber(sitzung.filename),
             versionNumber: '',
             fileDate: heute,
+            // Der Haken hat den Reload überlebt – er steht an der Sitzung.
+            internal: sitzung.internal,
             hint: t('upload.resumedHint'),
             state: 'bereit',
             uploadId: sitzung.id,

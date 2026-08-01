@@ -92,6 +92,14 @@ Eine Fassung kann als **Endfassung** markiert sein. Ist sie das nicht, sieht
 jeder, der sie ansieht, einen deutlichen Hinweis darauf, dass es sich um
 einen Zwischenstand handelt.
 
+Davon unabhängig gibt es den Haken **intern**: Damit bleibt eine Fassung im
+Haus, bis jemand aus dem Team sie freigibt. Gäste sehen sie bis dahin
+nirgends – nicht in der Fassungsliste, nicht als neueste Fassung und nicht im
+Download-Fenster. Beim Hochladen ist der Haken wählbar (auch bei mehreren
+Dateien einzeln), und er lässt sich später jederzeit umlegen. Freigeben darf
+**jeder aus dem Team**, nicht nur ein Admin; danach steht an der Fassung, wer
+sie wann freigegeben hat.
+
 Ein archiviertes Projekt bleibt sichtbar und abspielbar, zeigt aber nur noch
 die jeweils neueste fertige Fassung je Video, und es lässt sich nicht mehr
 kommentieren. Das entscheidet ein Team-Mitglied oder ein Admin; als Gast

@@ -369,6 +369,22 @@ function JobRow({
               onChange={(event) => onChange({ fileDate: event.target.value })}
             />
           </label>
+
+          {/* Interne Fassung (Phase 27): Der Haken steht an jeder Zeile
+              einzeln – im Multi-Upload kommen oft mehrere Filme zugleich, und
+              nicht jeder soll durch die interne Runde. */}
+          <label className="field" style={{ margin: 0 }}>
+            <span className="field__label">{t('upload.internal')}</span>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={job.internal}
+                onChange={(event) => onChange({ internal: event.target.checked })}
+              />
+              {t('upload.internalLabel')}
+            </label>
+            <p className="hint">{t('upload.internalHint')}</p>
+          </label>
         </div>
       ) : null}
 

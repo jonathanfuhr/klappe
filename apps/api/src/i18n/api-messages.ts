@@ -110,6 +110,8 @@ export const EXAKT: Record<string, string> = {
   'Diese Einbettung gibt es nicht (mehr).': 'This embed does not exist (any more).',
   'Diese Fassung gehört nicht zu dieser Einbettung.':
     'This version does not belong to this embed.',
+  'Diese Fassung ist nicht intern – es gibt nichts freizugeben.':
+    'This version is not internal – there is nothing to release.',
   'Diese Fassung ist noch nicht fertig verarbeitet.': 'This version has not finished processing.',
   'Diese Fassung ist noch nicht fertig.': 'This version is not ready yet.',
   'Diese Fassung wurde bereits aufgenommen.': 'This version has already been created.',
@@ -195,10 +197,14 @@ export const EXAKT: Record<string, string> = {
   'Gerade ist kein Code frei. Bitte gleich noch einmal probieren.':
     'No code is free right now. Please try again in a moment.',
   'In diesem Ordner liegen keine Dateien.': 'There are no files in this folder.',
+  'Interne Fassungen kann nur das Team hochladen.':
+    'Only the team can upload internal versions.',
   'Kein Posterframe vorhanden.': 'No poster frame available.',
   'Kein Projekt trägt diesen Kundennamen.': 'No project carries this client name.',
   'Kein Standbild vorhanden.': 'No still frame available.',
   'Keine Timeline-Vorschau vorhanden.': 'No timeline preview available.',
+  'Der Wert von „since" ist kein gültiges Datum.':
+    'The value of “since” is not a valid date.',
   'Kommentar nicht gefunden.': 'Comment not found.',
   'Konto existiert nicht mehr oder ist deaktiviert.':
     'The account no longer exists or is deactivated.',
@@ -236,6 +242,8 @@ export const EXAKT: Record<string, string> = {
     'Too many requests. Please start the pairing again.',
   'Zu viele Fehlversuche. Bitte einen neuen Code anfordern.':
     'Too many failed attempts. Please request a new code.',
+  'Zum Ersetzen fehlt die Nummer der Fassung.':
+    'The version number is missing for replacing.',
 };
 
 /**

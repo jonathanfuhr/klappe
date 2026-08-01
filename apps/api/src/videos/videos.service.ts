@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { AiKindDto, UserRole, VersionDto, VideoDto } from '@klappe/shared';
+import { type AiKindDto, type UserRole, type VersionDto, type VideoDto, videoWebPath } from '@klappe/shared';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { AccessService, type AccessScope } from '../access/access.service';
 import { AiContentService } from '../ai/ai-content.service';
 import type { RequestUser } from '../auth/auth.types';
@@ -10,6 +11,9 @@ import { ProjectsService } from '../projects/projects.service';
 import { StorageService } from '../storage/storage.service';
 import { VersionsService } from '../versions/versions.service';
 import type { CreateVideoDto, UpdateVideoDto } from './videos.dto';
+
+/** Zweiter Blick auf `users` – für den Freigabe-Vermerk der Fassung (Phase 27). */
+const releasers = alias(users, 'releasers');
 
 type VideoRow = {
   video: typeof videos.$inferSelect;
@@ -217,6 +221,7 @@ export class VideosService {
       aiKinds: ki.enabled && row.video.aiContent ? (ki.kinds.get(row.video.id) ?? []) : [],
       canComment: this.accessService.canCommentOn(scope, row.video),
       canManage: this.accessService.canManageProject(scope, row.video.projectId),
+      webUrl: videoWebPath(row.video.id),
     };
   }
 
@@ -239,6 +244,7 @@ export class VideosService {
     videoRows: Array<{ id: string; projectId: string; downloadsEnabled: boolean }>,
     scope: AccessScope,
   ): Promise<Map<string, { latest: VersionDto; count: number }>> {
+    const nurFreigegebene = !this.accessService.canSeeInternal(scope);
     const rows = await this.db
       .select({
         version: videoVersions,
@@ -250,19 +256,35 @@ export class VideosService {
           select count(*)::int from ${comments}
           where ${comments.versionId} = ${videoVersions.id} and ${comments.deletedAt} is null
         )`,
+        releaserId: releasers.id,
+        releaserName: releasers.name,
+        releaserEmail: releasers.email,
+        releaserRole: releasers.role,
         videoName: videos.name,
         projectName: projects.name,
         projectCustomer: projects.customer,
       })
       .from(videoVersions)
       .leftJoin(users, eq(videoVersions.uploadedById, users.id))
+      .leftJoin(releasers, eq(videoVersions.releasedById, releasers.id))
       .innerJoin(videos, eq(videoVersions.videoId, videos.id))
       .innerJoin(projects, eq(videos.projectId, projects.id))
       .where(
-        inArray(
-          videoVersions.videoId,
-          videoRows.map((video) => video.id),
-        ),
+        // Für Gäste zählt die neueste **nicht-interne** Fassung als die
+        // neueste (Phase 27) – und in `versionCount` fließen interne gar nicht
+        // erst ein. Sonst stünde da „3 Fassungen“ bei zwei sichtbaren.
+        nurFreigegebene
+          ? and(
+              inArray(
+                videoVersions.videoId,
+                videoRows.map((video) => video.id),
+              ),
+              eq(videoVersions.internal, false),
+            )
+          : inArray(
+              videoVersions.videoId,
+              videoRows.map((video) => video.id),
+            ),
       )
       .orderBy(desc(videoVersions.versionNumber));
 

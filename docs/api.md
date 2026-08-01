@@ -64,12 +64,14 @@ ein eigenes Konto.
 | `GET/PATCH/DELETE /v1/videos/:id` | einzeln; `PATCH` kennt `downloadsEnabled`, `aiContent` und `aiKindIds` |
 | `GET /v1/videos/:id/versions` | alle Versionen, neueste zuerst |
 | `GET/PATCH/DELETE /v1/versions/:id` | einzeln; die letzte Version eines Videos lässt sich nicht löschen |
+| `POST /v1/versions/:id/freigeben` | interne Fassung freigeben (Team, Phase 27) |
 
 `PATCH /v1/versions/:id` nimmt `{ label?, downloadEnabled?, fileDate?,
-isFinal?, versionNumber? }`. `fileDate` steht als `JJJJ-MM-TT` und bestimmt
-das `JJMMTT` im Download-Dateinamen. `versionNumber` (Phase 25) gibt der
-Fassung eine neue Nummer: jede freie Nummer über 0 ist erlaubt – die
+isFinal?, versionNumber?, internal? }`. `fileDate` steht als `JJJJ-MM-TT` und
+bestimmt das `JJMMTT` im Download-Dateinamen. `versionNumber` (Phase 25) gibt
+der Fassung eine neue Nummer: jede freie Nummer über 0 ist erlaubt – die
 Aufwärts-Regel gilt nur beim Anlegen; eine vergebene Nummer ergibt `409`.
+`internal` (Phase 27) siehe [Interne Fassungen](#interne-fassungen-phase-27).
 
 Gäste sehen nur, was ihr Freigabe-Link hergibt. Fehlt der Zugriff, antwortet
 die API mit **404** statt 403 – ein 403 würde verraten, dass es die ID gibt.
@@ -83,6 +85,29 @@ An jeder Version stehen zusätzlich:
 | `canDownload` | ob **dieser** Aufrufer das Original bekommt |
 | `fileDate` | `JJMMTT` |
 | `downloadFilename` | der fertige Name, z. B. `260304_Beispiel_Kampagne_Teaser_v1_1080p25.mov` |
+| `internal` | interne Fassung (Phase 27) – nur fürs Team sichtbar |
+| `releasedAt` / `releasedBy` | wann und von wem freigegeben; `null`, solange intern |
+| `webUrl` | die Seite dieser Fassung in der Oberfläche (Phase 27) |
+
+### `webUrl` – der Weg in den Browser (Phase 27)
+
+`VideoDto` und `VersionDto` tragen die fertige Adresse der Web-Oberfläche,
+**relativ** zur Instanz:
+
+```json
+{ "webUrl": "/videos/2c3f…" }                    // Video
+{ "webUrl": "/videos/2c3f…?fassung=2.5" }        // Fassung
+```
+
+Damit kann eine Anbindung nach dem Hochladen „Im Browser öffnen" anbieten,
+ohne die Routen der Web-App zu raten. Relativ und nicht absolut, weil dieselbe
+Instanz oft über mehrere Adressen erreichbar ist (Tailscale, öffentlicher
+Name) – die Basis kennt der Aufrufer besser als der Server. Wer eine
+Absolutadresse braucht, hängt sie davor.
+
+`?fassung=` nennt die **Nummer**, nicht die ID: So ist in der Adresszeile
+lesbar, worum es geht. Gibt es die Nummer nicht (mehr), öffnet die Seite die
+neueste Fassung.
 
 ## Upload (tus 1.0.0)
 
@@ -93,7 +118,8 @@ POST /v1/videos/:videoId/uploads          neue Fassung (nur Team)
 POST /v1/projects/:projectId/uploads      Kunden-Ablage (auch Gäste mit Recht)
   Upload-Length: 42949672960
   Upload-Metadata: filename <base64>,filetype <base64>
-  — oder als JSON: { filename, sizeBytes, mimeType?, label?, fileDate? }
+  — oder als JSON: { filename, sizeBytes, mimeType?, label?, fileDate?,
+                     versionNumber?, internal?, replace? }
 → 201, Location: /v1/uploads/<id>, Rumpf: UploadSessionDto
 
 HEAD /v1/uploads/:id
@@ -116,6 +142,7 @@ Fehlerfälle:
 | --- | --- |
 | Offset passt nicht zum Server | `409` – der Stand steht in der Meldung, per `HEAD` abfragen |
 | Upload bereits vollständig | `409` |
+| `versionNumber` schon vergeben (ohne `replace`) | `409` |
 | mehr Bytes als angekündigt | `413` |
 | falscher `Content-Type` | `415` |
 | Sitzung abgebrochen oder unbekannt | `404` |
@@ -125,6 +152,98 @@ Version geht auf `PROCESSING` und das Transcoding wird eingereiht.
 
 Bricht die Verbindung mitten im Block ab, bleiben die bereits geschriebenen
 Bytes erhalten: Der nächste `HEAD` liefert den tatsächlichen Stand.
+
+### Nummer, intern und ersetzen (Phase 27)
+
+Drei Angaben aus dem Rumpf betreffen die Fassung, die am Ende entsteht. Sie
+lassen sich beim Anlegen der Sitzung mitgeben – oder später mit
+`PATCH /v1/uploads/:id/ziel` nachreichen, solange die Sitzung offen ist:
+
+| Feld | Wirkung |
+| --- | --- |
+| `versionNumber` | Wunschnummer, auch mit Nachkommastelle (`2.5`). Ohne Angabe zählt Klappe weiter |
+| `internal` | die Fassung entsteht als **interne** (siehe unten) |
+| `replace` | eine vorhandene Fassung **derselben Nummer** wird ersetzt |
+
+Geprüft wird schon beim Anlegen der Sitzung, nicht erst am Ende: Eine Absage
+nach 90 GB Übertragung wäre eine Zumutung. Zwischen Prüfung und Abschluss kann
+allerdings jemand anderes dieselbe Nummer vergeben – dann zählt Klappe
+weiter, statt eine fertig übertragene Datei wegzuwerfen.
+
+**`replace: true`** braucht immer ein `versionNumber` (sonst `400`) und macht
+aus drei Schritten einen:
+
+```
+POST /v1/videos/<id>/uploads
+  { "filename": "teaser_v3.mov", "sizeBytes": 8123456789,
+    "versionNumber": 3, "replace": true }
+```
+
+Die alte v3 weicht in **einer** Transaktion mit dem Anlegen der neuen; bei
+einem Abbruch dazwischen steht das Video nie ohne die Fassung da, die es
+eben noch hatte. Gibt es die Nummer noch gar nicht, entsteht sie einfach neu.
+
+Zwei Dinge sind dabei wichtig:
+
+- Die **Kommentare der ersetzten Fassung verschwinden mit ihr.** Sie hängen an
+  Frames eines Ausspielens, das es nicht mehr gibt. Wer sie behalten will,
+  lädt unter einer neuen Nummer hoch.
+- Der Sonderfall „die letzte Fassung lässt sich nicht löschen" gilt hier
+  nicht – es bleibt ja eine Fassung dieser Nummer stehen.
+
+Ohne `replace` bleibt es bei `409`; genau daran erkennt eine Anbindung, dass
+sie ersetzen müsste.
+
+## Interne Fassungen (Phase 27)
+
+Nach dem Rendern läuft oft noch eine Runde im Haus. Eine Fassung kann deshalb
+als **intern** hochgeladen werden und wird erst nach ausdrücklicher Bestätigung
+für Gäste sichtbar.
+
+```
+POST /v1/videos/<id>/uploads   { …, "internal": true }
+PATCH /v1/versions/<id>         { "internal": false }   ← wirkt wie freigeben
+POST  /v1/versions/<id>/freigeben                        ← der ausdrückliche Weg
+```
+
+**Intern heißt: nur fürs Team.** Für alle anderen gibt es die Fassung
+schlicht nicht:
+
+| Wo | Verhalten für Gäste |
+| --- | --- |
+| `GET /v1/videos/:id/versions` | interne Fassungen fehlen in der Liste |
+| `GET /v1/versions/:id` | `404` – wie bei einer fremden ID |
+| `latestVersion` am Video | die neueste **nicht-interne** Fassung |
+| `versionCount` | zählt interne nicht mit |
+| Kommentare, Medien, Downloads | `404` über dieselbe Prüfung |
+| Einbett-Player | nie; dort gilt ohnehin „nur Endfassungen" |
+| Benachrichtigungen | bleiben im Haus, auch bei einer Erwähnung |
+
+Hat ein Video **nur** interne Fassungen, verhält es sich für Gäste, als wäre
+noch nichts hochgeladen.
+
+Auch der **externe Projektadmin** (Phase 21) sieht sie nicht. Er darf im
+Projekt vieles, was sonst dem Team vorbehalten ist – aber er sitzt auf der
+Kundenseite, und die interne Runde ist genau der Schritt *vor* dem Kunden.
+
+### Freigeben
+
+`POST /v1/versions/:id/freigeben` – **jeder aus dem Team**, Mitglied wie
+Admin. Kein Admin-Vorrecht: Ob ein Schnitt raus darf, ist eine fachliche
+Entscheidung und kein Verwaltungsakt. Danach steht an der Fassung, **wer wann**
+freigegeben hat (`releasedAt`, `releasedBy`).
+
+Ist die Fassung gar nicht intern, kommt `400` – ein zweiter Klick soll den
+Vermerk nicht überschreiben und damit die Frage „wer war das?" falsch
+beantworten. `PATCH { internal: true }` nimmt die Freigabe zurück und löscht
+den Vermerk wieder; freigegeben ist sie dann ja nicht mehr.
+
+Der **Endfassungs-Haken** (`isFinal`) bleibt davon unberührt: „intern" sagt,
+*wer* die Fassung sehen darf, „Endfassung" sagt, *was für eine* es ist.
+
+**Download-Formate** (Phase 19) werden für interne Fassungen nicht im Voraus
+erzeugt – oft wird genau diese Fassung verworfen. Mit der Freigabe werden sie
+eingereiht; einzeln anfordern lassen sie sich jederzeit.
 
 ## Medien
 
@@ -153,11 +272,12 @@ begrenzt auf `tileCount - 1`; daraus `spalte = index % columns` und
 
 | Route | Zweck |
 | --- | --- |
-| `GET /v1/versions/:id/comments` | Wurzelkommentare mit ihren Antworten |
+| `GET /v1/versions/:id/comments` | Wurzelkommentare mit ihren Antworten; `?since=<ISO-Datum>` |
 | `POST /v1/versions/:id/comments` | `{ body, frame?, parentId?, annotation? }` |
 | `PATCH /v1/comments/:id` | `{ body }` – nur Verfasser oder Admin |
 | `DELETE /v1/comments/:id` | weiches Löschen – nur Verfasser oder Admin |
 | `POST/DELETE /v1/comments/:id/resolve` | erledigt setzen / wieder öffnen |
+| `GET /v1/comments/:id/annotation.png` | die Zeichnung als fertiges PNG; `?width=` (Phase 27) |
 
 `frame` ist der Frame-Index im Video (0 = erstes Bild); fehlt er, ist es ein
 allgemeiner Kommentar. Ein Frame hinter dem Videoende wird mit `400`
@@ -186,6 +306,44 @@ heraus, prüft sie gegen aktive Konten und liefert sie als `mentions` zurück.
 Zu große oder krumme Werte werden nicht abgelehnt, sondern begradigt
 (geklemmt auf 0…1, höchstens 60 Striche mit je 600 Punkten). Eine leere
 Zeichnung wird als „keine“ gespeichert.
+
+### Nur das Neue: `?since=` (Phase 27)
+
+`GET /v1/versions/:id/comments?since=2026-08-01T10:15:00Z` liefert die
+Gespräche, in denen sich seitdem etwas getan hat – für das „Aktualisieren"
+einer Anbindung, die die Liste schon einmal geholt hat.
+
+Gefiltert wird **ganzen Fäden entlang**: Hat sich irgendwo im Thread etwas
+geändert (neue Antwort, bearbeiteter Text, erledigt gesetzt), kommt er
+vollständig mit. Eine Antwort ohne ihren Kommentar wäre nicht einzuordnen.
+
+Ein unlesbares Datum ergibt `400` – lieber eine klare Absage als stillschweigend
+die volle Liste, die der Aufrufer dann für „alles neu" hielte. **Löschungen
+erkennt man so nicht**: Ein gelöschter Kommentar taucht nirgends mehr auf,
+weder mit noch ohne `since`. Wer sie braucht, holt die volle Liste und
+vergleicht die IDs.
+
+### Die Zeichnung als PNG (Phase 27)
+
+```
+GET /v1/comments/:id/annotation.png?width=1920
+→ 200, Content-Type: image/png, ETag, Cache-Control: private, max-age=300
+```
+
+Der Server rastert die Striche in ein **transparentes** PNG im
+Seitenverhältnis der Fassung – es liegt also deckungsgleich über dem Frame.
+Gedacht für Anbindungen ohne eigene Bildbibliothek: In der Python-Umgebung von
+DaVinci Resolve gibt es keine.
+
+- `width` liegt zwischen 64 und 3840, Vorgabe 1920. Die Höhe ergibt sich aus
+  der Auflösung der Fassung; ist sie noch unbekannt (Datei in Verarbeitung),
+  gilt 16:9.
+- Ein Kommentar ohne Zeichnung ergibt ein durchsichtiges Bild, kein `404`.
+- Der `ETag` hängt am Änderungszeitpunkt des Kommentars und an der Breite;
+  ein `If-None-Match` beantwortet der Server mit `304`. Die Zeichnung ändert
+  sich nur beim `PATCH` des Kommentars.
+- Die Rechte sind dieselben wie am Kommentar – interne Fassungen fallen für
+  Gäste damit auch hier weg.
 
 ## Freigaben und Gastzugang
 

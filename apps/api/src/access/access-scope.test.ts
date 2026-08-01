@@ -4,6 +4,7 @@ import {
   canComment,
   canDownloadVersion,
   canListAllProjectFiles,
+  canSeeInternalVersions,
   canUploadToProject,
   canViewProject,
   canViewVideo,
@@ -230,5 +231,24 @@ describe('Externer Projektadmin (Phase 21)', () => {
     const scope = guestScope([share({ projectAdmin: false })]);
     expect(isProjectAdmin(scope, PROJEKT_A)).toBe(false);
     expect(isProjectAdminAnywhere(scope)).toBe(false);
+  });
+});
+
+describe('Interne Fassungen (Phase 27)', () => {
+  it('sieht nur das Team', () => {
+    expect(canSeeInternalVersions(teamScope('ADMIN'))).toBe(true);
+    expect(canSeeInternalVersions(teamScope('MEMBER'))).toBe(true);
+  });
+
+  it('ein Gast sieht sie nicht', () => {
+    expect(canSeeInternalVersions(guestScope([share()]))).toBe(false);
+  });
+
+  it('auch der externe Projektadmin nicht – er ist Kundenseite', () => {
+    const scope = guestScope([share({ projectAdmin: true })]);
+    // Verwalten darf er, sehen nicht: Die interne Runde ist der Schritt *vor*
+    // dem Kunden, und er sitzt auf dessen Seite.
+    expect(isProjectAdmin(scope, PROJEKT_A)).toBe(true);
+    expect(canSeeInternalVersions(scope)).toBe(false);
   });
 });

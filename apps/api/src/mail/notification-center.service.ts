@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { NotificationDto } from '@klappe/shared';
+import type { NotificationDto, UserRole } from '@klappe/shared';
 import {
   commentBodyToPlainText,
   framesToTimecode,
@@ -58,7 +58,12 @@ export class NotificationCenterService {
     }
   }
 
-  async list(userId: string, limit = 50): Promise<NotificationDto[]> {
+  async list(
+    empfaenger: { id: string; role: UserRole },
+    limit = 50,
+  ): Promise<NotificationDto[]> {
+    const userId = empfaenger.id;
+    const imHaus = empfaenger.role === 'ADMIN' || empfaenger.role === 'MEMBER';
     const rows = await this.db
       .select({
         id: notifications.id,
@@ -86,8 +91,16 @@ export class NotificationCenterService {
       .innerJoin(videos, eq(notifications.videoId, videos.id))
       .innerJoin(projects, eq(videos.projectId, projects.id))
       // Ein gelöschter Kommentar taucht nicht mehr auf; die Zeile bleibt
-      // liegen, bis der Kommentar endgültig weg ist.
-      .where(and(eq(notifications.userId, userId), isNull(comments.deletedAt)))
+      // liegen, bis der Kommentar endgültig weg ist. Und was an einer
+      // inzwischen internen Fassung hängt (Phase 27), verschwindet für Gäste
+      // aus dem Glöckchen – so wie die Fassung selbst.
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          isNull(comments.deletedAt),
+          imHaus ? undefined : eq(videoVersions.internal, false),
+        ),
+      )
       .orderBy(desc(notifications.createdAt))
       .limit(Math.min(Math.max(limit, 1), 200));
 

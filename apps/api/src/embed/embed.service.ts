@@ -57,6 +57,10 @@ export class EmbedService {
     // Seite und wird dort niemandem erklärt – ein Zwischenstand hat da nichts
     // verloren. Fehlt eine finale Fassung, bleibt es bei derselben neutralen
     // Meldung wie oben; was der Betreiber tun muss, steht im Einbetten-Fenster.
+    //
+    // Und erst recht keine interne (Phase 27): Der Einbett-Link fragt gar
+    // nicht nach einem Benutzer – hier gibt es niemanden, der zum Team
+    // gehören könnte.
     const [version] = await this.db
       .select()
       .from(videoVersions)
@@ -65,6 +69,7 @@ export class EmbedService {
           eq(videoVersions.videoId, video.id),
           eq(videoVersions.status, 'READY'),
           eq(videoVersions.isFinal, true),
+          eq(videoVersions.internal, false),
         ),
       )
       .orderBy(desc(videoVersions.versionNumber))
@@ -96,8 +101,8 @@ export class EmbedService {
       .where(and(eq(videoVersions.id, versionId), eq(videoVersions.videoId, ziel.videoId)))
       .limit(1);
     // Auch hier die Endfassungs-Regel: Sonst wäre über die Fassungs-ID in der
-    // Adresse doch wieder ein Zwischenstand zu holen.
-    if (!version || version.status !== 'READY' || !version.isFinal) {
+    // Adresse doch wieder ein Zwischenstand zu holen – interne eingeschlossen.
+    if (!version || version.status !== 'READY' || !version.isFinal || version.internal) {
       throw new NotFoundException('Diese Fassung gehört nicht zu dieser Einbettung.');
     }
     return version;

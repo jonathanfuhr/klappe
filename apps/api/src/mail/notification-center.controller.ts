@@ -28,7 +28,7 @@ export class NotificationCenterController {
     @Query('limit') limit?: string,
   ): Promise<NotificationDto[]> {
     const anzahl = Number(limit);
-    return this.center.list(user.id, Number.isFinite(anzahl) && anzahl > 0 ? anzahl : 50);
+    return this.center.list(user, Number.isFinite(anzahl) && anzahl > 0 ? anzahl : 50);
   }
 
   /** Klein und oft abgefragt – deshalb getrennt von der Liste. */

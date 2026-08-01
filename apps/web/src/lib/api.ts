@@ -259,9 +259,17 @@ export const api = {
       isFinal?: boolean;
       /** Neue Nummer für diese Fassung (Phase 25) – zum Begradigen von Fehleingaben. */
       versionNumber?: number;
+      /** Interne Fassung (Phase 27) – nur fürs Team sichtbar. */
+      internal?: boolean;
     },
   ) =>
     request<VersionDto>(`/v1/versions/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  /**
+   * Interne Fassung freigeben (Phase 27). Jeder aus dem Team darf das; danach
+   * sehen Gäste sie wie jede andere.
+   */
+  releaseVersion: (id: string) =>
+    request<VersionDto>(`/v1/versions/${id}/freigeben`, { method: 'POST' }),
   deleteVersion: (id: string) => request<void>(`/v1/versions/${id}`, { method: 'DELETE' }),
 
   /** Fertig übertragene, noch unzugeordnete Sitzungen – für den Reload (Phase 15). */
@@ -277,7 +285,14 @@ export const api = {
    */
   assignUpload: (
     uploadId: string,
-    input: { videoId?: string; label?: string; fileDate?: string; versionNumber?: number },
+    input: {
+      videoId?: string;
+      label?: string;
+      fileDate?: string;
+      versionNumber?: number;
+      /** Interne Fassung (Phase 27) – der Haken aus dem Upload-Fenster. */
+      internal?: boolean;
+    },
   ) =>
     request<UploadSessionDto>(`/v1/uploads/${uploadId}/ziel`, {
       method: 'PATCH',

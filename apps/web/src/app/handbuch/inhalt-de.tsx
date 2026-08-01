@@ -102,6 +102,14 @@ export function HandbuchDe() {
               Zwischenstand handelt.
             </p>
             <p>
+              Davon unabhängig gibt es den Haken <strong>intern</strong>: Damit bleibt eine Fassung
+              im Haus, bis jemand aus dem Team sie freigibt. Gäste sehen sie bis dahin nirgends –
+              nicht in der Fassungsliste, nicht als neueste Fassung, nicht im Download-Fenster. Der
+              Haken ist beim Hochladen wählbar (bei mehreren Dateien für jede einzeln) und später
+              jederzeit umlegbar. Freigeben darf <strong>jeder aus dem Team</strong>, nicht nur ein
+              Admin; danach steht an der Fassung, wer sie wann freigegeben hat.
+            </p>
+            <p>
               Ein archiviertes Projekt bleibt sichtbar und abspielbar, zeigt aber je Video nur
               noch die neueste fertige Fassung, und kommentieren geht nicht mehr.
             </p>

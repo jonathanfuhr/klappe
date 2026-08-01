@@ -8,6 +8,7 @@ import {
   type GrantedShare,
   canComment,
   canDownloadVersion,
+  canSeeInternalVersions,
   canUploadToProject,
   canViewProject,
   canViewVideo,
@@ -208,7 +209,14 @@ export class AccessService {
     return row;
   }
 
-  /** Version laden und Sichtbarkeit über ihr Video prüfen. */
+  /**
+   * Version laden und Sichtbarkeit über ihr Video prüfen.
+   *
+   * Hier hängt seit Phase 27 auch die Regel für interne Fassungen: Jeder Weg
+   * zu einer einzelnen Fassung – ansehen, kommentieren, herunterladen, Medien
+   * abrufen – kommt hier vorbei. Eine Prüfung an einer Stelle ist mehr wert
+   * als sieben verstreute, von denen die achte vergessen wird.
+   */
   async requireVersion(
     scope: AccessScope,
     versionId: string,
@@ -218,6 +226,7 @@ export class AccessService {
     projectId: string;
     videoDownloadsEnabled: boolean;
     versionDownloadEnabled: boolean;
+    internal: boolean;
   }> {
     const [row] = await this.db
       .select({
@@ -226,6 +235,7 @@ export class AccessService {
         projectId: videos.projectId,
         videoDownloadsEnabled: videos.downloadsEnabled,
         versionDownloadEnabled: videoVersions.downloadEnabled,
+        internal: videoVersions.internal,
       })
       .from(videoVersions)
       .innerJoin(videos, eq(videoVersions.videoId, videos.id))
@@ -233,7 +243,18 @@ export class AccessService {
       .limit(1);
     if (!row) throw new NotFoundException('Version nicht gefunden.');
     this.assertCanViewVideo(scope, { id: row.videoId, projectId: row.projectId });
+    // „Nicht gefunden“ und nicht „verboten“: Für einen Gast gibt es diese
+    // Fassung schlicht nicht, und die Antwort soll auch nicht verraten, dass
+    // im Haus gerade an einer gearbeitet wird.
+    if (row.internal && !this.canSeeInternal(scope)) {
+      throw new NotFoundException('Version nicht gefunden.');
+    }
     return row;
+  }
+
+  /** Interne Fassungen (Phase 27) sieht nur das Team – Gäste nie. */
+  canSeeInternal(scope: AccessScope): boolean {
+    return canSeeInternalVersions(scope);
   }
 
   canDownload(

@@ -179,6 +179,17 @@ export const de = {
   'video.aiBody':
     'Gem. Art. 50 EU AI Act besteht ab dem 2. August 2026 ggf. eine Kennzeichnungspflicht für KI-generierte Inhalte. Die Entscheidung, ob und wie die KI-Inhalte im veröffentlichten Content gekennzeichnet werden, liegt beim Auftraggeber.',
   'video.isFinal': 'Endfassung',
+  'video.internal': 'Intern',
+  'video.internalToggle': 'Interne Fassung',
+  'video.internalTitle': 'Interne Fassung.',
+  'video.internalBody':
+    'Diese Fassung sieht nur das Team. Gäste bekommen sie nirgends zu sehen – erst nach der Freigabe.',
+  'video.internalRelease': 'Für Gäste freigeben',
+  'video.internalReleaseConfirm':
+    'Diese Fassung für Gäste freigeben? Danach ist sie wie jede andere sichtbar.',
+  'video.internalReleased': 'Freigegeben von {name} am {date}',
+  'video.internalHint':
+    'Solange der Haken steht, ist die Fassung nur fürs Team da – auch für externe Projektadmins nicht.',
   'video.downloadForGuests': 'Download für Gäste:',
   'video.wholeVideo': 'ganzes Video',
   'video.downloadHint': 'Wirkt nur zusammen mit dem Download-Recht am Freigabe-Link.',
@@ -278,6 +289,9 @@ export const de = {
   'upload.newVideoName': 'Name des neuen Videos',
   'upload.version': 'Fassung',
   'upload.fileDate': 'Datum im Dateinamen',
+  'upload.internal': 'Freigabe',
+  'upload.internalLabel': 'Erst intern',
+  'upload.internalHint': 'Gäste sehen die Fassung erst, wenn jemand aus dem Team sie freigibt.',
   'upload.needProject': 'Erst ein Projekt wählen',
   'upload.needVideo': 'Erst ein Video wählen oder benennen',
   'upload.processing': 'Verarbeitung',

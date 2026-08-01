@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
+  type UserRole,
   commentBodyToPlainText,
   framesToTimecode,
   versionLabel as versionNumberLabel,
@@ -69,12 +70,15 @@ export class NotificationsService {
     const subscribers = await this.loadSubscribers(row.videoId, row.projectId);
     const participants = await this.loadGuestParticipants(row.comment.versionId);
 
-    const recipients = selectCommentRecipients({
-      authorId: row.comment.authorId,
-      mentioned,
-      subscribers,
-      participants,
-    });
+    const recipients = await this.nurTeamBeiIntern(
+      row.internal,
+      selectCommentRecipients({
+        authorId: row.comment.authorId,
+        mentioned,
+        subscribers,
+        participants,
+      }),
+    );
     if (recipients.length === 0) return 0;
 
     // Zuerst in die Zentrale, dann erst der Versand: Wer ohne Mailserver
@@ -201,6 +205,7 @@ export class NotificationsService {
         fpsDen: videoVersions.fpsDen,
         dropFrame: videoVersions.dropFrame,
         startTimecodeFrames: videoVersions.startTimecodeFrames,
+        internal: videoVersions.internal,
       })
       .from(pendingNotifications)
       .innerJoin(comments, eq(pendingNotifications.commentId, comments.id))
@@ -218,8 +223,13 @@ export class NotificationsService {
     const kopf = await this.loadVideoHead(videoId);
 
     // Gelöschte Kommentare fallen aus der Mail, ihre Vormerkung aber trotzdem
-    // weg – sonst bliebe sie für immer liegen.
-    const sichtbar = wartend.filter((eintrag) => eintrag.comment.deletedAt === null);
+    // weg – sonst bliebe sie für immer liegen. Dasselbe für Kommentare an
+    // einer Fassung, die in der Ruhezeit intern gestellt wurde (Phase 27):
+    // Für einen Gast gibt es sie inzwischen nicht mehr.
+    const imHaus = empfaenger?.role === 'ADMIN' || empfaenger?.role === 'MEMBER';
+    const sichtbar = wartend.filter(
+      (eintrag) => eintrag.comment.deletedAt === null && (imHaus || !eintrag.internal),
+    );
     if (!empfaenger || !kopf || sichtbar.length === 0) {
       await this.db.delete(pendingNotifications).where(inArray(pendingNotifications.id, ids));
       return 0;
@@ -351,6 +361,37 @@ export class NotificationsService {
   }
 
   /**
+   * Bei einer internen Fassung (Phase 27) bleibt die Benachrichtigung im Haus.
+   *
+   * Kommentieren kann dort ohnehin nur das Team – die Fassung ist für Gäste ja
+   * nicht sichtbar. Ein Gast kann aber **namentlich erwähnt** werden, und dann
+   * ginge ohne diese Zeile eine Mail über eine Fassung hinaus, von der der
+   * Kunde nichts wissen soll. Mit der Freigabe gelten wieder die gewohnten
+   * Abläufe.
+   */
+  private async nurTeamBeiIntern<T extends { id: string }>(
+    intern: boolean,
+    empfaenger: T[],
+  ): Promise<T[]> {
+    if (!intern || empfaenger.length === 0) return empfaenger;
+
+    const team = await this.db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          inArray(
+            users.id,
+            empfaenger.map((eintrag) => eintrag.id),
+          ),
+          or(eq(users.role, 'ADMIN'), eq(users.role, 'MEMBER')),
+        ),
+      );
+    const erlaubt = new Set(team.map((eintrag) => eintrag.id));
+    return empfaenger.filter((eintrag) => erlaubt.has(eintrag.id));
+  }
+
+  /**
    * Greift sich alles, was für diesen Empfänger und dieses Video wartet – in
    * einer einzigen Anweisung. Kommt ein zweiter Job gleichzeitig hier an,
    * wartet er auf die Zeilensperre und prüft die Bedingung danach erneut:
@@ -396,6 +437,7 @@ export class NotificationsService {
         dropFrame: videoVersions.dropFrame,
         startTimecodeFrames: videoVersions.startTimecodeFrames,
         uploadedById: videoVersions.uploadedById,
+        internal: videoVersions.internal,
       })
       .from(comments)
       .innerJoin(users, eq(comments.authorId, users.id))
@@ -422,7 +464,9 @@ export class NotificationsService {
    * Der Empfänger, so wie er *jetzt* dasteht: Wer zwischenzeitlich gesperrt
    * wurde oder abbestellt hat, bekommt die wartende Mail nicht mehr.
    */
-  private async loadRecipient(userId: string): Promise<NotificationCandidate | null> {
+  private async loadRecipient(
+    userId: string,
+  ): Promise<(NotificationCandidate & { role: UserRole }) | null> {
     const [row] = await this.db
       .select({
         id: users.id,
@@ -431,6 +475,8 @@ export class NotificationsService {
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
         locale: users.locale,
+        // Für die Frage, ob interne Fassungen mit in die Sammelmail dürfen.
+        role: users.role,
       })
       .from(users)
       .where(eq(users.id, userId))

@@ -89,6 +89,22 @@ export function canDownloadVersion(
   );
 }
 
+/**
+ * Interne Fassungen (Phase 27) sieht **nur das Team**.
+ *
+ * Auch der externe Projektadmin nicht: Er ist Kundenseite, und die interne
+ * Runde ist ja genau der Schritt *vor* dem Kunden. Er darf im Projekt vieles,
+ * was sonst dem Team vorbehalten ist – aber „darf verwalten“ und „gehört zum
+ * Haus“ sind zwei verschiedene Fragen, und hier zählt die zweite.
+ *
+ * Eine einzige Zeile, an der die ganze Regel hängt: Wer sie ändert, ändert
+ * sie überall – in der Fassungsliste, an der neuesten Fassung, beim Download
+ * und beim Kommentieren.
+ */
+export function canSeeInternalVersions(scope: AccessScope): boolean {
+  return scope.unrestricted;
+}
+
 /** Kommentieren darf ein Gast nur, wenn der Link es zulässt. */
 export function canComment(scope: AccessScope, video: { id: string; projectId: string }): boolean {
   if (scope.unrestricted) return true;

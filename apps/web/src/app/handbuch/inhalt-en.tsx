@@ -102,6 +102,14 @@ export function HandbuchEn() {
           clear notice while watching that this is an interim state.
         </p>
         <p>
+          Independently of that there is the <strong>internal</strong> tick: it keeps a version in
+          house until someone from the team releases it. Until then guests do not see it anywhere –
+          not in the version list, not as the newest version, not in the download dialog. The tick
+          can be set while uploading (for each file separately) and changed at any time afterwards.
+          <strong> Anyone on the team</strong> may release it, not just an admin; afterwards the
+          version shows who released it and when.
+        </p>
+        <p>
           An archived project stays visible and playable, but shows only the newest finished
           version per video, and commenting is no longer possible.
         </p>

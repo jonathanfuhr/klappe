@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
 } from '@nestjs/common';
 import type { VersionDto } from '@klappe/shared';
 import { IsBoolean, IsNumber, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
@@ -45,6 +46,14 @@ class UpdateVersionDto {
   @IsOptional()
   @IsNumber()
   versionNumber?: number;
+
+  /**
+   * Interne Fassung (Phase 27) – nachträglich in beide Richtungen umschaltbar.
+   * `false` wirkt wie „Freigeben" und hält fest, wer wann freigegeben hat.
+   */
+  @IsOptional()
+  @IsBoolean()
+  internal?: boolean;
 }
 
 @Controller('v1/versions')
@@ -81,16 +90,41 @@ export class VersionsController {
         fileDate: dto.fileDate,
         isFinal: dto.isFinal,
         versionNumber: dto.versionNumber,
+        internal: dto.internal,
       },
       scope,
+      user,
     );
 
     // Wer „nur Endfassungen“ eingestellt hat, bekommt die Formate erst, wenn
-    // der Haken gesetzt ist – also genau jetzt (Phase 19).
-    if (dto.isFinal === true) {
+    // der Haken gesetzt ist – also genau jetzt (Phase 19). Für eine
+    // freigegebene Fassung gilt dasselbe: Solange sie intern war, hat die
+    // Vorab-Erzeugung sie übersprungen (Phase 27).
+    if (dto.isFinal === true || dto.internal === false) {
       await this.renditions.prebuildFor(id).catch(() => undefined);
     }
     return aktualisiert;
+  }
+
+  /**
+   * Interne Fassung freigeben (Phase 27).
+   *
+   * **Jeder aus dem Team** darf das, Mitglied wie Admin – die interne Runde
+   * ist eine fachliche Entscheidung und kein Verwaltungsakt. Der externe
+   * Projektadmin darf es nicht: Er sieht interne Fassungen gar nicht erst.
+   */
+  @Roles('ADMIN', 'MEMBER')
+  @Post(':id/freigeben')
+  async release(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<VersionDto> {
+    const scope = await this.accessService.loadScope(user);
+    await this.accessService.requireVersion(scope, id);
+    const freigegeben = await this.versionsService.release(id, user, scope);
+    // Jetzt darf sie auch Formate bekommen.
+    await this.renditions.prebuildFor(id).catch(() => undefined);
+    return freigegeben;
   }
 
   /**

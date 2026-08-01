@@ -220,6 +220,25 @@ export const videoVersions = pgTable(
      */
     isFinal: boolean('is_final').notNull().default(false),
 
+    /**
+     * Interne Fassung (Phase 27). Nach dem Rendern läuft oft noch eine Runde
+     * im Haus – solange der Haken steht, sieht **nur das Team** die Fassung.
+     * Für Gäste, externe Projektadmins und die Einbettung gibt es sie nicht:
+     * nicht in der Liste, nicht als neueste, nicht im Download-Fenster.
+     *
+     * Unabhängig vom Endfassungs-Haken: „intern" sagt, *wer* die Fassung sehen
+     * darf, „Endfassung" sagt, *was für eine* Fassung es ist.
+     */
+    internal: boolean('internal').notNull().default(false),
+    /**
+     * Wann die interne Fassung für Gäste freigegeben wurde – und von wem.
+     * Beides bleibt nach der Freigabe stehen, damit sich später nachlesen
+     * lässt, wer sie durchgewunken hat. Wird die Fassung wieder auf „intern"
+     * gestellt, fällt der Vermerk weg: Freigegeben ist sie dann ja nicht mehr.
+     */
+    releasedAt: timestamp('released_at', { withTimezone: true }),
+    releasedById: uuid('released_by_id').references(() => users.id, { onDelete: 'set null' }),
+
     // Original – wird für Downloads immer unverändert ausgeliefert.
     originalFilename: text('original_filename').notNull(),
     originalSizeBytes: bigint('original_size_bytes', { mode: 'number' }).notNull(),
@@ -275,6 +294,8 @@ export const videoVersions = pgTable(
   (table) => [
     uniqueIndex('video_versions_number_unique').on(table.videoId, table.versionNumber),
     index('video_versions_video_idx').on(table.videoId),
+    // Für Gäste läuft jede Fassungsabfrage über `internal` (Phase 27).
+    index('video_versions_internal_idx').on(table.videoId, table.internal),
   ],
 );
 

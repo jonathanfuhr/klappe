@@ -286,6 +286,12 @@ export interface VideoDto {
    * und löschen.
    */
   canManage: boolean;
+  /**
+   * Die Seite dieses Videos in der Web-Oberfläche, relativ zur Instanz
+   * (Phase 27) – etwa `/videos/<id>`. Für Anbindungen, die nach dem Hochladen
+   * „Im Browser öffnen“ anbieten wollen, ohne die Routen zu raten.
+   */
+  webUrl: string;
 }
 
 /** Auflösung und Framerate des Originals, aus `ffprobe`. */
@@ -333,6 +339,16 @@ export interface VersionDto {
   downloadEnabled: boolean;
   /** Endfassung (Phase 17)? Ohne Haken warnt die Oberfläche Gäste. */
   isFinal: boolean;
+  /**
+   * Interne Fassung (Phase 27) – nur fürs Team sichtbar, bis jemand sie
+   * freigibt. Gäste bekommen solche Fassungen nirgends zu sehen; wer dieses
+   * Feld gesetzt sieht, gehört also zum Team.
+   */
+  internal: boolean;
+  /** Wann die Fassung freigegeben wurde; `null`, solange sie intern ist. */
+  releasedAt: string | null;
+  /** Wer freigegeben hat – jeder aus dem Team darf das, nicht nur Admins. */
+  releasedBy: UserSummaryDto | null;
   /** Darf der anfragende Benutzer diese Fassung herunterladen? */
   canDownload: boolean;
   /** Wie die Abspielfassung entstanden ist – `null`, solange sie fehlt. */
@@ -348,6 +364,11 @@ export interface VersionDto {
    * progressive Proxy.
    */
   hlsVariants: string[];
+  /**
+   * Die Videoseite mit genau dieser Fassung, relativ zur Instanz (Phase 27) –
+   * etwa `/videos/<id>?fassung=2.5`.
+   */
+  webUrl: string;
 }
 
 export interface CommentDto {
@@ -392,6 +413,12 @@ export interface UploadSessionDto {
   transcodeStatus: 'NONE' | 'PROCESSING' | 'READY' | 'FAILED';
   transcodeProgress: number;
   transcodeError: string | null;
+  /**
+   * Soll die entstehende Fassung intern sein (Phase 27)? Bei `PROJECT_FILE`
+   * immer `false`. Steht hier, damit die Upload-Liste den Haken auch nach
+   * einem Seiten-Reload noch kennt.
+   */
+  internal: boolean;
   /** Absoluter Pfad für `PATCH`/`HEAD` nach tus-Semantik. */
   location: string;
   createdAt: string;

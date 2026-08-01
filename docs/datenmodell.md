@@ -126,6 +126,12 @@ Inhaltliche Gruppen:
 - **Ablage** – `download_enabled` (dritter Schalter für Gäste) und `file_date`
   (`JJJJ-MM-TT`), das Datum im Download-Dateinamen. Es kommt vom Upload und
   ist danach änderbar.
+- **Interne Runde** (Phase 27) – `internal` heißt: nur fürs Team sichtbar,
+  für Gäste und externe Projektadmins gibt es die Fassung nicht. Mit der
+  Freigabe fällt der Haken und `released_at`/`released_by_id` halten fest,
+  wer sie durchgewunken hat. Der Index `(video_id, internal)` trägt die
+  Gastabfragen. Unabhängig von `is_final`: „intern" sagt, *wer* die Fassung
+  sehen darf, „Endfassung" sagt, *was für eine* es ist.
 
 Warum die Framerate als Bruch: 29,97 ist in Wahrheit 30000/1001. Als
 Dezimalzahl gespeichert liefe der Timecode nach einer Stunde um mehrere

@@ -8,6 +8,7 @@ import {
   type VersionDto,
   type VideoDto,
   VERSION_NUMBER_MAX,
+  VERSION_QUERY_PARAM,
   checkVersionRenumber,
   formatVersionNumber,
   frameToDisplayTimecode,
@@ -40,6 +41,22 @@ import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 import { useUserName } from '@/lib/user-name';
 
+/**
+ * Die Fassung aus `?fassung=` – als formatierte Nummer, so wie sie auch in
+ * der Adresse steht. `null`, wenn nichts (Brauchbares) dransteht.
+ *
+ * Bewusst nicht über `useSearchParams`: Next verlangt dafür eine
+ * `Suspense`-Grenze um die ganze Seite, und der Wert wird hier genau einmal
+ * beim ersten Laden gebraucht.
+ */
+function gewaehlteFassung(): string | null {
+  if (typeof window === 'undefined') return null;
+  const wert = new URLSearchParams(window.location.search).get(VERSION_QUERY_PARAM);
+  if (!wert) return null;
+  const nummer = Number(wert.replace(',', '.'));
+  return Number.isFinite(nummer) && nummer > 0 ? formatVersionNumber(nummer) : null;
+}
+
 export default function ReviewPage() {
   const params = useParams<{ videoId: string }>();
   const videoId = params.videoId;
@@ -48,6 +65,7 @@ export default function ReviewPage() {
   const t = useT();
   const kindName = useAiKindName();
   const zeigeName = useUserName();
+  const { formatDateTime } = useFormat();
 
   const playerRef = useRef<PlayerHandle>(null);
 
@@ -158,7 +176,24 @@ export default function ReviewPage() {
       ]);
       setVideo(videoData);
       setVersions(versionData);
-      setSelectedVersionId((current) => current ?? versionData[0]?.id ?? null);
+      setSelectedVersionId((current) => {
+        if (current) return current;
+        /*
+         * `?fassung=2.5` in der Adresse wählt genau diese Fassung vor
+         * (Phase 27). Genau diesen Link legt die API als `webUrl` an jede
+         * Fassung – eine Anbindung kann nach dem Hochladen also „Im Browser
+         * öffnen" anbieten, ohne unsere Routen zu kennen. Gibt es die Nummer
+         * nicht (mehr), bleibt es bei der neuesten.
+         */
+        const gewuenscht = gewaehlteFassung();
+        if (gewuenscht !== null) {
+          const treffer = versionData.find(
+            (version) => formatVersionNumber(version.versionNumber) === gewuenscht,
+          );
+          if (treffer) return treffer.id;
+        }
+        return versionData[0]?.id ?? null;
+      });
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
@@ -166,6 +201,24 @@ export default function ReviewPage() {
       setLoading(false);
     }
   }, [videoId]);
+
+  /**
+   * Interne Fassung freigeben (Phase 27). Mit Rückfrage: Danach steht sie beim
+   * Kunden, und ein Zurücknehmen ändert nichts mehr daran, dass er sie in der
+   * Zwischenzeit vielleicht schon gesehen hat.
+   */
+  const freigeben = useCallback(
+    async (versionId: string) => {
+      if (!window.confirm(t('video.internalReleaseConfirm'))) return;
+      try {
+        await api.releaseVersion(versionId);
+        await loadVideo();
+      } catch (releaseError) {
+        setError(releaseError instanceof Error ? releaseError.message : t('common.saveFailed'));
+      }
+    },
+    [loadVideo, t],
+  );
 
   const loadComments = useCallback(async () => {
     if (!selectedVersionId) {
@@ -345,6 +398,11 @@ export default function ReviewPage() {
           <div className="toolbar videobar">
             <h1 className="page__title videobar__title">{video?.name ?? t('video.title')}</h1>
             {selectedVersion ? <VersionStatusBadge version={selectedVersion} /> : null}
+            {/* Deutlich sichtbar, dass diese Fassung das Haus nicht verlässt
+                (Phase 27). Sehen kann den Haken ohnehin nur das Team. */}
+            {selectedVersion?.internal ? (
+              <span className="badge badge--processing">{t('video.internal')}</span>
+            ) : null}
 
             <div className="shell__spacer" />
 
@@ -364,7 +422,10 @@ export default function ReviewPage() {
                     {t('video.versionOption', {
                       label:
                         versionLabel(version.versionNumber) +
-                        (version.label ? ` – ${version.label}` : ''),
+                        (version.label ? ` – ${version.label}` : '') +
+                        // In einer Auswahlliste geht kein eigenes Abzeichen –
+                        // deshalb steht „intern" im Text (Phase 27).
+                        (version.internal ? ` · ${t('video.internal')}` : ''),
                       count: version.commentCount,
                     })}
                   </option>
@@ -441,6 +502,26 @@ export default function ReviewPage() {
             <Uploader projectId={video.projectId} videoId={video.id} />
           ) : null}
 
+          {/* Interne Fassung (Phase 27): Der Hinweis richtet sich ans Team –
+              Gäste sehen die Fassung ohnehin nicht. Freigeben darf **jeder**
+              aus dem Team, das ist kein Admin-Vorrecht. */}
+          {selectedVersion?.internal ? (
+            <div className="notice notice--warn">
+              <strong>{t('video.internalTitle')}</strong> {t('video.internalBody')}
+              {isTeam ? (
+                <p style={{ marginBottom: 0, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={() => void freigeben(selectedVersion.id)}
+                  >
+                    {t('video.internalRelease')}
+                  </button>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Solange keine Endfassung markiert ist, sagt es die Seite – zuerst
               dem Kunden, der sonst eine Zwischenfassung für das Ergebnis
               hält. Das Team sieht denselben Hinweis samt Schalter. */}
@@ -478,6 +559,32 @@ export default function ReviewPage() {
                 />
                 {t('video.isFinal')}
               </label>
+              {/* Nachträglich umschaltbar, in beide Richtungen (Phase 27):
+                  Was versehentlich hinausging, lässt sich zurückholen – und
+                  was intern bleiben sollte, nachträglich sperren. Der
+                  Endfassungs-Haken bleibt davon unberührt. */}
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={selectedVersion.internal}
+                  onChange={(event) => {
+                    void api
+                      .updateVersion(selectedVersion.id, { internal: event.target.checked })
+                      .then(loadVideo);
+                  }}
+                />
+                {t('video.internalToggle')}
+              </label>
+              {selectedVersion.releasedAt ? (
+                <span className="muted" style={{ fontSize: 13 }}>
+                  {t('video.internalReleased', {
+                    name: selectedVersion.releasedBy
+                      ? zeigeName(selectedVersion.releasedBy)
+                      : '–',
+                    date: formatDateTime(selectedVersion.releasedAt),
+                  })}
+                </span>
+              ) : null}
               <span className="muted" style={{ fontSize: 13 }}>
                 {t('video.downloadForGuests')}
               </span>

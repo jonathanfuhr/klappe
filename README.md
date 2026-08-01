@@ -91,6 +91,12 @@ Fehleingaben zu begradigen – dabei ist jede freie Nummer erlaubt.
 Ein Haken **Endfassung** trennt Zwischenstand von Fertigem. Ohne ihn sieht der
 Kunde einen Hinweis, und der Dateiname trägt `Vorschau`.
 
+Ein zweiter Haken **intern** hält eine Fassung im Haus (Phase 27): Nach dem
+Rendern läuft oft noch eine interne Runde, und solange der Haken steht, sieht
+nur das Team die Fassung – Gäste bekommen sie nirgends zu Gesicht, auch nicht
+als neueste. Freigeben darf jeder aus dem Team; danach steht an der Fassung,
+wer wann bestätigt hat.
+
 Projekte tragen einen Kunden und beliebige **benutzerdefinierte Felder** (etwa
 eine Projektnummer), die in den Einstellungen angelegt werden. Nach jedem Feld
 lässt sich filtern, sortieren und gruppieren – Kunde und Schlagworte sind dabei

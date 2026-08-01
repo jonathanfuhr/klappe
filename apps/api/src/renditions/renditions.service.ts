@@ -192,6 +192,14 @@ export class RenditionsService {
       .limit(1);
     if (!version || version.status !== 'READY' || !version.originalKey) return 0;
     if (einstellungen.downloadFinalOnly && !version.isFinal) return 0;
+    /*
+     * Interne Fassungen bekommen ihre Formate erst mit der Freigabe (Phase 27).
+     * Sie sind der Zwischenstand vor dem Kunden – oft wird genau diese Fassung
+     * verworfen, und dann hätte der Rechner eine Nacht lang Dateien erzeugt,
+     * die niemand je herunterlädt. Angefordert werden können sie trotzdem
+     * jederzeit; das läuft über `ensureRendition` und nicht hier vorbei.
+     */
+    if (version.internal) return 0;
 
     const presets = await this.db
       .select()

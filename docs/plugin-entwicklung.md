@@ -16,7 +16,12 @@ wie man anfängt.
 - [Sich verbinden](#sich-verbinden)
 - [Die ersten Abfragen](#die-ersten-abfragen)
 - [Kommentare in die Timeline](#kommentare-in-die-timeline)
+- [Zeichnungen übernehmen](#zeichnungen-übernehmen)
+- [Nur das Neue holen](#nur-das-neue-holen)
 - [Eine Fassung hochladen](#eine-fassung-hochladen)
+- [Eine Fassung ersetzen](#eine-fassung-ersetzen)
+- [Interne Fassungen](#interne-fassungen)
+- [Im Browser öffnen](#im-browser-öffnen)
 - [Auf Änderungen warten](#auf-änderungen-warten)
 - [Regeln des Hauses](#regeln-des-hauses)
 
@@ -242,6 +247,65 @@ Benachrichtigungen. Die IDs liefert `GET /v1/mentionable-users?q=`.
 
 ---
 
+## Zeichnungen übernehmen
+
+Zu vielen Kommentaren gehört eine Zeichnung auf dem Bild – ein Kringel um die
+Stelle, die gemeint ist. Sie steht als `annotation` am Kommentar, in relativen
+Koordinaten (0…1 der Bildbreite und -höhe), damit dieselbe Zeichnung auf jede
+Auflösung passt.
+
+Wer sie nur **anzeigen** will, braucht das nicht selbst zu rastern:
+
+```bash
+curl -s "$KLAPPE/v1/comments/$KOMMENTAR/annotation.png?width=1920" \
+  -H "Authorization: Bearer $TOKEN" -o kringel.png
+```
+
+Heraus kommt ein **transparentes PNG** im Seitenverhältnis der Fassung – es
+liegt deckungsgleich über dem Frame und sieht genauso aus wie in der Web-App.
+Das ist vor allem für Umgebungen gedacht, in denen es keine Bildbibliothek
+gibt: In der Python-Umgebung von DaVinci Resolve etwa lässt sich nichts
+nachinstallieren.
+
+- `width` liegt zwischen 64 und 3840, Vorgabe 1920; die Höhe rechnet der
+  Server aus der Auflösung der Fassung.
+- Ein Kommentar ohne Zeichnung ergibt ein durchsichtiges Bild, kein Fehler –
+  du musst also nicht vorher prüfen.
+- Es gibt einen `ETag`. Die Zeichnung ändert sich nur, wenn jemand den
+  Kommentar bearbeitet; mit `If-None-Match` bekommst du sonst `304` und
+  sparst die Übertragung.
+
+Wer die Striche lieber selbst zeichnet – etwa um sie in ein Fusion-Element zu
+legen –, nimmt weiter `annotation`. Beides steht nebeneinander zur Verfügung.
+
+---
+
+## Nur das Neue holen
+
+Beim „Aktualisieren" interessiert selten die ganze Liste:
+
+```bash
+curl -s "$KLAPPE/v1/versions/$FASSUNG/comments?since=2026-08-01T10:15:00Z" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Zurück kommen die Gespräche, in denen sich seit diesem Zeitpunkt etwas getan
+hat – neue Antwort, bearbeiteter Text, erledigt gesetzt. Gefiltert wird ganzen
+Fäden entlang: Ein Thread kommt immer vollständig, sonst stünde eine Antwort
+ohne ihren Kommentar da.
+
+Zwei Dinge merken:
+
+- **Löschungen erkennt `since` nicht.** Ein gelöschter Kommentar taucht
+  nirgends mehr auf. Wer verschwundene Marker aus der Timeline nehmen will,
+  holt die volle Liste und vergleicht die IDs – das ist ohnehin der robustere
+  Abgleich.
+- Nimm als Zeitpunkt den `createdAt`/`updatedAt`-Höchstwert aus der letzten
+  Antwort, nicht die Uhr des eigenen Rechners: Die geht selten genau so wie
+  die des Servers.
+
+---
+
 ## Eine Fassung hochladen
 
 Über **tus 1.0.0** – dasselbe Protokoll wie im Browser, und aus demselben
@@ -277,7 +341,113 @@ Passt der `Upload-Offset` nicht zum Server, kommt `409` mit dem tatsächlichen
 Stand in der Meldung – dann per `HEAD` nachsehen und dort weitermachen, nicht
 von vorn beginnen.
 
+Beim Eröffnen der Sitzung darfst du gleich mitgeben, was die Fassung ausmacht:
+
+```json
+{ "filename": "Teaser_v3.mov", "sizeBytes": 42949672960,
+  "label": "Farbkorrektur", "fileDate": "2026-08-01",
+  "versionNumber": 2.5, "internal": true, "replace": false }
+```
+
+`versionNumber` darf eine Nachkommastelle haben – zwischen v2 und v3 passt so
+noch eine Korrekturfassung. Ohne Angabe zählt Klappe selbst weiter. Geprüft
+wird sofort, nicht erst am Ende: Eine Absage nach 90 GB wäre eine Zumutung.
+Ist die Nummer schon vergeben, kommt `409`.
+
 Für Kundenmaterial statt einer Fassung: `POST /v1/projects/$PROJEKT/uploads`.
+
+---
+
+## Eine Fassung ersetzen
+
+Der Alltag: Nach dem Rendern fällt noch ein Fehler auf, es wird neu
+ausgespielt – und die fehlerhafte v3 soll *v3 bleiben* und nicht v4 heißen.
+
+```bash
+curl -isX POST "$KLAPPE/v1/videos/$VIDEO/uploads" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"filename":"Teaser_v3.mov","sizeBytes":42949672960,
+       "versionNumber":3,"replace":true}'
+```
+
+Der Rest läuft wie jeder Upload. Sobald der letzte Block da ist, weicht die
+alte v3 in **einer** Transaktion der neuen – bei einem Abbruch dazwischen
+steht das Video nie ohne die Fassung da, die es eben noch hatte. Gibt es die
+Nummer noch gar nicht, entsteht sie einfach neu.
+
+Zwei Dinge, die man dem Benutzer sagen sollte, bevor er den Knopf drückt:
+
+- **Die Kommentare der ersetzten Fassung verschwinden mit ihr.** Sie hängen an
+  Frames eines Ausspielens, das es nicht mehr gibt. Wer sie behalten will,
+  lädt unter einer neuen Nummer hoch.
+- Der Sonderfall „die letzte Fassung lässt sich nicht löschen" gilt hier
+  nicht – es bleibt ja eine Fassung dieser Nummer stehen.
+
+`replace` ohne `versionNumber` ergibt `400`. Und ohne `replace` bleibt es bei
+`409`: Genau daran erkennst du, dass hier ein Ersetzen gemeint war.
+
+---
+
+## Interne Fassungen
+
+Oft läuft nach dem Rendern noch ein Review im Haus, bevor der Kunde etwas zu
+sehen bekommt. Eine Fassung lässt sich deshalb als **intern** hochladen:
+
+```json
+{ "filename": "Teaser_v3.mov", "sizeBytes": 42949672960, "internal": true }
+```
+
+Sie ist dann nur fürs Team da. Für Gäste gibt es sie **nirgends** – nicht in
+der Fassungsliste, nicht als `latestVersion`, nicht im Download. Erst die
+Freigabe macht sie sichtbar:
+
+```bash
+curl -sX POST "$KLAPPE/v1/versions/$FASSUNG/freigeben" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Das darf **jeder aus dem Team**, Mitglied wie Admin. Danach steht an der
+Fassung, wer wann freigegeben hat (`releasedAt`, `releasedBy`) – auch das ein
+Wert, den ein Plugin anzeigen kann. Umschalten geht auch über
+`PATCH /v1/versions/:id` mit `{ "internal": true|false }`.
+
+Was dein Plugin dabei beachten sollte:
+
+- **Das Feld `internal` zu sehen heißt, zum Team zu gehören.** Ein Token mit
+  Gastrechten bekommt solche Fassungen gar nicht erst zu Gesicht; frag nicht
+  danach, warum eine gerade hochgeladene Fassung „fehlt", sondern zeig den
+  Zustand aus der eigenen Anfrage.
+- `POST /v1/versions/:id/freigeben` an einer nicht-internen Fassung ergibt
+  `400`. Das ist Absicht: Ein zweiter Klick soll den Vermerk „wer war das?"
+  nicht überschreiben.
+- Der Endfassungs-Haken (`isFinal`) ist davon unabhängig. „Intern" sagt, *wer*
+  die Fassung sehen darf; „Endfassung" sagt, *was für eine* es ist.
+
+---
+
+## Im Browser öffnen
+
+Nach dem Hochladen will man meistens genau eins: die Fassung im Browser
+aufmachen und den Link an den Kunden weitergeben. Dafür trägt jedes Video und
+jede Fassung die fertige Adresse mit sich:
+
+```json
+{ "webUrl": "/videos/2c3f…" }                    // VideoDto
+{ "webUrl": "/videos/2c3f…?fassung=2.5" }        // VersionDto
+```
+
+Sie ist **relativ** zur Instanz – setz die Basis davor, die dein Plugin
+ohnehin kennt (`$KLAPPE` ohne `/v1`). Absolut wäre sie hier falsch: Dieselbe
+Instanz ist oft über mehrere Adressen erreichbar, und welche der Benutzer
+gerade meint, weiß dein Plugin besser als der Server.
+
+Bau die Adresse bitte **nicht selbst zusammen.** Genau dafür steht sie in der
+Antwort: Ändert sich einmal eine Route der Oberfläche, zieht `webUrl` mit, ein
+im Plugin hinterlegtes Muster nicht.
+
+Geteilt wird danach aus dem Browser – Freigabe-Links sind ein eigener Vorgang
+mit Rechten, Ablauf und Empfängern, und der gehört in die Oberfläche.
 
 ---
 

@@ -51,8 +51,21 @@ export class CommentsService {
   /**
    * Alle Kommentare einer Version als Threads: Wurzelkommentare nach Frame
    * sortiert, Antworten chronologisch darunter.
+   *
+   * Mit `since` kommt nur zurück, was sich seitdem getan hat (Phase 27) – für
+   * das „Aktualisieren" einer Anbindung, die die Liste schon einmal geholt
+   * hat. Gefiltert wird **ganzen Gesprächen** entlang: Hat sich irgendwo im
+   * Faden etwas geändert, kommt er vollständig mit. Eine Antwort ohne ihren
+   * Kommentar wäre für den Empfänger nicht einzuordnen.
+   *
+   * Gelöschte Kommentare fallen wie immer heraus; wer Löschungen erkennen
+   * will, braucht die volle Liste.
    */
-  async listForVersion(versionId: string, scope: AccessScope): Promise<CommentDto[]> {
+  async listForVersion(
+    versionId: string,
+    scope: AccessScope,
+    since?: Date,
+  ): Promise<CommentDto[]> {
     await this.accessService.requireVersion(scope, versionId);
     const version = await this.getVersionOrFail(versionId);
 
@@ -85,12 +98,17 @@ export class CommentsService {
 
     const byId = new Map<string, CommentDto>();
     const roots: CommentDto[] = [];
+    /** Fäden, in denen sich seit `since` etwas getan hat. */
+    const beruehrt = new Set<string>();
 
     for (const row of rows) {
       byId.set(
         row.comment.id,
         this.toDto(row, timecodeFor(row.comment.frame), mentionsByComment.get(row.comment.id) ?? []),
       );
+      if (since && row.comment.updatedAt > since) {
+        beruehrt.add(row.comment.parentId ?? row.comment.id);
+      }
     }
 
     for (const row of rows) {
@@ -99,7 +117,7 @@ export class CommentsService {
       const parent = row.comment.parentId ? byId.get(row.comment.parentId) : undefined;
       if (parent) {
         parent.replies.push(dto);
-      } else {
+      } else if (!since || beruehrt.has(dto.id)) {
         roots.push(dto);
       }
     }
@@ -256,6 +274,36 @@ export class CommentsService {
       .where(eq(comments.id, id));
     await this.meldeAenderung(row.versionId);
     return this.findOneOrFail(id);
+  }
+
+  /**
+   * Zeichnung samt Bildmaßen der Fassung – Grundlage für das gerasterte PNG
+   * (Phase 27). Der Zeitstempel geht in den ETag: Die Zeichnung ändert sich
+   * nur beim `PATCH` des Kommentars, und genau dann soll ein Zwischenspeicher
+   * beim Client verfallen.
+   */
+  async annotationForRendering(
+    id: string,
+    scope: AccessScope,
+  ): Promise<{
+    annotation: Annotation | null;
+    media: { width: number | null; height: number | null };
+    updatedAt: Date;
+  }> {
+    const row = await this.getRowOrFail(id);
+    await this.accessService.requireVersion(scope, row.versionId);
+
+    const [version] = await this.db
+      .select({ width: videoVersions.width, height: videoVersions.height })
+      .from(videoVersions)
+      .where(eq(videoVersions.id, row.versionId))
+      .limit(1);
+
+    return {
+      annotation: (row.annotation as Annotation | null) ?? null,
+      media: version ?? { width: null, height: null },
+      updatedAt: row.updatedAt,
+    };
   }
 
   async findOneOrFail(id: string): Promise<CommentDto> {

@@ -281,6 +281,13 @@
       "when": 1785573212082,
       "tag": "0039_ki_arten_schluessel",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1785613601632,
+      "tag": "0040_interne_fassungen",
+      "breakpoints": true
     }
   ]
 }

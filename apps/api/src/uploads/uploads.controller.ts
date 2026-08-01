@@ -23,6 +23,7 @@ import {
   type UploadSessionDto,
 } from '@klappe/shared';
 import {
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
@@ -34,7 +35,7 @@ import {
   Min,
 } from 'class-validator';
 import type { Request, Response } from 'express';
-import { AccessService } from '../access/access.service';
+import { AccessService, type AccessScope } from '../access/access.service';
 import { CurrentUser, Public, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
 import {
@@ -88,6 +89,22 @@ class CreateUploadDto {
   @Min(0.001)
   @Max(VERSION_NUMBER_MAX)
   versionNumber?: number;
+
+  /**
+   * Interne Fassung (Phase 27): erst fürs Team, für Gäste erst nach der
+   * Freigabe. Bei Projekt-Uploads ohne Bedeutung.
+   */
+  @IsOptional()
+  @IsBoolean()
+  internal?: boolean;
+
+  /**
+   * Eine vorhandene Fassung derselben Nummer überschreiben (Phase 27) – nur
+   * zusammen mit `versionNumber`. Ohne dieses Kennzeichen bleibt es bei `409`.
+   */
+  @IsOptional()
+  @IsBoolean()
+  replace?: boolean;
 }
 
 class AssignUploadDto {
@@ -109,6 +126,16 @@ class AssignUploadDto {
   @Min(0.001)
   @Max(VERSION_NUMBER_MAX)
   versionNumber?: number;
+
+  /** Interne Fassung (Phase 27) – auch beim Nachreichen noch umstellbar. */
+  @IsOptional()
+  @IsBoolean()
+  internal?: boolean;
+
+  /** Vorhandene Fassung gleicher Nummer überschreiben (Phase 27). */
+  @IsOptional()
+  @IsBoolean()
+  replace?: boolean;
 }
 
 /**
@@ -163,6 +190,7 @@ export class UploadsController {
     if (!this.accessService.canManageAnyProject(scope)) {
       throw new ForbiddenException('Für das Hochladen neuer Videofassungen fehlen die Rechte.');
     }
+    this.assertDarfIntern(dto.internal, scope);
 
     const details = this.readUploadDetails(dto, headers);
     const session = await this.uploadsService.create({
@@ -173,6 +201,8 @@ export class UploadsController {
       label: dto.label?.trim() || null,
       fileDate: dto.fileDate ?? null,
       versionNumber: dto.versionNumber ?? null,
+      internal: dto.internal ?? false,
+      replace: dto.replace ?? false,
       user,
     });
     response.setHeader('Tus-Resumable', TUS_VERSION);
@@ -221,13 +251,27 @@ export class UploadsController {
     @CurrentUser() user: RequestUser,
     @Res({ passthrough: true }) response: Response,
   ): Promise<UploadSessionDto> {
-    if (dto.videoId) {
+    if (dto.videoId || dto.internal !== undefined) {
       const scope = await this.accessService.loadScope(user);
-      const video = await this.accessService.requireVideo(scope, dto.videoId);
-      this.accessService.assertCanManageProject(scope, video.projectId);
+      if (dto.videoId) {
+        const video = await this.accessService.requireVideo(scope, dto.videoId);
+        this.accessService.assertCanManageProject(scope, video.projectId);
+      }
+      this.assertDarfIntern(dto.internal, scope);
     }
 
-    const ergebnis = await this.uploadsService.assign(id, dto, user);
+    const ergebnis = await this.uploadsService.assign(
+      id,
+      {
+        videoId: dto.videoId,
+        label: dto.label,
+        fileDate: dto.fileDate,
+        versionNumber: dto.versionNumber,
+        internal: dto.internal,
+        replace: dto.replace,
+      },
+      user,
+    );
     if (ergebnis.versionId) response.setHeader('Klappe-Version-Id', ergebnis.versionId);
     return ergebnis.session;
   }
@@ -252,6 +296,8 @@ export class UploadsController {
       label: dto.label?.trim() || null,
       fileDate: dto.fileDate ?? null,
       versionNumber: dto.versionNumber ?? null,
+      internal: dto.internal ?? false,
+      replace: dto.replace ?? false,
       user,
     });
 
@@ -380,6 +426,17 @@ export class UploadsController {
       throw new BadRequestException('Der Dateiname fehlt.');
     }
     return { filename, sizeBytes, mimeType };
+  }
+
+  /**
+   * Interne Fassungen sind Sache des Teams (Phase 27). Ein externer
+   * Projektadmin darf Fassungen hochladen, aber keine internen: Er sähe sie
+   * hinterher selbst nicht mehr – die Datei wäre für ihn verschwunden. Lieber
+   * eine klare Absage als ein Upload ins Nichts.
+   */
+  private assertDarfIntern(intern: boolean | undefined, scope: AccessScope): void {
+    if (!intern || this.accessService.canSeeInternal(scope)) return;
+    throw new ForbiddenException('Interne Fassungen kann nur das Team hochladen.');
   }
 
   private setDiscoveryHeaders(response: Response): void {

@@ -15,7 +15,7 @@ import type { RequestUser } from '../auth/auth.types';
 import { sanitizeFilename } from '../common/normalize';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
-import { type UploadRow, uploads, videoVersions, videos } from '../db/schema';
+import { type UploadRow, type VideoVersionRow, uploads, videoVersions, videos } from '../db/schema';
 import { ProjectFilesService } from '../project-files/project-files.service';
 import { ProjectFoldersService } from '../project-files/project-folders.service';
 import { ProjectsService } from '../projects/projects.service';
@@ -77,16 +77,27 @@ export class UploadsService {
     label: string | null;
     fileDate: string | null;
     versionNumber: number | null;
+    /** Interne Fassung (Phase 27). */
+    internal?: boolean;
+    /** Vorhandene Fassung gleicher Nummer überschreiben (Phase 27). */
+    replace?: boolean;
     user: RequestUser;
   }): Promise<UploadSessionDto> {
     this.assertSize(input.sizeBytes);
     if (input.videoId) await this.videosService.assertExists(input.videoId);
+    if (input.replace && input.versionNumber === null) {
+      throw new BadRequestException('Zum Ersetzen fehlt die Nummer der Fassung.');
+    }
 
     // Die Nummer wird schon hier geprüft, obwohl die Fassung erst beim
     // Abschluss entsteht: Eine Absage nach 90 GB Übertragung wäre eine
     // Zumutung. Ohne Video lässt sich nichts prüfen – das holt `assign()` nach.
+    //
+    // Beim Ersetzen fällt die Bestandsprüfung weg: Dort ist eine belegte
+    // Nummer gerade der Sinn der Sache (Phase 27).
     if (input.videoId && input.versionNumber !== null) {
-      await this.versionsService.assertNumberFree(input.videoId, input.versionNumber);
+      if (input.replace) this.versionsService.assertNumberUsable(input.versionNumber);
+      else await this.versionsService.assertNumberFree(input.videoId, input.versionNumber);
     }
 
     // Die Fassung entsteht bewusst **nicht** hier, sondern erst, wenn die Datei
@@ -113,6 +124,8 @@ export class UploadsService {
           ...(input.label ? { label: input.label } : {}),
           ...(input.fileDate ? { fileDate: input.fileDate } : {}),
           ...(input.versionNumber !== null ? { versionNumber: String(input.versionNumber) } : {}),
+          ...(input.internal ? { internal: '1' } : {}),
+          ...(input.replace ? { replace: '1' } : {}),
         },
       })
       .returning();
@@ -397,8 +410,11 @@ export class UploadsService {
       label: roh.label,
       fileDate: roh.fileDate,
       versionNumber: roh.versionNumber === undefined ? undefined : Number(roh.versionNumber),
+      internal: roh.internal === '1',
+      replace: roh.replace === '1',
     };
-    const versionId = row.versionId ?? (await this.createVersionFor(row, details)).id;
+    const angelegt = row.versionId ? null : await this.createVersionFor(row, details);
+    const versionId = row.versionId ?? (angelegt as { id: string }).id;
 
     const targetKey = this.storage.keyForOriginal(versionId, sanitizeFilename(row.filename));
     await this.storage.move(row.storageKey, targetKey);
@@ -409,6 +425,12 @@ export class UploadsService {
       .where(eq(uploads.id, row.id));
 
     await this.versionsService.markUploadComplete(versionId, targetKey);
+
+    // Die ersetzte Fassung ist samt Kommentaren aus der Datenbank verschwunden
+    // (Phase 27) – ihre Dateien liegen aber noch auf der Platte. Erst jetzt,
+    // nach dem Umzug, ist Zeit dafür: Scheitert vorher etwas, steht die alte
+    // Fassung wenigstens noch komplett da.
+    if (angelegt?.ersetzt) await this.entferneDateien(angelegt.ersetzt);
 
     const [version] = await this.db
       .select({ videoId: videoVersions.videoId })
@@ -508,8 +530,15 @@ export class UploadsService {
    */
   private async createVersionFor(
     row: UploadRow,
-    details: { filetype?: string; label?: string; fileDate?: string; versionNumber?: number },
-  ): Promise<{ id: string }> {
+    details: {
+      filetype?: string;
+      label?: string;
+      fileDate?: string;
+      versionNumber?: number;
+      internal?: boolean;
+      replace?: boolean;
+    },
+  ): Promise<{ id: string; ersetzt: VideoVersionRow | null }> {
     const gemeinsam = {
       videoId: row.videoId as string,
       filename: row.filename,
@@ -517,24 +546,59 @@ export class UploadsService {
       mimeType: details.filetype ?? null,
       label: details.label ?? null,
       fileDate: details.fileDate ?? null,
+      internal: details.internal ?? false,
       user: { id: row.createdById } as RequestUser,
     };
 
-    if (details.versionNumber === undefined) {
-      return this.versionsService.createNextVersion(gemeinsam);
-    }
-    try {
-      return await this.versionsService.createNextVersion({
+    // Ersetzen (Phase 27): Die Nummer *soll* belegt sein, und die alte Fassung
+    // weicht in derselben Transaktion. Hier gibt es kein Weiterzählen als
+    // Ausweg – wer ersetzen wollte, will keine v4.
+    if (details.replace && details.versionNumber !== undefined) {
+      const ergebnis = await this.versionsService.replaceVersion({
         ...gemeinsam,
         versionNumber: details.versionNumber,
       });
+      if (ergebnis.ersetzt) {
+        this.logger.log(
+          `Fassung ${details.versionNumber} von Video ${row.videoId} ersetzt ` +
+            `(alte Fassung ${ergebnis.ersetzt.id} samt Kommentaren entfernt).`,
+        );
+      }
+      return { id: ergebnis.row.id, ersetzt: ergebnis.ersetzt };
+    }
+
+    if (details.versionNumber === undefined) {
+      return { id: (await this.versionsService.createNextVersion(gemeinsam)).id, ersetzt: null };
+    }
+    try {
+      const row2 = await this.versionsService.createNextVersion({
+        ...gemeinsam,
+        versionNumber: details.versionNumber,
+      });
+      return { id: row2.id, ersetzt: null };
     } catch (error) {
       this.logger.warn(
         `Wunschnummer ${details.versionNumber} für Upload ${row.id} nicht mehr frei ` +
           `(${error instanceof Error ? error.message : String(error)}) – es wird weitergezählt.`,
       );
-      return this.versionsService.createNextVersion(gemeinsam);
+      return { id: (await this.versionsService.createNextVersion(gemeinsam)).id, ersetzt: null };
     }
+  }
+
+  /** Alles, was zu einer weggefallenen Fassung auf der Platte liegt. */
+  private async entferneDateien(version: VideoVersionRow): Promise<void> {
+    for (const key of [
+      version.originalKey,
+      version.proxyKey,
+      version.posterKey,
+      version.spriteKey,
+      version.hlsKey,
+    ]) {
+      if (key) await this.storage.remove(key);
+    }
+    // Die erzeugten Download-Formate (Phase 19) liegen je Fassung in einem
+    // eigenen Verzeichnis.
+    await this.storage.remove(this.storage.keyForRenditionDir(version.id));
   }
 
   /** Kundenmaterial ablegen und das Team benachrichtigen. */
@@ -587,6 +651,8 @@ export class UploadsService {
       label?: string | null;
       fileDate?: string | null;
       versionNumber?: number | null;
+      internal?: boolean;
+      replace?: boolean;
     },
     user: RequestUser,
   ): Promise<{ session: UploadSessionDto; versionId: string | null }> {
@@ -604,17 +670,23 @@ export class UploadsService {
 
     // Jetzt lässt sich die Wunschnummer endlich prüfen – vorher war kein Video
     // bekannt, gegen das man sie hätte halten können.
+    const bisher = (row.metadata ?? {}) as Record<string, string>;
     const nummer =
       input.versionNumber === undefined
-        ? (row.metadata as Record<string, string> | null)?.versionNumber
+        ? bisher.versionNumber
         : input.versionNumber === null
           ? undefined
           : String(input.versionNumber);
+    const ersetzen = input.replace ?? bisher.replace === '1';
+    if (ersetzen && nummer === undefined) {
+      throw new BadRequestException('Zum Ersetzen fehlt die Nummer der Fassung.');
+    }
     if (videoId && nummer !== undefined) {
-      await this.versionsService.assertNumberFree(videoId, Number(nummer));
+      if (ersetzen) this.versionsService.assertNumberUsable(Number(nummer));
+      else await this.versionsService.assertNumberFree(videoId, Number(nummer));
     }
 
-    const metadata = { ...((row.metadata ?? {}) as Record<string, string>) };
+    const metadata = { ...bisher };
     if (input.label !== undefined) {
       if (input.label) metadata.label = input.label;
       else delete metadata.label;
@@ -626,6 +698,14 @@ export class UploadsService {
     if (input.versionNumber !== undefined) {
       if (input.versionNumber === null) delete metadata.versionNumber;
       else metadata.versionNumber = String(input.versionNumber);
+    }
+    if (input.internal !== undefined) {
+      if (input.internal) metadata.internal = '1';
+      else delete metadata.internal;
+    }
+    if (input.replace !== undefined) {
+      if (input.replace) metadata.replace = '1';
+      else delete metadata.replace;
     }
 
     const [aktualisiert] = await this.db
@@ -709,6 +789,7 @@ export class UploadsService {
       transcodeStatus: row.transcodeStatus,
       transcodeProgress: row.transcodeProgress,
       transcodeError: row.transcodeError,
+      internal: (row.metadata as Record<string, string> | null)?.internal === '1',
       location: `/v1/uploads/${row.id}`,
       createdAt: row.createdAt.toISOString(),
       expiresAt: row.expiresAt.toISOString(),
