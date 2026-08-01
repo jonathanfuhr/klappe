@@ -7,6 +7,7 @@ import {
   type VersionDownloadsDto,
   type VersionDto,
   type VideoDto,
+  VERSION_NUMBER_MAX,
   checkVersionRenumber,
   formatVersionNumber,
   frameToDisplayTimecode,
@@ -869,7 +870,18 @@ function RenumberVersionDialog({
           ? null
           : (() => {
               const ergebnis = checkVersionRenumber(wert, andere);
-              return ergebnis.ok ? null : { message: ergebnis.message };
+              if (ergebnis.ok) return null;
+              // Nicht `ergebnis.message` nehmen: Der Satz ist immer Deutsch,
+              // weil dieselbe Prüfung in der API läuft und dort erst der
+              // Fehlerfilter beim Hinausgehen übersetzt. Hier im Browser gibt
+              // es den nicht – also über den Grund ins Wörterbuch.
+              if (ergebnis.reason === 'zu-gross') {
+                return { message: t('video.renumberTooLarge', { max: VERSION_NUMBER_MAX }) };
+              }
+              if (ergebnis.reason === 'vergeben') {
+                return { message: t('video.renumberTaken', { label: versionLabel(wert) }) };
+              }
+              return { message: t('video.renumberTooSmall') };
             })();
 
   const kannSpeichern = eingabe.trim() !== '' && Number.isFinite(wert) && !problem && !unveraendert && !busy;

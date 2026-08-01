@@ -198,6 +198,9 @@ export const en: Record<MessageKey, Message> = {
   'video.renumberNewNumber': 'New number',
   'video.renumberSubmit': 'Renumber',
   'video.renumberNaN': 'Please enter a number – 2.5 works too.',
+  'video.renumberTooSmall': 'The number has to be greater than 0.',
+  'video.renumberTooLarge': 'The number may be at most {max}.',
+  'video.renumberTaken': '{label} already exists in this video.',
   'video.renumberHint':
     'Must be unique within the video; intermediate versions like 2.5 are fine. The order of the list and the download filename follow the new number immediately.',
   'video.detailFile': 'File',

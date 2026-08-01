@@ -200,6 +200,13 @@ export const de = {
   'video.renumberNewNumber': 'Neue Nummer',
   'video.renumberSubmit': 'Umnummerieren',
   'video.renumberNaN': 'Bitte eine Zahl angeben – auch 2.5 geht.',
+  // Die drei Gründe, aus denen `checkVersionRenumber` eine Nummer ablehnt.
+  // Der Text kommt bewusst von hier und nicht aus dem Ergebnis: Dessen
+  // `message` ist immer Deutsch, weil dieselbe Prüfung auch in der API läuft,
+  // wo der Fehlerfilter erst beim Hinausgehen übersetzt.
+  'video.renumberTooSmall': 'Die Nummer muss größer als 0 sein.',
+  'video.renumberTooLarge': 'Die Nummer darf höchstens {max} sein.',
+  'video.renumberTaken': '{label} gibt es in diesem Video schon.',
   'video.renumberHint':
     'Muss im Video einmalig sein; Zwischenfassungen wie 2.5 gehen. Die Reihenfolge der Liste und der Download-Dateiname folgen sofort der neuen Nummer.',
   'video.detailFile': 'Datei',
