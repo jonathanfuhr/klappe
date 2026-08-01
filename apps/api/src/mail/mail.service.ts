@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { deriveBrandColors, normalizeBrandTitle } from '@klappe/shared';
-import { type Locale, isLocale } from '@klappe/shared';
+import type { Locale } from '@klappe/shared';
 import { desc, eq, sql } from 'drizzle-orm';
 import { createTransport, type Transporter } from 'nodemailer';
 import { AppConfig, CONFIG } from '../config/configuration';

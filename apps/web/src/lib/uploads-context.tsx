@@ -4,7 +4,6 @@ import {
   type ProjectDto,
   type VideoDto,
   detectVersionNumber,
-  formatFileDate,
   matchProject,
   matchVideo,
   suggestVideoName,

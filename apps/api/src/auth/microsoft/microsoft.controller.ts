@@ -4,7 +4,6 @@ import { Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { RateLimit } from '../../common/rate-limit.guard';
 import { AppConfig, CONFIG } from '../../config/configuration';
-import { UsersService } from '../../users/users.service';
 import { AuthService } from '../auth.service';
 import { Public } from '../auth.decorators';
 import { MICROSOFT_FLOW_COOKIE, MicrosoftAuthService } from './microsoft.service';
@@ -22,7 +21,6 @@ export class MicrosoftAuthController {
   constructor(
     private readonly microsoft: MicrosoftAuthService,
     private readonly authService: AuthService,
-    private readonly usersService: UsersService,
     @Inject(CONFIG) private readonly config: AppConfig,
   ) {}
 

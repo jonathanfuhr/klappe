@@ -9,7 +9,7 @@
  */
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ApiAccessSettingsDto } from '@klappe/shared';
-import { and, count, eq, isNull } from 'drizzle-orm';
+import { count, eq, isNull } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { apiTokens, appSettings } from '../db/schema';
 import { SettingsService } from '../settings/settings.service';

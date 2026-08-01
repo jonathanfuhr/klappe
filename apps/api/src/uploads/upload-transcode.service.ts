@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { type UploadRow, uploads } from '../db/schema';
@@ -34,8 +34,6 @@ export interface StoredTranscodeResult {
  */
 @Injectable()
 export class UploadTranscodeService {
-  private readonly logger = new Logger(UploadTranscodeService.name);
-
   /** Wird nach erfolgreicher Verarbeitung gerufen, wenn ein Ziel feststeht. */
   private onFinished: ((row: UploadRow) => Promise<void>) | null = null;
 

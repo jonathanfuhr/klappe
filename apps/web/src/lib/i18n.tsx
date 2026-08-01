@@ -1,7 +1,7 @@
 'use client';
 
 import type { Locale, Vars } from '@klappe/shared';
-import { DEFAULT_LOCALE, createTranslator, resolveLocale } from '@klappe/shared';
+import { createTranslator, resolveLocale } from '@klappe/shared';
 import { Fragment, type ReactNode, createContext, useContext, useEffect, useMemo } from 'react';
 import { type MessageKey, de } from '@/i18n/de';
 import { en } from '@/i18n/en';
