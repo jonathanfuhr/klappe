@@ -30,7 +30,7 @@ import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { DownloadDialog } from '@/components/DownloadDialog';
 import { EmbedDialog } from '@/components/EmbedDialog';
 import { api, mediaUrl } from '@/lib/api';
-import { formatBytes, formatFrameRate } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useFallbackInterval, useLiveTopic } from '@/lib/live';
 import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
 import { useT } from '@/lib/i18n';
@@ -793,6 +793,7 @@ export default function ReviewPage() {
 function VersionDetails({ version }: { version: VersionDto }) {
   const zeigeName = useUserName();
   const t = useT();
+  const { formatBytes, formatFrameRate } = useFormat();
   const media = version.media;
   const entries: Array<[string, string]> = [
     [t('video.detailFile'), version.originalFilename],

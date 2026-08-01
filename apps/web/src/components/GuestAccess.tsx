@@ -4,7 +4,7 @@ import type { GuestAccessDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
-import { formatRelative } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 
 interface GuestAccessProps {
@@ -25,6 +25,7 @@ export function GuestAccess({ projectId, videoId }: GuestAccessProps) {
   const [guests, setGuests] = useState<GuestAccessDto[]>([]);
   const zeigeName = useUserName();
   const t = useT();
+  const { formatRelative } = useFormat();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);

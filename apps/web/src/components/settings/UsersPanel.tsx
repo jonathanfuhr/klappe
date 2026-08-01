@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
 import { type Translator, useT } from '@/lib/i18n';
-import { formatDateTime } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
 /** Die Reihenfolge im Auswahlfeld; die Beschriftung kommt aus dem Wörterbuch. */
@@ -20,6 +20,7 @@ function rollenName(rolle: UserRole, t: Translator): string {
 
 export function UsersPanel() {
   const t = useT();
+  const { formatDateTime } = useFormat();
   const { user: currentUser } = useSession();
   const [users, setUsers] = useState<UserDto[]>([]);
   const [error, setError] = useState<string | null>(null);

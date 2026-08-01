@@ -4,7 +4,7 @@ import type { VersionDownloadsDto, VersionRenditionDto } from '@klappe/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api, mediaUrl } from '@/lib/api';
-import { formatBytes } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { useLiveTopic } from '@/lib/live';
 
@@ -35,6 +35,7 @@ export function DownloadDialog({
   onClose: () => void;
 }) {
   const t = useT();
+  const { formatBytes } = useFormat();
   const [daten, setDaten] = useState<VersionDownloadsDto | null>(initial);
   const [error, setError] = useState<string | null>(null);
   /** Formate, deren Datei nach dem Fertigwerden gleich geholt werden soll. */

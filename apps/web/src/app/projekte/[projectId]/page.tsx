@@ -22,7 +22,7 @@ import {
 } from '@/components/ProjectDialogs';
 import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
-import { formatFrameRate, formatRelative } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useFallbackInterval, useLive } from '@/lib/live';
 import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
 import { useT } from '@/lib/i18n';
@@ -49,6 +49,7 @@ export default function ProjectPage() {
   const { user } = useSession();
   const { completedCount, enqueue } = useUploads();
   const t = useT();
+  const { formatFrameRate, formatRelative } = useFormat();
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
   /**
    * Team oder externer Projektadmin (Phase 21): darf Videos anlegen und
@@ -230,7 +231,7 @@ export default function ProjectPage() {
                       {video.name}
                     </span>
                     {isTeam ? (
-                      <Menu label={`Aktionen für ${video.name}`}>
+                      <Menu label={t('project.videoActions', { name: video.name })}>
                         <MenuItem onSelect={() => setEditingVideo(video)}>{t('projects.renameEllipsis')}</MenuItem>
                         <MenuItem danger onSelect={() => setDeletingVideo(video)}>
                           {t('projects.deleteEllipsis')}
@@ -246,12 +247,12 @@ export default function ProjectPage() {
                     ) : null}
                     {version && version.commentCount > 0 ? (
                       <span>
-                        {version.commentCount} {version.commentCount === 1 ? 'Kommentar' : 'Kommentare'}
+                        {t('project.commentCount', { count: version.commentCount })}
                       </span>
                     ) : null}
                   </div>
                   <span className="faint" style={{ fontSize: 12 }}>
-                    Geändert {formatRelative(video.updatedAt)}
+                    {t('project.changedAt', { when: formatRelative(video.updatedAt) })}
                   </span>
                 </div>
               </Link>

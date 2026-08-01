@@ -4,7 +4,7 @@ import type { GuestCandidateDto, ShareGuestDto, ShareLinkDto, ShareScope } from 
 import { useCallback, useEffect, useState } from 'react';
 import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
-import { formatDateTime, formatRelative } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { Dialog } from './ui/Dialog';
 
@@ -143,6 +143,7 @@ function ShareRow({
   canManage: boolean;
 }) {
   const t = useT();
+  const { formatDateTime, formatRelative } = useFormat();
   const zeigeName = useUserName();
   const [copied, setCopied] = useState(false);
   const [guests, setGuests] = useState<ShareGuestDto[] | null>(null);

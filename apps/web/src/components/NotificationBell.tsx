@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { api } from '@/lib/api';
-import { formatRelative } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { useFallbackInterval, useLive } from '@/lib/live';
 
@@ -27,6 +27,7 @@ const POLL_MS = 60_000;
 export function NotificationBell() {
   const router = useRouter();
   const t = useT();
+  const { formatRelative } = useFormat();
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<NotificationDto[] | null>(null);

@@ -3,7 +3,7 @@
 import type { StorageStatusDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { formatBytes } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -24,6 +24,7 @@ const KRITISCH_AB = 0.95;
 
 export function StoragePanel() {
   const t = useT();
+  const { formatBytes } = useFormat();
   const [status, setStatus] = useState<StorageStatusDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

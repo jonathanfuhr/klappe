@@ -4,7 +4,7 @@ import type { Annotation, CommentDto, UserDto } from '@klappe/shared';
 import { useMemo, useState } from 'react';
 import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
-import { formatRelative, initialsOf } from '@/lib/format';
+import { initialsOf, useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { CommentBody } from './CommentBody';
 import { CommentComposer } from './CommentComposer';
@@ -58,6 +58,7 @@ export function CommentPanel({
   const [filter, setFilter] = useState<Filter>('alle');
   const zeigeName = useUserName();
   const t = useT();
+  const { formatRelative } = useFormat();
   const [sortierung, setSortierung] = useState<Sortierung>('timecode');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);

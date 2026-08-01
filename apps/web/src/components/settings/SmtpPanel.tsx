@@ -8,7 +8,7 @@ import type {
 } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { formatDateTime } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
@@ -21,6 +21,7 @@ import { useSession } from '@/lib/session';
  */
 export function SmtpPanel() {
   const t = useT();
+  const { formatDateTime } = useFormat();
   const { user } = useSession();
 
   const [settings, setSettings] = useState<SmtpSettingsDto | null>(null);

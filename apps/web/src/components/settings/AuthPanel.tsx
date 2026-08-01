@@ -9,7 +9,7 @@ import {
 } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { formatDateTime } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -21,6 +21,7 @@ import { useT } from '@/lib/i18n';
  */
 export function AuthPanel() {
   const t = useT();
+  const { formatDateTime } = useFormat();
   const [settings, setSettings] = useState<AuthSettingsDto | null>(null);
   const [form, setForm] = useState({
     localLoginEnabled: true,

@@ -4,7 +4,7 @@ import type { GuestOverviewDto } from '@klappe/shared';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { formatDateTime, formatRelative } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
@@ -17,6 +17,7 @@ import { useSession } from '@/lib/session';
  */
 export function GuestsPanel() {
   const t = useT();
+  const { formatDateTime, formatRelative } = useFormat();
   const { user } = useSession();
   const [guests, setGuests] = useState<GuestOverviewDto[]>([]);
   const [loading, setLoading] = useState(true);

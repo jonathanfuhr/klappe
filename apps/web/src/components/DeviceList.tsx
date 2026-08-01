@@ -3,7 +3,7 @@
 import type { ApiTokenDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { formatDateTime, formatRelative } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -23,6 +23,7 @@ import { useT } from '@/lib/i18n';
  */
 export function DeviceList({ scope }: { scope: 'mine' | 'all' }) {
   const t = useT();
+  const { formatDateTime, formatRelative } = useFormat();
   const [devices, setDevices] = useState<ApiTokenDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

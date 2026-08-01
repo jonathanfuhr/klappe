@@ -6,7 +6,7 @@ import { useUserName } from '@/lib/user-name';
 import { Dialog } from '@/components/ui/Dialog';
 import { Menu, MenuItem } from '@/components/ui/Menu';
 import { api, mediaUrl } from '@/lib/api';
-import { formatBytes, formatRelative } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { Uploader } from './Uploader';
 
@@ -30,6 +30,7 @@ export function ProjectFiles({
   reloadToken = 0,
 }: ProjectFilesProps) {
   const t = useT();
+  const { formatBytes, formatRelative } = useFormat();
   const [files, setFiles] = useState<ProjectFileDto[]>([]);
   const zeigeName = useUserName();
   const [folders, setFolders] = useState<ProjectFolderDto[]>([]);
