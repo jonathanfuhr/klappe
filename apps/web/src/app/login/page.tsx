@@ -26,7 +26,10 @@ function LoginForm() {
   return modus === 'team' ? (
     <TeamLogin target={target} aufGast={() => setModus('gast')} />
   ) : (
-    <GastLogin zurueck={() => setModus('team')} />
+    // `target` auch für Gäste (Phase 28): Wer aus einer Mail auf eine Fassung
+    // klickt und sich erst anmelden muss, soll danach dort landen und nicht
+    // auf der Projektübersicht.
+    <GastLogin target={searchParams.get('weiter')} zurueck={() => setModus('team')} />
   );
 }
 
@@ -175,7 +178,7 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
  * freigeschaltet ist, bekommt eine Absage im Browser und **keine** Mail –
  * sonst könnte sich jeder eintragen und Post von dieser Anlage bekommen.
  */
-function GastLogin({ zurueck }: { zurueck: () => void }) {
+function GastLogin({ target, zurueck }: { target: string | null; zurueck: () => void }) {
   const t = useT();
   const router = useRouter();
   const { refresh } = useSession();
@@ -212,7 +215,9 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
         setError(t('login.guestCookieRejected'));
         return;
       }
-      router.replace(result.redirectPath);
+      // Das Ziel aus der Adresse geht vor: Es ist genauer als das, was die
+      // API vorschlägt (meist die Projektseite).
+      router.replace(target ?? result.redirectPath);
     } catch (verifyError) {
       setError(verifyError instanceof Error ? verifyError.message : t('login.codeWrong'));
     } finally {

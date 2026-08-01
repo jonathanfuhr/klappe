@@ -65,7 +65,7 @@ export default function ReviewPage() {
   const t = useT();
   const kindName = useAiKindName();
   const zeigeName = useUserName();
-  const { formatDateTime } = useFormat();
+  const { formatDateTime, formatRelative } = useFormat();
 
   const playerRef = useRef<PlayerHandle>(null);
 
@@ -397,6 +397,14 @@ export default function ReviewPage() {
            */}
           <div className="toolbar videobar">
             <h1 className="page__title videobar__title">{video?.name ?? t('video.title')}</h1>
+            {/* Wann kam die Fassung? Stand bis Phase 28 nirgends – auch der
+                Kunde sieht es jetzt, und zwar an der Stelle, an der er die
+                Nummer liest. */}
+            {selectedVersion ? (
+              <span className="faint" style={{ fontSize: 13 }}>
+                {formatRelative(selectedVersion.createdAt)}
+              </span>
+            ) : null}
             {selectedVersion ? <VersionStatusBadge version={selectedVersion} /> : null}
             {/* Deutlich sichtbar, dass diese Fassung das Haus nicht verlässt
                 (Phase 27). Sehen kann den Haken ohnehin nur das Team. */}
@@ -903,7 +911,7 @@ export default function ReviewPage() {
 function VersionDetails({ version }: { version: VersionDto }) {
   const zeigeName = useUserName();
   const t = useT();
-  const { formatBytes, formatFrameRate } = useFormat();
+  const { formatBytes, formatFrameRate, formatDateTime } = useFormat();
   const media = version.media;
   const entries: Array<[string, string]> = [
     [t('video.detailFile'), version.originalFilename],
@@ -921,6 +929,9 @@ function VersionDetails({ version }: { version: VersionDto }) {
     [t('video.detailFrames'), media.frameCount ? String(media.frameCount) : '–'],
     [t('video.detailCodec'), media.videoCodec ?? '–'],
     [t('video.detailUploadedBy'), zeigeName(version.uploadedBy) || '–'],
+    // Das genaue Datum klein daneben (Phase 28): Die relative Angabe oben
+    // sagt „vor 3 Tagen", hier steht, welcher Tag das war.
+    [t('video.detailUploadedAt'), formatDateTime(version.createdAt)],
   ];
 
   return (

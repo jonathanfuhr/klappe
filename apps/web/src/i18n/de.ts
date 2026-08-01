@@ -228,6 +228,7 @@ export const de = {
   'video.detailStartTimecode': 'Start-Timecode',
   'video.detailFrames': 'Frames',
   'video.detailCodec': 'Codec',
+  'video.detailUploadedAt': 'Hochgeladen am',
   'video.detailUploadedBy': 'Hochgeladen von',
 
   // ---------- Tastenkürzel ----------
@@ -581,6 +582,66 @@ export const de = {
   'settings.navAi': 'KI-Inhalte',
   'settings.navBranding': 'Erscheinungsbild',
   'settings.navAuth': 'Anmeldung',
+  'settings.navNotifications': 'Benachrichtigungen',
+  'notifications.lastOne':
+    'Die letzte eingetragene Person bleibt stehen – sonst bekommt niemand mit, wenn der Kunde Material hochlädt.',
+  'notifications.intro':
+    'Welche Mails Klappe verschickt – je Art getrennt für das Team und für Gäste. Was hier aus ist, geht nicht raus.',
+  'notifications.layers':
+    'Dieser Schalter kann nur zumachen: Wer eingetragen bzw. beteiligt ist, entscheidet sich weiterhin je Projekt, und wer Benachrichtigungen abbestellt hat, bleibt abbestellt.',
+  'notifications.colKind': 'Benachrichtigung',
+  'notifications.colTeam': 'An das Team',
+  'notifications.colGuests': 'An Gäste',
+  'notifications.alwaysOn': 'immer an',
+  'notifications.kindGuestCode': 'Anmeldecode',
+  'notifications.kindGuestCodeHint':
+    'Der Code, mit dem ein Gast hereinkommt. Ohne ihn ist kein Gastzugang möglich – deshalb nicht abschaltbar.',
+  'notifications.kindAccess': 'Zugriff freigegeben',
+  'notifications.kindAccessHint': 'Ein Gast wurde zu einem Projekt oder Video hinzugenommen.',
+  'notifications.kindComment': 'Neuer Kommentar',
+  'notifications.kindCommentHint':
+    'Geht an die Eingetragenen und an Gäste, die an diesem Gespräch beteiligt sind.',
+  'notifications.kindMention': 'Erwähnung',
+  'notifications.kindMentionHint':
+    'Jemand wurde im Kommentar namentlich angesprochen (@Name).',
+  'notifications.kindFile': 'Kundenmaterial hochgeladen',
+  'notifications.kindFileHint':
+    'Ein Gast hat etwas in die Kunden-Ablage gelegt. Geht an die für das Projekt Eingetragenen.',
+  'notifications.kindVersion': 'Neue Fassung verfügbar',
+  'notifications.kindVersionHint':
+    'Sobald verarbeitet. Das Team erfährt es auch bei einer internen Fassung; Gäste erst mit der Freigabe.',
+  'notifications.kindFailed': 'Verarbeitung fehlgeschlagen',
+  'notifications.kindFailedHint': 'Eine Fassung konnte nicht verarbeitet werden.',
+  'notifications.kindVisit': 'Gast war zum ersten Mal da',
+  'notifications.kindVisitHint': 'Beantwortet die Frage, ob der Kunde überhaupt reingeschaut hat.',
+  'notifications.kindCleanup': 'Fassungen werden bald gelöscht',
+  'notifications.kindCleanupHint':
+    'Letzte Warnung, bevor alte Fassungen eines archivierten Projekts wegfallen.',
+  'notifications.kindBackup': 'Sicherung fehlgeschlagen',
+  'notifications.kindBackupHint': 'Geht an alle Administratoren.',
+  'notifications.kindDevice': 'Gerät verbunden',
+  'notifications.kindDeviceHint':
+    'Empfangsschein an den Kontoinhaber, wenn ein Gerät gekoppelt wurde.',
+  'notifications.digestTitle': 'Sammelmails',
+  'notifications.digestIntro':
+    'Statt einer Mail je Ereignis wartet Klappe, bis eine Weile Ruhe war, und schickt dann eine.',
+  'notifications.digestComments': 'Ruhezeit für Kommentare (Minuten)',
+  'notifications.digestCommentsHint': '0 verschickt sofort und einzeln, wie vor Phase 18.',
+  'notifications.digestFiles': 'Ruhezeit für Kundenmaterial (Minuten)',
+  'notifications.digestFilesHint':
+    'Deutlich höher ansetzen als bei Kommentaren: Ein Kunde lädt selten eine Datei, sondern einen Ordner – und ein Kameraband braucht seine Zeit.',
+  'notifications.mentionImmediate': 'Erwähnungen sofort schicken',
+  'notifications.mentionImmediateHint':
+    'Überspringt die Ruhezeit. Wer namentlich angesprochen wird, soll nicht erst in einer Viertelstunde davon erfahren.',
+  'notifications.internalTitle': 'Interne Fassungen',
+  'notifications.internalIntro':
+    'Die Runde im Haus, bevor der Kunde etwas zu sehen bekommt.',
+  'notifications.internalEnabled': 'Interne Fassungen verwenden',
+  'notifications.internalEnabledHint':
+    'Aus heißt: Der Haken verschwindet aus dem Upload-Fenster und von der Fassung. Bereits interne Fassungen bleiben, wie sie sind.',
+  'notifications.internalDefault': 'Neue Fassungen sind standardmäßig intern',
+  'notifications.internalDefaultHint':
+    'Empfohlen: Versehentlich intern kostet eine Nachfrage – versehentlich veröffentlicht hat der Kunde gesehen.',
   'settings.navMail': 'E-Mail-Versand',
   'settings.navTranscode': 'Transcode',
   'settings.navStorage': 'Speicher',

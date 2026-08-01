@@ -1,6 +1,12 @@
 'use client';
 
-import { type ProjectDto, type VideoDto, suggestVideoName, versionLabel } from '@klappe/shared';
+import {
+  type ProjectDto,
+  type VersionSettingsDto,
+  type VideoDto,
+  suggestVideoName,
+  versionLabel,
+} from '@klappe/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { useFormat } from '@/lib/format';
@@ -24,6 +30,12 @@ export function UploadPanel() {
   const t = useT();
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [videosByProject, setVideosByProject] = useState<Record<string, VideoDto[]>>({});
+  /**
+   * Ob und wie interne Fassungen gelten, entscheidet der Workspace (Phase 28).
+   * Ohne Antwort bleibt es beim Zurückhaltenden: Haken sichtbar, aber nicht
+   * gesetzt – lieber versehentlich nicht veröffentlicht als versehentlich.
+   */
+  const [fassungen, setFassungen] = useState<VersionSettingsDto | null>(null);
 
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
   const pending = jobs.filter((job) => job.state === 'wartet');
@@ -35,7 +47,24 @@ export function UploadPanel() {
       .listProjects()
       .then(setProjects)
       .catch(() => undefined);
+    api
+      .getVersionSettings()
+      .then(setFassungen)
+      .catch(() => undefined);
   }, [jobs.length, isTeam]);
+
+  /**
+   * Die Vorgabe des Workspace auf die noch offenen Zeilen anwenden. Nur auf
+   * unberührte: Wer den Haken selbst umgelegt hat, soll ihn nicht durch eine
+   * verspätete Antwort des Servers wieder verlieren.
+   */
+  useEffect(() => {
+    if (!fassungen?.internalEnabled || !fassungen.internalByDefault) return;
+    for (const job of jobs) {
+      if (job.target !== 'video' || job.gespeichert || job.internBeruehrt || job.internal) continue;
+      update(job.id, { internal: true });
+    }
+  }, [fassungen, jobs, update]);
 
   /**
    * Namensvorschlag nachschärfen, sobald das Ziel-Projekt feststeht
@@ -158,6 +187,7 @@ export function UploadPanel() {
               job={job}
               projects={projects}
               videos={videosByProject[job.projectId] ?? []}
+              internVerfuegbar={fassungen?.internalEnabled ?? true}
               // Bis zur Aufnahme ins Projekt bleibt alles änderbar – genau
               // dafür läuft die Übertragung ja schon im Hintergrund.
               editable={
@@ -203,6 +233,7 @@ function JobRow({
   job,
   projects,
   videos,
+  internVerfuegbar,
   editable,
   onChange,
   onSave,
@@ -212,6 +243,8 @@ function JobRow({
   job: UploadJob;
   projects: ProjectDto[];
   videos: VideoDto[];
+  /** Fährt dieses Haus überhaupt eine interne Runde? (Phase 28) */
+  internVerfuegbar: boolean;
   editable: boolean;
   onChange: (changes: Partial<UploadJob>) => void;
   onSave: () => void;
@@ -372,19 +405,24 @@ function JobRow({
 
           {/* Interne Fassung (Phase 27): Der Haken steht an jeder Zeile
               einzeln – im Multi-Upload kommen oft mehrere Filme zugleich, und
-              nicht jeder soll durch die interne Runde. */}
+              nicht jeder soll durch die interne Runde. Ist die Funktion im
+              Workspace abgeschaltet, fehlt er ganz (Phase 28). */}
+          {internVerfuegbar ? (
           <label className="field" style={{ margin: 0 }}>
             <span className="field__label">{t('upload.internal')}</span>
             <label className="switch">
               <input
                 type="checkbox"
                 checked={job.internal}
-                onChange={(event) => onChange({ internal: event.target.checked })}
+                onChange={(event) =>
+                  onChange({ internal: event.target.checked, internBeruehrt: true })
+                }
               />
               {t('upload.internalLabel')}
             </label>
             <p className="hint">{t('upload.internalHint')}</p>
           </label>
+          ) : null}
         </div>
       ) : null}
 

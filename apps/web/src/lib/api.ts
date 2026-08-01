@@ -23,6 +23,8 @@ import type {
   MailFailureDto,
   ProjectSettingsDto,
   NotificationDto,
+  NotificationKind,
+  NotificationSettingsDto,
   NotificationSubscriberDto,
   ProjectDto,
   ProjectFieldDefDto,
@@ -45,6 +47,7 @@ import type {
   VersionDownloadsDto,
   VersionDto,
   VersionRenditionDto,
+  VersionSettingsDto,
   VideoDto,
 } from '@klappe/shared';
 
@@ -565,6 +568,26 @@ export const api = {
 
   /** Wie voll die Ablage ist (Phase 22) – Admin. */
   getStorageStatus: () => request<StorageStatusDto>('/v1/settings/storage'),
+  /** Benachrichtigungen (Phase 28) – welche Mail an welchen Kreis. */
+  getNotificationSettings: () =>
+    request<NotificationSettingsDto>('/v1/settings/benachrichtigungen'),
+  updateNotificationSettings: (input: {
+    kinds?: Array<{ kind: NotificationKind; team?: boolean; guest?: boolean }>;
+    digestMinutes?: number;
+    projectFileDigestMinutes?: number;
+    mentionImmediate?: boolean;
+  }) =>
+    request<NotificationSettingsDto>('/v1/settings/benachrichtigungen', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  /** Interne Fassungen (Phase 28) – lesbar fürs Team, änderbar nur vom Admin. */
+  getVersionSettings: () => request<VersionSettingsDto>('/v1/settings/fassungen'),
+  updateVersionSettings: (input: { internalEnabled?: boolean; internalByDefault?: boolean }) =>
+    request<VersionSettingsDto>('/v1/settings/fassungen', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
   getProjectSettings: () => request<ProjectSettingsDto>('/v1/settings/projects'),
   updateProjectSettings: (input: { archiveRetentionDays?: number }) =>
     request<ProjectSettingsDto>('/v1/settings/projects', {

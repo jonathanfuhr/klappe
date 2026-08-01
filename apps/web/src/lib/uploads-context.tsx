@@ -70,6 +70,11 @@ export interface UploadJob {
    * Runde.
    */
   internal: boolean;
+  /**
+   * Hat jemand den Haken selbst angefasst (Phase 28)? Solange nicht, darf die
+   * Vorgabe des Workspace ihn setzen – danach nie wieder.
+   */
+  internBeruehrt?: boolean;
   /** Woher die Vorauswahl kommt – die Oberfläche bittet dann ums Prüfen. */
   hint: string | null;
   state: 'wartet' | 'lädt' | 'bereit' | 'verarbeitet' | 'fertig' | 'fehler' | 'abgebrochen';

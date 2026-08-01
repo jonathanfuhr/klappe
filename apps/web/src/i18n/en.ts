@@ -222,6 +222,7 @@ export const en: Record<MessageKey, Message> = {
   'video.detailStartTimecode': 'Start timecode',
   'video.detailFrames': 'Frames',
   'video.detailCodec': 'Codec',
+  'video.detailUploadedAt': 'Uploaded on',
   'video.detailUploadedBy': 'Uploaded by',
 
   // ---------- Keyboard shortcuts ----------
@@ -575,6 +576,63 @@ export const en: Record<MessageKey, Message> = {
   'settings.navAi': 'AI content',
   'settings.navBranding': 'Appearance',
   'settings.navAuth': 'Sign-in',
+  'settings.navNotifications': 'Notifications',
+  'notifications.lastOne':
+    'The last subscribed person stays – otherwise nobody would notice when the client uploads material.',
+  'notifications.intro':
+    'Which mails Klappe sends – per kind, separately for the team and for guests. What is off here does not go out.',
+  'notifications.layers':
+    'This switch can only close: who is subscribed or involved is still decided per project, and anyone who unsubscribed stays unsubscribed.',
+  'notifications.colKind': 'Notification',
+  'notifications.colTeam': 'To the team',
+  'notifications.colGuests': 'To guests',
+  'notifications.alwaysOn': 'always on',
+  'notifications.kindGuestCode': 'Sign-in code',
+  'notifications.kindGuestCodeHint':
+    'The code a guest needs to get in. Without it there is no guest access – so it cannot be switched off.',
+  'notifications.kindAccess': 'Access granted',
+  'notifications.kindAccessHint': 'A guest was added to a project or video.',
+  'notifications.kindComment': 'New comment',
+  'notifications.kindCommentHint':
+    'Goes to the subscribers and to guests involved in that thread.',
+  'notifications.kindMention': 'Mention',
+  'notifications.kindMentionHint': 'Someone was addressed by name in a comment (@name).',
+  'notifications.kindFile': 'Client material uploaded',
+  'notifications.kindFileHint':
+    'A guest put something in the client folder. Goes to whoever is subscribed to the project.',
+  'notifications.kindVersion': 'New version available',
+  'notifications.kindVersionHint':
+    'Once processed. The team is told even for an internal version; guests only on release.',
+  'notifications.kindFailed': 'Processing failed',
+  'notifications.kindFailedHint': 'A version could not be processed.',
+  'notifications.kindVisit': 'Guest visited for the first time',
+  'notifications.kindVisitHint': 'Answers whether the client has looked at it at all.',
+  'notifications.kindCleanup': 'Versions will be deleted soon',
+  'notifications.kindCleanupHint':
+    'Last warning before old versions of an archived project are removed.',
+  'notifications.kindBackup': 'Backup failed',
+  'notifications.kindBackupHint': 'Goes to all administrators.',
+  'notifications.kindDevice': 'Device connected',
+  'notifications.kindDeviceHint': 'A receipt for the account holder when a device was paired.',
+  'notifications.digestTitle': 'Digest mails',
+  'notifications.digestIntro':
+    'Instead of one mail per event, Klappe waits until things have been quiet for a while and then sends one.',
+  'notifications.digestComments': 'Quiet time for comments (minutes)',
+  'notifications.digestCommentsHint': '0 sends immediately and individually, as before phase 18.',
+  'notifications.digestFiles': 'Quiet time for client material (minutes)',
+  'notifications.digestFilesHint':
+    'Set this much higher than for comments: a client rarely uploads one file but a whole folder – and a camera card takes its time.',
+  'notifications.mentionImmediate': 'Send mentions immediately',
+  'notifications.mentionImmediateHint':
+    'Skips the quiet time. Being addressed by name should not reach you a quarter of an hour later.',
+  'notifications.internalTitle': 'Internal versions',
+  'notifications.internalIntro': 'The round in house before the client gets to see anything.',
+  'notifications.internalEnabled': 'Use internal versions',
+  'notifications.internalEnabledHint':
+    'Off means the tick disappears from the upload dialog and from the version. Versions already internal stay as they are.',
+  'notifications.internalDefault': 'New versions are internal by default',
+  'notifications.internalDefaultHint':
+    'Recommended: accidentally internal costs a question – accidentally published means the client has seen it.',
   'settings.navMail': 'Email delivery',
   'settings.navTranscode': 'Transcode',
   'settings.navStorage': 'Storage',

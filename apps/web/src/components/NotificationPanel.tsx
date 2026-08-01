@@ -97,7 +97,9 @@ export function NotificationPanel({
                 <input
                   type="checkbox"
                   checked={person.subscribed || person.inherited}
-                  disabled={person.inherited || busy === person.user.id}
+                  // Die letzte eingetragene Person bleibt stehen (Phase 28):
+                  // Ohne sie liefe Kundenmaterial ins Leere.
+                  disabled={person.inherited || person.locked || busy === person.user.id}
                   onChange={(event) => void umschalten(person.user.id, event.target.checked)}
                 />
                 <strong style={{ fontSize: 14 }}>{zeigeName(person.user)}</strong>
@@ -108,6 +110,11 @@ export function NotificationPanel({
               {person.inherited ? (
                 <div className="hint" style={{ margin: '2px 0 0' }}>
                   {t('notifications.inherited')}
+                </div>
+              ) : null}
+              {person.locked ? (
+                <div className="hint" style={{ margin: '2px 0 0' }}>
+                  {t('notifications.lastOne')}
                 </div>
               ) : null}
             </div>

@@ -9,6 +9,7 @@ import { BackupPanel } from '@/components/settings/BackupPanel';
 import { BrandingPanel } from '@/components/settings/BrandingPanel';
 import { FieldsPanel } from '@/components/settings/FieldsPanel';
 import { GuestsPanel } from '@/components/settings/GuestsPanel';
+import { NotificationsPanel } from '@/components/settings/NotificationsPanel';
 import { ProjectsPanel } from '@/components/settings/ProjectsPanel';
 import { SmtpPanel } from '@/components/settings/SmtpPanel';
 import { StoragePanel } from '@/components/settings/StoragePanel';
@@ -34,6 +35,7 @@ const BEREICHE = [
   { id: 'branding', schluessel: 'settings.navBranding', team: false },
   { id: 'auth', schluessel: 'settings.navAuth', team: false },
   { id: 'api', schluessel: 'settings.navApi', team: false },
+  { id: 'benachrichtigungen', schluessel: 'settings.navNotifications', team: false },
   { id: 'mail', schluessel: 'settings.navMail', team: false },
   { id: 'transcode', schluessel: 'settings.navTranscode', team: false },
   { id: 'speicher', schluessel: 'settings.navStorage', team: false },
@@ -97,6 +99,7 @@ export default function SettingsPage() {
           {gewaehlt === 'branding' ? <BrandingPanel /> : null}
           {gewaehlt === 'auth' ? <AuthPanel /> : null}
           {gewaehlt === 'api' ? <ApiAccessPanel /> : null}
+          {gewaehlt === 'benachrichtigungen' ? <NotificationsPanel /> : null}
           {gewaehlt === 'mail' ? <SmtpPanel /> : null}
           {gewaehlt === 'transcode' ? <TranscodePanel /> : null}
           {gewaehlt === 'speicher' ? <StoragePanel /> : null}
