@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MailModule } from '../mail/mail.module';
 import { ProjectFilesModule } from '../project-files/project-files.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { QueueModule } from '../queue/queue.module';
@@ -17,6 +18,11 @@ import { UploadsService } from './uploads.service';
     ProjectsModule,
     ProjectFilesModule,
     QueueModule,
+    // Wegen der Ruhezeit für Kundenmaterial (Phase 28): Die steht im
+    // `NotificationSettingsService`, und der kommt aus dem Mail-Modul.
+    // `VersionsModule` bindet es zwar auch ein, reicht es aber nicht weiter –
+    // Importe sind bei Nest keine Exporte.
+    MailModule,
     // Nacharbeit (HLS, Download-Formate) nach der Übernahme aus dem
     // Zwischenspeicher – dort wird `markReady` direkt aufgerufen, nicht über
     // den Worker (Phase 19).
