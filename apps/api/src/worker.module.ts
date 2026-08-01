@@ -3,6 +3,7 @@ import { AccessModule } from './access/access.module';
 import { EventsModule } from './events/events.module';
 import { AppConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
+import { I18nModule } from './i18n/i18n.module';
 import { MailModule } from './mail/mail.module';
 import { BackupSchedulerModule } from './backup/backup-scheduler.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
@@ -22,6 +23,15 @@ import { VersionsModule } from './versions/versions.module';
   imports: [
     AppConfigModule,
     DbModule,
+    /*
+     * Muss hier ausdrücklich stehen, obwohl `I18nModule` `@Global()` ist:
+     * Global heißt „überall verfügbar, sobald irgendwo importiert" – und der
+     * Worker ist ein eigenes Wurzelmodul, das `AppModule` nie sieht. Ohne
+     * diese Zeile findet `MailService` den `LocaleService` nicht und der
+     * Container läuft in eine Neustartschleife (gefunden am 2026-08-01, hat
+     * den Worker seit dem Ausrollen von Phase 26 lahmgelegt).
+     */
+    I18nModule,
     StorageModule,
     AccessModule,
     EventsModule,
