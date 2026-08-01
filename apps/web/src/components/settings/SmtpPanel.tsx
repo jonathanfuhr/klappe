@@ -119,7 +119,6 @@ export function SmtpPanel() {
           : {}),
         fromName: form.fromName,
         fromEmail: form.fromEmail,
-        digestMinutes: form.digestMinutes,
       });
       setSettings(saved);
       setForm((current) => ({ ...current, password: '', oauthClientSecret: '' }));
@@ -438,26 +437,11 @@ export function SmtpPanel() {
           <div className="section__head">
             <h2 className="section__title">{t('smtp.digestTitle')}</h2>
           </div>
-          <div className="field">
-            <label className="field__label" htmlFor="digest-minutes">
-              {t('smtp.digestLabel')}
-            </label>
-            <input
-              id="digest-minutes"
-              className="input"
-              type="number"
-              min={0}
-              max={120}
-              style={{ maxWidth: 160 }}
-              value={form.digestMinutes}
-              onChange={(event) =>
-                setForm({ ...form, digestMinutes: Number(event.target.value) || 0 })
-              }
-            />
-            <p className="hint">
-              {t('smtp.digestHintStart')} <strong>0</strong> {t('smtp.digestHintEnd')}
-            </p>
-          </div>
+          {/* Die Ruhezeit ist mit Phase 28 nach Einstellungen →
+              Benachrichtigungen gezogen: Sie sagt etwas über den *Inhalt* der
+              Post, nicht über den Versandweg. Hier bleibt nur, was den
+              Mailserver betrifft – sonst stünde dasselbe Feld an zwei Stellen
+              und schriebe in dieselbe Spalte. */}
         </div>
 
         <div className="toolbar" style={{ marginTop: 18 }}>
