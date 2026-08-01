@@ -195,9 +195,6 @@ export const en: Record<MessageKey, Message> = {
   'video.internalReleased': 'Released by {name} on {date}',
   'video.internalHint':
     'While the box is ticked the version is for the team only – external project admins included.',
-  'video.downloadForGuests': 'Download for guests:',
-  'video.wholeVideo': 'whole video',
-  'video.downloadHint': 'Only takes effect together with the download right on the share link.',
   'video.aiToggle': 'AI content',
   'video.aiNoKinds': 'No kinds defined – you can add them under Settings → AI content.',
   'video.aiToggleHint':
@@ -1100,7 +1097,6 @@ export const en: Record<MessageKey, Message> = {
   'upload.nextVersionHint': '{name} (next version: v{version})',
   'versionStatus.uploading': 'Uploading',
   'versionStatus.processing': 'Processing',
-  'versionStatus.ready': 'Ready',
   'versionStatus.failed': 'Failed',
   'login.guestEmailHint': 'The same address the share went to. No new account is created here.',
   'login.guestCodeLabel': 'Code from the email',

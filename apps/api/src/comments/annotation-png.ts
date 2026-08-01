@@ -24,7 +24,7 @@ export const MAX_ANNOTATION_PNG_WIDTH = 3840;
 export const DEFAULT_ANNOTATION_PNG_WIDTH = 1920;
 
 /** Ohne bekannte Maße der Fassung: 16:9, das übliche Format im Haus. */
-export const DEFAULT_ASPECT = 16 / 9;
+const DEFAULT_ASPECT = 16 / 9;
 
 /**
  * Höhe zur angeforderten Breite. Das Seitenverhältnis kommt aus der Fassung;

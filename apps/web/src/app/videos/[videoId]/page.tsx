@@ -66,7 +66,7 @@ export default function ReviewPage() {
   const t = useT();
   const kindName = useAiKindName();
   const zeigeName = useUserName();
-  const { formatDateTime, formatRelative } = useFormat();
+  const { formatRelative } = useFormat();
 
   const playerRef = useRef<PlayerHandle>(null);
 

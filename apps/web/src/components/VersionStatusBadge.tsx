@@ -3,10 +3,17 @@
 import type { VersionDto } from '@klappe/shared';
 import { type MessageKey, useT } from '@/lib/i18n';
 
-const LABELS: Record<VersionDto['status'], { key: MessageKey; className: string }> = {
+/**
+ * `READY` fehlt hier bewusst: Eine fertige Fassung bekommt kein Abzeichen
+ * mehr (siehe unten). Der Typ hält den Eintrag deshalb gar nicht erst offen –
+ * sonst stünde dort eine Zeile, die niemand je zu sehen bekommt.
+ */
+const LABELS: Record<
+  Exclude<VersionDto['status'], 'READY'>,
+  { key: MessageKey; className: string }
+> = {
   UPLOADING: { key: 'versionStatus.uploading', className: 'badge' },
   PROCESSING: { key: 'versionStatus.processing', className: 'badge badge--processing' },
-  READY: { key: 'versionStatus.ready', className: 'badge badge--ready' },
   FAILED: { key: 'versionStatus.failed', className: 'badge badge--failed' },
 };
 

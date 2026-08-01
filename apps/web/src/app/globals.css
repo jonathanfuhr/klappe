@@ -3239,8 +3239,7 @@ a.badge:hover {
   color: var(--klappe-text-muted);
 }
 
-.chip--warn,
-.badge--warn {
+.chip--warn {
   background: color-mix(in srgb, var(--klappe-warning) 18%, transparent);
   color: var(--klappe-warning);
 }

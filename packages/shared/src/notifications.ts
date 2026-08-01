@@ -49,7 +49,7 @@ export interface NotificationKindInfo {
   hidden?: boolean;
 }
 
-export const NOTIFICATION_KIND_INFOS: readonly NotificationKindInfo[] = [
+const NOTIFICATION_KIND_INFOS: readonly NotificationKindInfo[] = [
   { kind: 'guest-code', audiences: ['GUEST'], alwaysOn: true },
   { kind: 'access-granted', audiences: ['GUEST'] },
   { kind: 'comment', audiences: ['TEAM', 'GUEST'] },

@@ -197,9 +197,6 @@ export const de = {
   'video.internalReleased': 'Freigegeben von {name} am {date}',
   'video.internalHint':
     'Solange der Haken steht, ist die Fassung nur fürs Team da – auch für externe Projektadmins nicht.',
-  'video.downloadForGuests': 'Download für Gäste:',
-  'video.wholeVideo': 'ganzes Video',
-  'video.downloadHint': 'Wirkt nur zusammen mit dem Download-Recht am Freigabe-Link.',
   'video.aiToggle': 'KI-Inhalte',
   'video.aiNoKinds': 'Keine Arten angelegt – das geht unter Einstellungen → KI-Inhalte.',
   'video.aiToggleHint':
@@ -1105,7 +1102,6 @@ export const de = {
   'upload.nextVersionHint': '{name} (nächste Fassung: v{version})',
   'versionStatus.uploading': 'Wird hochgeladen',
   'versionStatus.processing': 'Wird verarbeitet',
-  'versionStatus.ready': 'Bereit',
   'versionStatus.failed': 'Fehlgeschlagen',
   'login.guestEmailHint': 'Dieselbe Adresse, an die die Freigabe ging. Ein neues Konto entsteht hier nicht.',
   'login.guestCodeLabel': 'Code aus der E-Mail',

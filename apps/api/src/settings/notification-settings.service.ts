@@ -12,10 +12,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { appSettings, notificationSettings } from '../db/schema';
-import { SettingsService } from './settings.service';
-
-/** Obergrenze für die Kommentar-Ruhezeit; dieselbe wie bisher im SMTP-Panel. */
-export const MAX_MAIL_DIGEST_MINUTES = 120;
+import { MAX_MAIL_DIGEST_MINUTES, SettingsService } from './settings.service';
 
 export interface UpdateNotificationSettingsInput {
   kinds?: Array<{ kind: NotificationKind; team?: boolean; guest?: boolean }>;

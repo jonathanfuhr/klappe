@@ -4,7 +4,9 @@ import type { AiContentSettingsDto, VersionDto, VideoDto } from '@klappe/shared'
 import { type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { useAiKindName } from '@/lib/ai-kinds';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
+import { useUserName } from '@/lib/user-name';
 import { Menu } from '@/components/ui/Menu';
 
 /**
@@ -36,6 +38,8 @@ export function VersionChips({
 }) {
   const t = useT();
   const kindName = useAiKindName();
+  const { formatDateTime } = useFormat();
+  const zeigeName = useUserName();
 
   const speichern = async (aktion: Promise<unknown>) => {
     await aktion;
@@ -65,6 +69,15 @@ export function VersionChips({
             {t('video.internalToggle')}
           </label>
           <p className="hint">{t('video.internalHint')}</p>
+          {/* Wer wann freigegeben hat – die Frage stellt sich genau hier. */}
+          {version.releasedAt ? (
+            <p className="hint">
+              {t('video.internalReleased', {
+                name: version.releasedBy ? zeigeName(version.releasedBy) : '–',
+                date: formatDateTime(version.releasedAt),
+              })}
+            </p>
+          ) : null}
         </ChipMenu>
       ) : null}
 
