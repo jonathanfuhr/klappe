@@ -48,7 +48,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setUser(null);
       // Abgelaufene Sitzung: zurück zum Login, statt leere Seiten zu zeigen.
       if (error instanceof ApiError && error.isUnauthorized) {
-        router.replace('/login');
+        /*
+         * Mit Rückweg (Phase 27). Vorher landete jeder nach dem Anmelden auf
+         * der Projektliste – auch wer über einen Link mit Angaben in der
+         * Adresse gekommen war. Beim Verbinden eines Geräts steht der Code
+         * genau dort, und er war damit weg.
+         */
+        const ziel = `${window.location.pathname}${window.location.search}`;
+        router.replace(
+          ziel && ziel !== '/login'
+            ? `/login?weiter=${encodeURIComponent(ziel)}`
+            : '/login',
+        );
       }
       return null;
     } finally {

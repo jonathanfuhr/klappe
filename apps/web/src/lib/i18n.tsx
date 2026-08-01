@@ -2,7 +2,7 @@
 
 import type { Locale, Vars } from '@klappe/shared';
 import { DEFAULT_LOCALE, createTranslator, resolveLocale } from '@klappe/shared';
-import { type ReactNode, createContext, useContext, useEffect, useMemo } from 'react';
+import { Fragment, type ReactNode, createContext, useContext, useEffect, useMemo } from 'react';
 import { type MessageKey, de } from '@/i18n/de';
 import { en } from '@/i18n/en';
 import { useBranding } from './branding';
@@ -82,6 +82,53 @@ export function useT(): Translator {
 /** Die geltende Sprache, etwa für Datums- und Zahlenformate. */
 export function useLocale(): Locale {
   return useI18n().locale;
+}
+
+/**
+ * Ein übersetzter Satz, in dem einzelne Platzhalter keine Zeichen sind,
+ * sondern Bauteile – ein Link, ein `<code>`, ein fett gesetztes Wort.
+ *
+ * Der Satz bleibt dabei ein Satz. Ihn in „Wie sich ein Gerät verbindet, steht
+ * in der" + Link + „; wer selbst etwas bauen will …" zu zerlegen, wäre für
+ * Deutsch gerade noch gegangen und für jede weitere Sprache falsch: Wo im Satz
+ * der Link steht, entscheidet die Sprache, nicht der Code.
+ *
+ *     <Trans k="apiAccess.docsHint" parts={{ link: <a href="/handbuch">…</a> }} />
+ *
+ * Gewöhnliche Werte kommen wie sonst über `vars`; `parts` ist nur für das,
+ * was kein Text ist.
+ */
+export function Trans({
+  k,
+  vars,
+  parts,
+}: {
+  k: MessageKey;
+  vars?: Vars;
+  parts: Record<string, ReactNode>;
+}) {
+  const t = useT();
+  // Erst übersetzen und die gewöhnlichen Werte einsetzen, dann an den übrigen
+  // Platzhaltern auftrennen – so bleibt die Wortstellung die der Übersetzung.
+  const satz = t(k, vars);
+  const namen = Object.keys(parts);
+  if (namen.length === 0) return <>{satz}</>;
+
+  const trenner = new RegExp(`\\{(${namen.join('|')})\\}`, 'g');
+  const stuecke = satz.split(trenner);
+
+  // `split` mit einer Gruppe liefert abwechselnd Text und Platzhaltername.
+  return (
+    <>
+      {stuecke.map((stueck, index) =>
+        index % 2 === 1 ? (
+          <Fragment key={`${k}-${index}`}>{parts[stueck]}</Fragment>
+        ) : (
+          <Fragment key={`${k}-${index}`}>{stueck}</Fragment>
+        ),
+      )}
+    </>
+  );
 }
 
 export { DEFAULT_LOCALE };

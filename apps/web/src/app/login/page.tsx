@@ -243,7 +243,7 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
       {schritt === 'mail' ? (
         <div className="field">
           <label className="field__label" htmlFor="gast-login-email">
-            E-Mail-Adresse
+            {t('common.email')}
           </label>
           <input
             id="gast-login-email"
@@ -256,13 +256,13 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
             onChange={(event) => setEmail(event.target.value)}
           />
           <p className="hint">
-            Dieselbe Adresse, an die die Freigabe ging. Ein neues Konto entsteht hier nicht.
+            {t('login.guestEmailHint')}
           </p>
         </div>
       ) : (
         <div className="field">
           <label className="field__label" htmlFor="gast-login-code">
-            Code aus der E-Mail
+            {t('login.guestCodeLabel')}
           </label>
           <input
             id="gast-login-code"
@@ -316,9 +316,10 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
 }
 
 export default function LoginPage() {
+  const t = useT();
   return (
     <div className="login">
-      <Suspense fallback={<div className="card login__card">Wird geladen …</div>}>
+      <Suspense fallback={<div className="card login__card">{t('common.loading')}</div>}>
         <LoginForm />
       </Suspense>
     </div>

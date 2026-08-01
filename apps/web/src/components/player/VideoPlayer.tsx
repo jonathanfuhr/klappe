@@ -566,10 +566,10 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
             onClick={() => setDraft(null)}
             disabled={isAnnotationEmpty(draftAnnotation)}
           >
-            Leeren
+            {t('player.clearDrawing')}
           </button>
           <button type="button" className="button button--ghost" onClick={finishDrawing}>
-            Fertig
+            {t('player.doneDrawing')}
           </button>
         </div>
       ) : null}

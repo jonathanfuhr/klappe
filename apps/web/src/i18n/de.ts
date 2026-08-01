@@ -1029,6 +1029,26 @@ export const de = {
     'Das Passwort ist geändert. Steht es noch als {var} in der {file}, kann es dort jetzt raus.',
   'account.changing': 'Wird geändert …',
   'account.changePassword': 'Passwort ändern',
+  'account.title': 'Mein Konto',
+  'login.guestEmailHint': 'Dieselbe Adresse, an die die Freigabe ging. Ein neues Konto entsteht hier nicht.',
+  'login.guestCodeLabel': 'Code aus der E-Mail',
+  'project.notifyTitle': 'Wer bekommt Post zu diesem Projekt?',
+  'comments.filter': 'Filter',
+  'comments.sort': 'Sortierung',
+  'comments.jumpToTime': 'Zu dieser Stelle springen',
+  'comments.replyPlaceholder': 'Antwort schreiben …',
+  'player.seekPosition': 'Abspielposition',
+  'player.clearDrawing': 'Leeren',
+  'player.doneDrawing': 'Fertig',
+  'account.changeName': 'Name ändern',
+  'account.nameChanged': 'Der Name ist geändert.',
+  'account.displayName': 'Anzeigename',
+  'account.saveName': 'Name speichern',
+  'account.currentPassword': 'Bisheriges Passwort',
+  'account.newPassword': 'Neues Passwort',
+  'account.repeatPassword': 'Neues Passwort wiederholen',
+  'account.mismatch': 'Die beiden Eingaben stimmen nicht überein.',
+  'account.otherPasswordsHint': 'Passwörter anderer Konten setzt du unter {link}.',
   'upload.transportAborted':
     'Die Verbindung brach während der Übertragung ab (kein Kontakt zum Server) – nach {sent} von {total} Byte dieses Blocks.',
   'upload.blockTimeout': 'Der Block kam in {seconds} Sekunden nicht durch und wurde abgebrochen.',
@@ -1044,6 +1064,74 @@ export const de = {
 
   'upload.aborted': 'Abgebrochen.',
   'upload.failed': 'Upload fehlgeschlagen.',
+
+  // ---------- Externe Anbindung: Geräte und API-Zugriff (Phase 27) ----------
+
+  'devices.title': 'Verbundene Geräte',
+  'devices.accountHint':
+    'Programme außerhalb des Browsers, die mit deinem Konto arbeiten – etwa ein Plugin im Schnittprogramm. Sie haben genau deine Rechte. Trennen wirkt sofort und trifft nur dieses eine Gerät; dein Passwort bleibt unberührt.',
+  'devices.accountPairHint': 'Ein neues Gerät verbindest du dort, wo es startet: Das Programm zeigt einen Code, den du unter {link} bestätigst.',
+  'devices.noneMine': 'Noch kein Gerät verbunden.',
+  'devices.noneWorkspace': 'Im ganzen Workspace ist kein Gerät verbunden.',
+  'devices.manual': 'von Hand angelegt',
+  'devices.revokedAt': 'getrennt {when}',
+  'devices.lastUsed': 'zuletzt {when}',
+  'devices.neverUsed': 'noch nicht benutzt',
+  'devices.revoke': 'Trennen',
+  'devices.revokeAll': 'Alle trennen',
+  'devices.revokeConfirm':
+    '„{name}" trennen? Das Programm kommt ab sofort nicht mehr herein und muss neu verbunden werden.',
+  'devices.revokeConfirmOther':
+    '„{name}" von {user} trennen? Das Programm kommt ab sofort nicht mehr herein und muss neu verbunden werden.',
+  'devices.revokeAllConfirm':
+    'Alle eigenen Geräte trennen? Jedes verbundene Programm muss danach neu verbunden werden.',
+  'devices.revokeFailed': 'Trennen fehlgeschlagen.',
+
+  'pairing.title': 'Gerät verbinden',
+  'pairing.signedInAs': 'Angemeldet als {name}',
+  'pairing.signInFirst': 'Bitte zuerst anmelden.',
+  'pairing.codeWrong': 'Der Code stimmt nicht.',
+  'pairing.approveFailed': 'Verbinden fehlgeschlagen.',
+  'pairing.denyFailed': 'Ablehnen fehlgeschlagen.',
+  'pairing.enterTitle': 'Code eingeben',
+  'pairing.enterHint':
+    'Auf dem Gerät – im Plugin, in der App – steht ein achtstelliger Code. Trag ihn hier ein.',
+  'pairing.codeLabel': 'Code vom Gerät',
+  'pairing.codeCaseHint': 'Groß- und Kleinschreibung sowie der Bindestrich sind egal.',
+  'pairing.checking': 'Wird geprüft …',
+  'pairing.next': 'Weiter',
+  'pairing.askTitle': 'Zugriff erlauben?',
+  'pairing.askIntro': '{client} möchte sich mit deinem Konto verbinden.',
+  'pairing.askWarning':
+    'Das Programm bekommt damit deine Rechte: Es sieht dieselben Projekte und Videos wie du, kann in deinem Namen kommentieren und – soweit du das darfst – Fassungen hochladen und herunterladen. Bestätige nur, wenn du diese Verbindung gerade selbst gestartet hast.',
+  'pairing.code': 'Code',
+  'pairing.codeMatchHint': 'Dieser Code muss mit dem übereinstimmen, der auf dem anderen Gerät steht.',
+  'pairing.deny': 'Ablehnen',
+  'pairing.approve': 'Verbinden',
+  'pairing.approving': 'Wird verbunden …',
+  'pairing.doneTitle': 'Verbunden',
+  'pairing.doneText':
+    '„{client}" darf jetzt mit deinem Konto arbeiten. Das Programm meldet sich innerhalb weniger Sekunden von selbst – dieses Fenster kann zu.',
+  'pairing.doneHint': 'Die Verbindung steht unter {link} und lässt sich dort jederzeit wieder trennen.',
+  'pairing.deniedTitle': 'Abgelehnt',
+  'pairing.deniedText':
+    'Es wurde nichts verbunden. Wenn du diese Anfrage nicht selbst ausgelöst hast, war vermutlich jemand anders am Werk – dann ist Ablehnen genau richtig gewesen.',
+
+  'settings.navApi': 'API-Zugriff',
+  'apiAccess.intro':
+    'Programme außerhalb des Browsers – Plugins für Schnittprogramme, eigene Skripte, später Desktop- und Telefon-Apps – erreichen Klappe über dieselbe Schnittstelle wie die Oberfläche. Verbunden wird jedes Gerät einzeln und mit einem Konto; eigene Zugangsdaten gibt es dafür nicht.',
+  'apiAccess.enable': 'Externen API-Zugriff erlauben',
+  'apiAccess.enableHint':
+    'Aus heißt: Es lässt sich kein Gerät mehr verbinden, und schon verbundene kommen nicht mehr herein – der Schalter wirkt sofort und für alle. Die Verbindungen bleiben dabei bestehen und gelten wieder, sobald der Schalter zurückgeht. Die Anmeldung im Browser ist davon nie betroffen.',
+  'apiAccess.docsHint': 'Wie sich ein Gerät verbindet, steht in der {link}; wer selbst etwas bauen will, findet die Schnittstelle in {file}.',
+  'apiAccess.docsLink': 'Anleitung',
+  'apiAccess.disableConfirm': {
+    one: 'Externen Zugriff abschalten? {count} verbundenes Gerät kommt ab sofort nicht mehr herein.',
+    other: 'Externen Zugriff abschalten? {count} verbundene Geräte kommen ab sofort nicht mehr herein.',
+  },
+  'apiAccess.workspaceDevices': 'Verbundene Geräte im Workspace',
+  'apiAccess.workspaceDevicesHint':
+    'Alle Konten. Jeder trennt seine eigenen Geräte unter „Mein Konto" auch selbst – hier kommt der Betreiber an alle heran.',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

@@ -11,9 +11,10 @@ import {
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { DeviceList } from '@/components/DeviceList';
 import { api } from '@/lib/api';
 import { useBranding } from '@/lib/branding';
-import { useT } from '@/lib/i18n';
+import { Trans, useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 /**
@@ -78,7 +79,7 @@ export default function AccountPage() {
       <div className="page" style={{ maxWidth: 560 }}>
         <div className="page__header">
           <div>
-            <h1 className="page__title">Mein Konto</h1>
+            <h1 className="page__title">{t('account.title')}</h1>
             <p className="muted" style={{ marginBottom: 0 }}>
               {user ? `${user.name} · ${user.email}` : '…'}
             </p>
@@ -142,14 +143,14 @@ export default function AccountPage() {
             }
           }}
         >
-          <h2 className="card__title">Name ändern</h2>
+          <h2 className="card__title">{t('account.changeName')}</h2>
 
           {nameError ? <div className="notice">{nameError}</div> : null}
-          {nameDone ? <div className="notice notice--ok">Der Name ist geändert.</div> : null}
+          {nameDone ? <div className="notice notice--ok">{t('account.nameChanged')}</div> : null}
 
           <div className="field">
             <label className="field__label" htmlFor="display-name">
-              {istGast ? 'Anzeigename' : 'Name'}
+              {istGast ? t('account.displayName') : t('common.name')}
             </label>
             <input
               id="display-name"
@@ -178,7 +179,7 @@ export default function AccountPage() {
               className="button button--primary"
               disabled={!nameGültig || !nameGeändert || nameBusy}
             >
-              {nameBusy ? 'Wird gespeichert …' : 'Name speichern'}
+              {nameBusy ? t('common.saving') : t('account.saveName')}
             </button>
           </div>
         </form>
@@ -218,7 +219,7 @@ export default function AccountPage() {
 
           <div className="field">
             <label className="field__label" htmlFor="current-password">
-              Bisheriges Passwort
+              {t('account.currentPassword')}
             </label>
             <input
               id="current-password"
@@ -233,7 +234,7 @@ export default function AccountPage() {
 
           <div className="field">
             <label className="field__label" htmlFor="new-password">
-              Neues Passwort
+              {t('account.newPassword')}
             </label>
             <input
               id="new-password"
@@ -254,7 +255,7 @@ export default function AccountPage() {
 
           <div className="field">
             <label className="field__label" htmlFor="repeat-password">
-              Neues Passwort wiederholen
+              {t('account.repeatPassword')}
             </label>
             <input
               id="repeat-password"
@@ -265,7 +266,7 @@ export default function AccountPage() {
               value={repeat}
               onChange={(event) => setRepeat(event.target.value)}
             />
-            {ungleich ? <p className="hint">Die beiden Eingaben stimmen nicht überein.</p> : null}
+            {ungleich ? <p className="hint">{t('account.mismatch')}</p> : null}
           </div>
 
           <div className="dialog__actions">
@@ -277,11 +278,32 @@ export default function AccountPage() {
 
         {user?.role === 'ADMIN' ? (
           <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-            Passwörter anderer Konten setzt du unter <Link href="/benutzer">Benutzer</Link>.
+            <Trans
+              k="account.otherPasswordsHint"
+              parts={{ link: <Link href="/benutzer">{t('settings.navUsers')}</Link> }}
+            />
           </p>
         ) : null}
         </>
         )}
+
+        {/* Auch für Gäste: Wer über ein Plugin auf seine Freigaben zugreift,
+            muss es genauso wieder trennen können wie das Team. */}
+        <div className="card card--form">
+          <h2 className="card__title">{t('devices.title')}</h2>
+          <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+            {t('devices.accountHint')}
+          </p>
+
+          <DeviceList scope="mine" />
+
+          <p className="hint" style={{ marginTop: 14 }}>
+            <Trans
+              k="devices.accountPairHint"
+              parts={{ link: <Link href="/geraet">{t('pairing.title')}</Link> }}
+            />
+          </p>
+        </div>
       </div>
     </AppShell>
   );

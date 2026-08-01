@@ -301,7 +301,7 @@ function JobRow({
           </label>
 
           <label className="field" style={{ margin: 0 }}>
-            <span className="field__label">Video</span>
+            <span className="field__label">{t('upload.video')}</span>
             <select
               className="select"
               value={job.videoId}
@@ -332,7 +332,7 @@ function JobRow({
           )}
 
           <label className="field" style={{ margin: 0 }}>
-            <span className="field__label">Fassung</span>
+            <span className="field__label">{t('upload.version')}</span>
             <input
               className="input"
               type="number"

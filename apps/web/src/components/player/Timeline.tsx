@@ -8,6 +8,7 @@ import {
 } from '@klappe/shared';
 import { type PointerEvent as ReactPointerEvent, useCallback, useMemo, useRef, useState } from 'react';
 import { mediaUrl } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import type { CommentMarker } from './VideoPlayer';
 
 interface TimelineProps {
@@ -42,6 +43,7 @@ export function Timeline({
   onSeekFrame,
   onMarkerClick,
 }: TimelineProps) {
+  const t = useT();
   const trackRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ fraction: number; frame: number } | null>(null);
   const [scrubbing, setScrubbing] = useState(false);
@@ -124,7 +126,7 @@ export function Timeline({
         onPointerUp={onPointerUp}
         onPointerLeave={() => setHover(null)}
         role="slider"
-        aria-label="Abspielposition"
+        aria-label={t('player.seekPosition')}
         aria-valuemin={0}
         aria-valuemax={lastFrame}
         aria-valuenow={frame}

@@ -127,7 +127,7 @@ export function ProjectFieldValues({
       ))}
       {geaendert ? (
         <button type="submit" className="button button--primary" disabled={busy}>
-          Speichern
+          {t('common.save')}
         </button>
       ) : null}
       {error ? <span className="notice" style={{ margin: 0 }}>{error}</span> : null}

@@ -104,7 +104,7 @@ export function CommentPanel({
           style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
           value={filter}
           onChange={(event) => setFilter(event.target.value as Filter)}
-          aria-label="Filter"
+          aria-label={t('comments.filter')}
         >
           <option value="alle">{t('comments.filterAll')}</option>
           <option value="offen">{t('comments.filterOpen')}</option>
@@ -115,7 +115,7 @@ export function CommentPanel({
           style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
           value={sortierung}
           onChange={(event) => setSortierung(event.target.value as Sortierung)}
-          aria-label="Sortierung"
+          aria-label={t('comments.sort')}
         >
           <option value="timecode">{t('comments.sortTimecode')}</option>
           <option value="erstellt">{t('comments.sortCreated')}</option>
@@ -157,7 +157,7 @@ export function CommentPanel({
                     event.stopPropagation();
                     onSelect(comment);
                   }}
-                  title="Zu dieser Stelle springen"
+                  title={t('comments.jumpToTime')}
                 >
                   {comment.timecode}
                 </button>
@@ -301,7 +301,7 @@ export function CommentPanel({
                   timecode={null}
                   pinned={false}
                   onPinnedChange={() => undefined}
-                  placeholder="Antwort schreiben …"
+                  placeholder={t('comments.replyPlaceholder')}
                   submitLabel={t('comments.reply')}
                   autoFocus
                   onCancel={() => setReplyTo(null)}

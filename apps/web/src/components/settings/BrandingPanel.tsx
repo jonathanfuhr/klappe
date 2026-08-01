@@ -349,7 +349,7 @@ export function BrandingPanel() {
                 disabled={busy}
                 onClick={() => void removeLogo()}
               >
-                Entfernen
+                {t('common.remove')}
               </button>
             ) : null}
           </div>
@@ -412,7 +412,7 @@ export function BrandingPanel() {
                 disabled={busy}
                 onClick={() => void removeFavicon()}
               >
-                Entfernen
+                {t('common.remove')}
               </button>
             ) : null}
           </div>
@@ -469,7 +469,7 @@ export function BrandingPanel() {
                 disabled={busy}
                 onClick={() => void removeAppIcon()}
               >
-                Entfernen
+                {t('common.remove')}
               </button>
             ) : null}
           </div>

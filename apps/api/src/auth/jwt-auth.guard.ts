@@ -12,6 +12,8 @@ import type { UserRole } from '@klappe/shared';
 import { isLocale } from '@klappe/shared';
 import { eq } from 'drizzle-orm';
 import type { Request } from 'express';
+import { isApiTokenShaped } from '../api-tokens/api-token';
+import { ApiTokensService } from '../api-tokens/api-tokens.service';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import { users } from '../db/schema';
@@ -34,6 +36,7 @@ export class JwtAuthGuard implements CanActivate {
     private readonly jwtService: JwtService,
     @Inject(CONFIG) private readonly config: AppConfig,
     @Inject(DB) private readonly db: Database,
+    private readonly apiTokens: ApiTokensService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -89,11 +92,38 @@ export class JwtAuthGuard implements CanActivate {
    * Wer stellt die Anfrage? Normalfall ist die Sitzung. Auf ausdrücklich
    * dafür markierten Medien-Routen gilt ersatzweise ein kurzlebiger Token in
    * `?t=` – gebunden an genau diese Fassung und genau diese Art von Datei.
+   * Seit Phase 27 kommt der API-Token externer Anbindungen dazu.
    */
   private async identify(
     context: ExecutionContext,
     request: AuthenticatedRequest,
   ): Promise<string> {
+    /*
+     * Zuerst der Weg von außen (Phase 27). Er hängt an einer Bedingung, die
+     * es sonst nirgends gibt: Der Betreiber muss ihn freigeschaltet haben.
+     * Deshalb steht die Prüfung vor allem anderen – und deshalb betrifft der
+     * Schalter den **ganzen** Header, nicht nur API-Tokens: Ein Sitzungs-JWT
+     * als `Authorization: Bearer` ist genauso ein Zugriff von außen. Der
+     * Browser meldet sich über das Sitzungs-Cookie an und bleibt unberührt.
+     */
+    const header = bearerToken(request);
+    if (header) {
+      if (!(await this.apiTokens.isApiAccessEnabled())) {
+        throw new ForbiddenException(
+          'Der externe API-Zugriff ist für diesen Workspace abgeschaltet.',
+        );
+      }
+
+      if (isApiTokenShaped(header)) {
+        const geprueft = await this.apiTokens.verify(header);
+        // Auch hier gilt: kein Wort darüber, woran es lag. Unbekannt,
+        // widerrufen und vertippt sollen sich nicht unterscheiden lassen.
+        if (!geprueft) throw new UnauthorizedException('Der API-Token gilt nicht (mehr).');
+        request.apiTokenId = geprueft.tokenId;
+        return geprueft.userId;
+      }
+    }
+
     const sessionToken = extractToken(request, this.config.jwt.cookieName);
     if (sessionToken) {
       try {
@@ -131,13 +161,19 @@ export class JwtAuthGuard implements CanActivate {
 }
 
 /**
- * Sitzungs-Cookie ist der Normalfall (Browser). Der Bearer-Header bleibt für
- * Skripte und spätere Integrationen offen.
+ * Sitzungs-Cookie ist der Normalfall (Browser). Der Bearer-Header trägt seit
+ * Phase 27 die externen Anbindungen – API-Token oder, für Skripte, ein
+ * Sitzungs-JWT.
  */
 export function extractToken(request: Request, cookieName: string): string | null {
   const cookieToken = (request.cookies as Record<string, string> | undefined)?.[cookieName];
   if (cookieToken) return cookieToken;
 
+  return bearerToken(request);
+}
+
+/** Nur der `Authorization`-Header, ohne den Umweg über das Cookie. */
+export function bearerToken(request: Request): string | null {
   const header = request.headers.authorization;
   if (header?.startsWith('Bearer ')) {
     const value = header.slice('Bearer '.length).trim();

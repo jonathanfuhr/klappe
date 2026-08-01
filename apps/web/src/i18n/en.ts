@@ -1031,6 +1031,26 @@ export const en: Record<MessageKey, Message> = {
     'The password has been changed. If it is still in the {file} as {var}, it can go now.',
   'account.changing': 'Changing …',
   'account.changePassword': 'Change password',
+  'account.title': 'My account',
+  'login.guestEmailHint': 'The same address the share went to. No new account is created here.',
+  'login.guestCodeLabel': 'Code from the email',
+  'project.notifyTitle': 'Who gets mail about this project?',
+  'comments.filter': 'Filter',
+  'comments.sort': 'Sorting',
+  'comments.jumpToTime': 'Jump to this point',
+  'comments.replyPlaceholder': 'Write a reply …',
+  'player.seekPosition': 'Playback position',
+  'player.clearDrawing': 'Clear',
+  'player.doneDrawing': 'Done',
+  'account.changeName': 'Change name',
+  'account.nameChanged': 'The name has been changed.',
+  'account.displayName': 'Display name',
+  'account.saveName': 'Save name',
+  'account.currentPassword': 'Current password',
+  'account.newPassword': 'New password',
+  'account.repeatPassword': 'Repeat new password',
+  'account.mismatch': 'The two entries do not match.',
+  'account.otherPasswordsHint': 'You set passwords for other accounts under {link}.',
   'upload.transportAborted':
     'The connection broke off during the transfer (no contact with the server) – after {sent} of {total} bytes of this block.',
   'upload.blockTimeout': 'The block did not get through within {seconds} seconds and was aborted.',
@@ -1046,4 +1066,72 @@ export const en: Record<MessageKey, Message> = {
 
   'upload.aborted': 'Aborted.',
   'upload.failed': 'Upload failed.',
+
+  // ---------- External access: devices and API (Phase 27) ----------
+
+  'devices.title': 'Connected devices',
+  'devices.accountHint':
+    'Programs outside the browser that work with your account – a plugin in your editing software, for example. They have exactly your permissions. Disconnecting takes effect at once and affects only that one device; your password stays untouched.',
+  'devices.accountPairHint': 'You connect a new device where it starts: the program shows a code, which you confirm under {link}.',
+  'devices.noneMine': 'No device connected yet.',
+  'devices.noneWorkspace': 'No device is connected anywhere in the workspace.',
+  'devices.manual': 'created by hand',
+  'devices.revokedAt': 'disconnected {when}',
+  'devices.lastUsed': 'last {when}',
+  'devices.neverUsed': 'not used yet',
+  'devices.revoke': 'Disconnect',
+  'devices.revokeAll': 'Disconnect all',
+  'devices.revokeConfirm':
+    'Disconnect “{name}”? The program will no longer get in and has to be connected again.',
+  'devices.revokeConfirmOther':
+    'Disconnect “{name}” belonging to {user}? The program will no longer get in and has to be connected again.',
+  'devices.revokeAllConfirm':
+    'Disconnect all of your devices? Every connected program will have to be connected again afterwards.',
+  'devices.revokeFailed': 'Disconnecting failed.',
+
+  'pairing.title': 'Connect device',
+  'pairing.signedInAs': 'Signed in as {name}',
+  'pairing.signInFirst': 'Please sign in first.',
+  'pairing.codeWrong': 'That code is not right.',
+  'pairing.approveFailed': 'Connecting failed.',
+  'pairing.denyFailed': 'Declining failed.',
+  'pairing.enterTitle': 'Enter code',
+  'pairing.enterHint':
+    'The device – the plugin, the app – shows an eight-character code. Enter it here.',
+  'pairing.codeLabel': 'Code from the device',
+  'pairing.codeCaseHint': 'Upper and lower case and the hyphen do not matter.',
+  'pairing.checking': 'Checking …',
+  'pairing.next': 'Continue',
+  'pairing.askTitle': 'Allow access?',
+  'pairing.askIntro': '{client} would like to connect to your account.',
+  'pairing.askWarning':
+    'The program then gets your permissions: it sees the same projects and videos you do, can comment in your name and – as far as you may – upload and download versions. Only confirm if you started this connection yourself just now.',
+  'pairing.code': 'Code',
+  'pairing.codeMatchHint': 'This code has to match the one shown on the other device.',
+  'pairing.deny': 'Decline',
+  'pairing.approve': 'Connect',
+  'pairing.approving': 'Connecting …',
+  'pairing.doneTitle': 'Connected',
+  'pairing.doneText':
+    '“{client}” may now work with your account. The program will report back within a few seconds by itself – you can close this window.',
+  'pairing.doneHint': 'The connection is listed under {link} and can be disconnected there at any time.',
+  'pairing.deniedTitle': 'Declined',
+  'pairing.deniedText':
+    'Nothing was connected. If you did not start this request yourself, someone else probably did – in that case declining was exactly right.',
+
+  'settings.navApi': 'API access',
+  'apiAccess.intro':
+    'Programs outside the browser – plugins for editing software, your own scripts, later desktop and phone apps – reach Klappe through the same interface as the user interface does. Each device is connected individually and to one account; there are no separate credentials for it.',
+  'apiAccess.enable': 'Allow external API access',
+  'apiAccess.enableHint':
+    'Off means: no device can be connected any more, and already connected ones no longer get in – the switch takes effect at once and for everyone. The connections stay in place and apply again as soon as the switch goes back. Signing in through the browser is never affected.',
+  'apiAccess.docsHint': 'How a device connects is described in the {link}; if you want to build something yourself, the interface is in {file}.',
+  'apiAccess.docsLink': 'manual',
+  'apiAccess.disableConfirm': {
+    one: 'Switch off external access? {count} connected device will no longer get in.',
+    other: 'Switch off external access? {count} connected devices will no longer get in.',
+  },
+  'apiAccess.workspaceDevices': 'Connected devices in the workspace',
+  'apiAccess.workspaceDevicesHint':
+    'All accounts. Everyone disconnects their own devices under “My account” too – here the operator can reach all of them.',
 };

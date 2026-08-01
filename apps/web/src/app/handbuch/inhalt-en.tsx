@@ -21,6 +21,7 @@ export const ABSCHNITTE_EN = [
   { id: 'downloads', label: 'Downloading', href: '#downloads' },
   { id: 'benachrichtigungen', label: 'Notifications', href: '#benachrichtigungen' },
   { id: 'konto', label: 'My account', href: '#konto' },
+  { id: 'geraete', label: 'Connecting devices', href: '#geraete' },
   { id: 'einstellungen', label: 'Settings (team)', href: '#einstellungen' },
   { id: 'faq', label: 'Frequently asked', href: '#faq' },
 ] as const;
@@ -345,6 +346,51 @@ export function HandbuchEn() {
         </p>
       </section>
 
+      <section id="geraete" className="card manual__section">
+        <h2>Connecting devices</h2>
+        <p>
+          Programs outside the browser can work with Klappe – a plugin in your editing software,
+          for example, that pulls comments into the timeline as markers. For that to work, the
+          administrator has to have allowed external access under{' '}
+          <em>Settings → API access</em>; it is off out of the box.
+        </p>
+        <ol>
+          <li>
+            The program shows an eight-character code, something like <code>KHFP-3RTM</code>, plus
+            an address.
+          </li>
+          <li>
+            Open that address in the browser (or go to <em>Connect device</em> under{' '}
+            <Link href="/konto">My account</Link>) and enter the code.
+          </li>
+          <li>
+            It shows which program wants to connect. Confirm – done. The program reports back
+            within a few seconds by itself.
+          </li>
+        </ol>
+        <p>
+          <strong>No password is typed anywhere in this.</strong> What counts is the sign-in that
+          is already in place in the browser – whether it came about with a password or through
+          Microsoft 365 makes no difference.
+        </p>
+        <p>
+          A connected program gets <strong>exactly your own permissions</strong>: it sees the same
+          projects and videos, comments under your name, and may download and upload as far as you
+          may yourself. So only confirm what you started yourself just now.
+        </p>
+        <p>
+          All connected devices are listed under <Link href="/konto">My account</Link>.{' '}
+          <em>Disconnect</em> takes effect at once and affects only that one device – the password
+          stays untouched and every other device carries on. So if you lose a laptop, you
+          disconnect precisely that one. This works without the administrator; they in turn can
+          disconnect any device in the workspace and switch external access off altogether.
+        </p>
+        <p>
+          Guests can connect devices too. Such a program then sees exactly what the guest sees in
+          the browser – their shares, no more.
+        </p>
+      </section>
+
       <section id="einstellungen" className="card manual__section">
         <h2>Settings (team)</h2>
         <p>Team members and admins find under Settings, among other things:</p>
@@ -362,6 +408,10 @@ export function HandbuchEn() {
           </li>
           <li>
             <strong>Sign-in</strong> – local accounts and/or Microsoft 365.
+          </li>
+          <li>
+            <strong>API access</strong> – whether programs outside the browser may work with
+            Klappe (off out of the box), and every connected device in the workspace.
           </li>
           <li>
             <strong>Email delivery</strong> – SMTP setup, digest window, undeliverable mail.

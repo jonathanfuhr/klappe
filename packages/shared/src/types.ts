@@ -885,3 +885,78 @@ export interface EmbedLinkDto {
   snippet: string;
   createdAt: string;
 }
+
+// ---------- Externe Anbindung (Phase 27) ----------
+
+/** Wie ein Token entstanden ist – nur zur Anzeige, für die Rechte belanglos. */
+export const API_TOKEN_ORIGINS = ['device', 'manual'] as const;
+export type ApiTokenOrigin = (typeof API_TOKEN_ORIGINS)[number];
+
+/**
+ * Ein verbundenes Gerät (Phase 27).
+ *
+ * Der Token selbst steht hier nie – er existiert genau einmal, im Moment des
+ * Verbindens. Was bleibt, ist `masked`: genug, um ein Gerät in der Liste
+ * wiederzuerkennen, zu wenig, um damit irgendwo hereinzukommen.
+ */
+export interface ApiTokenDto {
+  id: string;
+  name: string;
+  /** `klp_a3f…` – nur der Anfang. */
+  masked: string;
+  origin: ApiTokenOrigin;
+  createdAt: string;
+  lastUsedAt: string | null;
+  /** Gesetzt heißt: getrennt. Die Zeile bleibt sichtbar. */
+  revokedAt: string | null;
+  /**
+   * Zu wem das Gerät gehört. Steht nur in der Admin-Liste; in der eigenen
+   * Liste unter „Mein Konto" ist es immer man selbst und deshalb `null`.
+   */
+  user: UserSummaryDto | null;
+}
+
+/** Antwort auf den Start einer Gerätekopplung – alles, was das Plugin braucht. */
+export interface DeviceStartDto {
+  /** Das lange Geheimnis. Behält das Plugin für sich. */
+  deviceCode: string;
+  /** Der kurze Code zum Abtippen, `KHFP-3RTM`. */
+  userCode: string;
+  /** Diese Adresse zeigt das Plugin an. */
+  verificationUrl: string;
+  /** Dieselbe Adresse mit Code darin – zum Anklicken oder als QR-Code. */
+  verificationUrlComplete: string;
+  expiresInSeconds: number;
+  /** So lange soll das Plugin zwischen zwei Nachfragen warten. */
+  intervalSeconds: number;
+}
+
+/** Was im Browser über eine wartende Kopplung steht, bevor jemand bestätigt. */
+export interface DevicePendingDto {
+  userCode: string;
+  /** Wie sich das Gerät nennt, etwa „DaVinci Resolve". */
+  clientName: string;
+  expiresAt: string;
+}
+
+/** Die Abholung: der Token im Klartext – genau einmal. */
+export interface DeviceTokenDto {
+  token: string;
+  /** Unter diesem Namen steht das Gerät in der Liste. */
+  name: string;
+  /** Wessen Rechte der Token trägt. */
+  user: Pick<UserDto, 'id' | 'name' | 'email' | 'role'> | null;
+}
+
+/** Der Admin-Schalter für den externen Zugriff (Phase 27). */
+export interface ApiAccessSettingsDto {
+  /**
+   * Aus heißt: `Authorization: Bearer …` wird gar nicht erst geprüft – weder
+   * ein API-Token noch ein Sitzungs-JWT im Header. Der Browser meldet sich
+   * über das Sitzungs-Cookie an und ist davon nicht betroffen.
+   */
+  enabled: boolean;
+  /** Wie viele Geräte gerade verbunden sind (ohne die getrennten). */
+  activeTokens: number;
+  updatedAt: string;
+}

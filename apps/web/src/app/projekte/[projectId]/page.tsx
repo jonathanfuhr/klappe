@@ -231,9 +231,9 @@ export default function ProjectPage() {
                     </span>
                     {isTeam ? (
                       <Menu label={`Aktionen für ${video.name}`}>
-                        <MenuItem onSelect={() => setEditingVideo(video)}>Umbenennen …</MenuItem>
+                        <MenuItem onSelect={() => setEditingVideo(video)}>{t('projects.renameEllipsis')}</MenuItem>
                         <MenuItem danger onSelect={() => setDeletingVideo(video)}>
-                          Löschen …
+                          {t('projects.deleteEllipsis')}
                         </MenuItem>
                       </Menu>
                     ) : null}
@@ -288,7 +288,7 @@ export default function ProjectPage() {
               className="sidetabs__tab"
               data-active={seitenTab === 'benachrichtigungen'}
               onClick={() => setSeitenTab('benachrichtigungen')}
-              title="Wer bekommt Post zu diesem Projekt?"
+              title={t('project.notifyTitle')}
             >
               {t('video.tabNotifications')}
             </button>

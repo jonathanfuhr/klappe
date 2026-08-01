@@ -34,18 +34,18 @@ export const EXAKT: Record<string, string> = {
   'Dafür fehlen in diesem Projekt die Rechte.':
     'You do not have the rights for that in this project.',
   'Das Format braucht einen Namen.': 'The format needs a name.',
-  'Das Passwort muss mindestens einen Buchstaben enthalten.':
-    'The password must contain at least one letter.',
-  'Das Passwort muss mindestens eine Ziffer enthalten.':
-    'The password must contain at least one digit.',
-  'Das Passwort muss Groß- und Kleinbuchstaben enthalten.':
-    'The password must contain upper and lower case letters.',
-  'Das Passwort muss mindestens ein Sonderzeichen enthalten.':
-    'The password must contain at least one special character.',
   'Das Format wurde geändert – die Fassung wird neu erzeugt.':
     'The format has changed – the version is being regenerated.',
   'Das Original ist noch nicht vollständig hochgeladen.':
     'The original has not been fully uploaded yet.',
+  'Das Passwort muss Groß- und Kleinbuchstaben enthalten.':
+    'The password must contain upper and lower case letters.',
+  'Das Passwort muss mindestens ein Sonderzeichen enthalten.':
+    'The password must contain at least one special character.',
+  'Das Passwort muss mindestens eine Ziffer enthalten.':
+    'The password must contain at least one digit.',
+  'Das Passwort muss mindestens einen Buchstaben enthalten.':
+    'The password must contain at least one letter.',
   'Das Token gehört nicht zu diesem Anmeldevorgang.':
     'The token does not belong to this sign-in attempt.',
   'Das Token von Microsoft hat keinen Schlüsselhinweis.':
@@ -56,6 +56,7 @@ export const EXAKT: Record<string, string> = {
   'Datei nicht gefunden.': 'File not found.',
   'Dein Zugriff auf diese Freigabe wurde zurückgezogen. Bitte frage nach einem neuen Link.':
     'Your access to this share has been withdrawn. Please ask for a new link.',
+  'Der API-Token gilt nicht (mehr).': 'The API token is no longer valid.',
   'Der Anmeldevorgang ist abgelaufen oder wurde in einem anderen Browser begonnen. Bitte noch einmal anfangen.':
     'The sign-in attempt has expired or was started in another browser. Please start again.',
   'Der Anmeldevorgang ist abgelaufen. Bitte noch einmal anfangen.':
@@ -72,6 +73,11 @@ export const EXAKT: Record<string, string> = {
   'Der Name steht schon fest.': 'The name has already been set.',
   'Der Ordnerpfad ist leer.': 'The folder path is empty.',
   'Der Signaturschlüssel des Tokens ist unbekannt.': 'The signing key of the token is unknown.',
+  'Der externe API-Zugriff ist abgeschaltet.': 'External API access is switched off.',
+  'Der externe API-Zugriff ist für diesen Workspace abgeschaltet.':
+    'External API access is switched off for this workspace.',
+  'Der externe API-Zugriff ist für diesen Workspace abgeschaltet. Ein Administrator kann ihn in den Einstellungen unter „API-Zugriff" freigeben.':
+    'External API access is switched off for this workspace. An administrator can enable it in the settings under “API access”.',
   'Die Anmeldung über Microsoft 365 ist nicht eingerichtet.':
     'Sign-in via Microsoft 365 is not set up.',
   'Die Antwort von Microsoft passt nicht zum Anmeldevorgang.':
@@ -84,6 +90,10 @@ export const EXAKT: Record<string, string> = {
   'Die Datei ist leer.': 'The file is empty.',
   'Die Dateigröße muss größer als 0 sein.': 'The file size must be greater than 0.',
   'Die Formatauswahl ist ausgeschaltet.': 'The choice of formats is switched off.',
+  'Die Kopplung ist abgelaufen. Bitte neu starten.': 'The pairing has expired. Please start again.',
+  'Die Kopplung ist ungültig geworden. Bitte neu starten.':
+    'The pairing has become invalid. Please start again.',
+  'Die Verbindung wurde abgelehnt.': 'The connection was declined.',
   'Die kurze Kante ist keine Zahl.': 'The short edge is not a number.',
   'Die letzte Version eines Videos kann nicht gelöscht werden – bitte das Video löschen.':
     'The last version of a video cannot be deleted – please delete the video instead.',
@@ -105,6 +115,7 @@ export const EXAKT: Record<string, string> = {
   'Diese Freigabe gibt es nicht.': 'This share does not exist.',
   'Diese Freigabe ist abgelaufen oder wurde zurückgezogen.':
     'This share has expired or was withdrawn.',
+  'Diese Kopplung gibt es nicht.': 'There is no such pairing.',
   'Diese Person steht nicht im Team.': 'This person is not on the team.',
   'Diese Sicherung gibt es nicht.': 'This backup does not exist.',
   'Diese Sitzung wurde abgebrochen.': 'This session was aborted.',
@@ -112,6 +123,7 @@ export const EXAKT: Record<string, string> = {
     'This upload session does not belong to a version.',
   'Diese Upload-Sitzung wurde abgebrochen.': 'This upload session was aborted.',
   'Dieser Abmelde-Link ist ungültig.': 'This unsubscribe link is not valid.',
+  'Dieser Code stimmt nicht.': 'That code is not right.',
   'Dieser Gast gehört weder zu diesem Projekt noch zu einem Projekt desselben Kunden.':
     'This guest belongs neither to this project nor to a project of the same client.',
   'Dieser Gast hat in diesem Projekt keinen Zugang.':
@@ -124,6 +136,7 @@ export const EXAKT: Record<string, string> = {
   'Dieser Zugang steht nicht mehr offen.': 'This access is no longer open.',
   'Dieser Zugang wurde gesperrt.': 'This access has been blocked.',
   'Dieses Format gibt es nicht (mehr).': 'This format does not exist (any more).',
+  'Dieses Gerät gibt es nicht.': 'There is no such device.',
   'Dieses Konto gibt es nicht mehr.': 'This account no longer exists.',
   'Dieses Konto ist gesperrt.': 'This account is blocked.',
   'Dieses Projekt ist archiviert – es lässt sich noch ansehen, aber nicht mehr kommentieren.':
@@ -149,6 +162,8 @@ export const EXAKT: Record<string, string> = {
     'External project admin only works through a project share, not through a single video share.',
   'Feld nicht gefunden.': 'Field not found.',
   'Freigabe nicht gefunden.': 'Share not found.',
+  'Fremde Geräte darf nur ein Administrator trennen.':
+    'Only an administrator may disconnect other people’s devices.',
   'Für Team-Konten ist nur die Anmeldung über Microsoft 365 erlaubt.':
     'For team accounts only sign-in via Microsoft 365 is allowed.',
   'Für das Hochladen neuer Videofassungen fehlen die Rechte.':
@@ -176,6 +191,8 @@ export const EXAKT: Record<string, string> = {
   'Für eine Projektfreigabe fehlt die Projekt-ID.': 'A project share needs the project ID.',
   'Für eine Videofreigabe fehlt die Video-ID.': 'A video share needs the video ID.',
   'Gastkonto nicht gefunden.': 'Guest account not found.',
+  'Gerade ist kein Code frei. Bitte gleich noch einmal probieren.':
+    'No code is free right now. Please try again in a moment.',
   'In diesem Ordner liegen keine Dateien.': 'There are no files in this folder.',
   'Kein Posterframe vorhanden.': 'No poster frame available.',
   'Kein Projekt trägt diesen Kundennamen.': 'No project carries this client name.',
@@ -207,11 +224,15 @@ export const EXAKT: Record<string, string> = {
   'Upload-Sitzung nicht gefunden.': 'Upload session not found.',
   'Version nicht gefunden.': 'Version not found.',
   'Video nicht gefunden.': 'Video not found.',
+  'Zu diesem Code wartet nichts (mehr). Bitte im Plugin neu starten.':
+    'Nothing is waiting for this code (any more). Please start again in the plugin.',
   'Zu dieser Adresse gibt es keinen Gastzugang. Bitte den Freigabe-Link benutzen, den du bekommen hast.':
     'There is no guest access for this address. Please use the share link you were sent.',
   'Zu dieser Freigabe gibt es kein Video.': 'There is no video for this share.',
   'Zu dieser Upload-Sitzung fehlt das Projekt.': 'The project is missing for this upload session.',
   'Zu dieser Upload-Sitzung fehlt das Video.': 'The video is missing for this upload session.',
+  'Zu viele Abfragen. Bitte die Kopplung neu starten.':
+    'Too many requests. Please start the pairing again.',
   'Zu viele Fehlversuche. Bitte einen neuen Code anfordern.':
     'Too many failed attempts. Please request a new code.',
 };

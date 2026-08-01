@@ -1,6 +1,6 @@
 {
-  "id": "daf1691b-c5c4-438b-a2d0-baec2100ec98",
-  "prevId": "61039520-c4a9-4e54-aba3-3156c90ec660",
+  "id": "8d60ea86-bcd8-4517-8d5f-9047c876d3a7",
+  "prevId": "daf1691b-c5c4-438b-a2d0-baec2100ec98",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -279,6 +279,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "default_locale": {
+          "name": "default_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'de'"
         },
         "brand_title": {
           "name": "brand_title",
@@ -3115,6 +3122,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "locale": {
+          "name": "locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "last_login_at": {
           "name": "last_login_at",
