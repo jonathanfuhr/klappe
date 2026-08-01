@@ -412,6 +412,13 @@ Fassung, wer wann freigegeben hat (`releasedAt`, `releasedBy`) – auch das ein
 Wert, den ein Plugin anzeigen kann. Umschalten geht auch über
 `PATCH /v1/versions/:id` mit `{ "internal": true|false }`.
 
+**Vorgabe erfragen, nicht raten (Phase 28).** `GET /v1/settings/fassungen`
+liefert `{ internalEnabled, internalByDefault }`. Ist `internalEnabled` aus,
+fährt dieses Haus keine interne Runde – dann gehört der Haken gar nicht in
+deinen Dialog, und `internal: true` wird abgewiesen. Ist `internalByDefault`
+gesetzt, belege den Haken vor: Das Haus hat sich entschieden, dass eine
+Fassung sichtbar wird, weil jemand es will, und nicht, weil es jemand vergaß.
+
 Was dein Plugin dabei beachten sollte:
 
 - **Das Feld `internal` zu sehen heißt, zum Team zu gehören.** Ein Token mit

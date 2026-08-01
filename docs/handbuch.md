@@ -355,6 +355,28 @@ was der Gast auch im Browser sieht – seine Freigaben, nicht mehr.
 
 ---
 
+## Benachrichtigungen einstellen (Admin)
+
+*Einstellungen → Benachrichtigungen.* Dort steht jede Art von Mail, die Klappe
+verschickt, mit **zwei Haken**: einer für das Team, einer für Gäste. Was hier
+aus ist, geht nicht raus.
+
+Der Anmeldecode für Gäste steht ohne Schalter in der Liste – ohne ihn käme kein
+Gast mehr herein.
+
+Drei Ebenen greifen nacheinander: Der Schalter hier kann nur **zumachen**.
+Darunter entscheidet weiter, wer für ein Projekt eingetragen bzw. an einem
+Gespräch beteiligt ist, und ganz unten das persönliche Abbestellen unter
+*Profil und Sicherheit*.
+
+Auf derselben Seite stehen die **Sammelmails**: eine Ruhezeit für Kommentare
+und eine eigene, deutlich höhere für Kundenmaterial. Ein Kunde lädt selten eine
+Datei, sondern einen Ordner – aus zwanzig Dateien soll eine Mail werden und
+nicht zwanzig. Erwähnungen dürfen die Ruhezeit überspringen.
+
+Ganz unten die zwei Schalter für **interne Fassungen**: ob das Haus die interne
+Runde überhaupt fährt und ob neue Fassungen ab Werk intern sind.
+
 ## Einstellungen (Team)
 
 Team-Mitglieder und Admins finden unter **Einstellungen** unter anderem:

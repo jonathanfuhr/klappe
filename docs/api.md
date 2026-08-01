@@ -194,6 +194,76 @@ Zwei Dinge sind dabei wichtig:
 Ohne `replace` bleibt es bei `409`; genau daran erkennt eine Anbindung, dass
 sie ersetzen müsste.
 
+## Benachrichtigungen (Phase 28)
+
+| Route | Zweck |
+| --- | --- |
+| `GET /v1/settings/benachrichtigungen` | Admin – Schalter je Mailart, beide Ruhezeiten |
+| `PUT /v1/settings/benachrichtigungen` | Admin – `{ kinds?, digestMinutes?, projectFileDigestMinutes?, mentionImmediate? }` |
+| `GET /v1/settings/fassungen` | **Team** – `{ internalEnabled, internalByDefault }` |
+| `PUT /v1/settings/fassungen` | Admin – dieselben zwei Felder |
+
+Jede Mailart hat **zwei Schalter**: an das Team und an Gäste. Wo ein Kreis
+fachlich nicht vorkommt (`project-file` geht nie an Gäste), steht `null`.
+
+| Art | Anlass | Kreise |
+| --- | --- | --- |
+| `guest-code` | Gast fordert einen Anmeldecode an | Gäste – **nicht abschaltbar** |
+| `access-granted` | Gast wurde freigeschaltet | Gäste |
+| `comment` | neuer Kommentar | beide |
+| `mention` | namentlich erwähnt (`@Name`) | beide |
+| `project-file` | Kundenmaterial hochgeladen | Team |
+| `version-ready` | Fassung fertig verarbeitet bzw. freigegeben | beide |
+| `version-failed` | Verarbeitung fehlgeschlagen | Team |
+| `guest-first-visit` | Gast war zum ersten Mal da | Team |
+| `cleanup-warning` | alte Fassungen werden bald gelöscht | Team |
+| `backup-failed` | geplante Sicherung fehlgeschlagen | Team (Admins) |
+| `device-paired` | Gerät gekoppelt | beide (Kontoinhaber) |
+
+**Drei Ebenen.** Der Admin-Schalter ist die oberste und kann nur *zumachen*:
+Darunter greift weiter, wer eingetragen (Team) bzw. beteiligt (Gäste) ist, und
+ganz unten das persönliche Abbestellen. Wer abbestellt hat, bleibt abbestellt,
+auch wenn die Mailart eingeschaltet ist.
+
+Gespeichert wird **dünn besetzt**: Fehlt die Zeile zu einer Art, gilt „an".
+Ein Update ändert das Verhalten bestehender Anlagen also nicht.
+
+### Neue Fassung – zwei Zeitpunkte
+
+`version-ready` hat zwei Auslöser, und zwar dieselbe Mail zu verschiedenen
+Zeiten:
+
+- **Team:** sobald die Fassung verarbeitet ist (`READY`) – auch bei einer
+  internen. Die interne Runde ist ja genau der Anlass hinzusehen.
+- **Gäste:** erst mit `POST /v1/versions/:id/freigeben`. Eine Fassung, die nie
+  intern war, meldet beide zugleich.
+
+Ausgelöst wird nach dem Verarbeiten, nicht nach dem Hochladen: Eine Mail zu
+einer Fassung, die noch rechnet, führt auf eine Seite ohne Bild. Der Knopf in
+der Mail zeigt auf `webUrl`, also direkt auf die Fassung.
+
+### Sammelmails
+
+Zwei getrennte Ruhezeiten, beide in Minuten, `0` schickt sofort und einzeln:
+
+- `digestMinutes` für Kommentare (Vorgabe 5).
+- `projectFileDigestMinutes` für Kundenmaterial (Vorgabe 30). Bewusst höher:
+  Ein Kunde lädt selten eine Datei, sondern einen Ordner – mit fünf Minuten
+  käme pro Datei doch wieder eine Mail.
+
+`mentionImmediate` lässt Erwähnungen die Ruhezeit überspringen. Die übrigen
+Empfänger warten weiter; geteilt wird die Empfängerliste, nicht die Ruhezeit.
+
+### Wer bekommt Kundenmaterial?
+
+Seit Phase 28 die **für das Projekt Eingetragenen** – vorher jedes
+Team-Mitglied. Damit dabei nichts ins Leere läuft:
+
+- Wer ein Projekt anlegt, ist dafür eingetragen.
+- Die **letzte** eingetragene Person kann sich nicht austragen; `locked` am
+  `NotificationSubscriberDto` sagt der Oberfläche, welcher Haken zubleibt.
+  Über die API endet der Versuch mit `400`.
+
 ## Interne Fassungen (Phase 27)
 
 Nach dem Rendern läuft oft noch eine Runde im Haus. Eine Fassung kann deshalb
@@ -240,6 +310,12 @@ den Vermerk wieder; freigegeben ist sie dann ja nicht mehr.
 
 Der **Endfassungs-Haken** (`isFinal`) bleibt davon unberührt: „intern" sagt,
 *wer* die Fassung sehen darf, „Endfassung" sagt, *was für eine* es ist.
+
+Ob es die interne Runde überhaupt gibt und ob sie ab Werk greift, entscheiden
+seit Phase 28 zwei Schalter unter `GET /v1/settings/fassungen`. Eine Anbindung
+sollte sie **abfragen** statt `internal: false` anzunehmen: Ist
+`internalByDefault` gesetzt, gehört der Haken im eigenen Upload-Dialog
+vorbelegt. Ist `internalEnabled` aus, weist die API `internal: true` ab.
 
 **Download-Formate** (Phase 19) werden für interne Fassungen nicht im Voraus
 erzeugt – oft wird genau diese Fassung verworfen. Mit der Freigabe werden sie
