@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { UserDto, UserRole, UserSummaryDto } from '@klappe/shared';
+import { isLocale } from '@klappe/shared';
 import { and, asc, eq, ilike, ne, or, sql } from 'drizzle-orm';
 import { hashPassword, validatePasswordStrength } from '../auth/password';
 import { normalizeEmail, normalizeName } from '../common/normalize';
@@ -30,6 +31,8 @@ export class UsersService {
       role: row.role,
       isActive: row.isActive,
       notificationsEnabled: row.notificationsEnabled,
+      // Unsinn aus der Datenbank gilt als „keine eigene Wahl" (Phase 26).
+      locale: isLocale(row.locale) ? row.locale : null,
       createdAt: row.createdAt.toISOString(),
     };
   }
@@ -170,6 +173,9 @@ export class UsersService {
       .set({
         name: dto.name === undefined ? undefined : normalizeName(dto.name),
         notificationsEnabled: dto.notificationsEnabled,
+        // Leerer String heißt „wie im Workspace" – das ist der Weg zurück
+        // zur Vorgabe, ohne ein eigenes Löschen-Feld (Phase 26).
+        locale: dto.locale === undefined ? undefined : dto.locale || null,
         updatedAt: new Date(),
       })
       .where(eq(users.id, id))

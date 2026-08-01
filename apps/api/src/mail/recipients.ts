@@ -9,6 +9,13 @@ export interface NotificationCandidate {
   email: string;
   isActive: boolean;
   notificationsEnabled: boolean;
+  /**
+   * Eigene Sprachwahl, wie sie in der Datenbank steht; leer heißt: Vorgabe des
+   * Workspace (Phase 26). Jede Mail geht in der Sprache ihres Empfängers
+   * hinaus, auch wenn dieselbe Sammlung an mehrere mit verschiedenen
+   * Einstellungen geht. Geprüft wird der Wert erst beim Versand.
+   */
+  locale?: string | null;
 }
 
 export interface CommentRecipient extends NotificationCandidate {

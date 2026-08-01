@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/lib/i18n';
 import { Icon } from './Icon';
 
 export interface SectionNavItem {
@@ -34,6 +35,7 @@ export function SectionNav({
   active?: string;
   onSelect?: (id: string) => void;
 }) {
+  const t = useT();
   const [offen, setOffen] = useState(false);
   const gewaehlt = items.find((eintrag) => eintrag.id === active);
 
@@ -98,7 +100,7 @@ export function SectionNav({
           <button
             type="button"
             className="iconbutton"
-            aria-label="Menü schließen"
+            aria-label={t('toolbar.closeMenu')}
             onClick={() => setOffen(false)}
           >
             ×

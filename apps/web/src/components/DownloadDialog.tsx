@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { useLiveTopic } from '@/lib/live';
 
 /**
@@ -33,6 +34,7 @@ export function DownloadDialog({
   initial: VersionDownloadsDto;
   onClose: () => void;
 }) {
+  const t = useT();
   const [daten, setDaten] = useState<VersionDownloadsDto | null>(initial);
   const [error, setError] = useState<string | null>(null);
   /** Formate, deren Datei nach dem Fertigwerden gleich geholt werden soll. */
@@ -42,9 +44,9 @@ export function DownloadDialog({
     try {
       setDaten(await api.listDownloads(versionId));
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, [versionId]);
+  }, [versionId, t]);
 
   // Anfang und Ende einer Erzeugung kommen über den Ereignisstrom …
   useLiveTopic('video', videoId, () => void load());
@@ -98,18 +100,18 @@ export function DownloadDialog({
       await load();
     } catch (requestError) {
       wartetAuf.current.delete(format.presetId);
-      setError(requestError instanceof Error ? requestError.message : 'Anfordern fehlgeschlagen.');
+      setError(requestError instanceof Error ? requestError.message : t('download.requestFailed'));
     }
   };
 
   return (
-    <Dialog title="Herunterladen" onClose={onClose}>
+    <Dialog title={t('download.title')} onClose={onClose}>
       {error ? <div className="notice">{error}</div> : null}
 
       {!daten ? (
-        <p className="faint">Wird geladen …</p>
+        <p className="faint">{t('common.loading')}</p>
       ) : !daten.canDownload ? (
-        <p className="faint">Für diese Fassung ist kein Download freigegeben.</p>
+        <p className="faint">{t('download.notAllowed')}</p>
       ) : (
         <>
           {/* Vor dem Klick, nicht danach: Einer heruntergeladenen Datei sieht
@@ -118,15 +120,14 @@ export function DownloadDialog({
               (Phase 23). */}
           {!daten.isFinal ? (
             <div className="notice notice--warn">
-              <strong>Noch keine Endfassung.</strong> Was hier das Haus verlässt, ist ein
-              Zwischenstand zur Abstimmung – Farbe, Ton und Schnitt können sich noch ändern. Der
-              Dateiname trägt deshalb <code>Vorschau</code> mit.
+              <strong>{t('download.notFinalTitle')}</strong> {t('download.notFinalBody')}{' '}
+              <code>{t('download.previewWord')}</code>.
             </div>
           ) : null}
 
           <div className="downloadrow">
             <div className="downloadrow__text">
-              <strong>Original</strong>
+              <strong>{t('download.original')}</strong>
               <span className="faint" style={{ fontSize: 12 }}>
                 {daten.originalFilename} · {formatBytes(daten.originalSizeBytes)}
               </span>
@@ -137,14 +138,14 @@ export function DownloadDialog({
               download
               onClick={() => onClose()}
             >
-              Laden
+              {t('download.get')}
             </a>
           </div>
 
           {daten.formatsEnabled && daten.renditions.length > 0 ? (
             <>
               <p className="hint" style={{ margin: '14px 0 6px' }}>
-                Kleinere Fassungen. Was noch nicht erzeugt ist, entsteht beim Klick.
+                {t('download.smallerVersions')}
               </p>
 
               {daten.renditions.map((format) => (
@@ -154,14 +155,14 @@ export function DownloadDialog({
                     <span className="faint" style={{ fontSize: 12 }}>
                       {format.width && format.height
                         ? `${format.width}×${format.height}`
-                        : `kurze Kante ${format.shortEdge} px`}
+                        : t('download.shortEdge', { px: format.shortEdge ?? 0 })}
                       {format.sizeBytes ? ` · ${formatBytes(format.sizeBytes)}` : ''}
                       {` · .${format.container}`}
                     </span>
 
                     {format.status === 'QUEUED' ? (
                       <span className="faint" style={{ fontSize: 12 }}>
-                        Wartet auf einen freien Platz …
+                        {t('download.queued')}
                       </span>
                     ) : null}
                     {format.status === 'PROCESSING' ? (
@@ -170,7 +171,7 @@ export function DownloadDialog({
                       </div>
                     ) : null}
                     {format.status === 'FAILED' ? (
-                      <span className="badge badge--failed">{format.error ?? 'Fehlgeschlagen'}</span>
+                      <span className="badge badge--failed">{format.error ?? t('download.failed')}</span>
                     ) : null}
                   </div>
 
@@ -181,21 +182,20 @@ export function DownloadDialog({
                     onClick={() => void fordereAn(format)}
                   >
                     {format.status === 'READY'
-                      ? 'Laden'
+                      ? t('download.get')
                       : format.status === 'PROCESSING'
                         ? `${format.progress} %`
                         : format.status === 'QUEUED'
-                          ? 'In der Warteschlange'
+                          ? t('download.inQueue')
                           : format.status === 'FAILED'
-                            ? 'Noch einmal'
-                            : 'Erzeugen'}
+                            ? t('download.again')
+                            : t('download.generate')}
                   </button>
                 </div>
               ))}
 
               <p className="hint" style={{ marginBottom: 0 }}>
-                Der Download startet von selbst, sobald die gewählte Fassung fertig ist – das
-                Fenster darf so lange offen bleiben.
+                {t('download.autoStart')}
               </p>
             </>
           ) : null}
@@ -205,7 +205,7 @@ export function DownloadDialog({
       <div className="toolbar" style={{ marginTop: 16 }}>
         <div className="shell__spacer" />
         <button type="button" className="button button--ghost" onClick={onClose}>
-          Schließen
+          {t('common.close')}
         </button>
       </div>
     </Dialog>

@@ -14,6 +14,14 @@ will, findet den ganzen Ablauf mit Beispielen in
 Die Antwortformen sind in `packages/shared/src/types.ts` typisiert – die
 Web-App benutzt exakt dieselben Typen.
 
+**Sprache der Meldungen (Phase 26).** Fehlermeldungen kommen in der Sprache des
+Anfragenden: eigene Wahl (`users.locale`), sonst die Vorgabe des Workspace
+(`app_settings.default_locale`), sonst `Accept-Language`, sonst Deutsch.
+Übersetzt wird erst beim Hinausgehen, in einem globalen Fehlerfilter – Status
+und Aufbau der Antwort bleiben unberührt. Der Katalog steht in
+`apps/api/src/i18n/api-messages.ts`; der **deutsche Satz ist dort der
+Schlüssel** (wie bei gettext). Was dort fehlt, geht auf Deutsch hinaus.
+
 ## Anmeldung
 
 | Route | Zweck |
@@ -33,8 +41,11 @@ sich vorhandene Konten nicht abfragen lassen.
 | `GET /v1/users` | Admin |
 | `POST /v1/users` | Admin – `{ email, name, password, role? }` |
 | `PATCH /v1/users/:id` | Admin – `{ name?, role?, isActive?, password? }` |
-| `PATCH /v1/me` | alle – `{ name?, notificationsEnabled? }` |
+| `PATCH /v1/me` | alle – `{ name?, notificationsEnabled?, locale? }` |
 | `GET /v1/mentionable-users?q=` | alle – Vorschläge für @-Mentions |
+
+`locale` nimmt `de`, `en` oder den leeren String; leer heißt „zurück zur
+Vorgabe des Workspace" (Phase 26). Der Wert steht auch in jedem `UserDto`.
 
 Passwörter: mindestens 10 Zeichen, Buchstaben und Ziffern. Ein Gast lässt
 sich über `role` **nicht** ins Team heben (Phase 21) – Gäste melden sich per
@@ -282,17 +293,23 @@ und löschen.
 
 | Route | Zweck |
 | --- | --- |
-| `GET /v1/branding` | ohne Anmeldung – Titel, Farben, Adressen von Logo, Favicon und App-Symbol |
+| `GET /v1/branding` | ohne Anmeldung – Titel, Farben, Sprache, Adressen von Logo, Favicon und App-Symbol |
 | `GET /v1/branding/logo` | ohne Anmeldung – die Logodatei |
 | `GET /v1/branding/favicon` | ohne Anmeldung – die `.ico` fürs Browser-Tab |
 | `GET /v1/branding/app-icon.png` | ohne Anmeldung – das PNG für den Startbildschirm |
-| `PUT /v1/settings/branding` | Admin – `{ title?, accent?, companyName?, companyShort? }` |
+| `PUT /v1/settings/branding` | Admin – `{ title?, accent?, companyName?, companyShort?, defaultLocale? }` |
 | `PUT /v1/settings/branding/logo` | Admin – rohe Bytes, Format im `Content-Type` |
 | `DELETE /v1/settings/branding/logo` | Admin |
 | `PUT /v1/settings/branding/favicon` | Admin – rohe Bytes einer `.ico` |
 | `DELETE /v1/settings/branding/favicon` | Admin |
 | `PUT /v1/settings/branding/app-icon` | Admin – rohe Bytes eines PNG |
 | `DELETE /v1/settings/branding/app-icon` | Admin |
+
+`defaultLocale` (`de` oder `en`) ist die Sprache des Workspace (Phase 26). Sie
+steht bewusst im Erscheinungsbild und nicht hinter der Anmeldung: `GET
+/v1/branding` wird auf jeder Seite geholt, auch auf der Anmeldeseite und im
+Gastzugang – dadurch stehen beide von Anfang an in der richtigen Sprache,
+statt erst auf Deutsch aufzublitzen.
 
 Gesetzt wird **eine** Farbe; `accentHover` und `accentContrast` werden daraus
 berechnet. Als Logo gehen PNG, JPEG, WebP und SVG bis 512 KB. Alle drei

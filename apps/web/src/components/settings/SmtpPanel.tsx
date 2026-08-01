@@ -9,6 +9,7 @@ import type {
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 /**
@@ -19,6 +20,7 @@ import { useSession } from '@/lib/session';
  * passiert.
  */
 export function SmtpPanel() {
+  const t = useT();
   const { user } = useSession();
 
   const [settings, setSettings] = useState<SmtpSettingsDto | null>(null);
@@ -71,9 +73,9 @@ export function SmtpPanel() {
         digestMinutes: current.digestMinutes,
       });
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -120,9 +122,9 @@ export function SmtpPanel() {
       });
       setSettings(saved);
       setForm((current) => ({ ...current, password: '', oauthClientSecret: '' }));
-      setInfo('Gespeichert.');
+      setInfo(t('common.saved'));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
@@ -134,9 +136,9 @@ export function SmtpPanel() {
     setInfo(null);
     try {
       await api.sendTestMail();
-      setInfo(`Testmail an ${user?.email} verschickt.`);
+      setInfo(t('smtp.testSent', { email: user?.email ?? '' }));
     } catch (testError) {
-      setError(testError instanceof Error ? testError.message : 'Der Versand hat nicht geklappt.');
+      setError(testError instanceof Error ? testError.message : t('smtp.testFailed'));
     } finally {
       setBusy(false);
     }
@@ -147,8 +149,7 @@ export function SmtpPanel() {
   return (
     <>
       <p className="page__subtitle" style={{ marginTop: 0 }}>
-        Nötig für Anmeldecodes der Gäste und für Benachrichtigungen zu Kommentaren, Erwähnungen und
-        Kunden-Uploads.
+        {t('smtp.subtitle')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -163,7 +164,7 @@ export function SmtpPanel() {
       {fehlversand.length > 0 ? (
         <div className="card" style={{ padding: 16 }}>
           <div className="toolbar" style={{ marginBottom: 10 }}>
-            <strong>Nicht zugestellt</strong>
+            <strong>{t('smtp.undelivered')}</strong>
             <span className="badge badge--failed">{fehlversand.length}</span>
             <div className="shell__spacer" />
             <button
@@ -174,7 +175,7 @@ export function SmtpPanel() {
                 setFehlversand([]);
               }}
             >
-              Liste leeren
+              {t('smtp.clearList')}
             </button>
           </div>
 
@@ -183,7 +184,7 @@ export function SmtpPanel() {
               <div className="toolbar" style={{ gap: 8 }}>
                 <strong style={{ fontSize: 14 }}>{eintrag.recipient}</strong>
                 {eintrag.attempts > 1 ? (
-                  <span className="badge">{eintrag.attempts} Versuche</span>
+                  <span className="badge">{t('smtp.attempts', { count: eintrag.attempts })}</span>
                 ) : null}
                 <div className="shell__spacer" />
                 <span className="faint" style={{ fontSize: 12 }}>
@@ -197,7 +198,7 @@ export function SmtpPanel() {
                     setFehlversand((current) => current.filter((e) => e.id !== eintrag.id));
                   }}
                 >
-                  Abhaken
+                  {t('smtp.acknowledge')}
                 </button>
               </div>
               <span className="faint" style={{ fontSize: 12 }}>
@@ -210,7 +211,7 @@ export function SmtpPanel() {
           ))}
 
           <p className="hint" style={{ margin: '8px 0 0' }}>
-            Ein geglückter Versand an dieselbe Adresse räumt den Eintrag von selbst weg.
+            {t('smtp.failureHint')}
           </p>
         </div>
       ) : null}
@@ -229,12 +230,12 @@ export function SmtpPanel() {
             checked={form.enabled}
             onChange={(event) => setForm({ ...form, enabled: event.target.checked })}
           />
-          Versand aktiv
+          {t('smtp.enabled')}
         </label>
 
         <div className="field">
           <label className="field__label" htmlFor="provider">
-            Anbieter-Vorlage
+            {t('smtp.providerPreset')}
           </label>
           <select
             id="provider"
@@ -254,7 +255,7 @@ export function SmtpPanel() {
         <div className="grid-two">
           <div className="field">
             <label className="field__label" htmlFor="host">
-              Server
+              {t('smtp.host')}
             </label>
             <input
               id="host"
@@ -265,7 +266,7 @@ export function SmtpPanel() {
           </div>
           <div className="field">
             <label className="field__label" htmlFor="port">
-              Port
+              {t('smtp.port')}
             </label>
             <input
               id="port"
@@ -285,12 +286,12 @@ export function SmtpPanel() {
             checked={form.secure}
             onChange={(event) => setForm({ ...form, secure: event.target.checked })}
           />
-          Implizites TLS (Port 465). Bei 587 aus lassen – dort greift STARTTLS.
+          {t('smtp.secure')}
         </label>
 
         <div className="field">
           <label className="field__label" htmlFor="auth-method">
-            Authentifizierung
+            {t('smtp.authMethod')}
           </label>
           <select
             id="auth-method"
@@ -300,17 +301,14 @@ export function SmtpPanel() {
               setForm({ ...form, authMethod: event.target.value as SmtpAuthMethod })
             }
           >
-            <option value="password">Benutzername und Passwort</option>
-            <option value="oauth2">OAuth2 (Microsoft 365, App-Registrierung)</option>
+            <option value="password">{t('smtp.authPassword')}</option>
+            <option value="oauth2">{t('smtp.authOauth')}</option>
           </select>
           {form.authMethod === 'oauth2' ? (
             <p className="hint">
-              Nötig, sobald Microsoft 365 Mehrfaktor-Anmeldung erzwingt – dann lehnt der Server ein
-              Passwort ab, auch ein App-Passwort hilft nicht mehr zuverlässig. Die App-Registrierung
-              in Entra ID braucht die Microsoft-Graph-Anwendungsberechtigung{' '}
-              <strong>SMTP.SendAsApp</strong> mit Admin-Zustimmung sowie eine per
-              Exchange-Online-PowerShell angelegte <strong>New-ApplicationAccessPolicy</strong>, die
-              die App auf das Absender-Postfach einschränkt.
+              {t('smtp.oauthHintStart')} <strong>SMTP.SendAsApp</strong>{' '}
+              {t('smtp.oauthHintMiddle')} <strong>New-ApplicationAccessPolicy</strong>
+              {t('smtp.oauthHintEnd')}
             </p>
           ) : null}
         </div>
@@ -320,7 +318,7 @@ export function SmtpPanel() {
             <div className="grid-two">
               <div className="field">
                 <label className="field__label" htmlFor="oauth-tenant">
-                  Verzeichnis-ID (Tenant)
+                  {t('auth.tenant')}
                 </label>
                 <input
                   id="oauth-tenant"
@@ -332,7 +330,7 @@ export function SmtpPanel() {
               </div>
               <div className="field">
                 <label className="field__label" htmlFor="oauth-client">
-                  Anwendungs-ID (Client)
+                  {t('auth.clientId')}
                 </label>
                 <input
                   id="oauth-client"
@@ -346,7 +344,7 @@ export function SmtpPanel() {
             <div className="grid-two">
               <div className="field">
                 <label className="field__label" htmlFor="smtp-user">
-                  Absendendes Postfach
+                  {t('smtp.sendingMailbox')}
                 </label>
                 <input
                   id="smtp-user"
@@ -358,18 +356,18 @@ export function SmtpPanel() {
               </div>
               <div className="field">
                 <label className="field__label" htmlFor="oauth-secret">
-                  Client-Secret
+                  {t('smtp.clientSecret')}
                 </label>
                 <input
                   id="oauth-secret"
                   className="input"
                   type="password"
                   autoComplete="new-password"
-                  placeholder={settings?.hasOauthClientSecret ? '•••••••• (gespeichert)' : ''}
+                  placeholder={settings?.hasOauthClientSecret ? t('auth.clientSecretStored') : ''}
                   value={form.oauthClientSecret}
                   onChange={(event) => setForm({ ...form, oauthClientSecret: event.target.value })}
                 />
-                <p className="hint">Leer lassen behält das gespeicherte Secret.</p>
+                <p className="hint">{t('smtp.secretKeepHint')}</p>
               </div>
             </div>
           </>
@@ -377,7 +375,7 @@ export function SmtpPanel() {
           <div className="grid-two">
             <div className="field">
               <label className="field__label" htmlFor="smtp-user">
-                Benutzername
+                {t('smtp.username')}
               </label>
               <input
                 id="smtp-user"
@@ -389,18 +387,18 @@ export function SmtpPanel() {
             </div>
             <div className="field">
               <label className="field__label" htmlFor="smtp-password">
-                Passwort
+                {t('common.password')}
               </label>
               <input
                 id="smtp-password"
                 className="input"
                 type="password"
                 autoComplete="new-password"
-                placeholder={settings?.hasPassword ? '•••••••• (gespeichert)' : ''}
+                placeholder={settings?.hasPassword ? t('auth.clientSecretStored') : ''}
                 value={form.password}
                 onChange={(event) => setForm({ ...form, password: event.target.value })}
               />
-              <p className="hint">Leer lassen behält das gespeicherte Passwort.</p>
+              <p className="hint">{t('smtp.passwordKeepHint')}</p>
             </div>
           </div>
         )}
@@ -408,7 +406,7 @@ export function SmtpPanel() {
         <div className="grid-two">
           <div className="field">
             <label className="field__label" htmlFor="from-name">
-              Absender-Name
+              {t('smtp.fromName')}
             </label>
             <input
               id="from-name"
@@ -419,7 +417,7 @@ export function SmtpPanel() {
           </div>
           <div className="field">
             <label className="field__label" htmlFor="from-email">
-              Absender-Adresse
+              {t('smtp.fromEmail')}
             </label>
             <input
               id="from-email"
@@ -432,17 +430,16 @@ export function SmtpPanel() {
         </div>
 
         <p className="hint">
-          Damit Codes und Benachrichtigungen nicht im Spam landen, sollte die Absender-Domain SPF und
-          DKIM gesetzt haben.
+          {t('smtp.spfHint')}
         </p>
 
         <div className="section">
           <div className="section__head">
-            <h2 className="section__title">Sammelmails</h2>
+            <h2 className="section__title">{t('smtp.digestTitle')}</h2>
           </div>
           <div className="field">
             <label className="field__label" htmlFor="digest-minutes">
-              Ruhezeit in Minuten
+              {t('smtp.digestLabel')}
             </label>
             <input
               id="digest-minutes"
@@ -457,11 +454,7 @@ export function SmtpPanel() {
               }
             />
             <p className="hint">
-              Wer ein Video durchsieht, hinterlässt selten nur eine Anmerkung. Statt jede sofort zu
-              verschicken, wartet Klappe, bis so viele Minuten lang kein neuer Kommentar mehr kam,
-              und schickt dann eine Mail mit allen – je Empfänger und Video.{' '}
-              <strong>0</strong> verschickt sofort, also eine Mail je Kommentar. Erwähnungen
-              stehen auch in der Sammelmail im Betreff.
+              {t('smtp.digestHintStart')} <strong>0</strong> {t('smtp.digestHintEnd')}
             </p>
           </div>
         </div>
@@ -469,7 +462,7 @@ export function SmtpPanel() {
         <div className="toolbar" style={{ marginTop: 18 }}>
           {settings ? (
             <span className="faint" style={{ fontSize: 12 }}>
-              zuletzt geändert {formatDateTime(settings.updatedAt)}
+              {t('common.lastChanged', { when: formatDateTime(settings.updatedAt) })}
             </span>
           ) : null}
           <div className="shell__spacer" />
@@ -478,12 +471,12 @@ export function SmtpPanel() {
             className="button"
             disabled={busy || !settings?.enabled}
             onClick={() => void sendTest()}
-            title={settings?.enabled ? undefined : 'Erst speichern und aktivieren'}
+            title={settings?.enabled ? undefined : t('smtp.sendTestDisabled')}
           >
-            Testmail senden
+            {t('smtp.sendTest')}
           </button>
           <button type="submit" className="button button--primary" disabled={busy}>
-            Speichern
+            {t('common.save')}
           </button>
         </div>
       </form>

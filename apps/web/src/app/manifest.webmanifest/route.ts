@@ -1,6 +1,16 @@
 import type { BrandingDto } from '@klappe/shared';
 import { DEFAULT_BRAND_ACCENT, DEFAULT_BRAND_TITLE } from '@klappe/shared';
-import { APP_ICON_SIZE } from '@klappe/shared';
+import { APP_ICON_SIZE, DEFAULT_LOCALE, isLocale } from '@klappe/shared';
+
+/**
+ * Der Untertitel der App-Kachel in beiden Sprachen (Phase 26). Ein Manifest
+ * wird ohne Sitzung geholt – hier zählt deshalb die Vorgabe des Workspace und
+ * nicht die persönliche Wahl.
+ */
+const BESCHREIBUNG: Record<string, string> = {
+  de: 'Review und Freigabe für Videoproduktionen',
+  en: 'Review and approval for video production',
+};
 
 /**
  * Das Web-App-Manifest (Phase 24).
@@ -29,18 +39,19 @@ export async function GET(): Promise<Response> {
   }
 
   const titel = branding?.title ?? DEFAULT_BRAND_TITLE;
+  const sprache = isLocale(branding?.defaultLocale) ? branding.defaultLocale : DEFAULT_LOCALE;
 
   return Response.json(
     {
       name: titel,
       short_name: titel,
-      description: 'Review und Freigabe für Videoproduktionen',
+      description: BESCHREIBUNG[sprache] ?? BESCHREIBUNG.de,
       start_url: '/projekte',
       scope: '/',
       display: 'standalone',
       background_color: '#0e1013',
       theme_color: branding?.accent ?? DEFAULT_BRAND_ACCENT,
-      lang: 'de',
+      lang: sprache,
       icons: branding?.appIconUrl
         ? [
             {

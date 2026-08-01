@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
 import { formatDateTime, formatRelative } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { Dialog } from './ui/Dialog';
 
 interface ShareManagerProps {
@@ -35,6 +36,7 @@ export function ShareManager({
   onClose,
   canManage = true,
 }: ShareManagerProps) {
+  const t = useT();
   const [links, setLinks] = useState<ShareLinkDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,11 +53,11 @@ export function ShareManager({
       );
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [scope, projectId, videoId]);
+  }, [scope, projectId, videoId, t]);
 
   useEffect(() => {
     void load();
@@ -73,22 +75,22 @@ export function ShareManager({
       });
       await load();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Anlegen fehlgeschlagen.');
+      setError(createError instanceof Error ? createError.message : t('common.createFailed'));
     } finally {
       setCreating(false);
     }
   };
 
   return (
-    <Dialog title={`Freigaben für ${targetLabel}`} onClose={onClose}>
+    <Dialog title={t('shareManager.title', { name: targetLabel })} onClose={onClose}>
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
         {scope === 'PROJECT'
-          ? 'Eine Projektfreigabe umfasst alle Videos des Projekts – auch die, die später dazukommen.'
-          : 'Eine Videofreigabe zeigt genau dieses eine Video.'}
+          ? t('shareManager.introProject')
+          : t('shareManager.introVideo')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
-      {loading ? <p className="muted">Wird geladen …</p> : null}
+      {loading ? <p className="muted">{t('common.loading')}</p> : null}
 
       <div className="list" style={{ maxHeight: 420, overflowY: 'auto' }}>
         {links.map((link) => (
@@ -96,7 +98,7 @@ export function ShareManager({
         ))}
         {!loading && links.length === 0 ? (
           <p className="muted" style={{ fontSize: 13 }}>
-            Noch keine Freigabe. Der Link entsteht erst, wenn du eine anlegst.
+            {t('shareManager.empty')}
           </p>
         ) : null}
       </div>
@@ -116,7 +118,7 @@ export function ShareManager({
 
       <div className="dialog__actions">
         <button type="button" className="button" onClick={onClose}>
-          Schließen
+          {t('common.close')}
         </button>
         <button
           type="button"
@@ -124,7 +126,7 @@ export function ShareManager({
           onClick={() => void create()}
           disabled={creating}
         >
-          Freigabe-Link erstellen
+          {t('shareManager.create')}
         </button>
       </div>
     </Dialog>
@@ -140,6 +142,7 @@ function ShareRow({
   onChanged: () => Promise<void>;
   canManage: boolean;
 }) {
+  const t = useT();
   const zeigeName = useUserName();
   const [copied, setCopied] = useState(false);
   const [guests, setGuests] = useState<ShareGuestDto[] | null>(null);
@@ -170,16 +173,16 @@ function ShareRow({
     <div className="share" data-inactive={!link.isActive}>
       <div className="toolbar">
         <strong style={{ fontSize: 14 }}>{link.targetName}</strong>
-        <span className="badge">{link.scope === 'PROJECT' ? 'Projekt' : 'Video'}</span>
-        {link.isDirect ? <span className="badge">direkt</span> : null}
+        <span className="badge">{link.scope === 'PROJECT' ? t('shareManager.scopeProject') : t('shareManager.scopeVideo')}</span>
+        {link.isDirect ? <span className="badge">{t('shareManager.direct')}</span> : null}
         {link.isActive ? (
-          <span className="badge badge--ready">aktiv</span>
+          <span className="badge badge--ready">{t('shareManager.active')}</span>
         ) : (
-          <span className="badge badge--failed">zurückgezogen</span>
+          <span className="badge badge--failed">{t('shareManager.revoked')}</span>
         )}
         <div className="shell__spacer" />
         <span className="faint" style={{ fontSize: 12 }}>
-          angelegt {formatDateTime(link.createdAt)}
+          {t('shareManager.createdAt', { date: formatDateTime(link.createdAt) })}
         </span>
       </div>
 
@@ -190,14 +193,13 @@ function ShareRow({
           anderen. */}
       {link.isDirect ? (
         <p className="hint" style={{ margin: '4px 0 10px' }}>
-          Direkt in der Gästeliste freigegeben – ohne Link zum Verschicken. Die eingetragenen Gäste
-          kommen mit ihrem bestehenden Zugang herein.
+          {t('shareManager.directHint')}
         </p>
       ) : (
         <div className="share__url">
           <input className="input" readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} />
           <button type="button" className="button" onClick={() => void copy()}>
-            {copied ? 'Kopiert' : 'Kopieren'}
+            {copied ? t('common.copied') : t('common.copy')}
           </button>
         </div>
       )}
@@ -211,7 +213,7 @@ function ShareRow({
               disabled={busy}
               onChange={(event) => void patch({ allowDownload: event.target.checked })}
             />
-            Download erlaubt
+            {t('shareManager.allowDownload')}
           </label>
           <label className="switch">
             <input
@@ -220,7 +222,7 @@ function ShareRow({
               disabled={busy}
               onChange={(event) => void patch({ allowComments: event.target.checked })}
             />
-            Kommentieren erlaubt
+            {t('shareManager.allowComments')}
           </label>
           {link.scope === 'PROJECT' ? (
             <label className="switch">
@@ -230,16 +232,16 @@ function ShareRow({
                 disabled={busy}
                 onChange={(event) => void patch({ allowUpload: event.target.checked })}
               />
-              Kunden-Upload erlaubt
+              {t('shareManager.allowUpload')}
             </label>
           ) : null}
         </div>
       ) : (
         // Ohne Team-Rechte nur die Ansicht, kein Umstellen (Phase 21).
         <div className="toolbar" style={{ gap: 6, flexWrap: 'wrap' }}>
-          {link.allowDownload ? <span className="badge">Download erlaubt</span> : null}
-          {link.allowComments ? <span className="badge">Kommentieren erlaubt</span> : null}
-          {link.allowUpload ? <span className="badge">Kunden-Upload erlaubt</span> : null}
+          {link.allowDownload ? <span className="badge">{t('shareManager.allowDownload')}</span> : null}
+          {link.allowComments ? <span className="badge">{t('shareManager.allowComments')}</span> : null}
+          {link.allowUpload ? <span className="badge">{t('shareManager.allowUpload')}</span> : null}
         </div>
       )}
 
@@ -257,7 +259,9 @@ function ShareRow({
               void api.listShareGuests(link.id).then(setGuests);
             }}
           >
-            {guests ? 'Gäste ausblenden' : `Gäste (${link.guestCount})`}
+            {guests
+              ? t('shareManager.hideGuests')
+              : t('shareManager.showGuests', { count: link.guestCount })}
           </button>
           <div className="shell__spacer" />
           <button
@@ -266,18 +270,18 @@ function ShareRow({
             disabled={busy}
             onClick={() => void patch({ revoked: link.isActive })}
           >
-            {link.isActive ? 'Zurückziehen' : 'Wieder freigeben'}
+            {link.isActive ? t('shareManager.revoke') : t('shareManager.reactivate')}
           </button>
           <button
             type="button"
             className="button button--danger"
             disabled={busy}
             onClick={() => {
-              if (!window.confirm('Diesen Freigabe-Link endgültig löschen?')) return;
+              if (!window.confirm(t('shareManager.deleteConfirm'))) return;
               void api.deleteShare(link.id).then(() => onChanged());
             }}
           >
-            Löschen
+            {t('common.delete')}
           </button>
         </div>
       ) : null}
@@ -285,7 +289,7 @@ function ShareRow({
       {guests ? (
         <div className="filelist">
           {guests.length === 0 ? (
-            <div className="filelist__row muted">Noch niemand hat diesen Link benutzt.</div>
+            <div className="filelist__row muted">{t('shareManager.noGuestsYet')}</div>
           ) : null}
           {guests.map((guest) => (
             <div key={guest.user.id} className="filelist__row">
@@ -295,7 +299,7 @@ function ShareRow({
               </span>
               <div className="shell__spacer" />
               <span className="faint" style={{ fontSize: 12 }}>
-                zuletzt {formatRelative(guest.lastSeenAt)}
+                {t('shareManager.lastSeen', { when: formatRelative(guest.lastSeenAt) })}
               </span>
               <button
                 type="button"
@@ -307,7 +311,7 @@ function ShareRow({
                     .then(setGuests);
                 }}
               >
-                {guest.revokedAt ? 'Zugriff geben' : 'Zugriff entziehen'}
+                {guest.revokedAt ? t('shareManager.grantAccess') : t('shares.revoke')}
               </button>
             </div>
           ))}
@@ -349,6 +353,7 @@ function BekannteGaeste({
   videoId?: string;
   onAdded: () => Promise<void>;
 }) {
+  const t = useT();
   const zeigeName = useUserName();
   const [kandidaten, setKandidaten] = useState<GuestCandidateDto[] | null>(null);
   const [kunde, setKunde] = useState<string | null>(null);
@@ -366,10 +371,10 @@ function BekannteGaeste({
       setKandidaten(liste);
       setKunde(projekt.customer);
     } catch (loadError) {
-      setFehler(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setFehler(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
       setKandidaten([]);
     }
-  }, [projectId, videoId]);
+  }, [projectId, videoId, t]);
 
   useEffect(() => {
     void laden();
@@ -388,7 +393,7 @@ function BekannteGaeste({
       );
       await Promise.all([laden(), onAdded()]);
     } catch (addError) {
-      setFehler(addError instanceof Error ? addError.message : 'Freigeben fehlgeschlagen.');
+      setFehler(addError instanceof Error ? addError.message : t('shares.shareFailed'));
     } finally {
       setBusy(null);
     }
@@ -397,7 +402,7 @@ function BekannteGaeste({
   return (
     <div className="section">
       <div className="section__head">
-        <h2 className="section__title">Bekannte Gäste</h2>
+        <h2 className="section__title">{t('shareManager.knownGuests')}</h2>
         {kandidaten && kandidaten.length > 0 ? (
           <span className="badge">{kandidaten.length}</span>
         ) : null}
@@ -407,26 +412,25 @@ function BekannteGaeste({
 
       {!kunde ? (
         <p className="hint" style={{ margin: 0 }}>
-          Das Projekt hat keinen Kunden. Ohne Kunden lässt sich nicht sagen, wer dazugehört – trage
-          am Projekt einen ein, dann stehen hier die Gäste seiner übrigen Projekte.
+          {t('shareManager.noCustomer')}
         </p>
       ) : kandidaten === null ? (
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          Wird geladen …
+          {t('common.loading')}
         </p>
       ) : kandidaten.length === 0 ? (
         <p className="hint" style={{ margin: 0 }}>
           {videoId
-            ? `Bei „${kunde}“ gibt es sonst niemanden, der dieses Video nicht schon sieht.`
-            : `Bei „${kunde}“ gibt es sonst niemanden, der nicht schon hier wäre.`}
+            ? t('shareManager.noneLeftVideo', { customer: kunde })
+            : t('shareManager.noneLeftProject', { customer: kunde })}
         </p>
       ) : (
         <>
           <p className="hint" style={{ margin: '0 0 8px' }}>
             {videoId
-              ? `Gäste von „${kunde}“, die dieses Video noch nicht sehen. Ein Klick gibt genau dieses Video frei – ohne neuen Link, sie melden sich mit ihrem bestehenden Zugang an.`
-              : `Gäste aus anderen Projekten von „${kunde}“. Ein Klick gibt das ganze Projekt frei – ohne neuen Link, sie melden sich mit ihrem bestehenden Zugang an.`}{' '}
-            Kommentieren ist dabei, Download und Kunden-Upload bleiben zunächst aus.
+              ? t('shareManager.candidatesVideo', { customer: kunde })
+              : t('shareManager.candidatesProject', { customer: kunde })}{' '}
+            {t('shareManager.candidatesRights')}
           </p>
 
           {/* Sichtbar, bevor der Klick kommt: Sonst ginge unbemerkt Post an den
@@ -437,7 +441,7 @@ function BekannteGaeste({
               checked={bescheid}
               onChange={(event) => setBescheid(event.target.checked)}
             />
-            Per Mail Bescheid geben
+            {t('shares.notifyByMail')}
           </label>
           {kandidaten.map((eintrag) => (
             <div key={eintrag.user.id} className="guest">
@@ -450,11 +454,14 @@ function BekannteGaeste({
                   disabled={busy === eintrag.user.id}
                   onClick={() => void hinzufuegen(eintrag.user.id)}
                 >
-                  {videoId ? 'Video freigeben' : 'Projekt freigeben'}
+                  {videoId ? t('shareManager.shareVideo') : t('shareManager.shareProject')}
                 </button>
               </div>
               <span className="faint" style={{ fontSize: 12 }}>
-                {eintrag.user.email} · über {eintrag.fromProjects.map((p) => p.name).join(', ')}
+                {t('shareManager.candidateVia', {
+                  email: eintrag.user.email,
+                  projects: eintrag.fromProjects.map((p) => p.name).join(', '),
+                })}
               </span>
             </div>
           ))}

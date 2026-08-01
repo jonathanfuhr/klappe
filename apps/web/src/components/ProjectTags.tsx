@@ -3,6 +3,7 @@
 import type { TagDto, TagRefDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import { TagChip } from './TagChip';
 
 /**
@@ -20,6 +21,7 @@ export function ProjectTags({
   assigned: TagRefDto[];
   onChanged: () => Promise<void>;
 }) {
+  const t = useT();
   const [sichtbar, setSichtbar] = useState(true);
   useEffect(() => {
     // Schlagworte lassen sich workspace-weit abschalten (Phase 16).
@@ -58,7 +60,7 @@ export function ProjectTags({
       await api.setProjectTags(projectId, naechste);
       await onChanged();
     } catch (changeError) {
-      setError(changeError instanceof Error ? changeError.message : 'Ändern fehlgeschlagen.');
+      setError(changeError instanceof Error ? changeError.message : t('common.changeFailed'));
     } finally {
       setBusy(false);
     }
@@ -75,7 +77,7 @@ export function ProjectTags({
       await load();
       await onChanged();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Anlegen fehlgeschlagen.');
+      setError(createError instanceof Error ? createError.message : t('common.createFailed'));
     } finally {
       setBusy(false);
     }
@@ -95,7 +97,7 @@ export function ProjectTags({
           className="button button--ghost"
           onClick={() => setOpen((current) => !current)}
         >
-          {assigned.length === 0 ? 'Schlagwort hinzufügen' : 'Schlagworte ändern'}
+          {assigned.length === 0 ? t('tags.add') : t('tags.change')}
         </button>
       </div>
 
@@ -114,7 +116,7 @@ export function ProjectTags({
             ))}
             {all.length === 0 ? (
               <span className="faint" style={{ fontSize: 13 }}>
-                Noch keine Schlagworte im Workspace.
+                {t('tags.noneInWorkspace')}
               </span>
             ) : null}
           </div>
@@ -122,7 +124,7 @@ export function ProjectTags({
           <div className="toolbar" style={{ marginTop: 10 }}>
             <input
               className="input"
-              placeholder="Neues Schlagwort …"
+              placeholder={t('tags.newPlaceholder')}
               value={name}
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => {
@@ -138,7 +140,7 @@ export function ProjectTags({
               disabled={busy || !name.trim()}
               onClick={() => void createAndAssign()}
             >
-              Anlegen und zuweisen
+              {t('tags.createAndAssign')}
             </button>
           </div>
         </div>

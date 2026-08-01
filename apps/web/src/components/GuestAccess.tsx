@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 
 interface GuestAccessProps {
   /** Genau eins von beiden setzen. */
@@ -23,6 +24,7 @@ interface GuestAccessProps {
 export function GuestAccess({ projectId, videoId }: GuestAccessProps) {
   const [guests, setGuests] = useState<GuestAccessDto[]>([]);
   const zeigeName = useUserName();
+  const t = useT();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export function GuestAccess({ projectId, videoId }: GuestAccessProps) {
       );
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -55,13 +57,13 @@ export function GuestAccess({ projectId, videoId }: GuestAccessProps) {
     try {
       setGuests(await api.setProjectGuestRevoked(projectId, userId, revoked));
     } catch (changeError) {
-      setError(changeError instanceof Error ? changeError.message : 'Ändern fehlgeschlagen.');
+      setError(changeError instanceof Error ? changeError.message : t('common.changeFailed'));
     } finally {
       setBusy(null);
     }
   };
 
-  if (loading) return <p className="muted">Wird geladen …</p>;
+  if (loading) return <p className="muted">{t('common.loading')}</p>;
 
   return (
     <div className="guests">
@@ -69,8 +71,7 @@ export function GuestAccess({ projectId, videoId }: GuestAccessProps) {
 
       {guests.length === 0 ? (
         <div className="empty">
-          Noch niemand von außen. Gäste erscheinen hier, sobald sie einen Freigabe-Link benutzt
-          haben.
+          {t('guests.empty')}
         </div>
       ) : null}
 
@@ -83,38 +84,38 @@ export function GuestAccess({ projectId, videoId }: GuestAccessProps) {
             </span>
             <div className="shell__spacer" />
             <span className="faint" style={{ fontSize: 12 }}>
-              zuletzt {formatRelative(guest.lastSeenAt)}
+              {t('guests.lastSeen', { when: formatRelative(guest.lastSeenAt) })}
             </span>
           </div>
 
           <div className="guest__rights">
             {!guest.isActive ? (
-              <span className="badge badge--failed">Konto gesperrt</span>
+              <span className="badge badge--failed">{t('guests.blocked')}</span>
             ) : guest.canView ? (
               <>
-                <span className="badge badge--ready">sieht mit</span>
-                {guest.canComment ? <span className="badge">kommentiert</span> : null}
-                {guest.canDownload ? <span className="badge">lädt herunter</span> : null}
-                {guest.canUpload ? <span className="badge">lädt hoch</span> : null}
+                <span className="badge badge--ready">{t('guests.canView')}</span>
+                {guest.canComment ? <span className="badge">{t('guests.canComment')}</span> : null}
+                {guest.canDownload ? <span className="badge">{t('guests.canDownload')}</span> : null}
+                {guest.canUpload ? <span className="badge">{t('guests.canUpload')}</span> : null}
               </>
             ) : (
-              <span className="badge badge--failed">kein Zugriff mehr</span>
+              <span className="badge badge--failed">{t('guests.noAccess')}</span>
             )}
           </div>
 
           <ul className="guest__links">
             {guest.links.map((link) => (
               <li key={link.shareLinkId}>
-                <span className="faint">{link.scope === 'PROJECT' ? 'Projekt' : 'Video'}</span>{' '}
+                <span className="faint">{link.scope === 'PROJECT' ? t('gate.project') : t('gate.video')}</span>{' '}
                 {link.targetName}
                 {link.label ? ` · ${link.label}` : ''}
                 {link.revokedAt ? (
                   <span className="badge badge--failed" style={{ marginLeft: 6 }}>
-                    entzogen
+                    {t('guests.revoked')}
                   </span>
                 ) : !link.linkActive ? (
                   <span className="badge badge--failed" style={{ marginLeft: 6 }}>
-                    Link zurückgezogen
+                    {t('guests.linkRevoked')}
                   </span>
                 ) : null}
               </li>
@@ -131,7 +132,7 @@ export function GuestAccess({ projectId, videoId }: GuestAccessProps) {
                   disabled={busy === guest.user.id}
                   onClick={() => void setRevoked(guest.user.id, false)}
                 >
-                  Zugriff zurückgeben
+                  {t('guests.giveBack')}
                 </button>
               ) : (
                 <button
@@ -140,13 +141,13 @@ export function GuestAccess({ projectId, videoId }: GuestAccessProps) {
                   disabled={busy === guest.user.id}
                   onClick={() => void setRevoked(guest.user.id, true)}
                 >
-                  Zugriff entziehen
+                  {t('guests.revoke')}
                 </button>
               )}
             </div>
           ) : (
             <p className="hint">
-              Entzogen wird am Projekt – dort gilt es für alle Videos gleichzeitig.
+              {t('guests.revokeHint')}
             </p>
           )}
         </div>

@@ -20,7 +20,13 @@ import {
   useState,
 } from 'react';
 import { api } from './api';
-import { type UploadHandle, uploadProjectFile, uploadVersionFile } from './upload';
+import { type Translator, useT } from './i18n';
+import {
+  type UploadHandle,
+  UploadTransportError,
+  uploadProjectFile,
+  uploadVersionFile,
+} from './upload';
 
 export type UploadTarget = 'video' | 'project-file';
 
@@ -119,6 +125,7 @@ function todayIso(): string {
  * wieder öffnen, ohne dass etwas abbricht.
  */
 export function UploadsProvider({ children }: { children: ReactNode }) {
+  const t = useT();
   const [jobs, setJobs] = useState<UploadJob[]>([]);
   /**
    * `start` entsteht weiter unten, der Auto-Start braucht es aber schon hier.
@@ -153,11 +160,11 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
 
       const hints: string[] = [];
       if (!input.projectId && projectHint) {
-        hints.push(`Projekt anhand von „${projectHint.matched.join(', ')}“ vorgeschlagen`);
+        hints.push(t('upload.hintProject', { words: projectHint.matched.join(', ') }));
       }
-      if (!input.videoId && videoId) hints.push('als neue Fassung eines vorhandenen Videos erkannt');
+      if (!input.videoId && videoId) hints.push(t('upload.hintNewVersion'));
       const version = detectVersionNumber(file.name);
-      if (version) hints.push(`Version ${version} im Dateinamen erkannt`);
+      if (version) hints.push(t('upload.hintVersion', { number: version }));
 
       return {
         id: `${Date.now()}-${index}-${file.name}`,
@@ -172,7 +179,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         detectedVersion: version,
         versionNumber: '',
         fileDate: heute,
-        hint: hints.length > 0 ? `${hints.join(' · ')} – bitte prüfen` : null,
+        hint: hints.length > 0 ? t('upload.hintCheck', { hints: hints.join(' · ') }) : null,
         state: 'wartet',
         uploadedBytes: 0,
         transcodeProgress: 0,
@@ -294,11 +301,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
             const aborted = error instanceof DOMException && error.name === 'AbortError';
             update(job.id, {
               state: aborted ? 'abgebrochen' : 'fehler',
-              message: aborted
-                ? 'Abgebrochen.'
-                : error instanceof Error
-                  ? error.message
-                  : 'Upload fehlgeschlagen.',
+              message: aborted ? t('upload.aborted') : uebersetzeFehler(error, t),
             });
           }
         }
@@ -353,7 +356,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
           state: laeuftNoch ? 'lädt' : 'bereit',
           gespeichert: false,
           message:
-            error instanceof Error ? error.message : 'Die Zuordnung ließ sich nicht speichern.',
+            error instanceof Error ? error.message : t('upload.assignFailed'),
         });
       } finally {
         uebernahmeLaeuft.current.delete(job.id);
@@ -413,7 +416,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
             detectedVersion: detectVersionNumber(sitzung.filename),
             versionNumber: '',
             fileDate: heute,
-            hint: 'Übertragung aus einer früheren Sitzung – Angaben prüfen und speichern',
+            hint: t('upload.resumedHint'),
             state: 'bereit',
             uploadId: sitzung.id,
             gespeichert: false,
@@ -485,4 +488,19 @@ export function useUploads(): UploadsState {
   const context = useContext(UploadsContext);
   if (!context) throw new Error('useUploads muss innerhalb von <UploadsProvider> benutzt werden.');
   return context;
+}
+
+/**
+ * Ein Fehler der Übertragung in der Sprache des Betrachters (Phase 26).
+ *
+ * Der Transportcode kennt keine Sprache und trägt deshalb Schlüssel mit sich;
+ * erst hier, wo der Fehler in der Oberfläche landet, wird daraus ein Satz. Was
+ * von woanders kommt – etwa eine Meldung der API – ist dort schon übersetzt
+ * und geht unverändert durch.
+ */
+function uebersetzeFehler(error: unknown, t: Translator): string {
+  if (error instanceof UploadTransportError) {
+    return error.parts.map((teil) => t(teil.key, teil.vars)).join(' ');
+  }
+  return error instanceof Error ? error.message : t('upload.failed');
 }

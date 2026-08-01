@@ -267,6 +267,13 @@
       "when": 1785515694428,
       "tag": "0037_api_zugriff",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1785564414041,
+      "tag": "0038_sprachen",
+      "breakpoints": true
     }
   ]
 }

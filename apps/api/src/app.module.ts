@@ -13,6 +13,7 @@ import { RateLimitGuard } from './common/rate-limit.guard';
 import { DbModule } from './db/db.module';
 import { GuestsModule } from './guests/guests.module';
 import { HealthController } from './health/health.controller';
+import { I18nModule } from './i18n/i18n.module';
 import { MailModule } from './mail/mail.module';
 import { MediaModule } from './media/media.module';
 import { ProjectFilesModule } from './project-files/project-files.module';
@@ -41,6 +42,7 @@ import { VideosModule } from './videos/videos.module';
     BackupModule,
     AppConfigModule,
     DbModule,
+    I18nModule,
     StorageModule,
     AccessModule,
     EventsModule,

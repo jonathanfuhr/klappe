@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { api } from '@/lib/api';
+import { Trans, useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 /**
@@ -31,6 +32,7 @@ export default function DevicePairingPage() {
 }
 
 function DevicePairing() {
+  const t = useT();
   const params = useSearchParams();
   const { user, loading } = useSession();
 
@@ -40,21 +42,24 @@ function DevicePairing() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const nachschlagen = useCallback(async (eingabe: string) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const gefunden = await api.describeDevicePairing(eingabe);
-      setPending(gefunden);
-      setCode(gefunden.userCode);
-      setStatus('frage');
-    } catch (lookupError) {
-      setError(lookupError instanceof Error ? lookupError.message : 'Der Code stimmt nicht.');
-      setStatus('eingabe');
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+  const nachschlagen = useCallback(
+    async (eingabe: string) => {
+      setBusy(true);
+      setError(null);
+      try {
+        const gefunden = await api.describeDevicePairing(eingabe);
+        setPending(gefunden);
+        setCode(gefunden.userCode);
+        setStatus('frage');
+      } catch (lookupError) {
+        setError(lookupError instanceof Error ? lookupError.message : t('pairing.codeWrong'));
+        setStatus('eingabe');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [t],
+  );
 
   /*
    * Ein Code in der Adresse wird sofort nachgeschlagen – aber erst, wenn die
@@ -79,9 +84,7 @@ function DevicePairing() {
       await api.approveDevicePairing(pending.userCode);
       setStatus('verbunden');
     } catch (approveError) {
-      setError(
-        approveError instanceof Error ? approveError.message : 'Verbinden fehlgeschlagen.',
-      );
+      setError(approveError instanceof Error ? approveError.message : t('pairing.approveFailed'));
     } finally {
       setBusy(false);
     }
@@ -95,7 +98,7 @@ function DevicePairing() {
       await api.denyDevicePairing(pending.userCode);
       setStatus('abgelehnt');
     } catch (denyError) {
-      setError(denyError instanceof Error ? denyError.message : 'Ablehnen fehlgeschlagen.');
+      setError(denyError instanceof Error ? denyError.message : t('pairing.denyFailed'));
     } finally {
       setBusy(false);
     }
@@ -105,7 +108,7 @@ function DevicePairing() {
     return (
       <AppShell>
         <div className="page" style={{ maxWidth: 520 }}>
-          <div className="empty">Wird geladen …</div>
+          <div className="empty">{t('common.loading')}</div>
         </div>
       </AppShell>
     );
@@ -116,9 +119,9 @@ function DevicePairing() {
       <div className="page" style={{ maxWidth: 520 }}>
         <div className="page__header">
           <div>
-            <h1 className="page__title">Gerät verbinden</h1>
+            <h1 className="page__title">{t('pairing.title')}</h1>
             <p className="muted" style={{ marginBottom: 0 }}>
-              {user ? `Angemeldet als ${user.name}` : 'Bitte zuerst anmelden.'}
+              {user ? t('pairing.signedInAs', { name: user.name }) : t('pairing.signInFirst')}
             </p>
           </div>
         </div>
@@ -127,45 +130,41 @@ function DevicePairing() {
 
         {status === 'verbunden' && pending ? (
           <div className="card card--form">
-            <h2 className="card__title">Verbunden</h2>
+            <h2 className="card__title">{t('pairing.doneTitle')}</h2>
             <div className="notice notice--ok">
-              „{pending.clientName}" darf jetzt mit deinem Konto arbeiten. Das Programm meldet sich
-              innerhalb weniger Sekunden von selbst – dieses Fenster kann zu.
+              {t('pairing.doneText', { client: pending.clientName })}
             </div>
             <p className="hint">
-              Die Verbindung steht unter <a href="/konto">Mein Konto</a> und lässt sich dort
-              jederzeit wieder trennen.
+              <Trans
+                k="pairing.doneHint"
+                parts={{ link: <a href="/konto">{t('account.title')}</a> }}
+              />
             </p>
           </div>
         ) : null}
 
         {status === 'abgelehnt' ? (
           <div className="card card--form">
-            <h2 className="card__title">Abgelehnt</h2>
-            <p className="muted">
-              Es wurde nichts verbunden. Wenn du diese Anfrage nicht selbst ausgelöst hast, war
-              vermutlich jemand anders am Werk – dann ist Ablehnen genau richtig gewesen.
-            </p>
+            <h2 className="card__title">{t('pairing.deniedTitle')}</h2>
+            <p className="muted">{t('pairing.deniedText')}</p>
           </div>
         ) : null}
 
         {status === 'frage' && pending ? (
           <div className="card card--form">
-            <h2 className="card__title">Zugriff erlauben?</h2>
+            <h2 className="card__title">{t('pairing.askTitle')}</h2>
 
             <p style={{ marginTop: 0 }}>
-              <strong>{pending.clientName}</strong> möchte sich mit deinem Konto verbinden.
+              <Trans
+                k="pairing.askIntro"
+                parts={{ client: <strong>{pending.clientName}</strong> }}
+              />
             </p>
 
-            <div className="notice">
-              Das Programm bekommt damit <strong>deine</strong> Rechte: Es sieht dieselben Projekte
-              und Videos wie du, kann in deinem Namen kommentieren und – soweit du das darfst –
-              Fassungen hochladen und herunterladen. Bestätige nur, wenn du diese Verbindung
-              gerade selbst gestartet hast.
-            </div>
+            <div className="notice">{t('pairing.askWarning')}</div>
 
             <div className="field">
-              <span className="field__label">Code</span>
+              <span className="field__label">{t('pairing.code')}</span>
               <code
                 style={{
                   display: 'block',
@@ -176,9 +175,7 @@ function DevicePairing() {
               >
                 {pending.userCode}
               </code>
-              <p className="hint">
-                Dieser Code muss mit dem übereinstimmen, der auf dem anderen Gerät steht.
-              </p>
+              <p className="hint">{t('pairing.codeMatchHint')}</p>
             </div>
 
             <div className="dialog__actions">
@@ -188,7 +185,7 @@ function DevicePairing() {
                 disabled={busy}
                 onClick={() => void ablehnen()}
               >
-                Ablehnen
+                {t('pairing.deny')}
               </button>
               <button
                 type="button"
@@ -196,7 +193,7 @@ function DevicePairing() {
                 disabled={busy}
                 onClick={() => void bestaetigen()}
               >
-                {busy ? 'Wird verbunden …' : 'Verbinden'}
+                {busy ? t('pairing.approving') : t('pairing.approve')}
               </button>
             </div>
           </div>
@@ -210,15 +207,14 @@ function DevicePairing() {
               if (code.trim()) void nachschlagen(code.trim());
             }}
           >
-            <h2 className="card__title">Code eingeben</h2>
+            <h2 className="card__title">{t('pairing.enterTitle')}</h2>
             <p className="muted" style={{ marginTop: 0 }}>
-              Auf dem Gerät – im Plugin, in der App – steht ein achtstelliger Code. Trag ihn hier
-              ein.
+              {t('pairing.enterHint')}
             </p>
 
             <div className="field">
               <label className="field__label" htmlFor="user-code">
-                Code vom Gerät
+                {t('pairing.codeLabel')}
               </label>
               <input
                 id="user-code"
@@ -233,9 +229,7 @@ function DevicePairing() {
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
               />
-              <p className="hint">
-                Groß- und Kleinschreibung sowie der Bindestrich sind egal.
-              </p>
+              <p className="hint">{t('pairing.codeCaseHint')}</p>
             </div>
 
             <div className="dialog__actions">
@@ -244,7 +238,7 @@ function DevicePairing() {
                 className="button button--primary"
                 disabled={busy || code.trim().length < 8}
               >
-                {busy ? 'Wird geprüft …' : 'Weiter'}
+                {busy ? t('pairing.checking') : t('pairing.next')}
               </button>
             </div>
           </form>

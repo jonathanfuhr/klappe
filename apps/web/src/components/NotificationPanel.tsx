@@ -4,6 +4,7 @@ import type { NotificationSubscriberDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 /**
  * Die Spalte „Benachrichtigungen“ (Phase 18) – am Projekt und am Video
@@ -28,6 +29,7 @@ export function NotificationPanel({
   projectId: string;
   videoId?: string;
 }) {
+  const t = useT();
   const [people, setPeople] = useState<NotificationSubscriberDto[]>([]);
   const zeigeName = useUserName();
   const [error, setError] = useState<string | null>(null);
@@ -42,9 +44,9 @@ export function NotificationPanel({
       );
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, [scope, projectId, videoId]);
+  }, [scope, projectId, videoId, t]);
 
   useEffect(() => {
     void load();
@@ -60,7 +62,7 @@ export function NotificationPanel({
       );
       setError(null);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
     } finally {
       setBusy(null);
     }
@@ -71,7 +73,7 @@ export function NotificationPanel({
   return (
     <div className="sharepanel">
       <div className="sharepanel__head">
-        <span className="sharepanel__title">Benachrichtigungen</span>
+        <span className="sharepanel__title">{t('notifications.title')}</span>
         {dabei > 0 ? <span className="badge">{dabei}</span> : null}
       </div>
 
@@ -80,13 +82,13 @@ export function NotificationPanel({
       <div className="sharepanel__body">
         <p className="hint" style={{ margin: '0 14px 10px' }}>
           {scope === 'VIDEO'
-            ? 'Wer hier steht, bekommt Post zu jedem Kommentar an diesem Video – über alle Fassungen hinweg.'
-            : 'Wer hier steht, bekommt Post zu jedem Kommentar in diesem Projekt – über alle Videos hinweg.'}
+            ? t('notifications.hintVideo')
+            : t('notifications.hintProject')}
         </p>
 
         {people.length === 0 ? (
           <p className="muted" style={{ fontSize: 13, padding: '0 14px' }}>
-            Es gibt noch keine Team-Konten.
+            {t('notifications.noTeam')}
           </p>
         ) : (
           people.map((person) => (
@@ -105,7 +107,7 @@ export function NotificationPanel({
               </span>
               {person.inherited ? (
                 <div className="hint" style={{ margin: '2px 0 0' }}>
-                  Übers Projekt eingetragen – gilt für alle Videos. Zum Ändern ins Projekt.
+                  {t('notifications.inherited')}
                 </div>
               ) : null}
             </div>

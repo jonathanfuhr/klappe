@@ -1,5 +1,5 @@
 import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { PASSWORD_MAX_LENGTH, USER_ROLES, type UserRole } from '@klappe/shared';
+import { LOCALES, PASSWORD_MAX_LENGTH, USER_ROLES, type UserRole } from '@klappe/shared';
 
 export class CreateUserDto {
   @IsEmail({}, { message: 'Bitte eine gültige E-Mail-Adresse angeben.' })
@@ -54,4 +54,12 @@ export class UpdateMeDto {
   @IsOptional()
   @IsBoolean()
   notificationsEnabled?: boolean;
+
+  /**
+   * Eigene Sprache (Phase 26). Leerer String heißt „wie im Workspace" – so
+   * kommt man ohne eigenen Knopf zur Vorgabe zurück.
+   */
+  @IsOptional()
+  @IsIn([...LOCALES, ''])
+  locale?: string;
 }

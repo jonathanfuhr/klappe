@@ -1,7 +1,12 @@
 'use client';
 
 import type { BrandingDto } from '@klappe/shared';
-import { DEFAULT_BRAND_ACCENT, DEFAULT_BRAND_TITLE, deriveBrandColors } from '@klappe/shared';
+import {
+  DEFAULT_BRAND_ACCENT,
+  DEFAULT_BRAND_TITLE,
+  DEFAULT_LOCALE,
+  deriveBrandColors,
+} from '@klappe/shared';
 import {
   type ReactNode,
   createContext,
@@ -23,6 +28,7 @@ import { api } from './api';
  */
 const fallback: BrandingDto = {
   title: DEFAULT_BRAND_TITLE,
+  defaultLocale: DEFAULT_LOCALE,
   ...deriveBrandColors(DEFAULT_BRAND_ACCENT),
   logoUrl: null,
   faviconUrl: null,

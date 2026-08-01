@@ -19,16 +19,19 @@ import { SearchBox } from '@/components/ui/SearchBox';
 import { DeleteProjectDialog, EditProjectDialog } from '@/components/ProjectDialogs';
 import { api } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
+/** Die festen Sortier-Dimensionen; die Beschriftung kommt aus dem Wörterbuch. */
 const BASIS_SORTS = [
-  { id: 'updated', label: 'Zuletzt bearbeitet' },
-  { id: 'created', label: 'Zuletzt angelegt' },
-  { id: 'name', label: 'Name' },
-  { id: 'customer', label: 'Kunde' },
-];
+  { id: 'updated', key: 'projects.sortUpdated' },
+  { id: 'created', key: 'projects.sortCreated' },
+  { id: 'name', key: 'projects.sortName' },
+  { id: 'customer', key: 'projects.sortCustomer' },
+] as const;
 
 export default function ProjectsPage() {
+  const t = useT();
   const { user } = useSession();
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
 
@@ -87,7 +90,7 @@ export default function ProjectsPage() {
       );
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -150,17 +153,18 @@ export default function ProjectsPage() {
 
   const gruppenLabel =
     groupBy === 'customer'
-      ? 'Kunde'
-      : (fieldDefs.find((def) => def.id === groupBy)?.name ?? 'Feld');
+      ? t('projects.customer')
+      : (fieldDefs.find((def) => def.id === groupBy)?.name ?? t('projects.customer'));
 
   /** Wert eines Projekts in der Gruppier-Dimension. */
   const gruppenWert = useCallback(
     (project: ProjectDto): string => {
-      if (groupBy === 'customer') return project.customer?.trim() || `Ohne ${gruppenLabel}`;
+      const ohne = t('projects.withoutValue', { name: gruppenLabel });
+      if (groupBy === 'customer') return project.customer?.trim() || ohne;
       const feld = project.fields.find((eintrag) => eintrag.fieldId === groupBy);
-      return feld?.value.trim() || `Ohne ${gruppenLabel}`;
+      return feld?.value.trim() || ohne;
     },
-    [groupBy, gruppenLabel],
+    [groupBy, gruppenLabel, t],
   );
 
   /**
@@ -192,7 +196,7 @@ export default function ProjectsPage() {
   const filterDimensionen: FilterDimension[] = [
     {
       id: 'customer',
-      label: 'Kunde',
+      label: t('projects.customer'),
       options: customers.map((kunde) => ({
         value: kunde.name,
         label: kunde.name,
@@ -219,7 +223,7 @@ export default function ProjectsPage() {
       ? [
           {
             id: 'tags',
-            label: 'Schlagworte',
+            label: t('tags.label'),
             options: tags.map((tag) => ({
               value: tag.id,
               label: tag.name,
@@ -234,30 +238,32 @@ export default function ProjectsPage() {
   ];
 
   const sortOptionen = [
-    ...BASIS_SORTS,
+    ...BASIS_SORTS.map((eintrag) => ({ id: eintrag.id as string, label: t(eintrag.key) })),
     ...fieldDefs
       .filter((def) => def.sortable)
       .map((def) => ({ id: `field:${def.id}`, label: def.name })),
   ];
 
   const gruppenOptionen = [
-    { id: '', label: 'Nicht gruppieren' },
-    { id: 'customer', label: 'Nach Kunde' },
+    { id: '', label: t('projects.groupNone') },
+    { id: 'customer', label: t('projects.groupByCustomer') },
     ...fieldDefs
       .filter((def) => def.groupable)
-      .map((def) => ({ id: def.id, label: `Nach ${def.name}` })),
+      .map((def) => ({ id: def.id, label: t('projects.groupByField', { name: def.name }) })),
   ];
 
   /*
    * Beschriftungen für die Symbolknöpfe. Ein Symbol allein sagt nie, was
    * eingestellt ist – der Stand gehört deshalb in `aria-label` und `title`.
    */
-  const sortLabel = `Sortierung: ${
-    sortOptionen.find((eintrag) => eintrag.id === sort)?.label ?? 'unbekannt'
-  }`;
+  const sortLabel = t('toolbar.sortCurrent', {
+    name: sortOptionen.find((eintrag) => eintrag.id === sort)?.label ?? t('toolbar.sortUnknown'),
+  });
   const gruppenMenueLabel = groupBy
-    ? `Gruppierung: ${gruppenOptionen.find((eintrag) => eintrag.id === groupBy)?.label ?? 'Feld'}`
-    : 'Gruppierung: keine';
+    ? t('toolbar.groupCurrent', {
+        name: gruppenOptionen.find((eintrag) => eintrag.id === groupBy)?.label ?? gruppenLabel,
+      })
+    : t('toolbar.groupNone');
 
   /** Felder, deren Wert laut Einstellung auf die Kachel gehört (Phase 22). */
   const kachelFeldIds = useMemo(
@@ -276,10 +282,10 @@ export default function ProjectsPage() {
             {project.name}
           </span>
           {isTeam ? (
-            <Menu label={`Aktionen für ${project.name}`}>
-              <MenuItem onSelect={() => setEditing(project)}>Umbenennen …</MenuItem>
+            <Menu label={t('projects.tileActions', { name: project.name })}>
+              <MenuItem onSelect={() => setEditing(project)}>{t('projects.renameEllipsis')}</MenuItem>
               <MenuItem danger onSelect={() => setDeleting(project)}>
-                Löschen …
+                {t('projects.deleteEllipsis')}
               </MenuItem>
             </Menu>
           ) : null}
@@ -311,12 +317,10 @@ export default function ProjectsPage() {
         <div className="tile__meta">
           {/* Archiviert sieht man der Kachel sonst nicht an – und es
               entscheidet, ob dort noch kommentiert werden kann (Phase 18). */}
-          {project.archivedAt ? <span className="badge">archiviert</span> : null}
-          <span>
-            {project.videoCount} {project.videoCount === 1 ? 'Video' : 'Videos'}
-          </span>
+          {project.archivedAt ? <span className="badge">{t('projects.archived')}</span> : null}
+          <span>{t('projects.videoCount', { count: project.videoCount })}</span>
           <span>·</span>
-          <span>Geändert {formatRelative(project.updatedAt)}</span>
+          <span>{t('projects.changedAt', { when: formatRelative(project.updatedAt) })}</span>
         </div>
       </div>
     </Link>
@@ -329,10 +333,11 @@ export default function ProjectsPage() {
             Überschrift – die Zeile darunter trägt nur noch Werkzeuge. */}
         <div className="page__header">
           <div>
-            <h1 className="page__title">Projekte</h1>
+            <h1 className="page__title">{t('projects.title')}</h1>
             <p className="page__subtitle">
-              {projects.length} {projects.length === 1 ? 'Projekt' : 'Projekte'}
-              {filterAktiv ? ' im Filter' : ' im Workspace'}
+              {filterAktiv
+                ? t('projects.countInFilter', { count: projects.length })
+                : t('projects.countInWorkspace', { count: projects.length })}
             </p>
           </div>
           <div className="shell__spacer" />
@@ -342,7 +347,7 @@ export default function ProjectsPage() {
               className="button button--primary"
               onClick={() => setCreating(true)}
             >
-              Neues Projekt
+              {t('projects.new')}
             </button>
           ) : null}
         </div>
@@ -367,14 +372,14 @@ export default function ProjectsPage() {
                 setSelectedFieldValues({});
               }}
             >
-              Filter zurücksetzen
+              {t('toolbar.filterReset')}
             </button>
           ) : null}
 
           <SearchBox
             value={search}
             onChange={setSearch}
-            placeholder="Projekt, Kunde oder Feld …"
+            placeholder={t('projects.searchPlaceholder')}
           />
 
           {isTeam ? (
@@ -396,10 +401,10 @@ export default function ProjectsPage() {
                 triggerClassName="iconbutton listbar__button"
                 trigger={<Icon name="sort" />}
               >
-                <h3 className="filtermenu__title">Sortierung</h3>
+                <h3 className="filtermenu__title">{t('toolbar.sort')}</h3>
                 {groupBy ? (
                   <span className="faint" style={{ fontSize: 12, padding: '2px 10px 6px' }}>
-                    Solange gruppiert wird, gibt die Gruppierung die Reihenfolge vor.
+                    {t('toolbar.sortByGrouping')}
                   </span>
                 ) : (
                   sortOptionen.map((eintrag) => (
@@ -427,7 +432,7 @@ export default function ProjectsPage() {
                   </>
                 }
               >
-                <h3 className="filtermenu__title">Gruppierung</h3>
+                <h3 className="filtermenu__title">{t('toolbar.group')}</h3>
                 {gruppenOptionen.map((eintrag) => (
                   <button
                     key={eintrag.id || 'keine'}
@@ -450,7 +455,7 @@ export default function ProjectsPage() {
                     checked={tagMatch === 'all'}
                     onChange={(event) => setTagMatch(event.target.checked ? 'all' : 'any')}
                   />
-                  alle Schlagworte
+                  {t('projects.allTags')}
                 </label>
               ) : null}
             </>
@@ -458,15 +463,15 @@ export default function ProjectsPage() {
         </div>
 
         {error ? <div className="notice">{error}</div> : null}
-        {loading ? <p className="muted">Wird geladen …</p> : null}
+        {loading ? <p className="muted">{t('common.loading')}</p> : null}
 
         {!loading && visible.length === 0 ? (
           <div className="empty">
             {projects.length === 0 && filterAktiv
-              ? 'Kein Projekt passt zu diesem Filter.'
+              ? t('projects.emptyFiltered')
               : projects.length === 0
-                ? 'Noch keine Projekte. Leg das erste an, um Videos hochzuladen.'
-                : 'Kein Projekt passt zur Suche.'}
+                ? t('projects.emptyNone')
+                : t('projects.emptySearch')}
           </div>
         ) : null}
 
@@ -479,9 +484,9 @@ export default function ProjectsPage() {
                   {gruppe.projekte.length}
                 </span>
                 {isTeam && groupBy === 'customer' && !gruppe.name.startsWith('Ohne ') ? (
-                  <Menu label={`Aktionen für Kunde ${gruppe.name}`}>
+                  <Menu label={t('projects.customerActions', { name: gruppe.name })}>
                     <MenuItem onSelect={() => setRenamingCustomer(gruppe.name)}>
-                      Kunde umbenennen …
+                      {t('projects.renameCustomerEllipsis')}
                     </MenuItem>
                   </Menu>
                 ) : null}
@@ -560,9 +565,10 @@ function CreateProjectDialog({
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   return (
-    <Dialog title="Neues Projekt" onClose={onClose}>
+    <Dialog title={t('projects.new')} onClose={onClose}>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
@@ -576,7 +582,7 @@ function CreateProjectDialog({
             });
             await onCreated();
           } catch (createError) {
-            setError(createError instanceof Error ? createError.message : 'Anlegen fehlgeschlagen.');
+            setError(createError instanceof Error ? createError.message : t('common.createFailed'));
           } finally {
             setBusy(false);
           }
@@ -584,7 +590,7 @@ function CreateProjectDialog({
       >
         <div className="field">
           <label className="field__label" htmlFor="project-name">
-            Name
+            {t('common.name')}
           </label>
           <input
             id="project-name"
@@ -597,7 +603,7 @@ function CreateProjectDialog({
         </div>
         <div className="field">
           <label className="field__label" htmlFor="project-customer">
-            Kunde (optional)
+            {t('projects.createCustomerLabel')}
           </label>
           <input
             id="project-customer"
@@ -613,12 +619,12 @@ function CreateProjectDialog({
             ))}
           </datalist>
           <p className="hint">
-            Steht im Download-Dateinamen und hilft beim Zuordnen hochgeladener Dateien.
+            {t('projects.createCustomerHint')}
           </p>
         </div>
         <div className="field">
           <label className="field__label" htmlFor="project-description">
-            Beschreibung (optional)
+            {t('projects.createDescriptionLabel')}
           </label>
           <textarea
             id="project-description"
@@ -632,10 +638,10 @@ function CreateProjectDialog({
 
         <div className="dialog__actions">
           <button type="button" className="button" onClick={onClose}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="submit" className="button button--primary" disabled={busy || !name.trim()}>
-            Anlegen
+            {t('common.create')}
           </button>
         </div>
       </form>
@@ -661,6 +667,7 @@ function RenameCustomerDialog({
   const [name, setName] = useState(customer);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   const speichern = async (nach?: string) => {
     setBusy(true);
@@ -669,13 +676,13 @@ function RenameCustomerDialog({
       await api.renameCustomer(customer, nach);
       await onSaved();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
       setBusy(false);
     }
   };
 
   return (
-    <Dialog title={`Kunde „${customer}“`} onClose={onClose}>
+    <Dialog title={t('projects.renameCustomerTitle', { name: customer })} onClose={onClose}>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
@@ -684,7 +691,7 @@ function RenameCustomerDialog({
       >
         <div className="field">
           <label className="field__label" htmlFor="customer-name">
-            Neuer Name
+            {t('projects.renameCustomerNewName')}
           </label>
           <input
             id="customer-name"
@@ -694,10 +701,7 @@ function RenameCustomerDialog({
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <p className="hint">
-            Wirkt auf {projectCount} {projectCount === 1 ? 'Projekt' : 'Projekte'} – auch in den
-            Download-Dateinamen künftiger Fassungen.
-          </p>
+          <p className="hint">{t('projects.renameCustomerHint', { count: projectCount })}</p>
         </div>
 
         {error ? <div className="notice">{error}</div> : null}
@@ -709,18 +713,18 @@ function RenameCustomerDialog({
             disabled={busy}
             onClick={() => void speichern(undefined)}
           >
-            Kundeneintrag entfernen
+            {t('projects.removeCustomerEntry')}
           </button>
           <div className="shell__spacer" />
           <button type="button" className="button" onClick={onClose}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             className="button button--primary"
             disabled={busy || !name.trim() || name.trim() === customer}
           >
-            Umbenennen
+            {t('common.rename')}
           </button>
         </div>
       </form>

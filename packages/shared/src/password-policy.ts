@@ -11,6 +11,25 @@
  * offene Messer laufen zu lassen.
  */
 
+import type { MessageRef } from './i18n';
+
+/** Die Gründe, aus denen ein Passwort abgelehnt wird. */
+export type PasswordErrorKey =
+  | 'passwordError.minLength'
+  | 'passwordError.maxLength'
+  | 'passwordError.letter'
+  | 'passwordError.digit'
+  | 'passwordError.mixedCase'
+  | 'passwordError.symbol';
+
+/** Dieselben Regeln als Aufzählung für den Hinweis unter dem Eingabefeld. */
+export type PasswordRuleKey =
+  | 'passwordRule.minLength'
+  | 'passwordRule.letter'
+  | 'passwordRule.digit'
+  | 'passwordRule.mixedCase'
+  | 'passwordRule.symbol';
+
 export interface PasswordPolicy {
   /** Untergrenze der Länge. */
   minLength: number;
@@ -65,28 +84,34 @@ export function normalizePasswordPolicy(input: Partial<PasswordPolicy> | null): 
 }
 
 /**
- * Liefert `null`, wenn das Passwort der Richtlinie genügt, sonst den Grund im
- * Klartext – **eine** Meldung, nicht eine Liste: Wer sie abarbeitet, kommt bei
- * der nächsten Rückmeldung ohnehin zur nächsten Regel.
+ * Liefert `null`, wenn das Passwort der Richtlinie genügt, sonst den Grund als
+ * Schlüssel – **einen**, nicht eine Liste: Wer ihn abarbeitet, kommt bei der
+ * nächsten Rückmeldung ohnehin zur nächsten Regel.
+ *
+ * Seit Phase 26 kommt der Grund als Verweis statt als deutscher Satz; die
+ * Sprache kennt erst der Aufrufer.
  */
-export function validatePassword(password: string, policy: PasswordPolicy): string | null {
+export function validatePassword(
+  password: string,
+  policy: PasswordPolicy,
+): MessageRef<PasswordErrorKey> | null {
   if (password.length < policy.minLength) {
-    return `Das Passwort muss mindestens ${policy.minLength} Zeichen lang sein.`;
+    return { key: 'passwordError.minLength', vars: { count: policy.minLength } };
   }
   if (password.length > PASSWORD_MAX_LENGTH) {
-    return `Das Passwort darf höchstens ${PASSWORD_MAX_LENGTH} Zeichen lang sein.`;
+    return { key: 'passwordError.maxLength', vars: { count: PASSWORD_MAX_LENGTH } };
   }
   if (policy.requireLetter && !/\p{L}/u.test(password)) {
-    return 'Das Passwort muss mindestens einen Buchstaben enthalten.';
+    return { key: 'passwordError.letter' };
   }
   if (policy.requireDigit && !/\p{Nd}/u.test(password)) {
-    return 'Das Passwort muss mindestens eine Ziffer enthalten.';
+    return { key: 'passwordError.digit' };
   }
   if (policy.requireMixedCase && !(/\p{Lu}/u.test(password) && /\p{Ll}/u.test(password))) {
-    return 'Das Passwort muss Groß- und Kleinbuchstaben enthalten.';
+    return { key: 'passwordError.mixedCase' };
   }
   if (policy.requireSymbol && !/[^\p{L}\p{Nd}]/u.test(password)) {
-    return 'Das Passwort muss mindestens ein Sonderzeichen enthalten.';
+    return { key: 'passwordError.symbol' };
   }
   return null;
 }
@@ -94,13 +119,15 @@ export function validatePassword(password: string, policy: PasswordPolicy): stri
 /**
  * Die Regeln als Aufzählung – für den Hinweis unter dem Eingabefeld. Ein
  * „mindestens 12 Zeichen, Groß- und Kleinbuchstaben" vorab erspart das Raten
- * nach der Absage.
+ * nach der Absage. Auch hier Schlüssel statt Text (Phase 26).
  */
-export function describePasswordPolicy(policy: PasswordPolicy): string[] {
-  const regeln = [`mindestens ${policy.minLength} Zeichen`];
-  if (policy.requireLetter) regeln.push('mindestens ein Buchstabe');
-  if (policy.requireDigit) regeln.push('mindestens eine Ziffer');
-  if (policy.requireMixedCase) regeln.push('Groß- und Kleinbuchstaben');
-  if (policy.requireSymbol) regeln.push('mindestens ein Sonderzeichen');
+export function describePasswordPolicy(policy: PasswordPolicy): MessageRef<PasswordRuleKey>[] {
+  const regeln: MessageRef<PasswordRuleKey>[] = [
+    { key: 'passwordRule.minLength', vars: { count: policy.minLength } },
+  ];
+  if (policy.requireLetter) regeln.push({ key: 'passwordRule.letter' });
+  if (policy.requireDigit) regeln.push({ key: 'passwordRule.digit' });
+  if (policy.requireMixedCase) regeln.push({ key: 'passwordRule.mixedCase' });
+  if (policy.requireSymbol) regeln.push({ key: 'passwordRule.symbol' });
   return regeln;
 }

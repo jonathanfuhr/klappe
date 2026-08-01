@@ -4,6 +4,7 @@ import type { ApiAccessSettingsDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { DeviceList } from '@/components/DeviceList';
 import { api } from '@/lib/api';
+import { Trans, useT } from '@/lib/i18n';
 
 /**
  * Einstellungen → API-Zugriff (Phase 27).
@@ -14,6 +15,7 @@ import { api } from '@/lib/api';
  * nichts weiß, wäre keine gute Voreinstellung.
  */
 export function ApiAccessPanel() {
+  const t = useT();
   const [settings, setSettings] = useState<ApiAccessSettingsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,9 +25,9 @@ export function ApiAccessPanel() {
       setSettings(await api.getApiAccess());
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -36,11 +38,7 @@ export function ApiAccessPanel() {
       !enabled &&
       settings &&
       settings.activeTokens > 0 &&
-      !window.confirm(
-        `Externen Zugriff abschalten? ${settings.activeTokens} verbundene ${
-          settings.activeTokens === 1 ? 'Gerät kommt' : 'Geräte kommen'
-        } ab sofort nicht mehr herein.`,
-      )
+      !window.confirm(t('apiAccess.disableConfirm', { count: settings.activeTokens }))
     ) {
       return;
     }
@@ -50,23 +48,20 @@ export function ApiAccessPanel() {
     try {
       setSettings(await api.updateApiAccess(enabled));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
   };
 
   if (!settings) {
-    return <div className="empty">{error ?? 'Wird geladen …'}</div>;
+    return <div className="empty">{error ?? t('common.loading')}</div>;
   }
 
   return (
     <>
       <p className="page__subtitle" style={{ marginTop: 0 }}>
-        Programme außerhalb des Browsers – Plugins für Schnittprogramme, eigene Skripte, später
-        Desktop- und Telefon-Apps – erreichen Klappe über dieselbe Schnittstelle wie die Oberfläche.
-        Verbunden wird jedes Gerät einzeln und mit einem Konto; eigene Zugangsdaten gibt es dafür
-        nicht.
+        {t('apiAccess.intro')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -79,31 +74,27 @@ export function ApiAccessPanel() {
             disabled={busy}
             onChange={(event) => void umschalten(event.target.checked)}
           />
-          Externen API-Zugriff erlauben
+          {t('apiAccess.enable')}
         </label>
-        <p className="hint">
-          Aus heißt: Es lässt sich kein Gerät mehr verbinden, und schon verbundene kommen nicht
-          mehr herein – der Schalter wirkt sofort und für alle. Die Verbindungen bleiben dabei
-          bestehen und gelten wieder, sobald der Schalter zurückgeht. Die Anmeldung im Browser ist
-          davon nie betroffen.
-        </p>
+        <p className="hint">{t('apiAccess.enableHint')}</p>
 
         {settings.enabled ? (
           <p className="hint" style={{ marginTop: 12 }}>
-            Wie sich ein Gerät verbindet, steht in der{' '}
-            <a href="/handbuch">Anleitung</a>; wer selbst etwas bauen will, findet die
-            Schnittstelle in <code>docs/api.md</code>.
+            <Trans
+              k="apiAccess.docsHint"
+              parts={{
+                link: <a href="/handbuch">{t('apiAccess.docsLink')}</a>,
+                file: <code>docs/api.md</code>,
+              }}
+            />
           </p>
         ) : null}
 
         <div style={{ marginTop: 18, borderTop: '1px solid var(--klappe-border)', paddingTop: 16 }}>
           <h2 className="section__title" style={{ marginBottom: 12 }}>
-            Verbundene Geräte im Workspace
+            {t('apiAccess.workspaceDevices')}
           </h2>
-          <p className="hint">
-            Alle Konten. Jeder trennt seine eigenen Geräte unter „Mein Konto" auch selbst – hier
-            kommt der Betreiber an alle heran.
-          </p>
+          <p className="hint">{t('apiAccess.workspaceDevicesHint')}</p>
 
           <DeviceList scope="all" />
         </div>

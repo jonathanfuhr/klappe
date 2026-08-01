@@ -90,6 +90,7 @@ export class NotificationsService {
       for (const recipient of recipients) {
         const mail = renderCommentMail({
           brand,
+          locale: await this.mailService.localeFor(recipient.locale),
           recipientName: recipient.name,
           authorName: row.authorName,
           projectName: row.projectName,
@@ -233,6 +234,7 @@ export class NotificationsService {
     }));
 
     const brand = await this.mailService.brand();
+    const sprache = await this.mailService.localeFor(empfaenger.locale);
     const url = `${this.config.publicUrl}/videos/${videoId}`;
     const unsubscribeUrl = this.mailService.unsubscribeUrl(userId);
     const erste = sichtbar[0];
@@ -244,6 +246,7 @@ export class NotificationsService {
       entries.length === 1
         ? renderCommentMail({
             brand,
+            locale: sprache,
             recipientName: empfaenger.name,
             authorName: erste.authorName,
             projectName: kopf.projectName,
@@ -258,6 +261,7 @@ export class NotificationsService {
           })
         : renderCommentDigestMail({
             brand,
+            locale: sprache,
             recipientName: empfaenger.name,
             projectName: kopf.projectName,
             videoName: kopf.videoName,
@@ -311,6 +315,7 @@ export class NotificationsService {
         email: users.email,
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
+        locale: users.locale,
       })
       .from(users)
       .where(or(eq(users.role, 'ADMIN'), eq(users.role, 'MEMBER')));
@@ -325,6 +330,7 @@ export class NotificationsService {
     for (const recipient of recipients) {
       const mail = renderProjectFileMail({
         brand,
+        locale: await this.mailService.localeFor(recipient.locale),
         recipientName: recipient.name,
         uploaderName: row.uploaderName ?? 'Ein Gast',
         projectName: row.projectName,
@@ -424,6 +430,7 @@ export class NotificationsService {
         email: users.email,
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
+        locale: users.locale,
       })
       .from(users)
       .where(eq(users.id, userId))
@@ -440,6 +447,7 @@ export class NotificationsService {
         email: users.email,
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
+        locale: users.locale,
       })
       .from(commentMentions)
       .innerJoin(users, eq(commentMentions.userId, users.id))
@@ -462,6 +470,7 @@ export class NotificationsService {
         email: users.email,
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
+        locale: users.locale,
       })
       .from(comments)
       .innerJoin(users, eq(comments.authorId, users.id))
@@ -489,6 +498,7 @@ export class NotificationsService {
         email: users.email,
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
+        locale: users.locale,
       })
       .from(notificationSubscriptions)
       .innerJoin(users, eq(notificationSubscriptions.userId, users.id))

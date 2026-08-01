@@ -1,12 +1,20 @@
 'use client';
 
 import type { PasswordPolicy } from '@klappe/shared';
-import { DEFAULT_PASSWORD_POLICY, describePasswordPolicy, validatePassword } from '@klappe/shared';
+import {
+  DEFAULT_PASSWORD_POLICY,
+  LOCALES,
+  LOCALE_NAMES,
+  describePasswordPolicy,
+  validatePassword,
+} from '@klappe/shared';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { DeviceList } from '@/components/DeviceList';
 import { api } from '@/lib/api';
+import { useBranding } from '@/lib/branding';
+import { Trans, useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 /**
@@ -20,6 +28,8 @@ import { useSession } from '@/lib/session';
  */
 export default function AccountPage() {
   const { user, refresh } = useSession();
+  const { branding } = useBranding();
+  const t = useT();
   const istGast = user?.role === 'GUEST';
 
   const [name, setName] = useState('');
@@ -69,10 +79,44 @@ export default function AccountPage() {
       <div className="page" style={{ maxWidth: 560 }}>
         <div className="page__header">
           <div>
-            <h1 className="page__title">Mein Konto</h1>
+            <h1 className="page__title">{t('account.title')}</h1>
             <p className="muted" style={{ marginBottom: 0 }}>
               {user ? `${user.name} · ${user.email}` : '…'}
             </p>
+          </div>
+        </div>
+
+        {/*
+          * Sprache (Phase 26). Steht bewusst vor dem Passwort: Wer die
+          * Oberfläche nicht versteht, soll das zuerst ändern können. Gilt auch
+          * für Gäste – deren Mails gehen danach ebenfalls in dieser Sprache
+          * raus.
+          */}
+        <div className="card card--form">
+          <h2 className="card__title">{t('locale.label')}</h2>
+          <div className="field">
+            <label className="field__label" htmlFor="own-locale">
+              {t('locale.label')}
+            </label>
+            <select
+              id="own-locale"
+              className="select"
+              style={{ maxWidth: 320 }}
+              value={user?.locale ?? ''}
+              onChange={(event) => {
+                void api.updateMe({ locale: event.target.value }).then(() => refresh());
+              }}
+            >
+              <option value="">
+                {t('locale.followWorkspace', { name: LOCALE_NAMES[branding.defaultLocale] })}
+              </option>
+              {LOCALES.map((eintrag) => (
+                <option key={eintrag} value={eintrag}>
+                  {LOCALE_NAMES[eintrag]}
+                </option>
+              ))}
+            </select>
+            <p className="hint">{t('locale.ownHint')}</p>
           </div>
         </div>
 
@@ -92,21 +136,21 @@ export default function AccountPage() {
               await refresh();
             } catch (nameSaveError) {
               setNameError(
-                nameSaveError instanceof Error ? nameSaveError.message : 'Ändern fehlgeschlagen.',
+                nameSaveError instanceof Error ? nameSaveError.message : t('common.changeFailed'),
               );
             } finally {
               setNameBusy(false);
             }
           }}
         >
-          <h2 className="card__title">Name ändern</h2>
+          <h2 className="card__title">{t('account.changeName')}</h2>
 
           {nameError ? <div className="notice">{nameError}</div> : null}
-          {nameDone ? <div className="notice notice--ok">Der Name ist geändert.</div> : null}
+          {nameDone ? <div className="notice notice--ok">{t('account.nameChanged')}</div> : null}
 
           <div className="field">
             <label className="field__label" htmlFor="display-name">
-              {istGast ? 'Anzeigename' : 'Name'}
+              {istGast ? t('account.displayName') : t('common.name')}
             </label>
             <input
               id="display-name"
@@ -124,8 +168,8 @@ export default function AccountPage() {
             />
             <p className="hint">
               {istGast
-                ? 'So steht es in Kommentaren, Benachrichtigungen und Freigabelisten.'
-                : 'So erscheinst du für dein Team und für Gäste.'}
+                ? t('account.nameHintGuest')
+                : t('account.nameHintTeam')}
             </p>
           </div>
 
@@ -135,7 +179,7 @@ export default function AccountPage() {
               className="button button--primary"
               disabled={!nameGültig || !nameGeändert || nameBusy}
             >
-              {nameBusy ? 'Wird gespeichert …' : 'Name speichern'}
+              {nameBusy ? t('common.saving') : t('account.saveName')}
             </button>
           </div>
         </form>
@@ -157,26 +201,25 @@ export default function AccountPage() {
               setDone(true);
             } catch (changeError) {
               setError(
-                changeError instanceof Error ? changeError.message : 'Ändern fehlgeschlagen.',
+                changeError instanceof Error ? changeError.message : t('common.changeFailed'),
               );
             } finally {
               setBusy(false);
             }
           }}
         >
-          <h2 className="card__title">Passwort ändern</h2>
+          <h2 className="card__title">{t('account.changePassword')}</h2>
 
           {error ? <div className="notice">{error}</div> : null}
           {done ? (
             <div className="notice notice--ok">
-              Das Passwort ist geändert. Steht es noch als <code>ADMIN_PASSWORD</code> in der
-              <code>.env</code>, kann es dort jetzt raus.
+              {t('account.passwordChanged', { var: 'ADMIN_PASSWORD', file: '.env' })}
             </div>
           ) : null}
 
           <div className="field">
             <label className="field__label" htmlFor="current-password">
-              Bisheriges Passwort
+              {t('account.currentPassword')}
             </label>
             <input
               id="current-password"
@@ -191,7 +234,7 @@ export default function AccountPage() {
 
           <div className="field">
             <label className="field__label" htmlFor="new-password">
-              Neues Passwort
+              {t('account.newPassword')}
             </label>
             <input
               id="new-password"
@@ -203,14 +246,16 @@ export default function AccountPage() {
               onChange={(event) => setNext(event.target.value)}
             />
             <p className="hint">
-              {describePasswordPolicy(policy).join(', ')}.
-              {verstoss ? ` ${verstoss}` : ''}
+              {describePasswordPolicy(policy)
+                .map((regel) => t(regel.key, regel.vars))
+                .join(', ')}
+              .{verstoss ? ` ${t(verstoss.key, verstoss.vars)}` : ''}
             </p>
           </div>
 
           <div className="field">
             <label className="field__label" htmlFor="repeat-password">
-              Neues Passwort wiederholen
+              {t('account.repeatPassword')}
             </label>
             <input
               id="repeat-password"
@@ -221,19 +266,22 @@ export default function AccountPage() {
               value={repeat}
               onChange={(event) => setRepeat(event.target.value)}
             />
-            {ungleich ? <p className="hint">Die beiden Eingaben stimmen nicht überein.</p> : null}
+            {ungleich ? <p className="hint">{t('account.mismatch')}</p> : null}
           </div>
 
           <div className="dialog__actions">
             <button type="submit" className="button button--primary" disabled={!kannSpeichern}>
-              {busy ? 'Wird geändert …' : 'Passwort ändern'}
+              {busy ? t('account.changing') : t('account.changePassword')}
             </button>
           </div>
         </form>
 
         {user?.role === 'ADMIN' ? (
           <p className="muted" style={{ fontSize: 13, marginTop: 16 }}>
-            Passwörter anderer Konten setzt du unter <Link href="/benutzer">Benutzer</Link>.
+            <Trans
+              k="account.otherPasswordsHint"
+              parts={{ link: <Link href="/benutzer">{t('settings.navUsers')}</Link> }}
+            />
           </p>
         ) : null}
         </>
@@ -242,18 +290,18 @@ export default function AccountPage() {
         {/* Auch für Gäste: Wer über ein Plugin auf seine Freigaben zugreift,
             muss es genauso wieder trennen können wie das Team. */}
         <div className="card card--form">
-          <h2 className="card__title">Verbundene Geräte</h2>
+          <h2 className="card__title">{t('devices.title')}</h2>
           <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-            Programme außerhalb des Browsers, die mit deinem Konto arbeiten – etwa ein Plugin im
-            Schnittprogramm. Sie haben genau deine Rechte. Trennen wirkt sofort und trifft nur
-            dieses eine Gerät; dein Passwort bleibt unberührt.
+            {t('devices.accountHint')}
           </p>
 
           <DeviceList scope="mine" />
 
           <p className="hint" style={{ marginTop: 14 }}>
-            Ein neues Gerät verbindest du dort, wo es startet: Das Programm zeigt einen Code, den du
-            unter <Link href="/geraet">Gerät verbinden</Link> bestätigst.
+            <Trans
+              k="devices.accountPairHint"
+              parts={{ link: <Link href="/geraet">{t('pairing.title')}</Link> }}
+            />
           </p>
         </div>
       </div>

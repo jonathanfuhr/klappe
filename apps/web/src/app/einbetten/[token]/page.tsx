@@ -4,6 +4,7 @@ import type { EmbedDto } from '@klappe/shared';
 import { useParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 /**
  * Der eingebettete Player.
@@ -19,6 +20,7 @@ import { API_BASE } from '@/lib/api';
  * fremden Seite.
  */
 export default function EmbedPage() {
+  const t = useT();
   const params = useParams<{ token: string }>();
   const token = params.token;
 
@@ -36,7 +38,7 @@ export default function EmbedPage() {
     let abgebrochen = false;
     void fetch(`${API_BASE}/v1/embed/${encodeURIComponent(token)}`)
       .then(async (antwort) => {
-        if (!antwort.ok) throw new Error('Diese Einbettung gibt es nicht (mehr).');
+        if (!antwort.ok) throw new Error(t('embedPage.notFound'));
         return (await antwort.json()) as EmbedDto;
       })
       .then((wert) => {
@@ -44,13 +46,13 @@ export default function EmbedPage() {
       })
       .catch((ladefehler: unknown) => {
         if (!abgebrochen) {
-          setFehler(ladefehler instanceof Error ? ladefehler.message : 'Nicht verfügbar.');
+          setFehler(ladefehler instanceof Error ? ladefehler.message : t('embedPage.unavailable'));
         }
       });
     return () => {
       abgebrochen = true;
     };
-  }, [token]);
+  }, [token, t]);
 
   /**
    * Adaptive Wiedergabe auch im eingebetteten Player (Phase 23).
@@ -115,7 +117,7 @@ export default function EmbedPage() {
   if (!daten) {
     return (
       <div className="embed embed--leer">
-        <p>Wird geladen …</p>
+        <p>{t('common.loading')}</p>
       </div>
     );
   }
@@ -145,7 +147,7 @@ export default function EmbedPage() {
         <span className="embed__version">{daten.versionLabel}</span>
         {/* Auch hier, wo sonst nichts steht: Wer eine Zwischenfassung
             eingebettet sieht, soll sie nicht für das Ergebnis halten. */}
-        {!daten.isFinal ? <span className="embed__version">Vorschau</span> : null}
+        {!daten.isFinal ? <span className="embed__version">{t('embedPage.preview')}</span> : null}
         <span className="embed__spacer" />
         <span className="embed__brand">{daten.brandTitle}</span>
       </div>

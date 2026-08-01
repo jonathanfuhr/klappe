@@ -202,3 +202,47 @@ describe('renderTestMail', () => {
     expect(mail.text).toContain('DKIM');
   });
 });
+
+describe('Sprache des Empfängers (Phase 26)', () => {
+  it('schreibt den Anmeldecode auf Englisch', () => {
+    const mail = renderGuestCodeMail({
+      code: '123456',
+      targetName: 'Sommer-Kampagne',
+      minutesValid: 15,
+      locale: 'en',
+    });
+    expect(mail.subject).toBe('123456 is your sign-in code for Klappe');
+    expect(mail.text).toContain('The code is valid for 15 minutes.');
+    expect(mail.html).toContain('lang="en"');
+  });
+
+  it('bleibt ohne Angabe bei Deutsch', () => {
+    const mail = renderGuestCodeMail({
+      code: '123456',
+      targetName: 'Sommer-Kampagne',
+      minutesValid: 15,
+    });
+    expect(mail.subject).toContain('ist dein Anmeldecode');
+    expect(mail.html).toContain('lang="de"');
+  });
+
+  it('übersetzt auch den Abbestellen-Link', () => {
+    const mail = renderCommentMail({
+      recipientName: 'Alex',
+      authorName: 'Bea',
+      projectName: 'Sommer',
+      videoName: 'Reel',
+      versionLabel: 'v2',
+      timecode: '00:00:10:00',
+      body: 'Bitte kürzen.',
+      mentioned: false,
+      isReply: false,
+      url: 'https://example.test/videos/1',
+      unsubscribeUrl: 'https://example.test/abmelden?token=x',
+      locale: 'en',
+    });
+    expect(mail.subject).toBe('New comment from Bea: Reel');
+    expect(mail.html).toContain('Unsubscribe from notifications');
+    expect(mail.text).toContain('Project: Sommer · Version: v2');
+  });
+});

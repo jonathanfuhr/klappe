@@ -10,6 +10,7 @@ import type { AppIconMimeType, BrandingDto, FaviconMimeType, LogoMimeType } from
 import {
   APP_ICON_MIME_TYPES,
   DEFAULT_BRAND_ACCENT,
+  DEFAULT_LOCALE,
   FAVICON_MIME_TYPES,
   LOGO_MIME_TYPES,
   MAX_APP_ICON_BYTES,
@@ -18,6 +19,7 @@ import {
   MAX_FAVICON_BYTES,
   MAX_LOGO_BYTES,
   deriveBrandColors,
+  isLocale,
   normalizeBrandTitle,
   normalizeCompanyText,
   normalizeHexColor,
@@ -25,6 +27,7 @@ import {
 import { eq } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { appSettings } from '../db/schema';
+import { LocaleService } from '../i18n/locale.service';
 import { StorageService } from '../storage/storage.service';
 import { SettingsService } from './settings.service';
 
@@ -47,6 +50,8 @@ const PNG_SIGNATUR = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
 
 export interface UpdateBrandingInput {
   title?: string | null;
+  /** Sprache des Workspace (Phase 26). */
+  defaultLocale?: string;
   accent?: string | null;
   companyName?: string | null;
   companyShort?: string | null;
@@ -60,6 +65,7 @@ export class BrandingService {
     @Inject(DB) private readonly db: Database,
     private readonly settingsService: SettingsService,
     private readonly storage: StorageService,
+    private readonly locales: LocaleService,
   ) {}
 
   /**
@@ -78,6 +84,8 @@ export class BrandingService {
 
     return {
       title: normalizeBrandTitle(row.brandTitle),
+      // Sprache des Workspace (Phase 26); Unsinn in der Spalte gilt als Deutsch.
+      defaultLocale: isLocale(row.defaultLocale) ? row.defaultLocale : DEFAULT_LOCALE,
       ...colors,
       logoUrl,
       /*
@@ -119,6 +127,7 @@ export class BrandingService {
       .update(appSettings)
       .set({
         brandTitle: input.title === undefined ? undefined : input.title?.trim() || null,
+        defaultLocale: isLocale(input.defaultLocale) ? input.defaultLocale : undefined,
         brandAccent: accent,
         companyName:
           input.companyName === undefined
@@ -131,6 +140,10 @@ export class BrandingService {
         updatedAt: new Date(),
       })
       .where(eq(appSettings.id, SETTINGS_ID));
+
+    // Der Sprach-Dienst merkt sich die Vorgabe eine halbe Minute – nach einer
+    // Änderung soll sie sofort gelten und nicht erst nach dem nächsten Takt.
+    if (input.defaultLocale !== undefined) this.locales.vergessen();
 
     return this.get();
   }

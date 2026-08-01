@@ -10,6 +10,7 @@ import {
 } from '@klappe/shared';
 import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
 import { api } from '@/lib/api';
+import { type Translator, useT } from '@/lib/i18n';
 
 /** Leerer Entwurf für ein neues Format. */
 const NEUES_FORMAT = {
@@ -38,6 +39,7 @@ const NEUES_FORMAT = {
  * greift also ab dem nächsten Video, ohne dass der Container neu startet.
  */
 export function TranscodePanel() {
+  const t = useT();
   const [settings, setSettings] = useState<TranscodeSettingsDto | null>(null);
   const [form, setForm] = useState({
     downloadFormatsEnabled: false,
@@ -79,9 +81,9 @@ export function TranscodePanel() {
     try {
       uebernimm(await api.getTranscodeSettings());
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, [uebernimm]);
+  }, [uebernimm, t]);
 
   useEffect(() => {
     void load();
@@ -93,9 +95,9 @@ export function TranscodePanel() {
     setInfo(null);
     try {
       uebernimm(await api.updateTranscodeSettings(form));
-      setInfo('Gespeichert. Wirkt ab dem nächsten Auftrag – kein Neustart nötig.');
+      setInfo(t('transcode.saved'));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
@@ -107,7 +109,7 @@ export function TranscodePanel() {
       await api.updateDownloadPreset(id, changes);
       uebernimm(await api.getTranscodeSettings());
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : 'Ändern fehlgeschlagen.');
+      setError(updateError instanceof Error ? updateError.message : t('common.changeFailed'));
     }
   };
 
@@ -120,7 +122,7 @@ export function TranscodePanel() {
       setEntwurf({ ...NEUES_FORMAT });
       setAnlegen(false);
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Anlegen fehlgeschlagen.');
+      setError(createError instanceof Error ? createError.message : t('common.createFailed'));
     } finally {
       setBusy(false);
     }
@@ -128,11 +130,7 @@ export function TranscodePanel() {
 
   const loesche = async (format: DownloadPresetDto) => {
     if (
-      !window.confirm(
-        `„${format.name}“ löschen?\n\n` +
-          'Schon erzeugte Dateien dieses Formats werden mit entfernt. ' +
-          'Wer das Format nur aus der Auswahl nehmen will, schaltet es stattdessen aus.',
-      )
+      !window.confirm(t('transcode.deleteConfirm', { name: format.name }))
     ) {
       return;
     }
@@ -141,12 +139,12 @@ export function TranscodePanel() {
       await api.deleteDownloadPreset(format.id);
       uebernimm(await api.getTranscodeSettings());
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Löschen fehlgeschlagen.');
+      setError(deleteError instanceof Error ? deleteError.message : t('common.deleteFailed'));
     }
   };
 
   if (!settings) {
-    return <div className="empty">{error ?? 'Wird geladen …'}</div>;
+    return <div className="empty">{error ?? t('common.loading')}</div>;
   }
 
   /**
@@ -192,8 +190,7 @@ export function TranscodePanel() {
       }}
     >
       <p className="page__subtitle" style={{ marginTop: 0 }}>
-        Was der Server nach dem Hochladen erzeugt: die Formate zum Herunterladen, wahlweise eine
-        adaptive Stufenleiter und die Abspielfassung, die jeder im Browser zu sehen bekommt.
+        {t('transcode.subtitle')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -205,11 +202,9 @@ export function TranscodePanel() {
 
       {/* ---------- Download-Formate ---------- */}
       <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ margin: '0 0 4px' }}>Download in verschiedenen Formaten</h3>
+        <h3 style={{ margin: '0 0 4px' }}>{t('transcode.downloadTitle')}</h3>
         <p className="hint" style={{ marginTop: 0 }}>
-          Ist das eingeschaltet, öffnet der Herunterladen-Knopf ein Fenster mit dieser Auswahl.
-          Fehlt eine Fassung noch, entsteht sie beim Klick – mit Fortschrittsbalken. Das Original
-          steht dort immer an erster Stelle.
+          {t('transcode.downloadHint')}
         </p>
 
         <label className="switch" style={{ marginBottom: 14 }}>
@@ -220,7 +215,7 @@ export function TranscodePanel() {
               setForm({ ...form, downloadFormatsEnabled: event.target.checked })
             }
           />
-          Formatauswahl anbieten
+          {t('transcode.offerFormats')}
         </label>
 
         {/* Aus heißt: der ganze Abschnitt ist stumpf. `fieldset[disabled]`
@@ -237,22 +232,22 @@ export function TranscodePanel() {
             <table className="table table--cards" style={{ marginBottom: 12 }}>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Kurze Kante</th>
-                  <th>Bitrate</th>
-                  <th>Qualität</th>
-                  <th>Container</th>
-                  <th>Angeboten</th>
+                  <th>{t('common.name')}</th>
+                  <th>{t('transcode.colShortEdge')}</th>
+                  <th>{t('transcode.colBitrate')}</th>
+                  <th>{t('transcode.colQuality')}</th>
+                  <th>{t('transcode.colContainer')}</th>
+                  <th>{t('transcode.colOffered')}</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
                 {settings.presets.map((format) => (
                   <tr key={format.id}>
-                    <td data-label="Name">
+                    <td data-label={t('common.name')}>
                       <input
                         className="input"
-                        aria-label="Name des Formats"
+                        aria-label={t('transcode.formatNameLabel')}
                         defaultValue={format.name}
                         onKeyDown={beendeMitEingabe}
                         onBlur={(event) => {
@@ -261,13 +256,13 @@ export function TranscodePanel() {
                         }}
                       />
                     </td>
-                    <td data-label="Kurze Kante">
+                    <td data-label={t('transcode.colShortEdge')}>
                       <input
                         className="input transcode__num"
                         type="number"
                         min={144}
                         max={4320}
-                        aria-label="Kurze Kante in Pixeln"
+                        aria-label={t('transcode.shortEdgeLabel')}
                         defaultValue={format.shortEdge}
                         onKeyDown={beendeMitEingabe}
                         onBlur={(event) => {
@@ -278,13 +273,13 @@ export function TranscodePanel() {
                         }}
                       />
                     </td>
-                    <td data-label="Bitrate">
+                    <td data-label={t('transcode.colBitrate')}>
                       <input
                         className="input transcode__num"
                         type="number"
                         min={100}
                         max={200000}
-                        aria-label="Bitrate in kbit/s"
+                        aria-label={t('transcode.bitrateLabel')}
                         defaultValue={format.videoBitrateKbps}
                         onKeyDown={beendeMitEingabe}
                         onBlur={(event) => {
@@ -298,10 +293,10 @@ export function TranscodePanel() {
                         kbit/s
                       </span>
                     </td>
-                    <td data-label="Qualität">
+                    <td data-label={t('transcode.colQuality')}>
                       <select
                         className="select"
-                        aria-label="Qualitätsstufe"
+                        aria-label={t('transcode.qualityLabel')}
                         value={format.preset}
                         onChange={(event) =>
                           void aendereFormat(format.id, {
@@ -316,10 +311,10 @@ export function TranscodePanel() {
                         ))}
                       </select>
                     </td>
-                    <td data-label="Container">
+                    <td data-label={t('transcode.colContainer')}>
                       <select
                         className="select"
-                        aria-label="Container"
+                        aria-label={t('transcode.colContainer')}
                         value={format.container}
                         onChange={(event) =>
                           void aendereFormat(format.id, {
@@ -334,11 +329,11 @@ export function TranscodePanel() {
                         ))}
                       </select>
                     </td>
-                    <td data-label="Angeboten">
+                    <td data-label={t('transcode.colOffered')}>
                       <label className="switch">
                         <input
                           type="checkbox"
-                          aria-label="Dieses Format anbieten"
+                          aria-label={t('transcode.offerThisFormat')}
                           checked={format.isActive}
                           onChange={(event) =>
                             void aendereFormat(format.id, { isActive: event.target.checked })
@@ -352,7 +347,7 @@ export function TranscodePanel() {
                         className="button button--ghost"
                         onClick={() => void loesche(format)}
                       >
-                        Löschen
+                        {t('common.delete')}
                       </button>
                     </td>
                   </tr>
@@ -360,7 +355,7 @@ export function TranscodePanel() {
                 {settings.presets.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="faint">
-                      Noch kein Format angelegt.
+                      {t('transcode.noFormats')}
                     </td>
                   </tr>
                 ) : null}
@@ -373,20 +368,20 @@ export function TranscodePanel() {
               <div className="grid-two">
                 <div className="field">
                   <label className="field__label" htmlFor="neu-name">
-                    Name
+                    {t('common.name')}
                   </label>
                   <input
                     id="neu-name"
                     className="input"
-                    placeholder="z. B. 720p – Vorschau"
+                    placeholder={t('transcode.newNamePlaceholder')}
                     value={entwurf.name}
                     onChange={(event) => setEntwurf({ ...entwurf, name: event.target.value })}
                   />
-                  <p className="hint">Diesen Namen sieht der Kunde im Download-Fenster.</p>
+                  <p className="hint">{t('transcode.newNameHint')}</p>
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="neu-kante">
-                    Kurze Kante
+                    {t('transcode.colShortEdge')}
                   </label>
                   <input
                     id="neu-kante"
@@ -400,7 +395,7 @@ export function TranscodePanel() {
                     }
                   />
                   <p className="hint">
-                    1080 heißt quer 1920×1080 und hoch 1080×1920. Vergrößert wird nie.
+                    {t('transcode.shortEdgeHint')}
                   </p>
                 </div>
               </div>
@@ -408,7 +403,7 @@ export function TranscodePanel() {
               <div className="grid-two">
                 <div className="field">
                   <label className="field__label" htmlFor="neu-bitrate">
-                    Video-Bitrate (kbit/s)
+                    {t('transcode.videoBitrate')}
                   </label>
                   <input
                     id="neu-bitrate"
@@ -424,7 +419,7 @@ export function TranscodePanel() {
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="neu-ton">
-                    Ton-Bitrate (kbit/s)
+                    {t('transcode.audioBitrate')}
                   </label>
                   <input
                     id="neu-ton"
@@ -443,7 +438,7 @@ export function TranscodePanel() {
               <div className="grid-two">
                 <div className="field">
                   <label className="field__label" htmlFor="neu-preset">
-                    Qualität
+                    {t('transcode.colQuality')}
                   </label>
                   <select
                     id="neu-preset"
@@ -458,12 +453,12 @@ export function TranscodePanel() {
                     ))}
                   </select>
                   <p className="hint">
-                    Langsamer heißt kleinere Datei bei gleichem Bild – und mehr Rechenzeit.
+                    {t('transcode.presetHint')}
                   </p>
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="neu-container">
-                    Container
+                    {t('transcode.colContainer')}
                   </label>
                   <select
                     id="neu-container"
@@ -487,7 +482,7 @@ export function TranscodePanel() {
                   disabled={busy || !entwurf.name.trim()}
                   onClick={() => void legeAn()}
                 >
-                  Format anlegen
+                  {t('transcode.createFormat')}
                 </button>
                 <button
                   type="button"
@@ -497,7 +492,7 @@ export function TranscodePanel() {
                     setEntwurf({ ...NEUES_FORMAT });
                   }}
                 >
-                  Abbrechen
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>
@@ -507,7 +502,7 @@ export function TranscodePanel() {
               className="button button--ghost"
               onClick={() => setAnlegen(true)}
             >
-              Format hinzufügen …
+              {t('transcode.addFormat')}
             </button>
           )}
 
@@ -520,16 +515,15 @@ export function TranscodePanel() {
               checked={form.downloadFinalOnly}
               onChange={(event) => setForm({ ...form, downloadFinalOnly: event.target.checked })}
             />
-            Verschiedene Formate nur für Endfassungen anbieten
+            {t('transcode.finalOnly')}
           </label>
           <p className="hint" style={{ margin: '0 0 16px 28px' }}>
-            An Zwischenständen bleibt es dann beim Original. Wird der Endfassungs-Haken später
-            gesetzt, geht es genau dann los.
+            {t('transcode.finalOnlyHint')}
           </p>
 
           <div className="field" style={{ maxWidth: 420 }}>
             <label className="field__label" htmlFor="download-zeitplan">
-              Wann sollen die Formate gerechnet werden?
+              {t('transcode.whenDownload')}
             </label>
             <select
               id="download-zeitplan"
@@ -537,11 +531,11 @@ export function TranscodePanel() {
               value={form.downloadTiming}
               onChange={(event) => setzeZeitplan('download', event.target.value)}
             >
-              <option value="on-demand">Erst beim Download</option>
-              <option value="upload">Direkt beim Upload</option>
-              <option value="schedule">Nach Zeitplan</option>
+              <option value="on-demand">{t('transcode.timingOnDemand')}</option>
+              <option value="upload">{t('transcode.timingUpload')}</option>
+              <option value="schedule">{t('transcode.timingSchedule')}</option>
             </select>
-            <p className="hint">{ERKLAERUNG_DOWNLOAD[form.downloadTiming] ?? ''}</p>
+            <p className="hint">{erklaerungDownload(form.downloadTiming, t)}</p>
           </div>
 
           {form.downloadTiming === 'schedule' ? (
@@ -559,16 +553,14 @@ export function TranscodePanel() {
 
       {/* ---------- Adaptive Wiedergabe ---------- */}
       <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ margin: '0 0 4px' }}>Adaptive Wiedergabe (HLS)</h3>
+        <h3 style={{ margin: '0 0 4px' }}>{t('transcode.hlsTitle')}</h3>
         <p className="hint" style={{ marginTop: 0 }}>
-          Eine Stufenleiter aus 2160p/1080p/720p/480p, aus der der Player je nach Leitung wählt.
-          Sie kostet einen zweiten vollen Durchlauf über das Original und entsteht deshalb als
-          Nacharbeit – die Fassung ist vorher schon abspielbar, der Proxy genügt dafür.
+          {t('transcode.hlsHint')}
         </p>
 
         <div className="field" style={{ maxWidth: 420 }}>
           <label className="field__label" htmlFor="hls-zeitplan">
-            Wann soll die Stufenleiter gerechnet werden?
+            {t('transcode.whenHls')}
           </label>
           <select
             id="hls-zeitplan"
@@ -576,17 +568,16 @@ export function TranscodePanel() {
             value={form.hlsMode}
             onChange={(event) => setzeZeitplan('hls', event.target.value)}
           >
-            <option value="off">Nicht rechnen</option>
-            <option value="upload">Direkt nach dem Upload</option>
-            <option value="schedule">Nach Zeitplan</option>
+            <option value="off">{t('transcode.hlsOff')}</option>
+            <option value="upload">{t('transcode.hlsUpload')}</option>
+            <option value="schedule">{t('transcode.timingSchedule')}</option>
           </select>
-          <p className="hint">{ERKLAERUNG_HLS[form.hlsMode] ?? ''}</p>
+          <p className="hint">{erklaerungHls(form.hlsMode, t)}</p>
         </div>
 
         {settings.hlsModeFromEnv ? (
           <p className="hint" style={{ marginTop: 0 }}>
-            Steht gerade auf dem Wert aus <code>HLS_ENABLED</code> in der <code>.env</code>. Sobald
-            hier gespeichert wird, gilt diese Einstellung.
+            {t('transcode.fromEnvHint', { var: 'HLS_ENABLED', file: '.env' })}
           </p>
         ) : null}
 
@@ -604,21 +595,19 @@ export function TranscodePanel() {
 
       {/* ---------- Abspielfassung ---------- */}
       <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ margin: '0 0 4px' }}>Abspielfassung</h3>
+        <h3 style={{ margin: '0 0 4px' }}>{t('transcode.proxyTitle')}</h3>
         <p className="hint" style={{ marginTop: 0 }}>
-          Der 1080p-Proxy, den jeder im Browser zu sehen bekommt. Er entsteht immer sofort nach dem
-          Hochladen und hat vor aller Nacharbeit Vorrang – deshalb steht hier kein Zeitplan.
+          {t('transcode.proxyHint')}
         </p>
 
         <div className="notice" style={{ marginBottom: 12 }}>
-          Diese Werte am besten so lassen. Sie bestimmen, was jeder im Browser zu sehen bekommt –
-          und was bereits verarbeitet wurde, ändert sich rückwirkend nicht mit.
+          {t('transcode.proxyWarn')}
         </div>
 
         <div className="grid-two">
           <div className="field">
             <label className="field__label" htmlFor="proxy-kante">
-              Kurze Kante
+              {t('transcode.colShortEdge')}
             </label>
             <input
               id="proxy-kante"
@@ -632,7 +621,7 @@ export function TranscodePanel() {
           </div>
           <div className="field">
             <label className="field__label" htmlFor="proxy-bitrate">
-              Video-Bitrate (kbit/s)
+              {t('transcode.videoBitrate')}
             </label>
             <input
               id="proxy-bitrate"
@@ -650,7 +639,7 @@ export function TranscodePanel() {
 
         <div className="field">
           <label className="field__label" htmlFor="proxy-preset">
-            Qualität
+            {t('transcode.colQuality')}
           </label>
           <select
             id="proxy-preset"
@@ -669,10 +658,10 @@ export function TranscodePanel() {
 
       <div className="toolbar" style={{ marginTop: 8 }}>
         <button type="submit" className="button" disabled={busy || unvollstaendig}>
-          Speichern
+          {t('common.save')}
         </button>
         <span className="faint" style={{ fontSize: 12 }}>
-          Änderungen greifen ab dem nächsten Auftrag – ein Neustart ist nicht nötig.
+          {t('transcode.appliesNextJob')}
         </span>
       </div>
     </form>
@@ -695,12 +684,13 @@ function Zeitfenster({
   onVon: (wert: string) => void;
   onBis: (wert: string) => void;
 }) {
+  const t = useT();
   return (
     <>
       <div className="grid-two" style={{ maxWidth: 420 }}>
         <div className="field">
           <label className="field__label" htmlFor={`${idPrefix}-fenster-von`}>
-            Ab
+            {t('transcode.windowFrom')}
           </label>
           <input
             id={`${idPrefix}-fenster-von`}
@@ -712,7 +702,7 @@ function Zeitfenster({
         </div>
         <div className="field">
           <label className="field__label" htmlFor={`${idPrefix}-fenster-bis`}>
-            bis
+            {t('transcode.windowTo')}
           </label>
           <input
             id={`${idPrefix}-fenster-bis`}
@@ -724,12 +714,11 @@ function Zeitfenster({
         </div>
       </div>
       <p className="hint" style={{ marginTop: 0 }}>
-        Ein Beginn hinter dem Ende meint die Nacht, etwa 22:00 bis 06:00. Gerechnet wird in der
-        Ortszeit des Containers.
+        {t('transcode.windowHint')}
       </p>
       {unvollstaendig ? (
         <div className="notice" style={{ marginBottom: 12 }}>
-          Beide Zeiten angeben – oder beide leer lassen.
+          {t('transcode.windowIncomplete')}
         </div>
       ) : null}
     </>
@@ -747,18 +736,17 @@ function beendeMitEingabe(event: KeyboardEvent<HTMLInputElement>) {
   }
 }
 
-const ERKLAERUNG_DOWNLOAD: Record<string, string> = {
-  'on-demand':
-    'Nichts entsteht im Voraus. Wer ein Format anfordert, wartet einmal darauf – danach liegt es bereit.',
-  upload:
-    'Die Formate entstehen gleich nach dem Hochladen, der Download geht später ohne Wartezeit los. Die Abspielfassung behält immer Vorrang.',
-  schedule:
-    'Die Formate entstehen erst im Zeitfenster – für Anlagen, auf denen tagsüber gearbeitet wird. Ein ausdrücklich angefordertes Format läuft trotzdem sofort.',
-};
+/** Was die jeweilige Wahl bedeutet – ein Satz unter dem Auswahlfeld. */
+function erklaerungDownload(wert: string, t: Translator): string {
+  if (wert === 'on-demand') return t('transcode.downloadOnDemandHint');
+  if (wert === 'upload') return t('transcode.downloadUploadHint');
+  if (wert === 'schedule') return t('transcode.downloadScheduleHint');
+  return '';
+}
 
-const ERKLAERUNG_HLS: Record<string, string> = {
-  off: 'Der Player nimmt die Abspielfassung. Für die meisten Anlagen genügt das.',
-  upload: 'Die Stufenleiter entsteht als Nacharbeit, sobald die Abspielfassung steht.',
-  schedule:
-    'Die Stufenleiter entsteht erst im Zeitfenster. Bis dahin spielt der Player die Abspielfassung – zu sehen ist der Unterschied nur bei schmaler Leitung.',
-};
+function erklaerungHls(wert: string, t: Translator): string {
+  if (wert === 'off') return t('transcode.hlsOffHint');
+  if (wert === 'upload') return t('transcode.hlsUploadHint');
+  if (wert === 'schedule') return t('transcode.hlsScheduleHint');
+  return '';
+}

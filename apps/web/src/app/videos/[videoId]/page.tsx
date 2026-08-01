@@ -33,6 +33,7 @@ import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatFrameRate } from '@/lib/format';
 import { useFallbackInterval, useLiveTopic } from '@/lib/live';
 import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
 import { useUserName } from '@/lib/user-name';
@@ -42,6 +43,7 @@ export default function ReviewPage() {
   const videoId = params.videoId;
   const { user } = useSession();
   const { completedCount, enqueue } = useUploads();
+  const t = useT();
   const zeigeName = useUserName();
 
   const playerRef = useRef<PlayerHandle>(null);
@@ -156,7 +158,7 @@ export default function ReviewPage() {
       setSelectedVersionId((current) => current ?? versionData[0]?.id ?? null);
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -317,7 +319,7 @@ export default function ReviewPage() {
         <div className="review__col">
         <div className="review__main">
           <div className="breadcrumb">
-            <Link href="/projekte">Projekte</Link>
+            <Link href="/projekte">{t('shell.projects')}</Link>
             <span>/</span>
             {video ? (
               <Link href={`/projekte/${video.projectId}`}>
@@ -338,7 +340,7 @@ export default function ReviewPage() {
            * rutschten die Symbole vorher über den rechten Rand hinaus.
            */}
           <div className="toolbar videobar">
-            <h1 className="page__title videobar__title">{video?.name ?? 'Video'}</h1>
+            <h1 className="page__title videobar__title">{video?.name ?? t('video.title')}</h1>
             {selectedVersion ? <VersionStatusBadge version={selectedVersion} /> : null}
 
             <div className="shell__spacer" />
@@ -352,12 +354,16 @@ export default function ReviewPage() {
                   setActiveCommentId(null);
                   setDraftFrame(null);
                 }}
-                aria-label="Version"
+                aria-label={t('video.version')}
               >
                 {versions.map((version) => (
                   <option key={version.id} value={version.id}>
-                    {versionLabel(version.versionNumber)}
-                    {version.label ? ` – ${version.label}` : ''} ({version.commentCount} Komm.)
+                    {t('video.versionOption', {
+                      label:
+                        versionLabel(version.versionNumber) +
+                        (version.label ? ` – ${version.label}` : ''),
+                      count: version.commentCount,
+                    })}
                   </option>
                 ))}
               </select>
@@ -373,12 +379,12 @@ export default function ReviewPage() {
                 <>
                   <IconButton
                     icon="plus"
-                    label="Neue Version hochladen"
+                    label={t('video.uploadNewVersion')}
                     onClick={() => void neueFassung()}
                   />
                   <IconButton
                     icon="share"
-                    label="Freigabe-Links verwalten"
+                    label={t('video.manageShares')}
                     onClick={() => setSharing(true)}
                   />
                 </>
@@ -391,36 +397,36 @@ export default function ReviewPage() {
               {selectedVersion?.status === 'READY' && selectedVersion.canDownload ? (
                 <IconButton
                   icon="download"
-                  label="Herunterladen"
+                  label={t('video.download')}
                   onClick={() => void starteDownload(selectedVersion.id)}
                 />
               ) : null}
 
               {canManage ? (
-                <Menu label="Aktionen für dieses Video">
+                <Menu label={t('video.actions')}>
                   <MenuItem onSelect={() => void neueFassung()}>
-                    Neue Version …
+                    {t('video.newVersionEllipsis')}
                   </MenuItem>
-                  <MenuItem onSelect={() => setSharing(true)}>Freigeben …</MenuItem>
-                  <MenuItem onSelect={() => setEmbedding(true)}>Einbetten …</MenuItem>
+                  <MenuItem onSelect={() => setSharing(true)}>{t('video.shareEllipsis')}</MenuItem>
+                  <MenuItem onSelect={() => setEmbedding(true)}>{t('video.embedEllipsis')}</MenuItem>
                   {/* Umbenennen und Löschen des Videos bleiben dem Team
                       vorbehalten – „Videos anlegen" hieß nicht „verwalten". */}
                   {isTeam ? (
-                    <MenuItem onSelect={() => setEditingVideo(true)}>Video umbenennen …</MenuItem>
+                    <MenuItem onSelect={() => setEditingVideo(true)}>{t('video.renameEllipsis')}</MenuItem>
                   ) : null}
                   {selectedVersion ? (
                     <MenuItem onSelect={() => setRenumbering(true)}>
-                      Fassungsnummer ändern …
+                      {t('video.renumberEllipsis')}
                     </MenuItem>
                   ) : null}
                   {selectedVersion ? (
                     <MenuItem danger onSelect={() => setVersionToDelete(selectedVersion)}>
-                      Fassung löschen …
+                      {t('video.deleteVersionEllipsis')}
                     </MenuItem>
                   ) : null}
                   {isTeam ? (
                     <MenuItem danger onSelect={() => setDeletingVideo(true)}>
-                      Video löschen …
+                      {t('video.deleteEllipsis')}
                     </MenuItem>
                   ) : null}
                 </Menu>
@@ -437,9 +443,8 @@ export default function ReviewPage() {
               hält. Das Team sieht denselben Hinweis samt Schalter. */}
           {selectedVersion && !selectedVersion.isFinal ? (
             <div className="notice notice--warn">
-              <strong>Noch keine Endfassung.</strong> Diese Fassung ist ein Zwischenstand zur
-              Abstimmung – Bild, Ton und Schnitt können sich noch ändern.
-              {isTeam ? ' Setz den Haken unten, sobald sie final ist.' : ''}
+              <strong>{t('video.notFinalTitle')}</strong> {t('video.notFinalBody')}
+              {isTeam ? t('video.notFinalTeam') : ''}
             </div>
           ) : null}
 
@@ -448,13 +453,11 @@ export default function ReviewPage() {
               auch Gäste – über alle Fassungen des Videos hinweg. */}
           {video?.aiContent ? (
             <div className="notice notice--warn">
-              <strong>KI-Inhalte:</strong>
+              <strong>{t('video.aiTitle')}</strong>
               {video.aiKinds.length > 0
                 ? ` (${video.aiKinds.map((art) => art.name).join(', ')})`
                 : ''}{' '}
-              Gem. Art. 50 EU AI Act besteht ab dem 2. August 2026 ggf. eine Kennzeichnungspflicht
-              für KI-generierte Inhalte. Die Entscheidung, ob und wie die KI-Inhalte im
-              veröffentlichten Content gekennzeichnet werden, liegt beim Auftraggeber.
+              {t('video.aiBody')}
             </div>
           ) : null}
 
@@ -470,10 +473,10 @@ export default function ReviewPage() {
                       .then(loadVideo);
                   }}
                 />
-                Endfassung
+                {t('video.isFinal')}
               </label>
               <span className="muted" style={{ fontSize: 13 }}>
-                Download für Gäste:
+                {t('video.downloadForGuests')}
               </span>
               <label className="switch">
                 <input
@@ -485,7 +488,7 @@ export default function ReviewPage() {
                       .then(loadVideo);
                   }}
                 />
-                ganzes Video
+                {t('video.wholeVideo')}
               </label>
               <label className="switch">
                 <input
@@ -500,7 +503,7 @@ export default function ReviewPage() {
                 {versionLabel(selectedVersion.versionNumber)}
               </label>
               <span className="hint" style={{ marginTop: 0 }}>
-                Wirkt nur zusammen mit dem Download-Recht am Freigabe-Link.
+                {t('video.downloadHint')}
               </span>
             </div>
           ) : null}
@@ -522,7 +525,7 @@ export default function ReviewPage() {
                     void api.updateVideo(video.id, { aiContent: event.target.checked }).then(loadVideo);
                   }}
                 />
-                KI-Inhalte
+                {t('video.aiToggle')}
               </label>
 
               {video.aiContent ? (
@@ -549,20 +552,19 @@ export default function ReviewPage() {
                   })
                 ) : (
                   <span className="hint" style={{ marginTop: 0 }}>
-                    Keine Arten angelegt – das geht unter Einstellungen → KI-Inhalte.
+                    {t('video.aiNoKinds')}
                   </span>
                 )
               ) : (
                 <span className="hint" style={{ marginTop: 0 }}>
-                  Setzt über allen Fassungen den Hinweis zur Kennzeichnungspflicht nach Art. 50 EU
-                  AI Act.
+                  {t('video.aiToggleHint')}
                 </span>
               )}
             </div>
           ) : null}
 
           {error ? <div className="notice">{error}</div> : null}
-          {loading ? <p className="muted">Wird geladen …</p> : null}
+          {loading ? <p className="muted">{t('common.loading')}</p> : null}
 
           {selectedVersion ? (
             <>
@@ -605,7 +607,7 @@ export default function ReviewPage() {
           ) : (
             !loading && (
               <div className="empty">
-                Für dieses Video wurde noch keine Datei hochgeladen.
+                {t('video.noFileYet')}
                 {video && canManage ? (
                   <div style={{ marginTop: 12 }}>
                     {/* Auf einer leeren Seite darf die Fläche direkt stehen –
@@ -636,7 +638,7 @@ export default function ReviewPage() {
                 data-active={seitenTab === 'kommentare'}
                 onClick={() => setSeitenTab('kommentare')}
               >
-                Kommentare
+                {t('video.tabComments')}
               </button>
               <button
                 type="button"
@@ -644,16 +646,16 @@ export default function ReviewPage() {
                 data-active={seitenTab === 'freigaben'}
                 onClick={() => setSeitenTab('freigaben')}
               >
-                Freigaben
+                {t('video.tabShares')}
               </button>
               <button
                 type="button"
                 className="sidetabs__tab"
                 data-active={seitenTab === 'benachrichtigungen'}
                 onClick={() => setSeitenTab('benachrichtigungen')}
-                title="Wer bekommt Post zu diesem Video?"
+                title={t('notifications.tabTitle')}
               >
-                Benachrichtigungen
+                {t('video.tabNotifications')}
               </button>
             </div>
           ) : null}
@@ -721,19 +723,20 @@ export default function ReviewPage() {
 
       {versionToDelete ? (
         <Dialog
-          title={`${versionLabel(versionToDelete.versionNumber)} löschen?`}
+          title={t('video.deleteVersionTitle', {
+            label: versionLabel(versionToDelete.versionNumber),
+          })}
           onClose={() => setVersionToDelete(null)}
         >
           <p style={{ marginTop: 0 }}>
-            Das Original, die Abspielfassung und alle {versionToDelete.commentCount} Kommentare
-            dieser Fassung werden entfernt. Andere Fassungen des Videos bleiben unberührt.
+            {t('video.deleteVersionBody', { count: versionToDelete.commentCount })}
           </p>
           <p className="muted" style={{ fontSize: 13 }}>
             {versionToDelete.originalFilename}
           </p>
           <div className="dialog__actions">
             <button type="button" className="button" onClick={() => setVersionToDelete(null)}>
-              Abbrechen
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -751,12 +754,12 @@ export default function ReviewPage() {
                   await loadVideo();
                 } catch (deleteError) {
                   setError(
-                    deleteError instanceof Error ? deleteError.message : 'Löschen fehlgeschlagen.',
+                    deleteError instanceof Error ? deleteError.message : t('common.deleteFailed'),
                   );
                 }
               }}
             >
-              Endgültig löschen
+              {t('common.deleteFinally')}
             </button>
           </div>
         </Dialog>
@@ -789,17 +792,24 @@ export default function ReviewPage() {
 
 function VersionDetails({ version }: { version: VersionDto }) {
   const zeigeName = useUserName();
+  const t = useT();
   const media = version.media;
   const entries: Array<[string, string]> = [
-    ['Datei', version.originalFilename],
-    ['Größe', formatBytes(version.originalSizeBytes)],
-    ['Auflösung', media.width && media.height ? `${media.width} × ${media.height}` : '–'],
-    ['Framerate', formatFrameRate(media.frameRate)],
-    ['Zählweise', media.frameRate ? (media.dropFrame ? 'Drop-Frame' : 'Non-Drop') : '–'],
-    ['Start-Timecode', media.startTimecode ?? '–'],
-    ['Frames', media.frameCount ? String(media.frameCount) : '–'],
-    ['Codec', media.videoCodec ?? '–'],
-    ['Hochgeladen von', zeigeName(version.uploadedBy) || '–'],
+    [t('video.detailFile'), version.originalFilename],
+    [t('video.detailSize'), formatBytes(version.originalSizeBytes)],
+    [
+      t('video.detailResolution'),
+      media.width && media.height ? `${media.width} × ${media.height}` : '–',
+    ],
+    [t('video.detailFrameRate'), formatFrameRate(media.frameRate)],
+    [
+      t('video.detailCounting'),
+      media.frameRate ? (media.dropFrame ? 'Drop-Frame' : 'Non-Drop') : '–',
+    ],
+    [t('video.detailStartTimecode'), media.startTimecode ?? '–'],
+    [t('video.detailFrames'), media.frameCount ? String(media.frameCount) : '–'],
+    [t('video.detailCodec'), media.videoCodec ?? '–'],
+    [t('video.detailUploadedBy'), zeigeName(version.uploadedBy) || '–'],
   ];
 
   return (
@@ -842,6 +852,7 @@ function RenumberVersionDialog({
   const [eingabe, setEingabe] = useState(formatVersionNumber(version.versionNumber));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   const wert = Number(eingabe.trim().replace(',', '.'));
   const unveraendert =
@@ -850,7 +861,7 @@ function RenumberVersionDialog({
     eingabe.trim() === ''
       ? null
       : !Number.isFinite(wert)
-        ? { message: 'Bitte eine Zahl angeben – auch 2.5 geht.' }
+        ? { message: t('video.renumberNaN') }
         : unveraendert
           ? null
           : (() => {
@@ -862,7 +873,7 @@ function RenumberVersionDialog({
 
   return (
     <Dialog
-      title={`${versionLabel(version.versionNumber)} umnummerieren`}
+      title={t('video.renumberTitle', { label: versionLabel(version.versionNumber) })}
       onClose={onClose}
     >
       <form
@@ -875,14 +886,14 @@ function RenumberVersionDialog({
             await api.updateVersion(version.id, { versionNumber: wert });
             await onSaved();
           } catch (saveError) {
-            setError(saveError instanceof Error ? saveError.message : 'Ändern fehlgeschlagen.');
+            setError(saveError instanceof Error ? saveError.message : t('common.changeFailed'));
             setBusy(false);
           }
         }}
       >
         <div className="field">
           <label className="field__label" htmlFor="renumber-version">
-            Neue Nummer
+            {t('video.renumberNewNumber')}
           </label>
           <input
             id="renumber-version"
@@ -894,8 +905,7 @@ function RenumberVersionDialog({
             onChange={(event) => setEingabe(event.target.value)}
           />
           <p className="hint">
-            Muss im Video einmalig sein; Zwischenfassungen wie 2.5 gehen. Die Reihenfolge der
-            Liste und der Download-Dateiname folgen sofort der neuen Nummer.
+            {t('video.renumberHint')}
             {problem ? ` ${problem.message}` : ''}
           </p>
         </div>
@@ -904,10 +914,10 @@ function RenumberVersionDialog({
 
         <div className="dialog__actions">
           <button type="button" className="button" onClick={onClose}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="submit" className="button button--primary" disabled={!kannSpeichern}>
-            Umnummerieren
+            {t('video.renumberSubmit')}
           </button>
         </div>
       </form>
@@ -916,15 +926,16 @@ function RenumberVersionDialog({
 }
 
 function ShortcutHelp() {
+  const t = useT();
   const shortcuts: Array<[string, string]> = [
-    ['Leer', 'Abspielen / Pause'],
-    ['J / K / L', 'Rückwärts / Stopp / Vorwärts'],
-    ['← →', 'Ein Bild zurück / vor'],
-    ['⇧ + ← →', 'Eine Sekunde'],
-    ['Pos1 / Ende', 'Anfang / Ende'],
-    ['C', 'Kommentar am Bild'],
-    ['M', 'Ton stumm'],
-    ['F', 'Vollbild'],
+    [t('shortcuts.spaceKey'), t('shortcuts.playPause')],
+    ['J / K / L', t('shortcuts.jkl')],
+    ['← →', t('shortcuts.frame')],
+    ['⇧ + ← →', t('shortcuts.second')],
+    ['Pos1 / Ende', t('shortcuts.startEnd')],
+    ['C', t('shortcuts.comment')],
+    ['M', t('shortcuts.mute')],
+    ['F', t('shortcuts.fullscreen')],
   ];
 
   return (

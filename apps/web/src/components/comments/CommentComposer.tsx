@@ -4,6 +4,7 @@ import { type UserSummaryDto, applyMentions, mentionLabel } from '@klappe/shared
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { initialsOf } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 
 interface CommentComposerProps {
   /** Frame, an den der Kommentar geheftet wird; `null` = ohne Zeitbezug. */
@@ -36,14 +37,19 @@ export function CommentComposer({
   pinned,
   onPinnedChange,
   onSubmit,
-  placeholder = 'Kommentar schreiben … @ erwähnt jemanden',
-  submitLabel = 'Kommentieren',
+  placeholder,
+  submitLabel,
   autoFocus,
   focusToken,
   hasAnnotation,
   onClearAnnotation,
   onCancel,
 }: CommentComposerProps) {
+  const t = useT();
+  // Die Vorgaben stehen im Rumpf, nicht in der Signatur: `t` gibt es erst,
+  // wenn der Hook gelaufen ist (Phase 26).
+  const platzhalter = placeholder ?? t('comments.placeholder');
+  const absendeText = submitLabel ?? t('comments.submit');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState('');
   /**
@@ -147,7 +153,7 @@ export function CommentComposer({
       setChosen([]);
       setQuery(null);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Speichern fehlgeschlagen.');
+      setError(submitError instanceof Error ? submitError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
@@ -223,7 +229,7 @@ export function CommentComposer({
         ref={textareaRef}
         className="textarea"
         value={value}
-        placeholder={placeholder}
+        placeholder={platzhalter}
         rows={3}
         onChange={(event) => {
           setValue(event.target.value);
@@ -242,10 +248,10 @@ export function CommentComposer({
 
       {hasAnnotation ? (
         <div className="composer__row">
-          <span className="comment__pen">✎ Zeichnung wird mitgeschickt</span>
+          <span className="comment__pen">{t('comments.annotationAttached')}</span>
           {onClearAnnotation ? (
             <button type="button" className="button button--ghost" onClick={onClearAnnotation}>
-              Verwerfen
+              {t('comments.discard')}
             </button>
           ) : null}
         </div>
@@ -264,11 +270,14 @@ export function CommentComposer({
           />
           {(pinned || hasAnnotation) && timecode ? (
             <>
-              An <span className="mono">{timecode}</span> heften
-              {frame !== null ? <span className="faint"> (Frame {frame})</span> : null}
+              {t('comments.pinAt')} <span className="mono">{timecode}</span>{' '}
+              {t('comments.pinAtSuffix')}
+              {frame !== null ? (
+                <span className="faint">{t('comments.frame', { frame })}</span>
+              ) : null}
             </>
           ) : (
-            'Ohne Zeitbezug'
+            t('comments.noTimeRef')
           )}
         </label>
 
@@ -276,7 +285,7 @@ export function CommentComposer({
 
         {onCancel ? (
           <button type="button" className="button button--ghost" onClick={onCancel}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
         ) : null}
         <button
@@ -285,7 +294,7 @@ export function CommentComposer({
           onClick={() => void submit()}
           disabled={busy || value.trim().length === 0}
         >
-          {busy ? 'Wird gespeichert …' : submitLabel}
+          {busy ? t('common.saving') : absendeText}
         </button>
       </div>
     </div>

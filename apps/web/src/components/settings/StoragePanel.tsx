@@ -4,6 +4,7 @@ import type { StorageStatusDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatBytes } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 
 /**
  * Einstellungen → Speicher (Phase 22).
@@ -22,6 +23,7 @@ const WARNUNG_AB = 0.9;
 const KRITISCH_AB = 0.95;
 
 export function StoragePanel() {
+  const t = useT();
   const [status, setStatus] = useState<StorageStatusDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,18 +34,18 @@ export function StoragePanel() {
       setStatus(await api.getStorageStatus());
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   if (!status) {
-    return <div className="empty">{error ?? 'Wird geladen …'}</div>;
+    return <div className="empty">{error ?? t('common.loading')}</div>;
   }
 
   /**
@@ -63,29 +65,26 @@ export function StoragePanel() {
     erreichbar && erreichbar > 0 ? Math.min(status.usage.total / erreichbar, 1) : null;
 
   const posten: Array<[string, number, string]> = [
-    ['Originale', status.usage.originals, 'Die hochgeladenen Dateien selbst – unangetastet.'],
-    ['Abspielfassungen', status.usage.proxies, 'Was im Browser läuft (Proxy).'],
-    ['Download-Formate', status.usage.renditions, 'Auf Vorrat oder auf Wunsch erzeugte Fassungen.'],
-    ['Kundenmaterial', status.usage.projectFiles, 'Die Ablage je Projekt.'],
-    ['Angefangene Uploads', status.usage.uploads, 'Übertragungen im Zwischenspeicher.'],
+    [t('storage.originals'), status.usage.originals, t('storage.originalsHint')],
+    [t('storage.proxies'), status.usage.proxies, t('storage.proxiesHint')],
+    [t('storage.renditions'), status.usage.renditions, t('storage.renditionsHint')],
+    [t('storage.projectFiles'), status.usage.projectFiles, t('storage.projectFilesHint')],
+    [t('storage.uploads'), status.usage.uploads, t('storage.uploadsHint')],
   ];
 
   return (
     <>
       <p className="page__subtitle" style={{ marginTop: 0 }}>
-        Wie voll das Dateisystem ist, auf dem die Mediendateien liegen.
+        {t('storage.subtitle')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
 
       <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ margin: '0 0 4px' }}>Freier Platz</h3>
+        <h3 style={{ margin: '0 0 4px' }}>{t('storage.freeTitle')}</h3>
         <p className="hint" style={{ marginTop: 0 }}>
-          Gemessen am Dateisystem hinter <code>{status.path}</code>, so wie der API-Dienst es
-          sieht.
-          {status.passthroughFs ? null : (
-            <> Liegt dort noch anderes, zählt es mit – der Balken zeigt die Platte, nicht Klappe allein.</>
-          )}
+          {t('storage.measuredAt', { path: status.path })}
+          {status.passthroughFs ? null : <>{t('storage.sharedHint')}</>}
         </p>
 
         {status.passthroughFs ? (
@@ -94,22 +93,16 @@ export function StoragePanel() {
              auf der das Material liegt. Eine falsche Antwort auf „passt das
              noch drauf?" ist schlimmer als gar keine. */
           <div className="notice">
-            <strong>Der freie Platz lässt sich von hier aus nicht ermitteln.</strong> Der
-            Medienordner ist über <code>{status.passthroughFs}</code> aus einer virtuellen Maschine
-            durchgereicht – so läuft es etwa bei Docker Desktop auf dem Mac. Die Größen, die das
-            Betriebssystem dazu meldet, gehören der Zwischenschicht und nicht der echten Platte,
-            deshalb steht hier lieber nichts als eine erfundene Zahl. Auf dem Rechner selbst sagt
-            es <code>df -h</code> auf den Medienordner. Die Aufschlüsselung unten stimmt
-            unabhängig davon.
+            <strong>{t('storage.passthroughTitle')}</strong>{' '}
+            {t('storage.passthroughBody', { fs: status.passthroughFs, cmd: 'df -h' })}
           </div>
         ) : !status.available || anteil === null ? (
           <div className="notice">
-            Das Betriebssystem gibt zu diesem Pfad keine Auskunft über den freien Platz. Die
-            Aufschlüsselung unten stimmt trotzdem.
+            {t('storage.noInfo')}
           </div>
         ) : (
           <>
-            <div className="storagebar" role="img" aria-label={`${Math.round(anteil * 100)} % belegt`}>
+            <div className="storagebar" role="img" aria-label={t('storage.barLabel', { percent: Math.round(anteil * 100) })}>
               {/* Zwei Abschnitte übereinander: alles Belegte, davon Klappes
                   Anteil. So ist auf einen Blick zu sehen, ob eine volle
                   Platte überhaupt an Klappe liegt. */}
@@ -124,22 +117,25 @@ export function StoragePanel() {
             </div>
 
             <div className="storagebar__legend">
-              <strong style={{ fontSize: 18 }}>{formatBytes(status.freeBytes ?? 0)} frei</strong>
+              <strong style={{ fontSize: 18 }}>
+                {t('storage.free', { size: formatBytes(status.freeBytes ?? 0) })}
+              </strong>
               <span className="muted">
-                von {formatBytes(status.totalBytes ?? 0)} · {formatBytes(status.usedBytes ?? 0)}{' '}
-                belegt ({Math.round(anteil * 100)} %)
+                {t('storage.ofUsed', {
+                  total: formatBytes(status.totalBytes ?? 0),
+                  used: formatBytes(status.usedBytes ?? 0),
+                  percent: Math.round(anteil * 100),
+                })}
               </span>
             </div>
 
             {anteil >= WARNUNG_AB ? (
               <div className={anteil >= KRITISCH_AB ? 'notice' : 'notice notice--warn'}>
                 <strong>
-                  {anteil >= KRITISCH_AB ? 'Der Platz geht zu Ende.' : 'Es wird eng.'}
+                  {anteil >= KRITISCH_AB ? t('storage.criticalTitle') : t('storage.tightTitle')}
                 </strong>{' '}
-                Läuft das Dateisystem voll, brechen Uploads mitten in der Übertragung ab und die
-                Verarbeitung schlägt fehl. Platz schaffen: alte Projekte archivieren (die
-                Aufbewahrungsfrist steht unter <em>Projekte</em>), nicht mehr gebrauchte Fassungen
-                löschen oder die Platte vergrößern.
+                {t('storage.warnBodyStart')} <em>{t('settings.navProjects')}</em>
+                {t('storage.warnBodyEnd')}
               </div>
             ) : null}
           </>
@@ -147,19 +143,17 @@ export function StoragePanel() {
       </div>
 
       <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ margin: '0 0 4px' }}>Davon Klappe</h3>
+        <h3 style={{ margin: '0 0 4px' }}>{t('storage.klappeTitle')}</h3>
         <p className="hint" style={{ marginTop: 0 }}>
-          Aus der Datenbank summiert. Posterframes, Sprite-Streifen und die HLS-Segmente führt
-          Klappe ohne Größe – sie fehlen hier. Die Summe ist also eine Untergrenze, keine
-          Messung des Ordners.
+          {t('storage.klappeHint')}
         </p>
 
         <div className="tablewrap">
           <table className="table">
             <thead>
               <tr>
-                <th>Posten</th>
-                <th style={{ textAlign: 'right' }}>Größe</th>
+                <th>{t('storage.colItem')}</th>
+                <th style={{ textAlign: 'right' }}>{t('storage.colSize')}</th>
               </tr>
             </thead>
             <tbody>
@@ -178,7 +172,7 @@ export function StoragePanel() {
               ))}
               <tr>
                 <td>
-                  <strong>Zusammen</strong>
+                  <strong>{t('storage.total')}</strong>
                 </td>
                 <td className="mono" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <strong>{formatBytes(status.usage.total)}</strong>
@@ -190,7 +184,7 @@ export function StoragePanel() {
 
         <div className="toolbar" style={{ marginTop: 12 }}>
           <button type="button" className="button" disabled={busy} onClick={() => void load()}>
-            {busy ? 'Wird geprüft …' : 'Neu prüfen'}
+            {busy ? t('storage.checking') : t('storage.recheck')}
           </button>
         </div>
       </div>

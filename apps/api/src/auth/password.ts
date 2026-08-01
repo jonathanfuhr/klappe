@@ -9,6 +9,7 @@ import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import type { PasswordPolicy } from '@klappe/shared';
 import { DEFAULT_PASSWORD_POLICY, validatePassword } from '@klappe/shared';
+import type { MessageRef, PasswordErrorKey } from '@klappe/shared';
 
 const scryptAsync = promisify(scrypt) as (
   password: string | Buffer,
@@ -83,5 +84,30 @@ export function validatePasswordStrength(
   password: string,
   policy: PasswordPolicy = DEFAULT_PASSWORD_POLICY,
 ): string | null {
-  return validatePassword(password, policy);
+  const problem = validatePassword(password, policy);
+  return problem ? passwortMeldung(problem) : null;
+}
+
+/**
+ * Der deutsche Satz zum Verstoß (Phase 26).
+ *
+ * Das gemeinsame Paket liefert nur noch den Schlüssel – es weiß nicht, wer
+ * fragt. Hier entsteht daraus der deutsche Satz; ins Englische bringt ihn
+ * später der Fehlerfilter, wie jede andere Meldung der API auch.
+ */
+function passwortMeldung(problem: MessageRef<PasswordErrorKey>): string {
+  switch (problem.key) {
+    case 'passwordError.minLength':
+      return `Das Passwort muss mindestens ${problem.vars?.count} Zeichen lang sein.`;
+    case 'passwordError.maxLength':
+      return `Das Passwort darf höchstens ${problem.vars?.count} Zeichen lang sein.`;
+    case 'passwordError.letter':
+      return 'Das Passwort muss mindestens einen Buchstaben enthalten.';
+    case 'passwordError.digit':
+      return 'Das Passwort muss mindestens eine Ziffer enthalten.';
+    case 'passwordError.mixedCase':
+      return 'Das Passwort muss Groß- und Kleinbuchstaben enthalten.';
+    case 'passwordError.symbol':
+      return 'Das Passwort muss mindestens ein Sonderzeichen enthalten.';
+  }
 }

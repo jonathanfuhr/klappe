@@ -7,6 +7,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Menu, MenuItem } from '@/components/ui/Menu';
 import { api, mediaUrl } from '@/lib/api';
 import { formatBytes, formatRelative } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { Uploader } from './Uploader';
 
 interface ProjectFilesProps {
@@ -28,6 +29,7 @@ export function ProjectFiles({
   currentUser,
   reloadToken = 0,
 }: ProjectFilesProps) {
+  const t = useT();
   const [files, setFiles] = useState<ProjectFileDto[]>([]);
   const zeigeName = useUserName();
   const [folders, setFolders] = useState<ProjectFolderDto[]>([]);
@@ -48,9 +50,9 @@ export function ProjectFiles({
       setFolders(ordner);
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, [projectId]);
+  }, [projectId, t]);
 
   useEffect(() => {
     void load();
@@ -82,17 +84,17 @@ export function ProjectFiles({
   return (
     <section className="section">
       <div className="section__head">
-        <h2 className="section__title">Kunden-Ordner</h2>
+        <h2 className="section__title">{t('files.title')}</h2>
         {files.length > 0 ? <span className="badge">{files.length}</span> : null}
         <span className="muted" style={{ fontSize: 13 }}>
           {isTeam
-            ? 'Material, das über Freigabe-Links hochgeladen wurde.'
-            : 'Hier kannst du Material mit uns austauschen.'}
+            ? t('files.hintTeam')
+            : t('files.hintGuest')}
         </span>
         <div className="shell__spacer" />
         {canUpload || isTeam ? (
           <button type="button" className="button" onClick={() => setNeuerOrdner(true)}>
-            Neuer Ordner
+            {t('files.newFolder')}
           </button>
         ) : null}
         {files.length > 0 ? (
@@ -101,11 +103,11 @@ export function ProjectFiles({
             href={mediaUrl.projectFilesZip(projectId, aktuellerOrdner)}
             title={
               aktuellerOrdner
-                ? 'Diesen Ordner samt Unterordnern als ZIP laden'
-                : 'Den ganzen Kunden-Ordner als ZIP laden'
+                ? t('files.zipFolderTitle')
+                : t('files.zipAllTitle')
             }
           >
-            Alles laden (ZIP)
+            {t('files.zipAll')}
           </a>
         ) : null}
       </div>
@@ -115,7 +117,7 @@ export function ProjectFiles({
       {pfad.length > 0 ? (
         <div className="breadcrumb" style={{ marginBottom: 10 }}>
           <button type="button" className="button button--ghost" onClick={() => setAktuellerOrdner(null)}>
-            Kunden-Ordner
+            {t('files.title')}
           </button>
           {pfad.map((ordner, index) => (
             <span key={ordner.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -148,7 +150,7 @@ export function ProjectFiles({
 
       {sichtbareOrdner.length === 0 && sichtbareDateien.length === 0 ? (
         <p className="muted" style={{ fontSize: 13 }}>
-          {dateienImOrdnerzweig ? 'Noch keine Dateien.' : 'Dieser Ordner ist leer.'}
+          {dateienImOrdnerzweig ? t('files.none') : t('files.folderEmpty')}
         </p>
       ) : (
         <div className="filelist">
@@ -175,10 +177,10 @@ export function ProjectFiles({
                 {formatRelative(ordner.createdAt)}
               </span>
               {isTeam ? (
-                <Menu label={`Aktionen für Ordner ${ordner.name}`}>
-                  <MenuItem onSelect={() => setUmbenennen(ordner)}>Umbenennen …</MenuItem>
+                <Menu label={t('files.folderActions', { name: ordner.name })}>
+                  <MenuItem onSelect={() => setUmbenennen(ordner)}>{t('projects.renameEllipsis')}</MenuItem>
                   <MenuItem danger onSelect={() => setLoeschen(ordner)}>
-                    Löschen …
+                    {t('projects.deleteEllipsis')}
                   </MenuItem>
                 </Menu>
               ) : null}
@@ -201,18 +203,18 @@ export function ProjectFiles({
                 {formatRelative(file.createdAt)}
               </span>
               <a className="button button--ghost" href={mediaUrl.projectFile(file.id)} download>
-                Laden
+                {t('files.get')}
               </a>
               {isTeam ? (
                 <button
                   type="button"
                   className="button button--ghost"
                   onClick={() => {
-                    if (!window.confirm(`„${file.filename}“ löschen?`)) return;
+                    if (!window.confirm(t('files.deleteFileConfirm', { name: file.filename }))) return;
                     void api.deleteProjectFile(file.id).then(load);
                   }}
                 >
-                  Löschen
+                  {t('common.delete')}
                 </button>
               ) : null}
             </div>
@@ -244,14 +246,14 @@ export function ProjectFiles({
       ) : null}
 
       {loeschen ? (
-        <Dialog title={`Ordner „${loeschen.name}“ löschen?`} onClose={() => setLoeschen(null)}>
-          <p>
-            Der Ordner verschwindet mit allen Unterordnern und Dateien darin. Das lässt sich nicht
-            rückgängig machen.
-          </p>
+        <Dialog
+          title={t('files.deleteFolderTitle', { name: loeschen.name })}
+          onClose={() => setLoeschen(null)}
+        >
+          <p>{t('files.deleteFolderBody')}</p>
           <div className="dialog__actions">
             <button type="button" className="button" onClick={() => setLoeschen(null)}>
-              Abbrechen
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -263,13 +265,13 @@ export function ProjectFiles({
                   await load();
                 } catch (deleteError) {
                   setError(
-                    deleteError instanceof Error ? deleteError.message : 'Löschen fehlgeschlagen.',
+                    deleteError instanceof Error ? deleteError.message : t('common.deleteFailed'),
                   );
                   setLoeschen(null);
                 }
               }}
             >
-              Endgültig löschen
+              {t('common.deleteFinally')}
             </button>
           </div>
         </Dialog>
@@ -289,12 +291,13 @@ function NewFolderDialog({
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
+  const t = useT();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <Dialog title="Neuer Ordner" onClose={onClose}>
+    <Dialog title={t('files.newFolder')} onClose={onClose}>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
@@ -307,14 +310,14 @@ function NewFolderDialog({
             });
             await onCreated();
           } catch (createError) {
-            setError(createError instanceof Error ? createError.message : 'Anlegen fehlgeschlagen.');
+            setError(createError instanceof Error ? createError.message : t('common.createFailed'));
             setBusy(false);
           }
         }}
       >
         <div className="field">
           <label className="field__label" htmlFor="new-folder-name">
-            Name
+            {t('common.name')}
           </label>
           <input
             id="new-folder-name"
@@ -328,10 +331,10 @@ function NewFolderDialog({
         {error ? <div className="notice">{error}</div> : null}
         <div className="dialog__actions">
           <button type="button" className="button" onClick={onClose}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="submit" className="button button--primary" disabled={busy || !name.trim()}>
-            Anlegen
+            {t('common.create')}
           </button>
         </div>
       </form>
@@ -348,12 +351,13 @@ function RenameFolderDialog({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const t = useT();
   const [name, setName] = useState(folder.name);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <Dialog title="Ordner umbenennen" onClose={onClose}>
+    <Dialog title={t('files.renameFolder')} onClose={onClose}>
       <form
         onSubmit={async (event) => {
           event.preventDefault();
@@ -363,14 +367,14 @@ function RenameFolderDialog({
             await api.renameProjectFolder(folder.id, name.trim());
             await onSaved();
           } catch (saveError) {
-            setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+            setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
             setBusy(false);
           }
         }}
       >
         <div className="field">
           <label className="field__label" htmlFor="rename-folder-name">
-            Name
+            {t('common.name')}
           </label>
           <input
             id="rename-folder-name"
@@ -384,10 +388,10 @@ function RenameFolderDialog({
         {error ? <div className="notice">{error}</div> : null}
         <div className="dialog__actions">
           <button type="button" className="button" onClick={onClose}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="submit" className="button button--primary" disabled={busy || !name.trim()}>
-            Speichern
+            {t('common.save')}
           </button>
         </div>
       </form>

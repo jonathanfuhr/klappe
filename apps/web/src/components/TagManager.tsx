@@ -4,6 +4,7 @@ import type { TagDto } from '@klappe/shared';
 import { MAX_TAG_NAME_LENGTH, TAG_COLORS, colorForTagName } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 /**
  * Schlagworte anlegen, umbenennen, einfärben und löschen (Phase 12).
@@ -17,6 +18,7 @@ import { api } from '@/lib/api';
  * Zwei Orte für eine Sache waren einer zu viel.
  */
 export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
+  const t = useT();
   const [tags, setTags] = useState<TagDto[]>([]);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -27,9 +29,9 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
       setTags(await api.listTags());
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -45,7 +47,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
       await load();
       await onChanged?.();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Anlegen fehlgeschlagen.');
+      setError(createError instanceof Error ? createError.message : t('common.createFailed'));
     } finally {
       setBusy(false);
     }
@@ -59,7 +61,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
       await load();
       await onChanged?.();
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : 'Ändern fehlgeschlagen.');
+      setError(updateError instanceof Error ? updateError.message : t('common.changeFailed'));
     } finally {
       setBusy(false);
     }
@@ -68,11 +70,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
   const remove = async (tag: TagDto) => {
     if (
       tag.projectCount > 0 &&
-      !window.confirm(
-        `„${tag.name}" hängt an ${tag.projectCount} ${
-          tag.projectCount === 1 ? 'Projekt' : 'Projekten'
-        } und verschwindet dort mit. Trotzdem löschen?`,
-      )
+      !window.confirm(t('tags.deleteConfirm', { name: tag.name, count: tag.projectCount }))
     ) {
       return;
     }
@@ -84,7 +82,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
       await load();
       await onChanged?.();
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : 'Löschen fehlgeschlagen.');
+      setError(removeError instanceof Error ? removeError.message : t('common.deleteFailed'));
     } finally {
       setBusy(false);
     }
@@ -93,8 +91,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
   return (
     <>
       <p className="hint" style={{ marginTop: 0 }}>
-        Schlagworte gelten für den ganzen Workspace – dafür sind sie da: mehrere Projekte
-        zusammenzufassen, etwa alle eines Kunden.
+        {t('tags.managerHint')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -102,7 +99,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
       <div className="toolbar" style={{ marginBottom: 14 }}>
         <input
           className="input"
-          placeholder="Neues Schlagwort …"
+          placeholder={t('tags.newPlaceholder')}
           maxLength={MAX_TAG_NAME_LENGTH}
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -119,7 +116,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
           disabled={busy || !name.trim()}
           onClick={() => void create()}
         >
-          Anlegen
+          {t('common.create')}
         </button>
       </div>
 
@@ -136,7 +133,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
               className="input tagrow__name"
               defaultValue={tag.name}
               maxLength={MAX_TAG_NAME_LENGTH}
-              aria-label={`Name des Schlagworts ${tag.name}`}
+              aria-label={t('tags.nameLabel', { name: tag.name })}
               onBlur={(event) => {
                 const neu = event.target.value.trim();
                 if (neu && neu !== tag.name) void change(tag.id, { name: neu });
@@ -153,7 +150,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
                     data-active={tag.color === color}
                     style={{ background: color }}
                     title={color}
-                    aria-label={`Farbe ${color}`}
+                    aria-label={t('tags.colorLabel', { color })}
                     onClick={() => void change(tag.id, { color })}
                   />
                 ))}
@@ -161,8 +158,8 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
                   type="button"
                   className="tagrow__color tagrow__color--auto"
                   data-active={tag.color === colorForTagName(tag.name)}
-                  title="Farbe aus dem Namen ableiten"
-                  aria-label="Farbe automatisch"
+                  title={t('tags.colorAutoTitle')}
+                  aria-label={t('tags.colorAutoLabel')}
                   onClick={() => void change(tag.id, { color: '' })}
                 >
                   A
@@ -170,7 +167,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
               </div>
 
               <span className="faint tagrow__count">
-                {tag.projectCount} {tag.projectCount === 1 ? 'Projekt' : 'Projekte'}
+                {t('tags.projectCount', { count: tag.projectCount })}
               </span>
 
               <button
@@ -179,7 +176,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
                 disabled={busy}
                 onClick={() => void remove(tag)}
               >
-                Löschen
+                {t('common.delete')}
               </button>
             </div>
           </div>
@@ -187,7 +184,7 @@ export function TagManager({ onChanged }: { onChanged?: () => Promise<void> }) {
 
         {tags.length === 0 ? (
           <p className="muted" style={{ fontSize: 13 }}>
-            Noch keine Schlagworte.
+            {t('tags.none')}
           </p>
         ) : null}
       </div>

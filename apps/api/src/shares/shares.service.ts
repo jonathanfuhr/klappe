@@ -258,6 +258,9 @@ export class SharesService {
       email,
       renderGuestCodeMail({
         brand: await this.mailService.brand(),
+        // Ein Gast, der zum ersten Mal hereinkommt, hat noch keine eigene
+        // Wahl – dann gilt die Vorgabe des Workspace (Phase 26).
+        locale: await this.mailService.localeFor(await this.gastSprache(email)),
         code,
         targetName: target.targetName,
         minutesValid: CODE_TTL_MINUTES,
@@ -389,6 +392,7 @@ export class SharesService {
       adresse,
       renderGuestCodeMail({
         brand,
+        locale: await this.mailService.localeFor(await this.gastSprache(adresse)),
         code,
         targetName: brand.title,
         minutesValid: CODE_TTL_MINUTES,
@@ -708,6 +712,20 @@ export class SharesService {
   }
 
   /** Namen von Ziel und Projekt für Anzeige und Mailtext. */
+  /**
+   * Die Sprachwahl eines Gastes, falls sein Konto schon besteht (Phase 26).
+   * Beim allerersten Code gibt es noch keines – dann bleibt es bei der
+   * Vorgabe des Workspace.
+   */
+  private async gastSprache(email: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ locale: users.locale })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    return row?.locale ?? null;
+  }
+
   private async describeTarget(
     link: ShareLinkRow,
   ): Promise<{ targetName: string; projectName: string }> {

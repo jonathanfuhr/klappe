@@ -1,5 +1,6 @@
 'use client';
 
+import { useT } from '@/lib/i18n';
 import { Icon } from './Icon';
 import { Menu } from './Menu';
 
@@ -41,6 +42,7 @@ export function FilterMenu({
   dimensions: FilterDimension[];
   onReset: () => void;
 }) {
+  const t = useT();
   const gesetzt = dimensions.reduce((summe, dimension) => summe + dimension.selected.length, 0);
 
   const umschalten = (dimension: FilterDimension, value: string) => {
@@ -53,7 +55,7 @@ export function FilterMenu({
 
   return (
     <Menu
-      label={gesetzt > 0 ? `Filter (${gesetzt} gesetzt)` : 'Filter'}
+      label={gesetzt > 0 ? t('toolbar.filterWithCount', { count: gesetzt }) : t('toolbar.filter')}
       align="left"
       closeOnSelect={false}
       triggerClassName="iconbutton listbar__button"
@@ -66,7 +68,7 @@ export function FilterMenu({
     >
       {dimensions.length === 0 ? (
         <span className="faint" style={{ fontSize: 13, padding: '6px 10px' }}>
-          Keine Filter vorhanden.
+          {t('toolbar.filterNone')}
         </span>
       ) : null}
 
@@ -75,7 +77,7 @@ export function FilterMenu({
           <h3 className="filtermenu__title">{dimension.label}</h3>
           {dimension.options.length === 0 ? (
             <span className="faint" style={{ fontSize: 12, padding: '2px 10px' }}>
-              Keine Werte vorhanden.
+              {t('toolbar.filterNoValues')}
             </span>
           ) : (
             dimension.options.map((option) => (
@@ -106,7 +108,7 @@ export function FilterMenu({
 
       {gesetzt > 0 ? (
         <button type="button" className="menu__item filtermenu__reset" onClick={onReset}>
-          Filter zurücksetzen
+          {t('toolbar.filterReset')}
         </button>
       ) : null}
     </Menu>

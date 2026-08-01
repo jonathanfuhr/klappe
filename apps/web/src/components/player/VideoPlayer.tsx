@@ -24,6 +24,7 @@ import {
   useState,
 } from 'react';
 import { mediaUrl } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import { useHlsSource } from './useHlsSource';
 import { Icon } from '@/components/ui/Icon';
 import { AnnotationCanvas } from './AnnotationCanvas';
@@ -91,6 +92,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   },
   ref,
 ) {
+  const t = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -510,10 +512,12 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
         ) : (
           <div className="player__placeholder">
             {version.status === 'FAILED'
-              ? `Die Verarbeitung ist fehlgeschlagen: ${version.processingError ?? 'unbekannter Fehler'}`
+              ? t('player.processingFailed', {
+                  error: version.processingError ?? t('player.unknownError'),
+                })
               : version.status === 'UPLOADING'
-                ? 'Die Datei wird noch hochgeladen …'
-                : `Der Proxy wird erzeugt … ${version.progress} %`}
+                ? t('player.stillUploading')
+                : t('player.creatingProxy', { percent: version.progress })}
           </div>
         )}
 
@@ -530,7 +534,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
 
       {drawingMode ? (
         <div className="pentools">
-          <span className="pentools__label">Stift</span>
+          <span className="pentools__label">{t('player.pen')}</span>
           {ANNOTATION_COLORS.map((entry) => (
             <button
               key={entry}
@@ -538,7 +542,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
               className="pentools__color"
               style={{ background: entry }}
               data-active={entry === penColor}
-              aria-label={`Farbe ${entry}`}
+              aria-label={t('player.penColor', { color: entry })}
               onClick={() => setPenColor(entry)}
             />
           ))}
@@ -549,7 +553,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
               type="button"
               className="pentools__width"
               data-active={entry === penWidth}
-              aria-label={`Strichstärke ${index + 1}`}
+              aria-label={t('player.strokeWidth', { number: index + 1 })}
               onClick={() => setPenWidth(entry)}
             >
               <span style={{ height: 2 + index * 3 }} />
@@ -562,10 +566,10 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
             onClick={() => setDraft(null)}
             disabled={isAnnotationEmpty(draftAnnotation)}
           >
-            Leeren
+            {t('player.clearDrawing')}
           </button>
           <button type="button" className="button button--ghost" onClick={finishDrawing}>
-            Fertig
+            {t('player.doneDrawing')}
           </button>
         </div>
       ) : null}
@@ -597,8 +601,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           data-mobil="aus"
           onClick={() => shuttle(-1)}
           disabled={!hasProxy}
-          title="Rückwärts (J)"
-          aria-label="Rückwärts"
+          title={t('player.rewindTitle')}
+          aria-label={t('player.rewind')}
         >
           ◀◀
         </button>
@@ -607,8 +611,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           className="iconbutton"
           onClick={() => stepFrames(-1)}
           disabled={!hasProxy}
-          title="Ein Bild zurück (←)"
-          aria-label="Ein Bild zurück"
+          title={t('player.frameBackTitle')}
+          aria-label={t('player.frameBack')}
         >
           ◀|
         </button>
@@ -617,8 +621,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           className="iconbutton"
           onClick={togglePlay}
           disabled={!hasProxy}
-          title="Abspielen / Pause (Leertaste)"
-          aria-label={playing ? 'Pause' : 'Abspielen'}
+          title={t('player.playPauseTitle')}
+          aria-label={playing ? t('player.pause') : t('player.play')}
           data-active={playing}
         >
           {rate !== 0 ? '❚❚' : '▶'}
@@ -628,8 +632,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           className="iconbutton"
           onClick={() => stepFrames(1)}
           disabled={!hasProxy}
-          title="Ein Bild vor (→)"
-          aria-label="Ein Bild vor"
+          title={t('player.frameForwardTitle')}
+          aria-label={t('player.frameForward')}
         >
           |▶
         </button>
@@ -639,8 +643,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           data-mobil="aus"
           onClick={() => shuttle(1)}
           disabled={!hasProxy}
-          title="Vorwärts (L)"
-          aria-label="Vorwärts"
+          title={t('player.forwardTitle')}
+          aria-label={t('player.forward')}
         >
           ▶▶
         </button>
@@ -672,8 +676,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
             className="select player__quality"
             value={hlsPlayback.selectedLevel}
             onChange={(event) => hlsPlayback.setLevel(Number(event.target.value))}
-            title="Wiedergabequalität"
-            aria-label="Wiedergabequalität"
+            title={t('player.quality')}
+            aria-label={t('player.quality')}
           >
             <option value={-1}>
               Auto
@@ -699,8 +703,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
             setMuted(video.muted);
           }}
           disabled={!hasProxy}
-          title="Stumm (M)"
-          aria-label="Stummschalten"
+          title={t('player.muteTitle')}
+          aria-label={t('player.mute')}
           data-active={muted}
         >
           {muted ? '🔇' : '🔊'}
@@ -710,8 +714,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           className="iconbutton"
           onClick={() => void toggleFullscreen(containerRef.current, videoRef.current)}
           disabled={!hasProxy}
-          title="Vollbild (F)"
-          aria-label="Vollbild"
+          title={t('player.fullscreenTitle')}
+          aria-label={t('player.fullscreen')}
         >
           ⛶
         </button>
@@ -726,10 +730,10 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           disabled={!hasProxy}
           title={
             zeichnungBeiFahrt
-              ? 'Zeichnungen beim Abspielen und Scrubben ausblenden'
-              : 'Zeichnungen beim Abspielen und Scrubben einblenden'
+              ? t('player.hideDrawings')
+              : t('player.showDrawings')
           }
-          aria-label="Zeichnungen beim Abspielen und Scrubben"
+          aria-label={t('player.drawingsWhilePlaying')}
           aria-pressed={zeichnungBeiFahrt}
           data-active={zeichnungBeiFahrt}
         >
@@ -740,8 +744,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           className="iconbutton"
           onClick={() => (drawingMode ? finishDrawing() : startDrawing())}
           disabled={!hasProxy || !canComment}
-          title="Auf das Bild zeichnen (D)"
-          aria-label="Zeichnen"
+          title={t('player.drawTitle')}
+          aria-label={t('player.draw')}
           data-active={drawingMode}
         >
           ✎
@@ -751,8 +755,8 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           className="iconbutton"
           onClick={requestComment}
           disabled={!hasProxy || !canComment}
-          title="Kommentar am aktuellen Bild (C)"
-          aria-label="Kommentar am aktuellen Bild setzen"
+          title={t('player.commentTitle')}
+          aria-label={t('player.comment')}
         >
           <Icon name="comment" />
         </button>
@@ -763,13 +767,13 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
       {fullscreenPanel && isFullscreen ? (
         <div className="player__panel" data-open={panelOpen}>
           <div className="player__panel-header">
-            <span className="player__panel-title">Kommentare</span>
+            <span className="player__panel-title">{t('player.comments')}</span>
             <button
               type="button"
               className="iconbutton"
               onClick={() => setPanelOpen(false)}
-              aria-label="Kommentarspalte schließen"
-              title="Schließen"
+              aria-label={t('player.closePanel')}
+              title={t('common.close')}
             >
               ✕
             </button>

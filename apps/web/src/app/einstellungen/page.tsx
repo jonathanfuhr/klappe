@@ -15,6 +15,7 @@ import { StoragePanel } from '@/components/settings/StoragePanel';
 import { TranscodePanel } from '@/components/settings/TranscodePanel';
 import { UsersPanel } from '@/components/settings/UsersPanel';
 import { SectionNav } from '@/components/ui/SectionNav';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 /**
@@ -25,28 +26,33 @@ import { useSession } from '@/lib/session';
  * Admin-Sache.
  */
 const BEREICHE = [
-  { id: 'gaeste', label: 'Gäste', team: true },
-  { id: 'benutzer', label: 'Benutzer', team: false },
-  { id: 'felder', label: 'Benutzerdefinierte Felder', team: false },
-  { id: 'projekte', label: 'Projekte', team: false },
-  { id: 'ki', label: 'KI-Inhalte', team: false },
-  { id: 'branding', label: 'Erscheinungsbild', team: false },
-  { id: 'auth', label: 'Anmeldung', team: false },
-  { id: 'api', label: 'API-Zugriff', team: false },
-  { id: 'mail', label: 'E-Mail-Versand', team: false },
-  { id: 'transcode', label: 'Transcode', team: false },
-  { id: 'speicher', label: 'Speicher', team: false },
-  { id: 'sicherung', label: 'Datensicherung', team: false },
+  { id: 'gaeste', schluessel: 'settings.navGuests', team: true },
+  { id: 'benutzer', schluessel: 'settings.navUsers', team: false },
+  { id: 'felder', schluessel: 'settings.navFields', team: false },
+  { id: 'projekte', schluessel: 'settings.navProjects', team: false },
+  { id: 'ki', schluessel: 'settings.navAi', team: false },
+  { id: 'branding', schluessel: 'settings.navBranding', team: false },
+  { id: 'auth', schluessel: 'settings.navAuth', team: false },
+  { id: 'api', schluessel: 'settings.navApi', team: false },
+  { id: 'mail', schluessel: 'settings.navMail', team: false },
+  { id: 'transcode', schluessel: 'settings.navTranscode', team: false },
+  { id: 'speicher', schluessel: 'settings.navStorage', team: false },
+  { id: 'sicherung', schluessel: 'settings.navBackup', team: false },
 ] as const;
 
 type BereichId = (typeof BEREICHE)[number]['id'];
 
 /** Einstellungen des Workspace – Verwaltung und alles Workspace-Weite. */
 export default function SettingsPage() {
+  const t = useT();
   const { user, loading } = useSession();
   const istAdmin = user?.role === 'ADMIN';
   const istTeam = istAdmin || user?.role === 'MEMBER';
-  const sichtbar = BEREICHE.filter((bereich) => (istAdmin ? true : bereich.team));
+  // Die Beschriftungen entstehen erst hier, damit sie der gewählten Sprache
+  // folgen – die Liste oben trägt nur die Schlüssel (Phase 26).
+  const sichtbar = BEREICHE.filter((bereich) => (istAdmin ? true : bereich.team)).map(
+    (bereich) => ({ ...bereich, label: t(bereich.schluessel) }),
+  );
   // Mitglieder landen auf dem ersten Bereich, den sie sehen dürfen.
   const [bereich, setBereich] = useState<BereichId>(istAdmin ? 'branding' : 'gaeste');
 
@@ -54,7 +60,7 @@ export default function SettingsPage() {
     return (
       <AppShell>
         <div className="page">
-          <div className="empty">Diese Seite ist dem Team vorbehalten.</div>
+          <div className="empty">{t('settings.teamOnly')}</div>
         </div>
       </AppShell>
     );
@@ -68,7 +74,7 @@ export default function SettingsPage() {
     <AppShell>
       <div className="page settingspage">
         <SectionNav
-          title="Einstellungen"
+          title={t('settings.title')}
           items={sichtbar}
           active={gewaehlt}
           onSelect={(id) => setBereich(id as BereichId)}
@@ -80,7 +86,7 @@ export default function SettingsPage() {
               begann der Text ohne Ansage, und auf dem Handy, wo das Menü
               zugeklappt ist, stand nirgends, wo man gerade war. */}
           <h1 className="page__title settingspage__heading">
-            {sichtbar.find((eintrag) => eintrag.id === gewaehlt)?.label ?? 'Einstellungen'}
+            {sichtbar.find((eintrag) => eintrag.id === gewaehlt)?.label ?? t('settings.title')}
           </h1>
 
           {gewaehlt === 'gaeste' ? <GuestsPanel /> : null}

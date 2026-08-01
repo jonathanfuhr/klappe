@@ -5,7 +5,14 @@
  * Jede Mail geht als Text *und* als HTML raus. Der Textteil ist nicht bloß
  * Beiwerk: Manche Postfächer zeigen ihn, und er hilft gegen die
  * Spam-Einstufung.
+ *
+ * Seit Phase 26 in der Sprache des **Empfängers**: Jede Vorlage bekommt eine
+ * `locale` mit; ohne Angabe bleibt es bei Deutsch. Anders als in der
+ * Oberfläche gibt es hier keinen Kontext, aus dem sich die Sprache ableiten
+ * ließe – sie muss beim Aufruf feststehen, denn dieselbe Sammelmail geht an
+ * mehrere Menschen mit womöglich verschiedenen Einstellungen.
  */
+import { type Locale, DEFAULT_LOCALE } from '@klappe/shared';
 
 export interface RenderedMail {
   subject: string;
@@ -30,6 +37,163 @@ export const DEFAULT_MAIL_BRAND: MailBrand = {
   accentContrast: '#04070d',
 };
 
+/** Die festen Wendungen der Mails, je Sprache. */
+interface MailTexte {
+  hallo: (name: string) => string;
+  unsubscribe: string;
+  unsubscribeLine: (url: string) => string;
+  watchLine: (url: string) => string;
+  toProjectLine: (url: string) => string;
+  goThereLine: (url: string) => string;
+  noTimecode: string;
+  project: (name: string) => string;
+  projectAndVersion: (project: string, version: string) => string;
+  watchInPlayer: string;
+  toProject: string;
+  view: string;
+  // Anmeldecode
+  codeSubject: (code: string, brand: string) => string;
+  codeTitle: string;
+  codeIntro: (target: string) => string;
+  codeText: (target: string, code: string) => string;
+  codeValid: (minutes: number) => string;
+  codeIgnore: string;
+  // Kommentare
+  mentionedSubject: (author: string, video: string) => string;
+  replySubject: (author: string, video: string) => string;
+  commentSubject: (author: string, video: string) => string;
+  mentionedIntro: (author: string, video: string) => string;
+  replyIntro: (author: string, video: string) => string;
+  commentIntro: (author: string, video: string) => string;
+  // Sammelmail
+  digestOne: (video: string) => string;
+  digestMany: (count: number, video: string) => string;
+  digestMentioned: (kern: string) => string;
+  digestIntro: (authors: string, count: number, video: string) => string;
+  digestEntryMentioned: string;
+  joinNames: (names: string[]) => string;
+  // Kunden-Upload
+  fileSubject: (project: string) => string;
+  fileIntro: (uploader: string, project: string) => string;
+  fileLine: (filename: string, size: string) => string;
+  // Zugang freigeschaltet
+  accessSubject: (target: string) => string;
+  accessIntro: (actor: string, target: string) => string;
+  accessNoNewLink: string;
+  // Testmail
+  testSubject: (brand: string) => string;
+  testTitle: string;
+  testIntro: (brand: string) => string;
+  testServer: (host: string) => string;
+  testFrom: (email: string) => string;
+  testSpf: string;
+}
+
+const DE: MailTexte = {
+  hallo: (name) => `Hallo ${name},`,
+  unsubscribe: 'Benachrichtigungen abbestellen',
+  unsubscribeLine: (url) => `Keine solchen Mails mehr: ${url}`,
+  watchLine: (url) => `Ansehen: ${url}`,
+  toProjectLine: (url) => `Zum Projekt: ${url}`,
+  goThereLine: (url) => `Direkt hin: ${url}`,
+  noTimecode: '[ohne Zeitbezug]',
+  project: (name) => `Projekt: ${name}`,
+  projectAndVersion: (project, version) => `Projekt: ${project} · Fassung: ${version}`,
+  watchInPlayer: 'Im Player ansehen',
+  toProject: 'Zum Projekt',
+  view: 'Ansehen',
+  codeSubject: (code, brand) => `${code} ist dein Anmeldecode für ${brand}`,
+  codeTitle: 'Dein Anmeldecode',
+  codeIntro: (target) => `Für den Zugang zu „${target}“ brauchst du diesen Code:`,
+  codeText: (target, code) => `Dein Anmeldecode für „${target}“ lautet: ${code}`,
+  codeValid: (minutes) => `Der Code gilt ${minutes} Minuten.`,
+  codeIgnore: 'Wenn du das nicht angefordert hast, kannst du diese Nachricht ignorieren.',
+  mentionedSubject: (author, video) => `${author} hat dich erwähnt: ${video}`,
+  replySubject: (author, video) => `Neue Antwort von ${author}: ${video}`,
+  commentSubject: (author, video) => `Neuer Kommentar von ${author}: ${video}`,
+  mentionedIntro: (author, video) => `${author} hat dich in einem Kommentar zu „${video}“ erwähnt.`,
+  replyIntro: (author, video) => `${author} hat auf ein Gespräch zu „${video}“ geantwortet.`,
+  commentIntro: (author, video) => `${author} hat „${video}“ kommentiert.`,
+  digestOne: (video) => `Ein neuer Kommentar zu „${video}“`,
+  digestMany: (count, video) => `${count} neue Kommentare zu „${video}“`,
+  digestMentioned: (kern) => `Du wurdest erwähnt – ${kern.charAt(0).toLowerCase()}${kern.slice(1)}`,
+  digestIntro: (authors, count, video) =>
+    `${authors} ${count === 1 ? 'hat' : 'haben'} „${video}“ kommentiert.`,
+  digestEntryMentioned: ' · dich erwähnt',
+  joinNames: (names) =>
+    names.length <= 1
+      ? (names[0] ?? '')
+      : `${names.slice(0, -1).join(', ')} und ${names[names.length - 1]}`,
+  fileSubject: (project) => `Neues Material im Projekt ${project}`,
+  fileIntro: (uploader, project) => `${uploader} hat Material in „${project}“ hochgeladen.`,
+  fileLine: (filename, size) => `Datei: ${filename} (${size})`,
+  accessSubject: (target) => `Freigeschaltet: ${target}`,
+  accessIntro: (actor, target) => `${actor} hat „${target}“ für dich freigegeben.`,
+  accessNoNewLink: 'Du brauchst dafür keinen neuen Link – melde dich an wie gewohnt.',
+  testSubject: (brand) => `${brand}: SMTP-Einstellungen funktionieren`,
+  testTitle: 'SMTP-Einstellungen funktionieren',
+  testIntro: (brand) =>
+    `Diese Testnachricht bestätigt, dass ${brand} über deinen Mailserver versenden kann.`,
+  testServer: (host) => `Server: ${host}`,
+  testFrom: (email) => `Absender: ${email}`,
+  testSpf:
+    'Damit Codes und Benachrichtigungen nicht im Spam landen, sollte die Absender-Domain SPF und DKIM gesetzt haben.',
+};
+
+const EN: MailTexte = {
+  hallo: (name) => `Hello ${name},`,
+  unsubscribe: 'Unsubscribe from notifications',
+  unsubscribeLine: (url) => `No more mail like this: ${url}`,
+  watchLine: (url) => `Watch: ${url}`,
+  toProjectLine: (url) => `To the project: ${url}`,
+  goThereLine: (url) => `Go straight there: ${url}`,
+  noTimecode: '[no time reference]',
+  project: (name) => `Project: ${name}`,
+  projectAndVersion: (project, version) => `Project: ${project} · Version: ${version}`,
+  watchInPlayer: 'Watch in the player',
+  toProject: 'To the project',
+  view: 'View',
+  codeSubject: (code, brand) => `${code} is your sign-in code for ${brand}`,
+  codeTitle: 'Your sign-in code',
+  codeIntro: (target) => `To get access to “${target}” you need this code:`,
+  codeText: (target, code) => `Your sign-in code for “${target}” is: ${code}`,
+  codeValid: (minutes) => `The code is valid for ${minutes} minutes.`,
+  codeIgnore: 'If you did not request this, you can ignore this message.',
+  mentionedSubject: (author, video) => `${author} mentioned you: ${video}`,
+  replySubject: (author, video) => `New reply from ${author}: ${video}`,
+  commentSubject: (author, video) => `New comment from ${author}: ${video}`,
+  mentionedIntro: (author, video) => `${author} mentioned you in a comment on “${video}”.`,
+  replyIntro: (author, video) => `${author} replied in a thread on “${video}”.`,
+  commentIntro: (author, video) => `${author} commented on “${video}”.`,
+  digestOne: (video) => `One new comment on “${video}”`,
+  digestMany: (count, video) => `${count} new comments on “${video}”`,
+  digestMentioned: (kern) => `You were mentioned – ${kern.charAt(0).toLowerCase()}${kern.slice(1)}`,
+  digestIntro: (authors, count, video) =>
+    `${authors} ${count === 1 ? 'has' : 'have'} commented on “${video}”.`,
+  digestEntryMentioned: ' · mentioned you',
+  joinNames: (names) =>
+    names.length <= 1
+      ? (names[0] ?? '')
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`,
+  fileSubject: (project) => `New material in the project ${project}`,
+  fileIntro: (uploader, project) => `${uploader} uploaded material to “${project}”.`,
+  fileLine: (filename, size) => `File: ${filename} (${size})`,
+  accessSubject: (target) => `Now available: ${target}`,
+  accessIntro: (actor, target) => `${actor} shared “${target}” with you.`,
+  accessNoNewLink: 'You do not need a new link for that – sign in as usual.',
+  testSubject: (brand) => `${brand}: SMTP settings work`,
+  testTitle: 'SMTP settings work',
+  testIntro: (brand) => `This test message confirms that ${brand} can send via your mail server.`,
+  testServer: (host) => `Server: ${host}`,
+  testFrom: (email) => `Sender: ${email}`,
+  testSpf:
+    'So that codes and notifications do not end up in spam, the sender domain should have SPF and DKIM set.',
+};
+
+function texte(locale: Locale | undefined): MailTexte {
+  return locale === 'en' ? EN : DE;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -48,8 +212,11 @@ function layout(input: {
   footerNote?: string;
   unsubscribeUrl?: string;
   brand?: MailBrand;
+  locale?: Locale;
 }): string {
   const brand = input.brand ?? DEFAULT_MAIL_BRAND;
+  const t = texte(input.locale);
+  const locale = input.locale ?? DEFAULT_LOCALE;
 
   const button =
     input.buttonLabel && input.buttonUrl
@@ -60,12 +227,12 @@ function layout(input: {
   if (input.footerNote) footerParts.push(escapeHtml(input.footerNote));
   if (input.unsubscribeUrl) {
     footerParts.push(
-      `<a href="${escapeHtml(input.unsubscribeUrl)}" style="color:#6b7482">Benachrichtigungen abbestellen</a>`,
+      `<a href="${escapeHtml(input.unsubscribeUrl)}" style="color:#6b7482">${escapeHtml(t.unsubscribe)}</a>`,
     );
   }
 
   return `<!doctype html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
 <body style="margin:0;padding:24px;background:#f4f5f7;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#16191f">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:10px;padding:28px">
     <div style="font-weight:650;font-size:17px;margin-bottom:18px">${escapeHtml(brand.title)}</div>
@@ -100,28 +267,31 @@ export function renderGuestCodeMail(input: {
   targetName: string;
   minutesValid: number;
   brand?: MailBrand;
+  locale?: Locale;
 }): RenderedMail {
   const brand = input.brand ?? DEFAULT_MAIL_BRAND;
+  const t = texte(input.locale);
   const text = [
-    `Dein Anmeldecode für „${input.targetName}“ lautet: ${input.code}`,
+    t.codeText(input.targetName, input.code),
     '',
-    `Der Code gilt ${input.minutesValid} Minuten.`,
-    'Wenn du das nicht angefordert hast, kannst du diese Nachricht ignorieren.',
+    t.codeValid(input.minutesValid),
+    t.codeIgnore,
   ].join('\n');
 
   return {
     // Der Code steht bewusst im Betreff: Auf dem Handy ist er dann schon in
     // der Vorschau lesbar, ohne die Mail zu öffnen.
-    subject: `${input.code} ist dein Anmeldecode für ${brand.title}`,
+    subject: t.codeSubject(input.code, brand.title),
     text,
     html: layout({
       brand,
-      title: 'Dein Anmeldecode',
+      locale: input.locale,
+      title: t.codeTitle,
       body: [
-        paragraph(`Für den Zugang zu „${input.targetName}“ brauchst du diesen Code:`),
+        paragraph(t.codeIntro(input.targetName)),
         `<div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:32px;letter-spacing:8px;font-weight:700;margin:18px 0;padding:14px;background:#f4f5f7;border-radius:8px;text-align:center">${escapeHtml(input.code)}</div>`,
-        paragraph(`Der Code gilt ${input.minutesValid} Minuten.`),
-        paragraph('Wenn du das nicht angefordert hast, kannst du diese Nachricht ignorieren.'),
+        paragraph(t.codeValid(input.minutesValid)),
+        paragraph(t.codeIgnore),
       ].join(''),
     }),
   };
@@ -144,33 +314,35 @@ export interface CommentMailInput {
   url: string;
   unsubscribeUrl: string;
   brand?: MailBrand;
+  locale?: Locale;
 }
 
 export function renderCommentMail(input: CommentMailInput): RenderedMail {
+  const t = texte(input.locale);
   const subject = input.mentioned
-    ? `${input.authorName} hat dich erwähnt: ${input.videoName}`
+    ? t.mentionedSubject(input.authorName, input.videoName)
     : input.isReply
-      ? `Neue Antwort von ${input.authorName}: ${input.videoName}`
-      : `Neuer Kommentar von ${input.authorName}: ${input.videoName}`;
+      ? t.replySubject(input.authorName, input.videoName)
+      : t.commentSubject(input.authorName, input.videoName);
 
   const intro = input.mentioned
-    ? `${input.authorName} hat dich in einem Kommentar zu „${input.videoName}“ erwähnt.`
+    ? t.mentionedIntro(input.authorName, input.videoName)
     : input.isReply
-      ? `${input.authorName} hat auf ein Gespräch zu „${input.videoName}“ geantwortet.`
-      : `${input.authorName} hat „${input.videoName}“ kommentiert.`;
+      ? t.replyIntro(input.authorName, input.videoName)
+      : t.commentIntro(input.authorName, input.videoName);
 
   const text = [
-    `Hallo ${input.recipientName},`,
+    t.hallo(input.recipientName),
     '',
     intro,
-    `Projekt: ${input.projectName} · Fassung: ${input.versionLabel}`,
+    t.projectAndVersion(input.projectName, input.versionLabel),
     '',
-    input.timecode ? `[${input.timecode}]` : '[ohne Zeitbezug]',
+    input.timecode ? `[${input.timecode}]` : t.noTimecode,
     input.body,
     '',
-    `Ansehen: ${input.url}`,
+    t.watchLine(input.url),
     '',
-    `Keine solchen Mails mehr: ${input.unsubscribeUrl}`,
+    t.unsubscribeLine(input.unsubscribeUrl),
   ].join('\n');
 
   return {
@@ -178,12 +350,13 @@ export function renderCommentMail(input: CommentMailInput): RenderedMail {
     text,
     html: layout({
       brand: input.brand,
+      locale: input.locale,
       title: intro,
       body: [
-        paragraph(`Projekt: ${input.projectName} · Fassung: ${input.versionLabel}`),
+        paragraph(t.projectAndVersion(input.projectName, input.versionLabel)),
         quote(input.body, input.timecode),
       ].join(''),
-      buttonLabel: 'Im Player ansehen',
+      buttonLabel: t.watchInPlayer,
       buttonUrl: input.url,
       unsubscribeUrl: input.unsubscribeUrl,
     }),
@@ -210,12 +383,7 @@ export interface CommentDigestMailInput {
   url: string;
   unsubscribeUrl: string;
   brand?: MailBrand;
-}
-
-/** „Anna, Bernd und Clara“ – Aufzählung, wie man sie spricht. */
-function joinNames(names: string[]): string {
-  if (names.length <= 1) return names[0] ?? '';
-  return `${names.slice(0, -1).join(', ')} und ${names[names.length - 1]}`;
+  locale?: Locale;
 }
 
 /**
@@ -223,43 +391,39 @@ function joinNames(names: string[]): string {
  * Fassung steht dabei, weil eine Sammelmail durchaus Kommentare zu v1 und v2
  * enthalten kann.
  */
-function digestEntry(entry: CommentDigestEntry): string {
-  const kopf = `${entry.authorName} · ${entry.versionLabel}${entry.mentioned ? ' · dich erwähnt' : ''}`;
+function digestEntry(entry: CommentDigestEntry, t: MailTexte): string {
+  const kopf = `${entry.authorName} · ${entry.versionLabel}${entry.mentioned ? t.digestEntryMentioned : ''}`;
   return `<div style="margin:0 0 18px"><div style="font-size:13px;color:#6b7482;margin-bottom:5px">${escapeHtml(kopf)}</div>${quote(entry.body, entry.timecode)}</div>`;
 }
 
 export function renderCommentDigestMail(input: CommentDigestMailInput): RenderedMail {
+  const t = texte(input.locale);
   const anzahl = input.entries.length;
   const erwaehnt = input.entries.some((entry) => entry.mentioned);
-  const autoren = joinNames([...new Set(input.entries.map((entry) => entry.authorName))]);
+  const autoren = t.joinNames([...new Set(input.entries.map((entry) => entry.authorName))]);
 
-  const kern =
-    anzahl === 1
-      ? `Ein neuer Kommentar zu „${input.videoName}“`
-      : `${anzahl} neue Kommentare zu „${input.videoName}“`;
+  const kern = anzahl === 1 ? t.digestOne(input.videoName) : t.digestMany(anzahl, input.videoName);
   // Eine Erwähnung gehört in den Betreff – sonst geht sie in der Sammelmail
   // unter, und genau die ist der Grund, warum jemand sofort hineinschaut.
-  const subject = erwaehnt
-    ? `Du wurdest erwähnt – ${kern.charAt(0).toLowerCase()}${kern.slice(1)}`
-    : kern;
+  const subject = erwaehnt ? t.digestMentioned(kern) : kern;
 
-  const intro = `${autoren} ${anzahl === 1 ? 'hat' : 'haben'} „${input.videoName}“ kommentiert.`;
+  const intro = t.digestIntro(autoren, anzahl, input.videoName);
 
   const text = [
-    `Hallo ${input.recipientName},`,
+    t.hallo(input.recipientName),
     '',
     intro,
-    `Projekt: ${input.projectName}`,
+    t.project(input.projectName),
     '',
     ...input.entries.flatMap((entry) => [
-      `${entry.authorName} · ${entry.versionLabel}${entry.mentioned ? ' · dich erwähnt' : ''}`,
-      entry.timecode ? `[${entry.timecode}]` : '[ohne Zeitbezug]',
+      `${entry.authorName} · ${entry.versionLabel}${entry.mentioned ? t.digestEntryMentioned : ''}`,
+      entry.timecode ? `[${entry.timecode}]` : t.noTimecode,
       entry.body,
       '',
     ]),
-    `Ansehen: ${input.url}`,
+    t.watchLine(input.url),
     '',
-    `Keine solchen Mails mehr: ${input.unsubscribeUrl}`,
+    t.unsubscribeLine(input.unsubscribeUrl),
   ].join('\n');
 
   return {
@@ -267,12 +431,13 @@ export function renderCommentDigestMail(input: CommentDigestMailInput): Rendered
     text,
     html: layout({
       brand: input.brand,
+      locale: input.locale,
       title: intro,
       body: [
-        paragraph(`Projekt: ${input.projectName}`),
-        input.entries.map(digestEntry).join(''),
+        paragraph(t.project(input.projectName)),
+        input.entries.map((entry) => digestEntry(entry, t)).join(''),
       ].join(''),
-      buttonLabel: 'Im Player ansehen',
+      buttonLabel: t.watchInPlayer,
       buttonUrl: input.url,
       unsubscribeUrl: input.unsubscribeUrl,
     }),
@@ -290,26 +455,29 @@ export function renderProjectFileMail(input: {
   url: string;
   unsubscribeUrl: string;
   brand?: MailBrand;
+  locale?: Locale;
 }): RenderedMail {
-  const intro = `${input.uploaderName} hat Material in „${input.projectName}“ hochgeladen.`;
+  const t = texte(input.locale);
+  const intro = t.fileIntro(input.uploaderName, input.projectName);
 
   return {
-    subject: `Neues Material im Projekt ${input.projectName}`,
+    subject: t.fileSubject(input.projectName),
     text: [
-      `Hallo ${input.recipientName},`,
+      t.hallo(input.recipientName),
       '',
       intro,
-      `Datei: ${input.filename} (${input.sizeLabel})`,
+      t.fileLine(input.filename, input.sizeLabel),
       '',
-      `Zum Projekt: ${input.url}`,
+      t.toProjectLine(input.url),
       '',
-      `Keine solchen Mails mehr: ${input.unsubscribeUrl}`,
+      t.unsubscribeLine(input.unsubscribeUrl),
     ].join('\n'),
     html: layout({
       brand: input.brand,
+      locale: input.locale,
       title: intro,
-      body: paragraph(`Datei: ${input.filename} (${input.sizeLabel})`),
-      buttonLabel: 'Zum Projekt',
+      body: paragraph(t.fileLine(input.filename, input.sizeLabel)),
+      buttonLabel: t.toProject,
       buttonUrl: input.url,
       unsubscribeUrl: input.unsubscribeUrl,
     }),
@@ -339,26 +507,29 @@ export function renderAccessGrantedMail(input: {
   url: string;
   unsubscribeUrl: string;
   brand?: MailBrand;
+  locale?: Locale;
 }): RenderedMail {
-  const intro = `${input.actorName} hat „${input.targetName}“ für dich freigegeben.`;
+  const t = texte(input.locale);
+  const intro = t.accessIntro(input.actorName, input.targetName);
 
   return {
-    subject: `Freigeschaltet: ${input.targetName}`,
+    subject: t.accessSubject(input.targetName),
     text: [
-      `Hallo ${input.recipientName},`,
+      t.hallo(input.recipientName),
       '',
       intro,
-      'Du brauchst dafür keinen neuen Link – melde dich an wie gewohnt.',
+      t.accessNoNewLink,
       '',
-      `Direkt hin: ${input.url}`,
+      t.goThereLine(input.url),
       '',
-      `Keine solchen Mails mehr: ${input.unsubscribeUrl}`,
+      t.unsubscribeLine(input.unsubscribeUrl),
     ].join('\n'),
     html: layout({
       brand: input.brand,
+      locale: input.locale,
       title: intro,
-      body: paragraph('Du brauchst dafür keinen neuen Link – melde dich an wie gewohnt.'),
-      buttonLabel: 'Ansehen',
+      body: paragraph(t.accessNoNewLink),
+      buttonLabel: t.view,
       buttonUrl: input.url,
       unsubscribeUrl: input.unsubscribeUrl,
     }),
@@ -371,31 +542,29 @@ export function renderTestMail(input: {
   host: string;
   fromEmail: string;
   brand?: MailBrand;
+  locale?: Locale;
 }): RenderedMail {
   const brand = input.brand ?? DEFAULT_MAIL_BRAND;
+  const t = texte(input.locale);
   return {
-    subject: `${brand.title}: SMTP-Einstellungen funktionieren`,
+    subject: t.testSubject(brand.title),
     text: [
-      `Diese Testnachricht bestätigt, dass ${brand.title} über deinen Mailserver versenden kann.`,
+      t.testIntro(brand.title),
       '',
-      `Server: ${input.host}`,
-      `Absender: ${input.fromEmail}`,
+      t.testServer(input.host),
+      t.testFrom(input.fromEmail),
       '',
-      'Damit Codes und Benachrichtigungen nicht im Spam landen, sollte die',
-      'Absender-Domain SPF und DKIM gesetzt haben.',
+      t.testSpf,
     ].join('\n'),
     html: layout({
       brand,
-      title: 'SMTP-Einstellungen funktionieren',
+      locale: input.locale,
+      title: t.testTitle,
       body: [
-        paragraph(
-          `Diese Testnachricht bestätigt, dass ${brand.title} über deinen Mailserver versenden kann.`,
-        ),
-        paragraph(`Server: ${input.host}`),
-        paragraph(`Absender: ${input.fromEmail}`),
-        paragraph(
-          'Damit Codes und Benachrichtigungen nicht im Spam landen, sollte die Absender-Domain SPF und DKIM gesetzt haben.',
-        ),
+        paragraph(t.testIntro(brand.title)),
+        paragraph(t.testServer(input.host)),
+        paragraph(t.testFrom(input.fromEmail)),
+        paragraph(t.testSpf),
       ].join(''),
     }),
   };

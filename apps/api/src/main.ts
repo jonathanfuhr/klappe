@@ -7,6 +7,8 @@ import express from 'express';
 import { AppModule } from './app.module';
 import { AuthService } from './auth/auth.service';
 import { CONFIG, type AppConfig } from './config/configuration';
+import { UebersetzenderFehlerfilter } from './i18n/http-exception.filter';
+import { LocaleService } from './i18n/locale.service';
 import { uploadTrace } from './uploads/upload-trace';
 
 async function bootstrap(): Promise<void> {
@@ -58,6 +60,12 @@ async function bootstrap(): Promise<void> {
       transformOptions: { enableImplicitConversion: false },
     }),
   );
+
+  /*
+   * Ganz außen, hinter allen Pipes: Er tauscht die Meldung einer abgewiesenen
+   * Anfrage gegen die Fassung in der Sprache des Anfragenden (Phase 26).
+   */
+  app.useGlobalFilters(new UebersetzenderFehlerfilter(app.get(LocaleService)));
 
   app.enableShutdownHooks();
 

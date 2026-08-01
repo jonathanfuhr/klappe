@@ -7,12 +7,14 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { Menu, MenuItem, MenuLink, MenuSeparator } from '@/components/ui/Menu';
 import { useBranding } from '@/lib/branding';
 import { initialsOf } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useSession();
   const { branding } = useBranding();
   const pathname = usePathname();
+  const t = useT();
   const istTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
 
   return (
@@ -38,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             in eine zweite, rollbare Zeile um. */}
         <nav className="shell__nav">
           <Link href="/projekte" data-active={pathname.startsWith('/projekte')}>
-            Projekte
+            {t('shell.projects')}
           </Link>
         </nav>
 
@@ -56,7 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
              * Kürzel stehen – der ausgeschriebene Name fraß die halbe Zeile.
              */}
             <Menu
-              label="Benutzermenü"
+              label={t('shell.userMenu')}
               triggerClassName="usermenu"
               trigger={
                 <>
@@ -64,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     {initialsOf(user.name)}
                   </span>
                   <span className="usermenu__name">{user.name}</span>
-                  {user.role === 'GUEST' ? <span className="badge">Gast</span> : null}
+                  {user.role === 'GUEST' ? <span className="badge">{t('shell.guestBadge')}</span> : null}
                 </>
               }
             >
@@ -76,23 +78,23 @@ export function AppShell({ children }: { children: ReactNode }) {
               {/* Gäste haben kein Passwort, aber seit Phase 21 trotzdem ein
                   Konto mit Namen – die Seite gilt für beide Rollen. */}
               <MenuLink href="/konto" active={pathname.startsWith('/konto')}>
-                Profil und Sicherheit
+                {t('shell.profile')}
               </MenuLink>
               {/* Für Team und Gäste gleichermaßen gedacht – anders als die
                   Einstellungen, die dem Team vorbehalten bleiben. */}
               <MenuLink href="/handbuch" active={pathname.startsWith('/handbuch')}>
-                Handbuch
+                {t('shell.manual')}
               </MenuLink>
               <MenuLink href="/ueber" active={pathname.startsWith('/ueber')}>
-                Über diese Software
+                {t('shell.about')}
               </MenuLink>
               {istTeam ? (
                 <MenuLink href="/einstellungen" active={pathname.startsWith('/einstellungen')}>
-                  Einstellungen
+                  {t('shell.settings')}
                 </MenuLink>
               ) : null}
               <MenuSeparator />
-              <MenuItem onSelect={() => void logout()}>Abmelden</MenuItem>
+              <MenuItem onSelect={() => void logout()}>{t('shell.logout')}</MenuItem>
             </Menu>
           </div>
         ) : null}

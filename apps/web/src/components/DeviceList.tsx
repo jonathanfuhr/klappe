@@ -4,6 +4,7 @@ import type { ApiTokenDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateTime, formatRelative } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 
 /**
  * Die Liste der verbundenen Geräte (Phase 27).
@@ -21,6 +22,7 @@ import { formatDateTime, formatRelative } from '@/lib/format';
  * getrennt?" nicht.
  */
 export function DeviceList({ scope }: { scope: 'mine' | 'all' }) {
+  const t = useT();
   const [devices, setDevices] = useState<ApiTokenDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,24 +32,22 @@ export function DeviceList({ scope }: { scope: 'mine' | 'all' }) {
       setDevices(scope === 'all' ? await api.listAllDevices() : await api.listDevices());
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, [scope]);
+  }, [scope, t]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const trennen = async (device: ApiTokenDto) => {
-    const wem =
-      scope === 'all' && device.user ? ` von ${device.user.name}` : '';
-    if (
-      !window.confirm(
-        `„${device.name}"${wem} trennen? Das Programm kommt ab sofort nicht mehr herein und muss neu verbunden werden.`,
-      )
-    ) {
-      return;
-    }
+    // Zwei Sätze statt eines mit eingeschobenem „von X": Im Englischen steht
+    // die Person an anderer Stelle, das ließe sich nicht zusammenstückeln.
+    const frage =
+      scope === 'all' && device.user
+        ? t('devices.revokeConfirmOther', { name: device.name, user: device.user.name })
+        : t('devices.revokeConfirm', { name: device.name });
+    if (!window.confirm(frage)) return;
 
     setBusy(true);
     setError(null);
@@ -56,20 +56,14 @@ export function DeviceList({ scope }: { scope: 'mine' | 'all' }) {
       else await api.revokeDevice(device.id);
       await load();
     } catch (revokeError) {
-      setError(revokeError instanceof Error ? revokeError.message : 'Trennen fehlgeschlagen.');
+      setError(revokeError instanceof Error ? revokeError.message : t('devices.revokeFailed'));
     } finally {
       setBusy(false);
     }
   };
 
   const alleTrennen = async () => {
-    if (
-      !window.confirm(
-        'Alle eigenen Geräte trennen? Jedes verbundene Programm muss danach neu verbunden werden.',
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm(t('devices.revokeAllConfirm'))) return;
 
     setBusy(true);
     setError(null);
@@ -77,14 +71,14 @@ export function DeviceList({ scope }: { scope: 'mine' | 'all' }) {
       await api.revokeAllDevices();
       await load();
     } catch (revokeError) {
-      setError(revokeError instanceof Error ? revokeError.message : 'Trennen fehlgeschlagen.');
+      setError(revokeError instanceof Error ? revokeError.message : t('devices.revokeFailed'));
     } finally {
       setBusy(false);
     }
   };
 
   if (!devices) {
-    return <div className="empty">{error ?? 'Wird geladen …'}</div>;
+    return <div className="empty">{error ?? t('common.loading')}</div>;
   }
 
   const aktiv = devices.filter((device) => !device.revokedAt);
@@ -95,9 +89,7 @@ export function DeviceList({ scope }: { scope: 'mine' | 'all' }) {
 
       {devices.length === 0 ? (
         <p className="muted" style={{ fontSize: 13 }}>
-          {scope === 'all'
-            ? 'Im ganzen Workspace ist kein Gerät verbunden.'
-            : 'Noch kein Gerät verbunden.'}
+          {scope === 'all' ? t('devices.noneWorkspace') : t('devices.noneMine')}
         </p>
       ) : (
         <div className="list">
@@ -112,17 +104,17 @@ export function DeviceList({ scope }: { scope: 'mine' | 'all' }) {
                 <span className="faint" style={{ fontSize: 12 }}>
                   {scope === 'all' && device.user ? `${device.user.name} · ` : ''}
                   <code>{device.masked}</code>
-                  {device.origin === 'manual' ? ' · von Hand angelegt' : ''}
+                  {device.origin === 'manual' ? ` · ${t('devices.manual')}` : ''}
                 </span>
               </div>
 
               <div className="tagrow__rest">
                 <span className="faint tagrow__count" title={formatDateTime(device.createdAt)}>
                   {device.revokedAt
-                    ? `getrennt ${formatRelative(device.revokedAt)}`
+                    ? t('devices.revokedAt', { when: formatRelative(device.revokedAt) })
                     : device.lastUsedAt
-                      ? `zuletzt ${formatRelative(device.lastUsedAt)}`
-                      : 'noch nicht benutzt'}
+                      ? t('devices.lastUsed', { when: formatRelative(device.lastUsedAt) })
+                      : t('devices.neverUsed')}
                 </span>
 
                 {device.revokedAt ? null : (
@@ -132,7 +124,7 @@ export function DeviceList({ scope }: { scope: 'mine' | 'all' }) {
                     disabled={busy}
                     onClick={() => void trennen(device)}
                   >
-                    Trennen
+                    {t('devices.revoke')}
                   </button>
                 )}
               </div>
@@ -149,7 +141,7 @@ export function DeviceList({ scope }: { scope: 'mine' | 'all' }) {
             disabled={busy}
             onClick={() => void alleTrennen()}
           >
-            Alle trennen
+            {t('devices.revokeAll')}
           </button>
         </div>
       ) : null}

@@ -3,6 +3,7 @@
 import type { FieldValueCountDto, ProjectDto, ProjectFieldDefDto } from '@klappe/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 /**
  * Die benutzerdefinierten Felder auf der Projektseite (Phase 15). Zeigt alle
@@ -21,6 +22,7 @@ export function ProjectFieldValues({
   isTeam: boolean;
   onChanged: () => Promise<void> | void;
 }) {
+  const t = useT();
   const [defs, setDefs] = useState<ProjectFieldDefDto[]>([]);
   const [vorschlaege, setVorschlaege] = useState<Record<string, FieldValueCountDto[]>>({});
   const [werte, setWerte] = useState<Record<string, string>>({});
@@ -91,10 +93,10 @@ export function ProjectFieldValues({
             project.id,
             defs.map((def) => ({ fieldId: def.id, value: werte[def.id] ?? '' })),
           );
-          setInfo('Gespeichert.');
+          setInfo(t('common.saved'));
           await onChanged();
         } catch (saveError) {
-          setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+          setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
         } finally {
           setBusy(false);
         }
@@ -125,7 +127,7 @@ export function ProjectFieldValues({
       ))}
       {geaendert ? (
         <button type="submit" className="button button--primary" disabled={busy}>
-          Speichern
+          {t('common.save')}
         </button>
       ) : null}
       {error ? <span className="notice" style={{ margin: 0 }}>{error}</span> : null}

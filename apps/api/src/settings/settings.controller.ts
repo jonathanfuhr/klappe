@@ -452,7 +452,7 @@ export class SettingsController {
   @Post('smtp/test')
   @HttpCode(204)
   async sendTest(@Body() dto: TestMailDto, @CurrentUser() user: RequestUser): Promise<void> {
-    await this.mailService.sendTestMail(dto.to?.trim() || user.email);
+    await this.mailService.sendTestMail(dto.to?.trim() || user.email, user.locale);
   }
 
   /**

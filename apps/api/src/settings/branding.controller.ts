@@ -12,13 +12,14 @@ import {
 import { Body } from '@nestjs/common';
 import type { BrandingDto } from '@klappe/shared';
 import {
+  LOCALES,
   MAX_APP_ICON_BYTES,
   MAX_COMPANY_NAME_LENGTH,
   MAX_COMPANY_SHORT_LENGTH,
   MAX_FAVICON_BYTES,
   MAX_LOGO_BYTES,
 } from '@klappe/shared';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import { Public, Roles } from '../auth/auth.decorators';
 import { StorageService } from '../storage/storage.service';
@@ -35,6 +36,11 @@ class UpdateBrandingDto {
   @IsString()
   @MaxLength(9)
   accent?: string;
+
+  /** Sprache des Workspace (Phase 26). */
+  @IsOptional()
+  @IsIn(LOCALES)
+  defaultLocale?: string;
 
   /** Das Haus, dem der Workspace gehört (Phase 20). Leer entfernt den Eintrag. */
   @IsOptional()
@@ -113,6 +119,7 @@ export class BrandingController {
   update(@Body() dto: UpdateBrandingDto): Promise<BrandingDto> {
     return this.brandingService.update({
       title: dto.title,
+      defaultLocale: dto.defaultLocale,
       accent: dto.accent,
       companyName: dto.companyName,
       companyShort: dto.companyShort,

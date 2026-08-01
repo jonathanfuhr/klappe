@@ -7,6 +7,8 @@
  * vor weißer Schrift auf gelbem Grund.
  */
 
+import type { Locale } from './i18n';
+
 export const DEFAULT_BRAND_TITLE = 'Klappe';
 export const DEFAULT_BRAND_ACCENT = '#4c8dff';
 
@@ -63,6 +65,13 @@ export const MAX_APP_ICON_BYTES = 512 * 1024;
 
 export interface BrandingDto {
   title: string;
+  /**
+   * Sprache des Workspace (Phase 26). Steht hier, weil das Erscheinungsbild
+   * ohnehin auf **jeder** Seite ohne Anmeldung geholt wird – Anmeldeseite,
+   * Gast-Gatter, eingebetteter Player. Wer nichts eigenes gewählt hat, sieht
+   * Klappe in dieser Sprache, und in ihr gehen auch die Mails raus.
+   */
+  defaultLocale: Locale;
   accent: string;
   /** Aufgehellte Fassung für Hover-Zustände. */
   accentHover: string;

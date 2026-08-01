@@ -4,6 +4,7 @@ import type { EmbedLinkDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 
 /**
  * Einbetten eines Videos (Phase 23).
@@ -27,6 +28,7 @@ export function EmbedDialog({
   hatEndfassung: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const [link, setLink] = useState<EmbedLinkDto | null>(null);
   const [geladen, setGeladen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +40,11 @@ export function EmbedDialog({
       setLink(await api.getEmbedLink(videoId));
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     } finally {
       setGeladen(true);
     }
-  }, [videoId]);
+  }, [videoId, t]);
 
   useEffect(() => {
     void load();
@@ -54,14 +56,14 @@ export function EmbedDialog({
     try {
       setLink(await api.createEmbedLink(videoId));
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Anlegen fehlgeschlagen.');
+      setError(createError instanceof Error ? createError.message : t('common.createFailed'));
     } finally {
       setBusy(false);
     }
   };
 
   const zurueckziehen = async () => {
-    if (!window.confirm('Die Einbettung sofort abschalten? Der eingebettete Player bleibt dann leer.')) {
+    if (!window.confirm(t('embed.disableConfirm'))) {
       return;
     }
     setBusy(true);
@@ -70,7 +72,7 @@ export function EmbedDialog({
       await api.deleteEmbedLink(videoId);
       setLink(null);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Zurückziehen fehlgeschlagen.');
+      setError(deleteError instanceof Error ? deleteError.message : t('embed.disableFailed'));
     } finally {
       setBusy(false);
     }
@@ -89,10 +91,9 @@ export function EmbedDialog({
   };
 
   return (
-    <Dialog title={`„${videoName}" einbetten`} onClose={onClose}>
+    <Dialog title={t('embed.title', { name: videoName })} onClose={onClose}>
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-        Ein eigener Link für den <code>iframe</code> auf einer fremden Seite – getrennt von den
-        Freigaben. Über ihn kann sich niemand anmelden; er zeigt nur den Player.
+        {t('embed.intro', { code: 'iframe' })}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -101,28 +102,23 @@ export function EmbedDialog({
           Endfassung liefert die Einbettung nichts aus. */}
       {!hatEndfassung ? (
         <div className="notice notice--warn">
-          <strong>Noch keine Endfassung.</strong> Eingebettet wird ausschließlich die neueste
-          Fassung mit gesetztem Endfassungs-Haken – eine Einbettung steht auf einer fremden Seite
-          und wird dort niemandem erklärt. Solange keine da ist, bleibt der Player leer.
+          <strong>{t('embed.noFinalTitle')}</strong> {t('embed.noFinalBody')}
         </div>
       ) : null}
 
       {!geladen ? (
-        <p className="muted">Wird geladen …</p>
+        <p className="muted">{t('common.loading')}</p>
       ) : !link ? (
         <>
           <ul className="hint" style={{ paddingLeft: 18, lineHeight: 1.7 }}>
-            <li>Ausgeliefert wird nur die Abspielfassung, nie das Original.</li>
-            <li>Keine Kommentare, keine Gästeliste, kein Download.</li>
-            <li>
-              Wer die Adresse hat, sieht das Video – ein <code>iframe</code> kann keine Anmeldung
-              mitbringen, weil Browser dort keine fremden Cookies zulassen.
-            </li>
-            <li>Zurückziehen wirkt sofort.</li>
+            <li>{t('embed.bullet1')}</li>
+            <li>{t('embed.bullet2')}</li>
+            <li>{t('embed.bullet3', { code: 'iframe' })}</li>
+            <li>{t('embed.bullet4')}</li>
           </ul>
           <div className="dialog__actions">
             <button type="button" className="button" onClick={onClose}>
-              Abbrechen
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -130,7 +126,7 @@ export function EmbedDialog({
               disabled={busy}
               onClick={() => void erzeugen()}
             >
-              Einbett-Link erzeugen
+              {t('embed.create')}
             </button>
           </div>
         </>
@@ -138,7 +134,7 @@ export function EmbedDialog({
         <>
           <div className="field">
             <label className="field__label" htmlFor="embed-snippet">
-              Zum Einfügen in die fremde Seite
+              {t('embed.snippetLabel')}
             </label>
             <div className="share__url">
               <input
@@ -149,17 +145,14 @@ export function EmbedDialog({
                 onFocus={(event) => event.currentTarget.select()}
               />
               <button type="button" className="button" onClick={() => void kopieren()}>
-                {kopiert ? 'Kopiert' : 'Kopieren'}
+                {kopiert ? t('common.copied') : t('common.copy')}
               </button>
             </div>
-            <p className="hint">
-              Der Rahmen richtet sich über <code>aspect-ratio</code> nach der Breite – eine feste
-              Höhe wäre auf dem Telefon zu hoch und auf einer breiten Seite zu niedrig.
-            </p>
+            <p className="hint">{t('embed.ratioHint', { code: 'aspect-ratio' })}</p>
           </div>
 
           <div className="field">
-            <span className="field__label">Adresse allein</span>
+            <span className="field__label">{t('embed.urlLabel')}</span>
             <input
               className="input"
               readOnly
@@ -175,11 +168,11 @@ export function EmbedDialog({
               disabled={busy}
               onClick={() => void zurueckziehen()}
             >
-              Einbettung abschalten
+              {t('embed.disable')}
             </button>
             <div className="shell__spacer" />
             <button type="button" className="button" onClick={onClose}>
-              Schließen
+              {t('common.close')}
             </button>
           </div>
         </>

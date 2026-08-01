@@ -10,6 +10,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 
 /**
  * Anmeldewege (Phase 11).
@@ -19,6 +20,7 @@ import { formatDateTime } from '@/lib/format';
  * Schalter zusätzlich gesperrt, damit man gar nicht erst dagegen läuft.
  */
 export function AuthPanel() {
+  const t = useT();
   const [settings, setSettings] = useState<AuthSettingsDto | null>(null);
   const [form, setForm] = useState({
     localLoginEnabled: true,
@@ -61,9 +63,9 @@ export function AuthPanel() {
         passwordRequireSymbol: current.passwordPolicy.requireSymbol,
       });
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Laden fehlgeschlagen.');
+      setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -93,9 +95,9 @@ export function AuthPanel() {
       });
       setSettings(saved);
       setForm((current) => ({ ...current, clientSecret: '' }));
-      setInfo('Gespeichert.');
+      setInfo(t('common.saved'));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Speichern fehlgeschlagen.');
+      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
     } finally {
       setBusy(false);
     }
@@ -122,8 +124,7 @@ export function AuthPanel() {
   return (
     <>
       <p className="page__subtitle" style={{ marginTop: 0 }}>
-        Team-Konten melden sich lokal mit Passwort an, über Microsoft 365 – oder beides. Gäste
-        kommen unabhängig davon immer über ihren Freigabe-Link mit E-Mail-Code herein.
+        {t('auth.subtitle')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -142,7 +143,7 @@ export function AuthPanel() {
         {/* ---------- Erste Sektion: Passwort (Phase 24) ---------- */}
         <div className="card" style={{ padding: 20 }}>
           <h2 className="section__title" style={{ marginBottom: 12 }}>
-            Passwort
+            {t('auth.passwordTitle')}
           </h2>
 
           <label className="switch">
@@ -152,12 +153,11 @@ export function AuthPanel() {
               disabled={!oidcVollstaendig}
               onChange={(event) => setForm({ ...form, localLoginEnabled: event.target.checked })}
             />
-            Anmeldung mit E-Mail und Passwort erlauben
+            {t('auth.allowLocal')}
           </label>
           {!oidcVollstaendig ? (
             <p className="hint">
-              Abschaltbar, sobald Microsoft 365 aktiv und vollständig eingetragen ist – sonst käme
-              niemand mehr herein.
+              {t('auth.allowLocalHint')}
             </p>
           ) : null}
 
@@ -169,7 +169,7 @@ export function AuthPanel() {
            */}
           <div className="field" style={{ marginTop: 18 }}>
             <label className="field__label" htmlFor="pw-min-length">
-              Mindestlänge
+              {t('auth.minLength')}
             </label>
             <input
               id="pw-min-length"
@@ -184,14 +184,15 @@ export function AuthPanel() {
               }
             />
             <p className="hint">
-              Zwischen {PASSWORD_MIN_LENGTH_FLOOR} und {PASSWORD_MIN_LENGTH_CEILING} Zeichen. Länge
-              bringt mehr als Sonderzeichen – eine lange Wortfolge ist sicherer und leichter zu
-              merken als „P4ssw!rt".
+              {t('auth.minLengthHint', {
+                min: PASSWORD_MIN_LENGTH_FLOOR,
+                max: PASSWORD_MIN_LENGTH_CEILING,
+              })}
             </p>
           </div>
 
           <div className="field">
-            <span className="field__label">Zusammensetzung</span>
+            <span className="field__label">{t('auth.composition')}</span>
             <label className="switch">
               <input
                 type="checkbox"
@@ -200,7 +201,7 @@ export function AuthPanel() {
                   setForm({ ...form, passwordRequireLetter: event.target.checked })
                 }
               />
-              Mindestens ein Buchstabe
+              {t('auth.requireLetter')}
             </label>
             <label className="switch">
               <input
@@ -210,7 +211,7 @@ export function AuthPanel() {
                   setForm({ ...form, passwordRequireDigit: event.target.checked })
                 }
               />
-              Mindestens eine Ziffer
+              {t('auth.requireDigit')}
             </label>
             <label className="switch">
               <input
@@ -220,7 +221,7 @@ export function AuthPanel() {
                   setForm({ ...form, passwordRequireMixedCase: event.target.checked })
                 }
               />
-              Groß- und Kleinbuchstaben
+              {t('auth.requireMixedCase')}
             </label>
             <label className="switch">
               <input
@@ -230,22 +231,22 @@ export function AuthPanel() {
                   setForm({ ...form, passwordRequireSymbol: event.target.checked })
                 }
               />
-              Mindestens ein Sonderzeichen
+              {t('auth.requireSymbol')}
             </label>
             <p className="hint">
-              Gilt für Team-Konten beim Anlegen und bei jeder Änderung. Bestehende Passwörter
-              bleiben gültig – gespeichert ist nur ihr Hash, nachprüfen ließe sich das gar nicht.
-              Gäste haben kein Passwort und sind nicht betroffen.
+              {t('auth.policyHint')}
             </p>
             <p className="hint" style={{ marginTop: 4 }}>
-              <strong>Es gilt dann:</strong>{' '}
+              <strong>{t('auth.policyResult')}</strong>{' '}
               {describePasswordPolicy({
                 minLength: form.passwordMinLength,
                 requireLetter: form.passwordRequireLetter,
                 requireDigit: form.passwordRequireDigit,
                 requireMixedCase: form.passwordRequireMixedCase,
                 requireSymbol: form.passwordRequireSymbol,
-              }).join(', ')}
+              })
+                .map((regel) => t(regel.key, regel.vars))
+                .join(', ')}
               .
             </p>
           </div>
@@ -263,7 +264,7 @@ export function AuthPanel() {
               checked={form.oidcEnabled}
               onChange={(event) => setForm({ ...form, oidcEnabled: event.target.checked })}
             />
-            Anmeldung über Microsoft 365 anbieten
+            {t('auth.offerOidc')}
           </label>
 
           {/*
@@ -274,13 +275,12 @@ export function AuthPanel() {
            */}
           {!form.oidcEnabled ? (
             <p className="hint" style={{ marginBottom: 0 }}>
-              Aus. Zum Einrichten den Haken setzen – dann erscheinen die Felder für die
-              App-Registrierung im Entra Admin Center.
+              {t('auth.oidcOffHint')}
             </p>
           ) : (
             <>
               <div className="field" style={{ marginTop: 16 }}>
-          <span className="field__label">Redirect-URI für die App-Registrierung</span>
+          <span className="field__label">{t('auth.redirectUri')}</span>
           <div className="share__url">
             <input
               className="input mono"
@@ -289,19 +289,19 @@ export function AuthPanel() {
               onFocus={(event) => event.currentTarget.select()}
             />
             <button type="button" className="button" onClick={() => void copyRedirect()}>
-              {copied ? 'Kopiert' : 'Kopieren'}
+              {copied ? t('common.copied') : t('common.copy')}
             </button>
           </div>
           <p className="hint">
-            Im Entra Admin Center unter <em>App-Registrierungen → Authentifizierung</em> als
-            Web-Plattform eintragen. Stimmt sie nicht, weist Microsoft die Anmeldung ab.
+            {t('auth.redirectHintStart')} <em>{t('auth.redirectHintPath')}</em>{' '}
+            {t('auth.redirectHintEnd')}
           </p>
         </div>
 
         <div className="grid-two">
           <div className="field">
             <label className="field__label" htmlFor="tenant">
-              Verzeichnis-ID (Tenant)
+              {t('auth.tenant')}
             </label>
             <input
               id="tenant"
@@ -310,11 +310,11 @@ export function AuthPanel() {
               value={form.tenantId}
               onChange={(event) => setForm({ ...form, tenantId: event.target.value })}
             />
-            <p className="hint">Auch die Domäne geht, etwa contoso.onmicrosoft.com.</p>
+            <p className="hint">{t('auth.tenantHint')}</p>
           </div>
           <div className="field">
             <label className="field__label" htmlFor="client-id">
-              Anwendungs-ID (Client)
+              {t('auth.clientId')}
             </label>
             <input
               id="client-id"
@@ -327,20 +327,19 @@ export function AuthPanel() {
 
         <div className="field">
           <label className="field__label" htmlFor="client-secret">
-            Geheimer Clientschlüssel
+            {t('auth.clientSecret')}
           </label>
           <input
             id="client-secret"
             className="input"
             type="password"
             autoComplete="new-password"
-            placeholder={settings?.hasClientSecret ? '•••••••• (gespeichert)' : ''}
+            placeholder={settings?.hasClientSecret ? t('auth.clientSecretStored') : ''}
             value={form.clientSecret}
             onChange={(event) => setForm({ ...form, clientSecret: event.target.value })}
           />
           <p className="hint">
-            Leer lassen behält den gespeicherten Schlüssel. Er liegt verschlüsselt in der Datenbank
-            und wird nie wieder angezeigt. Denk an das Ablaufdatum, das Entra vergibt.
+            {t('auth.clientSecretHint')}
           </p>
         </div>
 
@@ -350,17 +349,15 @@ export function AuthPanel() {
             checked={form.autoProvision}
             onChange={(event) => setForm({ ...form, autoProvision: event.target.checked })}
           />
-          Unbekannte Adressen automatisch als Team-Mitglied anlegen
+          {t('auth.autoProvision')}
         </label>
         <p className="hint" style={{ marginTop: -10 }}>
-          Aus gutem Grund standardmäßig aus: In einem großen Tenant bekäme sonst jeder Beschäftigte
-          Zugriff auf alle Projekte. Ohne diesen Schalter kommt nur herein, wer hier schon ein Konto
-          hat.
+          {t('auth.autoProvisionHint')}
         </p>
 
         <div className="field">
           <label className="field__label" htmlFor="domains">
-            Erlaubte Domänen beim automatischen Anlegen
+            {t('auth.allowedDomains')}
           </label>
           <input
             id="domains"
@@ -369,12 +366,12 @@ export function AuthPanel() {
             value={form.allowedDomains}
             onChange={(event) => setForm({ ...form, allowedDomains: event.target.value })}
           />
-          <p className="hint">Leer heißt: keine Einschränkung.</p>
+          <p className="hint">{t('auth.allowedDomainsHint')}</p>
         </div>
 
               <div className="field">
                 <label className="field__label" htmlFor="button-label">
-                  Beschriftung der Schaltfläche
+                  {t('auth.buttonLabel')}
                 </label>
                 <input
                   id="button-label"
@@ -390,19 +387,18 @@ export function AuthPanel() {
         <div className="toolbar" style={{ marginTop: 18 }}>
           {settings ? (
             <span className="faint" style={{ fontSize: 12 }}>
-              zuletzt geändert {formatDateTime(settings.updatedAt)}
+              {t('common.lastChanged', { when: formatDateTime(settings.updatedAt) })}
             </span>
           ) : null}
           <div className="shell__spacer" />
           <button type="submit" className="button button--primary" disabled={busy}>
-            Speichern
+            {t('common.save')}
           </button>
         </div>
       </form>
 
       <p className="hint" style={{ marginTop: 14 }}>
-        Zum Ausprobieren: erst speichern, dann in einem privaten Fenster die Anmeldeseite öffnen.
-        Schlägt es fehl, steht die Begründung von Microsoft dort im Klartext.
+        {t('auth.tryHint')}
       </p>
     </>
   );

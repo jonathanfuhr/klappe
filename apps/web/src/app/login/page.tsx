@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { BrandMark } from '@/components/BrandMark';
 import { API_BASE, api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 /**
@@ -33,6 +34,7 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refresh } = useSession();
+  const t = useT();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -69,17 +71,13 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
           // der Browser das Cookie verworfen hat (`Secure` über http://). Ohne
           // diese Prüfung landet man wortlos wieder auf dieser Seite.
           if (!(await refresh())) {
-            setError(
-              'Passwort richtig, aber der Browser hat das Sitzungs-Cookie verworfen. ' +
-                'Das passiert, wenn SESSION_COOKIE_SECURE=1 gesetzt ist, die Seite aber ' +
-                'über http:// statt https:// aufgerufen wird.',
-            );
+            setError(t('login.cookieRejected'));
             return;
           }
           // `replace`, damit der Zurück-Knopf nicht wieder aufs Login führt.
           router.replace(target.startsWith('/') ? target : '/projekte');
         } catch (loginError) {
-          setError(loginError instanceof Error ? loginError.message : 'Anmeldung fehlgeschlagen.');
+          setError(loginError instanceof Error ? loginError.message : t('login.failed'));
         } finally {
           setBusy(false);
         }
@@ -87,7 +85,7 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
     >
       <BrandMark />
       <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>
-        Review und Freigabe für Videoproduktionen
+        {t('login.tagline')}
       </p>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -107,13 +105,13 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
         </a>
       ) : null}
 
-      {methods.microsoft && methods.local ? <div className="login__or">oder</div> : null}
+      {methods.microsoft && methods.local ? <div className="login__or">{t('login.or')}</div> : null}
 
       {methods.local ? (
         <>
           <div className="field">
             <label className="field__label" htmlFor="email">
-              E-Mail-Adresse
+              {t('common.email')}
             </label>
             <input
               id="email"
@@ -128,7 +126,7 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
 
           <div className="field">
             <label className="field__label" htmlFor="password">
-              Passwort
+              {t('common.password')}
             </label>
             <input
               id="password"
@@ -147,26 +145,26 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
             style={{ width: '100%', marginTop: 12 }}
             disabled={busy}
           >
-            {busy ? 'Wird angemeldet …' : 'Anmelden'}
+            {busy ? t('login.submitting') : t('login.submit')}
           </button>
         </>
       ) : (
         <p className="hint" style={{ textAlign: 'center' }}>
-          Für Team-Konten ist in diesem Workspace nur die Anmeldung über Microsoft 365 vorgesehen.
+          {t('login.microsoftOnly')}
         </p>
       )}
 
-      <div className="login__or">oder</div>
+      <div className="login__or">{t('login.or')}</div>
       <button
         type="button"
         className="button button--ghost"
         style={{ width: '100%' }}
         onClick={aufGast}
       >
-        Gastzugang
+        {t('login.guestAccess')}
       </button>
       <p className="hint" style={{ textAlign: 'center', marginBottom: 0 }}>
-        Für Kunden, die schon eine Freigabe haben – ohne Passwort, mit einem Code per Mail.
+        {t('login.guestHint')}
       </p>
     </form>
   );
@@ -178,6 +176,7 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
  * sonst könnte sich jeder eintragen und Post von dieser Anlage bekommen.
  */
 function GastLogin({ zurueck }: { zurueck: () => void }) {
+  const t = useT();
   const router = useRouter();
   const { refresh } = useSession();
 
@@ -194,10 +193,10 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
     try {
       await api.requestGuestLoginCode(email);
       setSchritt('code');
-      setInfo(`Wir haben einen Code an ${email} geschickt. Er gilt 15 Minuten.`);
+      setInfo(t('login.codeSent', { email }));
     } catch (requestError) {
       setError(
-        requestError instanceof Error ? requestError.message : 'Der Code ließ sich nicht verschicken.',
+        requestError instanceof Error ? requestError.message : t('login.codeSendFailed'),
       );
     } finally {
       setBusy(false);
@@ -210,16 +209,12 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
     try {
       const result = await api.verifyGuestLogin({ email, code });
       if (!(await refresh())) {
-        setError(
-          'Der Code stimmt, aber der Browser hat das Sitzungs-Cookie verworfen. ' +
-            'Das passiert, wenn SESSION_COOKIE_SECURE=1 gesetzt ist, die Seite aber ' +
-            'über http:// statt https:// aufgerufen wird.',
-        );
+        setError(t('login.guestCookieRejected'));
         return;
       }
       router.replace(result.redirectPath);
     } catch (verifyError) {
-      setError(verifyError instanceof Error ? verifyError.message : 'Der Code stimmt nicht.');
+      setError(verifyError instanceof Error ? verifyError.message : t('login.codeWrong'));
     } finally {
       setBusy(false);
     }
@@ -235,7 +230,7 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
     >
       <BrandMark />
       <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>
-        Gastzugang – für Kunden mit einer Freigabe
+        {t('login.guestSubtitle')}
       </p>
 
       {info ? (
@@ -248,7 +243,7 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
       {schritt === 'mail' ? (
         <div className="field">
           <label className="field__label" htmlFor="gast-login-email">
-            E-Mail-Adresse
+            {t('common.email')}
           </label>
           <input
             id="gast-login-email"
@@ -261,13 +256,13 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
             onChange={(event) => setEmail(event.target.value)}
           />
           <p className="hint">
-            Dieselbe Adresse, an die die Freigabe ging. Ein neues Konto entsteht hier nicht.
+            {t('login.guestEmailHint')}
           </p>
         </div>
       ) : (
         <div className="field">
           <label className="field__label" htmlFor="gast-login-code">
-            Code aus der E-Mail
+            {t('login.guestCodeLabel')}
           </label>
           <input
             id="gast-login-code"
@@ -292,11 +287,11 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
       >
         {busy
           ? schritt === 'mail'
-            ? 'Code wird geschickt …'
-            : 'Wird geprüft …'
+            ? t('login.sendingCode')
+            : t('login.checking')
           : schritt === 'mail'
-            ? 'Code anfordern'
-            : 'Anmelden'}
+            ? t('login.requestCode')
+            : t('login.signIn')}
       </button>
 
       <button
@@ -314,16 +309,17 @@ function GastLogin({ zurueck }: { zurueck: () => void }) {
           zurueck();
         }}
       >
-        Zurück
+        {t('login.back')}
       </button>
     </form>
   );
 }
 
 export default function LoginPage() {
+  const t = useT();
   return (
     <div className="login">
-      <Suspense fallback={<div className="card login__card">Wird geladen …</div>}>
+      <Suspense fallback={<div className="card login__card">{t('common.loading')}</div>}>
         <LoginForm />
       </Suspense>
     </div>
