@@ -6,8 +6,22 @@ import { useUserName } from '@/lib/user-name';
 import { api } from '@/lib/api';
 import { initialsOf, useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
+import { Icon } from '@/components/ui/Icon';
+import { Menu } from '@/components/ui/Menu';
 import { CommentBody } from './CommentBody';
 import { CommentComposer } from './CommentComposer';
+
+/** Die Auswahl steht als Liste da, damit Beschriftung und Wert zusammenbleiben. */
+const FILTER_OPTIONEN = [
+  { id: 'alle', schluessel: 'comments.filterAll' },
+  { id: 'offen', schluessel: 'comments.filterOpen' },
+  { id: 'erledigt', schluessel: 'comments.filterDone' },
+] as const;
+
+const SORT_OPTIONEN = [
+  { id: 'timecode', schluessel: 'comments.sortTimecode' },
+  { id: 'erstellt', schluessel: 'comments.sortCreated' },
+] as const;
 
 interface CommentPanelProps {
   comments: CommentDto[];
@@ -100,27 +114,49 @@ export function CommentPanel({
         <span className="comments__title">{t('comments.title')}</span>
         <span className="badge">{openCount} offen</span>
         <div className="shell__spacer" />
-        <select
-          className="select"
-          style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
-          value={filter}
-          onChange={(event) => setFilter(event.target.value as Filter)}
-          aria-label={t('comments.filter')}
+        {/*
+         * Zwei Symbole statt zweier Auswahlfelder (Phase 28). In der schmalen
+         * Kommentarspalte liefen die Felder über den rechten Rand hinaus – und
+         * die Projektliste macht es an derselben Stelle längst so.
+         */}
+        <Menu
+          label={t('comments.filter')}
+          align="left"
+          triggerClassName="iconbutton"
+          trigger={<Icon name="filter" />}
         >
-          <option value="alle">{t('comments.filterAll')}</option>
-          <option value="offen">{t('comments.filterOpen')}</option>
-          <option value="erledigt">{t('comments.filterDone')}</option>
-        </select>
-        <select
-          className="select"
-          style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
-          value={sortierung}
-          onChange={(event) => setSortierung(event.target.value as Sortierung)}
-          aria-label={t('comments.sort')}
+          <h3 className="filtermenu__title">{t('comments.filter')}</h3>
+          {FILTER_OPTIONEN.map((eintrag) => (
+            <button
+              key={eintrag.id}
+              type="button"
+              className="menu__item"
+              data-active={filter === eintrag.id}
+              onClick={() => setFilter(eintrag.id)}
+            >
+              {t(eintrag.schluessel)}
+            </button>
+          ))}
+        </Menu>
+        <Menu
+          label={t('comments.sort')}
+          align="left"
+          triggerClassName="iconbutton"
+          trigger={<Icon name="sort" />}
         >
-          <option value="timecode">{t('comments.sortTimecode')}</option>
-          <option value="erstellt">{t('comments.sortCreated')}</option>
-        </select>
+          <h3 className="filtermenu__title">{t('comments.sort')}</h3>
+          {SORT_OPTIONEN.map((eintrag) => (
+            <button
+              key={eintrag.id}
+              type="button"
+              className="menu__item"
+              data-active={sortierung === eintrag.id}
+              onClick={() => setSortierung(eintrag.id)}
+            >
+              {t(eintrag.schluessel)}
+            </button>
+          ))}
+        </Menu>
       </div>
 
       <div className="comments__list">

@@ -177,7 +177,7 @@ export const en: Record<MessageKey, Message> = {
   'video.aiBody':
     'Under Art. 50 of the EU AI Act, AI-generated content may require labelling from 2 August 2026. Whether and how the AI content is labelled in the published material is the client’s decision.',
   'video.isFinal': 'Final version',
-  'video.chipVisible': 'Visible to guests',
+  'video.chipVisible': 'Published',
   'video.chipDraft': 'Interim state',
   'video.isFinalHint':
     'Without the tick the client sees a notice that this is an interim state, and the download filename carries “Vorschau”.',

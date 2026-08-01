@@ -2246,6 +2246,12 @@ a.badge:hover {
   display: flex;
   align-items: center;
   gap: 4px;
+  /*
+   * Bricht die Leiste um, landen die Aktionen in einer eigenen Zeile. Ohne
+   * das stünden sie dort links unter dem Titel – gemeint sind sie aber als
+   * rechte Seite der Leiste, unter der Fassungswahl (Phase 28).
+   */
+  margin-left: auto;
 }
 
 /* Gruppenkopf der nach Kunden gruppierten Projektliste (Phase 15). */
