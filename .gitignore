@@ -6,9 +6,12 @@ out/
 coverage/
 *.tsbuildinfo
 
-.env
-.env.local
-.env.*.local
+# Alles, was mit .env anfängt, bleibt draußen – nur das Beispiel gehört ins
+# Repo. Die drei Muster von vorher (.env, .env.local, .env.*.local) ließen
+# eine von Hand angelegte Sicherung wie `.env.sicherung-20260729` durch, und
+# darin stehen POSTGRES_PASSWORD, JWT_SECRET und ADMIN_PASSWORD im Klartext.
+.env*
+!.env.example
 
 # Nur im Wurzelverzeichnis, nicht irgendwo im Baum: Ohne den führenden
 # Schrägstrich hätte `storage/` auch apps/api/src/storage/ verschluckt – und
