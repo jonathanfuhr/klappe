@@ -30,7 +30,6 @@ export const de = {
   'common.actions': 'Aktionen',
   'common.search': 'Suchen',
   'common.searchPlaceholder': 'Suchen …',
-  'common.optional': 'optional',
   'common.name': 'Name',
   'common.email': 'E-Mail-Adresse',
   'common.password': 'Passwort',
@@ -156,20 +155,6 @@ export const de = {
   'gate.nameSaveFailed': 'Der Name ließ sich nicht speichern.',
   'gate.cookieRejected':
     'Der Code stimmt, aber der Browser hat das Sitzungs-Cookie verworfen. Das passiert, wenn SESSION_COOKIE_SECURE=1 gesetzt ist, die Seite aber über http:// statt https:// aufgerufen wird.',
-  'guests.empty':
-    'Noch niemand von außen. Gäste erscheinen hier, sobald sie einen Freigabe-Link benutzt haben.',
-  'guests.lastSeen': 'zuletzt {when}',
-  'guests.blocked': 'Konto gesperrt',
-  'guests.canView': 'sieht mit',
-  'guests.canComment': 'kommentiert',
-  'guests.canDownload': 'lädt herunter',
-  'guests.canUpload': 'lädt hoch',
-  'guests.noAccess': 'kein Zugriff mehr',
-  'guests.revoked': 'entzogen',
-  'guests.linkRevoked': 'Link zurückgezogen',
-  'guests.giveBack': 'Zugriff zurückgeben',
-  'guests.revoke': 'Zugriff entziehen',
-  'guests.revokeHint': 'Entzogen wird am Projekt – dort gilt es für alle Videos gleichzeitig.',
 
   // ---------- Video-Seite ----------
   'video.title': 'Video',
@@ -202,7 +187,6 @@ export const de = {
   'video.aiToggleHint':
     'Setzt über allen Fassungen den Hinweis zur Kennzeichnungspflicht nach Art. 50 EU AI Act.',
   'video.noFileYet': 'Für dieses Video wurde noch keine Datei hochgeladen.',
-  'video.pickFile': 'Datei auswählen …',
   'video.tabComments': 'Kommentare',
   'video.tabShares': 'Freigaben',
   'video.tabNotifications': 'Benachrichtigungen',
@@ -265,7 +249,6 @@ export const de = {
   'project.title': 'Projekt',
   'project.actions': 'Aktionen für dieses Projekt',
   'project.addVideos': 'Videodateien hinzufügen',
-  'project.share': 'Freigeben',
   'project.archiveEllipsis': 'Archivieren …',
   'project.unarchiveEllipsis': 'Aus dem Archiv holen …',
   'project.videos': 'Videos',
@@ -290,7 +273,6 @@ export const de = {
   'upload.fileDate': 'Datum im Dateinamen',
   'upload.needProject': 'Erst ein Projekt wählen',
   'upload.needVideo': 'Erst ein Video wählen oder benennen',
-  'upload.savePending': 'Wird aufgenommen, sobald die Übertragung durch ist',
   'upload.processing': 'Verarbeitung',
   'upload.processingFailed': 'Verarbeitung fehlgeschlagen.',
   'upload.stateDone': 'Fertig',
@@ -972,7 +954,6 @@ export const de = {
   'branding.appIconTooBig': 'Das App-Symbol darf höchstens {kb} KB haben.',
   'branding.appIconTaken': 'App-Symbol übernommen.',
   'branding.appIconRemoved': 'App-Symbol entfernt.',
-  'branding.removeFailed': 'Entfernen fehlgeschlagen.',
 
   'login.codeSent': 'Wir haben einen Code an {email} geschickt. Er gilt 15 Minuten.',
   'login.codeSendFailed': 'Der Code ließ sich nicht verschicken.',

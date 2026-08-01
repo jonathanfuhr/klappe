@@ -264,26 +264,11 @@ export const api = {
     request<VersionDto>(`/v1/versions/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteVersion: (id: string) => request<void>(`/v1/versions/${id}`, { method: 'DELETE' }),
 
-  createUpload: (
-    videoId: string,
-    input: {
-      filename: string;
-      sizeBytes: number;
-      mimeType?: string;
-      label?: string;
-      fileDate?: string;
-      versionNumber?: number;
-    },
-  ) =>
-    request<UploadSessionDto>(`/v1/videos/${videoId}/uploads`, {
-      method: 'POST',
-      body: JSON.stringify(input),
-    }),
-  /** Sitzung ohne Ziel – Projekt und Video kommen später. */
   /** Fertig übertragene, noch unzugeordnete Sitzungen – für den Reload (Phase 15). */
   listUnassignedUploads: () => request<UploadSessionDto[]>('/v1/uploads'),
   /** Eine Sitzung nachfragen – wegen des Verarbeitungsfortschritts (Phase 18). */
   getUpload: (id: string) => request<UploadSessionDto>(`/v1/uploads/${id}`),
+  /** Sitzung ohne Ziel – Projekt und Video kommen später. */
   createUnassignedUpload: (input: { filename: string; sizeBytes: number; mimeType?: string }) =>
     request<UploadSessionDto>('/v1/uploads', { method: 'POST', body: JSON.stringify(input) }),
   /**

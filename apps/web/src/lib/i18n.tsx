@@ -134,5 +134,3 @@ export function Trans({
     </>
   );
 }
-
-export { DEFAULT_LOCALE };

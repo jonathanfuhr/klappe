@@ -117,29 +117,6 @@ export function uploadVersionFile(input: {
   );
 }
 
-export function uploadVideoFile(input: {
-  videoId: string;
-  file: File;
-  label?: string;
-  /** Datum im Download-Dateinamen, `JJJJ-MM-TT`. */
-  fileDate?: string;
-  /** Frei gewählte Nummer (auch 2.5); ohne Angabe zählt die API weiter. */
-  versionNumber?: number;
-  chunkSize?: number;
-  onProgress?: (progress: UploadProgress) => void;
-}): UploadHandle {
-  return runUpload(input.file, input.chunkSize, input.onProgress, () =>
-    api.createUpload(input.videoId, {
-      filename: input.file.name,
-      sizeBytes: input.file.size,
-      mimeType: input.file.type || undefined,
-      label: input.label,
-      fileDate: input.fileDate,
-      versionNumber: input.versionNumber,
-    }),
-  );
-}
-
 /** Kunden-Upload in den Projektordner (Phase 7) – dieselbe Mechanik. */
 export function uploadProjectFile(input: {
   projectId: string;

@@ -28,7 +28,6 @@ export const en: Record<MessageKey, Message> = {
   'common.actions': 'Actions',
   'common.search': 'Search',
   'common.searchPlaceholder': 'Search …',
-  'common.optional': 'optional',
   'common.name': 'Name',
   'common.email': 'Email address',
   'common.password': 'Password',
@@ -154,20 +153,6 @@ export const en: Record<MessageKey, Message> = {
   'gate.nameSaveFailed': 'The name could not be saved.',
   'gate.cookieRejected':
     'The code was correct, but your browser discarded the session cookie. This happens when SESSION_COOKIE_SECURE=1 is set while the site is served over http:// instead of https://.',
-  'guests.empty':
-    'Nobody from outside yet. Guests appear here as soon as they use a share link.',
-  'guests.lastSeen': 'last seen {when}',
-  'guests.blocked': 'Account blocked',
-  'guests.canView': 'can view',
-  'guests.canComment': 'can comment',
-  'guests.canDownload': 'can download',
-  'guests.canUpload': 'can upload',
-  'guests.noAccess': 'no access',
-  'guests.revoked': 'revoked',
-  'guests.linkRevoked': 'Link withdrawn',
-  'guests.giveBack': 'Restore access',
-  'guests.revoke': 'Revoke access',
-  'guests.revokeHint': 'Access is revoked at project level – it applies to all videos at once.',
 
   // ---------- Video page ----------
   'video.title': 'Video',
@@ -200,7 +185,6 @@ export const en: Record<MessageKey, Message> = {
   'video.aiToggleHint':
     'Adds the note on the labelling duty under Art. 50 EU AI Act above every version.',
   'video.noFileYet': 'No file has been uploaded for this video yet.',
-  'video.pickFile': 'Choose file …',
   'video.tabComments': 'Comments',
   'video.tabShares': 'Shares',
   'video.tabNotifications': 'Notifications',
@@ -263,7 +247,6 @@ export const en: Record<MessageKey, Message> = {
   'project.title': 'Project',
   'project.actions': 'Actions for this project',
   'project.addVideos': 'Add video files',
-  'project.share': 'Share',
   'project.archiveEllipsis': 'Archive …',
   'project.unarchiveEllipsis': 'Restore from archive …',
   'project.videos': 'Videos',
@@ -288,7 +271,6 @@ export const en: Record<MessageKey, Message> = {
   'upload.fileDate': 'Date in the filename',
   'upload.needProject': 'Pick a project first',
   'upload.needVideo': 'Pick or name a video first',
-  'upload.savePending': 'Will be added as soon as the transfer finishes',
   'upload.processing': 'Processing',
   'upload.processingFailed': 'Processing failed.',
   'upload.stateDone': 'Done',
@@ -974,7 +956,6 @@ export const en: Record<MessageKey, Message> = {
   'branding.appIconTooBig': 'The app icon may be at most {kb} KB.',
   'branding.appIconTaken': 'App icon applied.',
   'branding.appIconRemoved': 'App icon removed.',
-  'branding.removeFailed': 'Removing failed.',
 
   'login.codeSent': 'We have sent a code to {email}. It is valid for 15 minutes.',
   'login.codeSendFailed': 'The code could not be sent.',
