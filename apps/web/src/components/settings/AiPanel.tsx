@@ -4,6 +4,7 @@ import type { AiContentSettingsDto } from '@klappe/shared';
 import { MAX_AI_KIND_NAME_LENGTH } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { useAiKindName } from '@/lib/ai-kinds';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -16,6 +17,7 @@ import { useT } from '@/lib/i18n';
  */
 export function AiPanel() {
   const t = useT();
+  const kindName = useAiKindName();
   const [settings, setSettings] = useState<AiContentSettingsDto | null>(null);
   const [neuerName, setNeuerName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +58,7 @@ export function AiPanel() {
   const loeschen = async (art: AiContentSettingsDto['kinds'][number]) => {
     if (
       art.videoCount > 0 &&
-      !window.confirm(t('ai.deleteConfirm', { name: art.name, count: art.videoCount }))
+      !window.confirm(t('ai.deleteConfirm', { name: kindName(art), count: art.videoCount }))
     ) {
       return;
     }
@@ -127,16 +129,29 @@ export function AiPanel() {
             </div>
 
             <div className="list">
-              {settings.kinds.map((art) => (
-                <div className="tagrow" key={art.id}>
+              {settings.kinds.map((art) => {
+                /*
+                 * Die angezeigte Bezeichnung – bei den vier Werksarten die
+                 * übersetzte. Sie steht im Feld **und** im Vergleich beim
+                 * Verlassen: Verglichen mit `art.name` (immer Deutsch) würde
+                 * bei englischer Oberfläche schon ein Klick ins Feld als
+                 * Umbenennen durchgehen und der Art ihren Code nehmen.
+                 *
+                 * Der `key` trägt die Bezeichnung mit, damit ein
+                 * Sprachwechsel das Feld neu aufbaut – `defaultValue` wirkt
+                 * nur beim ersten Rendern.
+                 */
+                const anzeige = kindName(art);
+                return (
+                <div className="tagrow" key={`${art.id}-${anzeige}`}>
                   <input
                     className="input tagrow__name"
-                    defaultValue={art.name}
+                    defaultValue={anzeige}
                     maxLength={MAX_AI_KIND_NAME_LENGTH}
-                    aria-label={t('ai.kindNameLabel', { name: art.name })}
+                    aria-label={t('ai.kindNameLabel', { name: anzeige })}
                     onBlur={(event) => {
                       const neu = event.target.value.trim();
-                      if (neu && neu !== art.name) void aendern(() => api.renameAiKind(art.id, neu));
+                      if (neu && neu !== anzeige) void aendern(() => api.renameAiKind(art.id, neu));
                     }}
                   />
                   <div className="tagrow__rest">
@@ -153,7 +168,8 @@ export function AiPanel() {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
 
               {settings.kinds.length === 0 ? (
                 <p className="muted" style={{ fontSize: 13 }}>

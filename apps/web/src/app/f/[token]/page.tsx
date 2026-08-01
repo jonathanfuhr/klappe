@@ -74,7 +74,7 @@ export default function ShareGatePage() {
     try {
       await api.requestGuestCode(token, { email });
       setStep('code');
-      setInfo(`Wir haben einen Code an ${email} geschickt. Er gilt 15 Minuten.`);
+      setInfo(t('gate.codeSent', { email }));
     } catch (requestError) {
       setError(
         requestError instanceof Error ? requestError.message : t('gate.codeSendFailed'),

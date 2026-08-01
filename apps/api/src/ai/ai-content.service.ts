@@ -47,6 +47,7 @@ export class AiContentService {
       .select({
         id: aiContentKinds.id,
         name: aiContentKinds.name,
+        key: aiContentKinds.key,
         videoCount: sql<number>`(
           select count(*)::int from ${videoAiKinds}
           where ${videoAiKinds.kindId} = ${aiContentKinds.id}
@@ -73,9 +74,14 @@ export class AiContentService {
     const bereinigt = name.trim().replace(/\s+/g, ' ');
     await this.assertNameFree(bereinigt, id);
 
+    /*
+     * `key: null`: Wer eine Werksart umbenennt, macht sie zu einer eigenen.
+     * Bliebe der Code stehen, spränge der Name beim nächsten Sprachwechsel
+     * auf die ausgelieferte Bezeichnung zurück – die Umbenennung wäre weg.
+     */
     const [row] = await this.db
       .update(aiContentKinds)
-      .set({ name: bereinigt, updatedAt: new Date() })
+      .set({ name: bereinigt, key: null, updatedAt: new Date() })
       .where(eq(aiContentKinds.id, id))
       .returning();
     if (!row) throw new NotFoundException('Diese Art gibt es nicht.');
@@ -116,6 +122,7 @@ export class AiContentService {
         videoId: videoAiKinds.videoId,
         id: aiContentKinds.id,
         name: aiContentKinds.name,
+        key: aiContentKinds.key,
       })
       .from(videoAiKinds)
       .innerJoin(aiContentKinds, eq(videoAiKinds.kindId, aiContentKinds.id))
@@ -124,7 +131,7 @@ export class AiContentService {
 
     for (const row of rows) {
       const liste = map.get(row.videoId) ?? [];
-      liste.push({ id: row.id, name: row.name });
+      liste.push({ id: row.id, name: row.name, key: row.key });
       map.set(row.videoId, liste);
     }
     return map;

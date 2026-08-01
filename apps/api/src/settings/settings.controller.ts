@@ -43,6 +43,7 @@ import {
 } from 'class-validator';
 import { CurrentUser, Public, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
+import { LocaleService } from '../i18n/locale.service';
 import { MailService } from '../mail/mail.service';
 import { AuthSettingsService } from './auth-settings.service';
 import {
@@ -57,7 +58,7 @@ import {
   MIN_SHORT_EDGE,
   TranscodeSettingsService,
 } from './transcode-settings.service';
-import { SMTP_PRESETS } from './smtp-presets';
+import { smtpPresets } from './smtp-presets';
 
 class UpdateSmtpDto {
   @IsOptional()
@@ -368,6 +369,7 @@ export class SettingsController {
     private readonly mailService: MailService,
     private readonly authSettings: AuthSettingsService,
     private readonly transcodeSettings: TranscodeSettingsService,
+    private readonly locales: LocaleService,
   ) {}
 
   @Roles('ADMIN')
@@ -441,10 +443,14 @@ export class SettingsController {
     return this.settingsService.getStorageStatus();
   }
 
+  /**
+   * Name und Hinweis stehen in der Sprache des Admins (Phase 26) – die Liste
+   * ist Anleitung, keine Konfiguration, und wird gelesen wie die Seite drumherum.
+   */
   @Roles('ADMIN')
   @Get('smtp/presets')
-  presets(): SmtpProviderPresetDto[] {
-    return SMTP_PRESETS;
+  async presets(@CurrentUser() user: RequestUser): Promise<SmtpProviderPresetDto[]> {
+    return smtpPresets(await this.locales.forUser(user.locale));
   }
 
   /** Schickt eine Testmail; Fehler des Mailservers kommen unverändert zurück. */

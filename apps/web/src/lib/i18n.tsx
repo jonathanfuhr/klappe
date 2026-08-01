@@ -27,6 +27,10 @@ const WOERTERBUECHER = { de, en };
  */
 export type Translator = (key: MessageKey, vars?: Vars) => string;
 
+// Weiterreichen, damit Beschriftungstabellen ihre Schlüssel typsicher führen
+// können, ohne das Wörterbuch selbst zu importieren.
+export type { MessageKey };
+
 interface I18nState {
   locale: Locale;
   t: Translator;

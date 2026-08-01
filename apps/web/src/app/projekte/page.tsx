@@ -18,7 +18,7 @@ import { Menu, MenuItem } from '@/components/ui/Menu';
 import { SearchBox } from '@/components/ui/SearchBox';
 import { DeleteProjectDialog, EditProjectDialog } from '@/components/ProjectDialogs';
 import { api } from '@/lib/api';
-import { formatRelative } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
@@ -32,6 +32,7 @@ const BASIS_SORTS = [
 
 export default function ProjectsPage() {
   const t = useT();
+  const { formatRelative } = useFormat();
   const { user } = useSession();
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
 
@@ -156,15 +157,23 @@ export default function ProjectsPage() {
       ? t('projects.customer')
       : (fieldDefs.find((def) => def.id === groupBy)?.name ?? t('projects.customer'));
 
+  /*
+   * Die Sammelgruppe für Projekte ohne Wert. Sie steht hier oben, weil sie
+   * zweimal gebraucht wird: einmal als Name der Gruppe und einmal, um sie
+   * wiederzuerkennen. Sie am Wortanfang zu erkennen („beginnt mit ‚Ohne '")
+   * ginge nur auf Deutsch – auf Englisch heißt sie „Without customer" und
+   * bekäme sonst ein Umbenennen-Menü, das es für sie nicht geben darf.
+   */
+  const ohneWert = t('projects.withoutValue', { name: gruppenLabel });
+
   /** Wert eines Projekts in der Gruppier-Dimension. */
   const gruppenWert = useCallback(
     (project: ProjectDto): string => {
-      const ohne = t('projects.withoutValue', { name: gruppenLabel });
-      if (groupBy === 'customer') return project.customer?.trim() || ohne;
+      if (groupBy === 'customer') return project.customer?.trim() || ohneWert;
       const feld = project.fields.find((eintrag) => eintrag.fieldId === groupBy);
-      return feld?.value.trim() || ohne;
+      return feld?.value.trim() || ohneWert;
     },
-    [groupBy, gruppenLabel, t],
+    [groupBy, ohneWert],
   );
 
   /**
@@ -396,7 +405,7 @@ export default function ProjectsPage() {
               {/* Gruppieren stellt die Sortierung selbst her; die beiden
                   schließen sich aus und teilen sich deshalb kein Menü. */}
               <Menu
-                label={groupBy ? `Sortierung (von der Gruppierung bestimmt)` : sortLabel}
+                label={groupBy ? t('projects.sortFromGrouping') : sortLabel}
                 align="left"
                 triggerClassName="iconbutton listbar__button"
                 trigger={<Icon name="sort" />}
@@ -483,7 +492,7 @@ export default function ProjectsPage() {
                 <span className="faint" style={{ fontSize: 13 }}>
                   {gruppe.projekte.length}
                 </span>
-                {isTeam && groupBy === 'customer' && !gruppe.name.startsWith('Ohne ') ? (
+                {isTeam && groupBy === 'customer' && gruppe.name !== ohneWert ? (
                   <Menu label={t('projects.customerActions', { name: gruppe.name })}>
                     <MenuItem onSelect={() => setRenamingCustomer(gruppe.name)}>
                       {t('projects.renameCustomerEllipsis')}

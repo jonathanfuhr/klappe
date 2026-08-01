@@ -77,6 +77,16 @@ kaskadiert auf die Zuordnungen. Der globale Schalter dazu ist
 `app_settings.ai_content_enabled`: Aus blendet Haken, Auswahl und Hinweis
 überall aus, die Zuordnungen bleiben gespeichert.
 
+`ai_content_kinds.key` trägt nur bei den vier ab Werk mitgelieferten Arten
+einen Code (`voice`, `video`, `sounds`, `music`); die Oberfläche zeigt sie
+damit in der gewählten Sprache. Selbst angelegte Arten haben `null` und
+behalten ihre Bezeichnung so, wie sie eingetippt wurde – ein selbst
+vergebener Name ist ein Wort, über das Menschen reden und nach dem sie
+suchen. Wer eine Werksart umbenennt, macht sie damit zu einer eigenen: Der
+Code fällt weg, sonst spränge die Bezeichnung beim nächsten Sprachwechsel
+zurück. `name` bleibt in jedem Fall gefüllt, als deutscher Rückfall und weil
+die Eindeutigkeitsprüfung darauf steht.
+
 ## video_versions
 
 Eine hochgeladene Fassung. **Kommentare hängen an der Version, nicht am

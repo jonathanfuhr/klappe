@@ -4,7 +4,7 @@ import type { BackupFileDto, BackupSettingsDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { api } from '@/lib/api';
-import { formatBytes, formatDateTime } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -16,6 +16,7 @@ import { useT } from '@/lib/i18n';
  */
 export function BackupPanel() {
   const t = useT();
+  const { formatBytes, formatDateTime } = useFormat();
   const [settings, setSettings] = useState<BackupSettingsDto | null>(null);
   const [dateien, setDateien] = useState<BackupFileDto[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -268,6 +269,7 @@ function RestoreDialog({
   onDone: (meldung: string) => Promise<void>;
 }) {
   const t = useT();
+  const { formatBytes, formatDateTime } = useFormat();
   const bestaetigung = t('backup.confirmWord');
   const [wort, setWort] = useState('');
   const [busy, setBusy] = useState(false);

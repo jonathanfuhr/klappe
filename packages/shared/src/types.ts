@@ -230,6 +230,12 @@ export interface TagDto {
 export interface AiKindDto {
   id: string;
   name: string;
+  /**
+   * Bei den vier ab Werk mitgelieferten Arten ein Code (`voice`, `video`,
+   * `sounds`, `music`), sonst `null`. Die Oberfläche zeigt für einen Code die
+   * übersetzte Bezeichnung und sonst `name`, so wie er eingetippt wurde.
+   */
+  key: string | null;
 }
 
 export interface AiKindWithCountDto extends AiKindDto {

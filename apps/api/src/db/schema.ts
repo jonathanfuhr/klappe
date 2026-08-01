@@ -149,6 +149,20 @@ export const aiContentKinds = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
+    /**
+     * Nur die vier ab Werk mitgelieferten Arten tragen hier einen Code
+     * (`voice`, `video`, `sounds`, `music`) – die Oberfläche schlägt ihn im
+     * Wörterbuch nach und zeigt sie damit in der gewählten Sprache (Phase 26).
+     *
+     * Selbst angelegte Arten haben `null` und behalten ihren Namen so, wie er
+     * eingetippt wurde. Wer eine Werksart umbenennt, macht sie damit zu einer
+     * eigenen: Der Code fällt weg, sonst würde die Umbenennung beim nächsten
+     * Sprachwechsel wieder verschwinden.
+     *
+     * `name` bleibt in jedem Fall gefüllt – als deutscher Rückfall und weil
+     * die Eindeutigkeitsprüfung darauf steht.
+     */
+    key: text('key'),
     sortOrder: integer('sort_order').notNull().default(0),
     ...timestamps,
   },

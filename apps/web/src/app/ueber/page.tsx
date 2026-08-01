@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { api } from '@/lib/api';
-import { formatDateTime } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
@@ -19,6 +19,7 @@ const MAX_LENGTH = 4000;
  */
 export default function AboutPage() {
   const t = useT();
+  const { formatDateTime } = useFormat();
   const { user } = useSession();
   const istAdmin = user?.role === 'ADMIN';
 

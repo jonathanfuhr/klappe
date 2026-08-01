@@ -57,6 +57,15 @@ export class LocaleService {
   }
 
   /**
+   * Die Sprache eines bekannten Kontos: erst dessen eigene Wahl, sonst die
+   * Vorgabe des Workspace. Ohne den Browser-Schritt – der passt nur, solange
+   * jemand davorsitzt, und gilt deshalb für Mails nicht.
+   */
+  async forUser(eigene: string | null | undefined): Promise<Locale> {
+    return isLocale(eigene) ? eigene : await this.workspaceLocale();
+  }
+
+  /**
    * Die Sprache des Anfragenden. `request.user` steht erst hinter dem Guard;
    * bei einer abgewiesenen Anmeldung bleibt der Browser-Wunsch übrig.
    */

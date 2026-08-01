@@ -3,7 +3,7 @@
 import { type ProjectDto, type VideoDto, suggestVideoName, versionLabel } from '@klappe/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
-import { formatBytes } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { type UploadJob, useUploads } from '@/lib/uploads-context';
@@ -219,6 +219,7 @@ function JobRow({
   onRemove: () => void;
 }) {
   const t = useT();
+  const { formatBytes } = useFormat();
   const uploadFraction = job.sizeBytes > 0 ? job.uploadedBytes / job.sizeBytes : 0;
   const isVideo = job.target === 'video';
 
@@ -310,7 +311,10 @@ function JobRow({
               <option value="">{t('upload.newVideo')}</option>
               {videos.map((video) => (
                 <option key={video.id} value={video.id}>
-                  {video.name} (nächste Fassung: v{video.versionCount + 1})
+                  {t('upload.nextVersionHint', {
+                    name: video.name,
+                    version: video.versionCount + 1,
+                  })}
                 </option>
               ))}
             </select>

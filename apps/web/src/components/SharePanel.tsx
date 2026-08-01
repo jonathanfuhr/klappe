@@ -6,7 +6,7 @@ import { useUserName } from '@/lib/user-name';
 import { ShareManager } from '@/components/ShareManager';
 import { IconButton } from '@/components/ui/Icon';
 import { api } from '@/lib/api';
-import { formatRelative } from '@/lib/format';
+import { useFormat } from '@/lib/format';
 import { type Translator, useT } from '@/lib/i18n';
 
 /**
@@ -79,6 +79,7 @@ export function SharePanel({
   targetLabel: string;
 }) {
   const t = useT();
+  const { formatRelative } = useFormat();
   const [guests, setGuests] = useState<GuestAccessDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const zeigeName = useUserName();

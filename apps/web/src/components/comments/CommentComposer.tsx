@@ -4,7 +4,7 @@ import { type UserSummaryDto, applyMentions, mentionLabel } from '@klappe/shared
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { initialsOf } from '@/lib/format';
-import { useT } from '@/lib/i18n';
+import { Trans, useT } from '@/lib/i18n';
 
 interface CommentComposerProps {
   /** Frame, an den der Kommentar geheftet wird; `null` = ohne Zeitbezug. */
@@ -270,8 +270,10 @@ export function CommentComposer({
           />
           {(pinned || hasAnnotation) && timecode ? (
             <>
-              {t('comments.pinAt')} <span className="mono">{timecode}</span>{' '}
-              {t('comments.pinAtSuffix')}
+              <Trans
+                k="comments.pinAtTime"
+                parts={{ time: <span className="mono">{timecode}</span> }}
+              />{' '}
               {frame !== null ? (
                 <span className="faint">{t('comments.frame', { frame })}</span>
               ) : null}

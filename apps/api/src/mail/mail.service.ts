@@ -117,7 +117,7 @@ export class MailService {
    * wenn niemand mehr davorsitzt.
    */
   async localeFor(eigene: string | null | undefined): Promise<Locale> {
-    return isLocale(eigene) ? eigene : await this.locales.workspaceLocale();
+    return this.locales.forUser(eigene);
   }
 
   /** Testmail aus dem Admin-Panel – meldet Fehler unverändert zurück. */
