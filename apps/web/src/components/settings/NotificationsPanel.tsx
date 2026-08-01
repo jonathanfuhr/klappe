@@ -3,7 +3,6 @@
 import {
   type NotificationSettingDto,
   type NotificationSettingsDto,
-  type VersionSettingsDto,
   MAX_PROJECT_FILE_DIGEST_MINUTES,
 } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
@@ -15,8 +14,8 @@ import { type MessageKey, useT } from '@/lib/i18n';
  *
  * Bis hierher entschied allein der Code, welche Mail hinausging; der Admin
  * konnte nur den Versand als Ganzes abschalten. Hier steht jede Mailart mit
- * zwei Haken – „an das Team" und „an Gäste" –, dazu die beiden Ruhezeiten und
- * die zwei Schalter für interne Fassungen.
+ * zwei Haken – „an das Team" und „an Gäste" – und
+ * die beiden Ruhezeiten.
  *
  * Wichtig für die Erwartung: Der Schalter hier ist die **oberste** von drei
  * Ebenen. Er kann nur zumachen, nie jemandem etwas aufzwingen – darunter
@@ -26,18 +25,12 @@ import { type MessageKey, useT } from '@/lib/i18n';
 export function NotificationsPanel() {
   const t = useT();
   const [settings, setSettings] = useState<NotificationSettingsDto | null>(null);
-  const [versionen, setVersionen] = useState<VersionSettingsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [mails, fassungen] = await Promise.all([
-        api.getNotificationSettings(),
-        api.getVersionSettings(),
-      ]);
-      setSettings(mails);
-      setVersionen(fassungen);
+      setSettings(await api.getNotificationSettings());
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
@@ -61,31 +54,26 @@ export function NotificationsPanel() {
     }
   };
 
-  const fassungenAendern = async (aktion: () => Promise<VersionSettingsDto>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      setVersionen(await aktion());
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : t('common.saveFailed'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (!settings || !versionen) {
-    return <div className="card">{error ?? t('common.loading')}</div>;
+  if (!settings) {
+    return <div className="empty">{error ?? t('common.loading')}</div>;
   }
 
   return (
-    <div className="stack">
+    /*
+     * Fragment statt Wrapper: Die Abstandsregel des Einstellungsbereichs
+     * greift nur bei **direkten** Kindern von `.settingspage__body` – ein
+     * Element dazwischen hebelt sie aus. Und `.card` bringt von sich aus kein
+     * Padding mit; das setzt jedes Panel selbst, hier wie überall mit 20.
+     */
+    <>
+      <p className="page__subtitle" style={{ marginTop: 0 }}>
+        {t('notifications.intro')}
+      </p>
+
       {error ? <div className="notice notice--warn">{error}</div> : null}
 
-      <div className="card">
-        <p className="muted" style={{ marginTop: 0 }}>
-          {t('notifications.intro')}
-        </p>
-        <p className="hint" style={{ marginTop: 0 }}>
+      <div className="card" style={{ padding: 20 }}>
+        <p className="hint" style={{ margin: '0 0 14px' }}>
           {t('notifications.layers')}
         </p>
 
@@ -116,9 +104,9 @@ export function NotificationsPanel() {
         </table>
       </div>
 
-      <div className="card">
-        <h2 className="card__title">{t('notifications.digestTitle')}</h2>
-        <p className="muted" style={{ marginTop: 0 }}>
+      <div className="card" style={{ padding: 20 }}>
+        <h3 style={{ margin: '0 0 4px' }}>{t('notifications.digestTitle')}</h3>
+        <p className="hint" style={{ marginTop: 0 }}>
           {t('notifications.digestIntro')}
         </p>
 
@@ -174,45 +162,7 @@ export function NotificationsPanel() {
         <p className="hint">{t('notifications.mentionImmediateHint')}</p>
       </div>
 
-      <div className="card">
-        <h2 className="card__title">{t('notifications.internalTitle')}</h2>
-        <p className="muted" style={{ marginTop: 0 }}>
-          {t('notifications.internalIntro')}
-        </p>
-
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={versionen.internalEnabled}
-            disabled={busy}
-            onChange={(event) =>
-              void fassungenAendern(() =>
-                api.updateVersionSettings({ internalEnabled: event.target.checked }),
-              )
-            }
-          />
-          {t('notifications.internalEnabled')}
-        </label>
-        <p className="hint">{t('notifications.internalEnabledHint')}</p>
-
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={versionen.internalByDefault}
-            // Ohne die Funktion ist die Vorgabe gegenstandslos – dann steht
-            // der Haken da, wirkt aber nirgends. Also zu.
-            disabled={busy || !versionen.internalEnabled}
-            onChange={(event) =>
-              void fassungenAendern(() =>
-                api.updateVersionSettings({ internalByDefault: event.target.checked }),
-              )
-            }
-          />
-          {t('notifications.internalDefault')}
-        </label>
-        <p className="hint">{t('notifications.internalDefaultHint')}</p>
-      </div>
-    </div>
+    </>
   );
 }
 

@@ -625,14 +625,6 @@ export const en: Record<MessageKey, Message> = {
   'notifications.mentionImmediate': 'Send mentions immediately',
   'notifications.mentionImmediateHint':
     'Skips the quiet time. Being addressed by name should not reach you a quarter of an hour later.',
-  'notifications.internalTitle': 'Internal versions',
-  'notifications.internalIntro': 'The round in house before the client gets to see anything.',
-  'notifications.internalEnabled': 'Use internal versions',
-  'notifications.internalEnabledHint':
-    'Off means the tick disappears from the upload dialog and from the version. Versions already internal stay as they are.',
-  'notifications.internalDefault': 'New versions are internal by default',
-  'notifications.internalDefaultHint':
-    'Recommended: accidentally internal costs a question – accidentally published means the client has seen it.',
   'settings.navMail': 'Email delivery',
   'settings.navTranscode': 'Transcode',
   'settings.navStorage': 'Storage',
@@ -662,6 +654,14 @@ export const en: Record<MessageKey, Message> = {
   'projectsSettings.retentionHint':
     'The older versions stay for that long – in case archiving was a mistake – and are then deleted by the nightly cleanup to free up space. The newest one always stays.',
   'projectsSettings.retentionZero': 'deletes them at the next cleanup.',
+  'projectsSettings.internalTitle': 'Internal versions',
+  'projectsSettings.internalIntro': 'The round in house before the client gets to see anything.',
+  'projectsSettings.internalEnabled': 'Use internal versions',
+  'projectsSettings.internalEnabledHint':
+    'Off means the tick disappears from the upload dialog and from the version. Versions already internal stay as they are.',
+  'projectsSettings.internalDefault': 'New versions are internal by default',
+  'projectsSettings.internalDefaultHint':
+    'Recommended: accidentally internal costs a question – accidentally published means the client has seen it.',
   'common.lastChanged': 'last changed {when}',
   'guestsSettings.summary': {
     one: '{count} guest in total, {active} of them with valid access',
@@ -897,12 +897,6 @@ export const en: Record<MessageKey, Message> = {
   'smtp.fromEmail': 'Sender address',
   'smtp.spfHint':
     'So that codes and notifications do not end up in spam, the sender domain should have SPF and DKIM set.',
-  'smtp.digestTitle': 'Digest emails',
-  'smtp.digestLabel': 'Quiet period in minutes',
-  'smtp.digestHintStart':
-    'Anyone reviewing a video rarely leaves just one note. Instead of sending each one straight away, Klappe waits until no new comment has arrived for that many minutes and then sends one email with all of them – per recipient and video.',
-  'smtp.digestHintEnd':
-    'sends immediately, that is one email per comment. Mentions also appear in the subject of a digest.',
   'smtp.sendTest': 'Send test email',
   'smtp.sendTestDisabled': 'Save and activate first',
   'smtp.testSent': 'Test email sent to {email}.',

@@ -633,15 +633,6 @@ export const de = {
   'notifications.mentionImmediate': 'Erwähnungen sofort schicken',
   'notifications.mentionImmediateHint':
     'Überspringt die Ruhezeit. Wer namentlich angesprochen wird, soll nicht erst in einer Viertelstunde davon erfahren.',
-  'notifications.internalTitle': 'Interne Fassungen',
-  'notifications.internalIntro':
-    'Die Runde im Haus, bevor der Kunde etwas zu sehen bekommt.',
-  'notifications.internalEnabled': 'Interne Fassungen verwenden',
-  'notifications.internalEnabledHint':
-    'Aus heißt: Der Haken verschwindet aus dem Upload-Fenster und von der Fassung. Bereits interne Fassungen bleiben, wie sie sind.',
-  'notifications.internalDefault': 'Neue Fassungen sind standardmäßig intern',
-  'notifications.internalDefaultHint':
-    'Empfohlen: Versehentlich intern kostet eine Nachfrage – versehentlich veröffentlicht hat der Kunde gesehen.',
   'settings.navMail': 'E-Mail-Versand',
   'settings.navTranscode': 'Transcode',
   'settings.navStorage': 'Speicher',
@@ -670,6 +661,15 @@ export const de = {
   'projectsSettings.retentionHint':
     'So lange bleiben die älteren Fassungen liegen – falls das Archivieren ein Irrtum war – und werden dann vom nächtlichen Aufräumer gelöscht, um Platz zu schaffen. Die neueste bleibt immer.',
   'projectsSettings.retentionZero': 'löscht sie beim nächsten Aufräumen.',
+  'projectsSettings.internalTitle': 'Interne Fassungen',
+  'projectsSettings.internalIntro':
+    'Die Runde im Haus, bevor der Kunde etwas zu sehen bekommt.',
+  'projectsSettings.internalEnabled': 'Interne Fassungen verwenden',
+  'projectsSettings.internalEnabledHint':
+    'Aus heißt: Der Haken verschwindet aus dem Upload-Fenster und von der Fassung. Bereits interne Fassungen bleiben, wie sie sind.',
+  'projectsSettings.internalDefault': 'Neue Fassungen sind standardmäßig intern',
+  'projectsSettings.internalDefaultHint':
+    'Empfohlen: Versehentlich intern kostet eine Nachfrage – versehentlich veröffentlicht hat der Kunde gesehen.',
   'common.lastChanged': 'zuletzt geändert {when}',
   'guestsSettings.summary': {
     one: '{count} Gast insgesamt, {active} davon mit gültigem Zugang',
@@ -905,12 +905,6 @@ export const de = {
   'smtp.fromEmail': 'Absender-Adresse',
   'smtp.spfHint':
     'Damit Codes und Benachrichtigungen nicht im Spam landen, sollte die Absender-Domain SPF und DKIM gesetzt haben.',
-  'smtp.digestTitle': 'Sammelmails',
-  'smtp.digestLabel': 'Ruhezeit in Minuten',
-  'smtp.digestHintStart':
-    'Wer ein Video durchsieht, hinterlässt selten nur eine Anmerkung. Statt jede sofort zu verschicken, wartet Klappe, bis so viele Minuten lang kein neuer Kommentar mehr kam, und schickt dann eine Mail mit allen – je Empfänger und Video.',
-  'smtp.digestHintEnd':
-    'verschickt sofort, also eine Mail je Kommentar. Erwähnungen stehen auch in der Sammelmail im Betreff.',
   'smtp.sendTest': 'Testmail senden',
   'smtp.sendTestDisabled': 'Erst speichern und aktivieren',
   'smtp.testSent': 'Testmail an {email} verschickt.',

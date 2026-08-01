@@ -433,16 +433,9 @@ export function SmtpPanel() {
           {t('smtp.spfHint')}
         </p>
 
-        <div className="section">
-          <div className="section__head">
-            <h2 className="section__title">{t('smtp.digestTitle')}</h2>
-          </div>
-          {/* Die Ruhezeit ist mit Phase 28 nach Einstellungen →
-              Benachrichtigungen gezogen: Sie sagt etwas über den *Inhalt* der
-              Post, nicht über den Versandweg. Hier bleibt nur, was den
-              Mailserver betrifft – sonst stünde dasselbe Feld an zwei Stellen
-              und schriebe in dieselbe Spalte. */}
-        </div>
+        {/* Die Ruhezeit für Sammelmails stand bis Phase 28 hier. Sie sagt
+            etwas über den *Inhalt* der Post, nicht über den Versandweg, und
+            liegt jetzt unter Einstellungen → Benachrichtigungen. */}
 
         <div className="toolbar" style={{ marginTop: 18 }}>
           {settings ? (
