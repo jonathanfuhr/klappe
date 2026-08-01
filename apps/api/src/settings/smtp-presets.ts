@@ -212,12 +212,3 @@ function ausgeben(preset: SmtpPreset, locale: Locale): SmtpProviderPresetDto {
 export function smtpPresets(locale: Locale): SmtpProviderPresetDto[] {
   return PRESETS.map((preset) => ausgeben(preset, locale));
 }
-
-export function findPreset(
-  id: string | null | undefined,
-  locale: Locale = DEFAULT_LOCALE,
-): SmtpProviderPresetDto | null {
-  if (!id) return null;
-  const preset = PRESETS.find((entry) => entry.id === id);
-  return preset ? ausgeben(preset, locale) : null;
-}

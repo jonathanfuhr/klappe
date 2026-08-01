@@ -24,12 +24,6 @@ const SALT_LENGTH = 16;
 /** scrypt braucht ~128·N·r Byte; mit Reserve, sonst wirft Node bei N=16384. */
 const MAX_MEM = 64 * 1024 * 1024;
 
-/**
- * Nur noch die Untergrenze für die Formularprüfung – die tatsächliche Länge
- * gibt seit Phase 24 die Richtlinie des Workspace vor.
- */
-export const MIN_PASSWORD_LENGTH = DEFAULT_PASSWORD_POLICY.minLength;
-
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(SALT_LENGTH);
   const { N, r, p } = DEFAULT_PARAMS;
