@@ -76,6 +76,17 @@ interface MailTexte {
   fileSubject: (project: string) => string;
   fileIntro: (uploader: string, project: string) => string;
   fileLine: (filename: string, size: string) => string;
+  fileDigestSubject: (count: number, project: string) => string;
+  fileDigestIntro: (uploader: string, count: number, project: string) => string;
+  fileDigestTotal: (size: string) => string;
+  // Neue Fassung (Phase 28)
+  versionSubject: (version: string, video: string) => string;
+  versionIntro: (version: string, video: string) => string;
+  versionInternalNote: string;
+  versionReleasedNote: (actor: string) => string;
+  versionFailedSubject: (video: string) => string;
+  versionFailedIntro: (version: string, video: string) => string;
+  versionFailedReason: (reason: string) => string;
   // Zugang freigeschaltet
   accessSubject: (target: string) => string;
   accessIntro: (actor: string, target: string) => string;
@@ -127,6 +138,18 @@ const DE: MailTexte = {
   fileSubject: (project) => `Neues Material im Projekt ${project}`,
   fileIntro: (uploader, project) => `${uploader} hat Material in „${project}“ hochgeladen.`,
   fileLine: (filename, size) => `Datei: ${filename} (${size})`,
+  fileDigestSubject: (count, project) => `${count} neue Dateien im Projekt ${project}`,
+  fileDigestIntro: (uploader, count, project) =>
+    `${uploader} hat ${count} Dateien in „${project}“ hochgeladen.`,
+  fileDigestTotal: (size) => `Zusammen ${size}.`,
+  versionSubject: (version, video) => `Neue Fassung ${version}: ${video}`,
+  versionIntro: (version, video) => `Für „${video}“ steht ${version} bereit.`,
+  versionInternalNote: 'Diese Fassung ist intern – Gäste sehen sie erst nach der Freigabe.',
+  versionReleasedNote: (actor) => `${actor} hat sie für Gäste freigegeben.`,
+  versionFailedSubject: (video) => `Verarbeitung fehlgeschlagen: ${video}`,
+  versionFailedIntro: (version, video) =>
+    `${version} von „${video}“ konnte nicht verarbeitet werden.`,
+  versionFailedReason: (reason) => `Grund: ${reason}`,
   accessSubject: (target) => `Freigeschaltet: ${target}`,
   accessIntro: (actor, target) => `${actor} hat „${target}“ für dich freigegeben.`,
   accessNoNewLink: 'Du brauchst dafür keinen neuen Link – melde dich an wie gewohnt.',
@@ -178,6 +201,17 @@ const EN: MailTexte = {
   fileSubject: (project) => `New material in the project ${project}`,
   fileIntro: (uploader, project) => `${uploader} uploaded material to “${project}”.`,
   fileLine: (filename, size) => `File: ${filename} (${size})`,
+  fileDigestSubject: (count, project) => `${count} new files in the project ${project}`,
+  fileDigestIntro: (uploader, count, project) =>
+    `${uploader} uploaded ${count} files to “${project}”.`,
+  fileDigestTotal: (size) => `${size} in total.`,
+  versionSubject: (version, video) => `New version ${version}: ${video}`,
+  versionIntro: (version, video) => `${version} of “${video}” is ready.`,
+  versionInternalNote: 'This version is internal – guests will not see it until it is released.',
+  versionReleasedNote: (actor) => `${actor} released it for guests.`,
+  versionFailedSubject: (video) => `Processing failed: ${video}`,
+  versionFailedIntro: (version, video) => `${version} of “${video}” could not be processed.`,
+  versionFailedReason: (reason) => `Reason: ${reason}`,
   accessSubject: (target) => `Now available: ${target}`,
   accessIntro: (actor, target) => `${actor} shared “${target}” with you.`,
   accessNoNewLink: 'You do not need a new link for that – sign in as usual.',
@@ -478,6 +512,165 @@ export function renderProjectFileMail(input: {
       title: intro,
       body: paragraph(t.fileLine(input.filename, input.sizeLabel)),
       buttonLabel: t.toProject,
+      buttonUrl: input.url,
+      unsubscribeUrl: input.unsubscribeUrl,
+    }),
+  };
+}
+
+/**
+ * Sammelmail für Kundenmaterial (Phase 28).
+ *
+ * Ein Kunde lädt selten eine Datei – er lädt einen Ordner. Zwanzig Mails über
+ * zwanzig Dateien sind zwanzig Mal dieselbe Nachricht. Deshalb nennt diese
+ * Mail Anzahl und Gesamtgröße und zählt die Dateien nur so weit auf, wie es
+ * lesbar bleibt.
+ */
+export function renderProjectFileDigestMail(input: {
+  recipientName: string;
+  uploaderName: string;
+  projectName: string;
+  files: Array<{ filename: string; sizeLabel: string }>;
+  totalSizeLabel: string;
+  url: string;
+  unsubscribeUrl: string;
+  brand?: MailBrand;
+  locale?: Locale;
+}): RenderedMail {
+  const t = texte(input.locale);
+  const intro = t.fileDigestIntro(input.uploaderName, input.files.length, input.projectName);
+  // Mehr als zehn Zeilen liest niemand; der Rest steht als Zahl darunter.
+  const sichtbar = input.files.slice(0, 10);
+  const rest = input.files.length - sichtbar.length;
+  const zeilen = sichtbar.map((datei) => t.fileLine(datei.filename, datei.sizeLabel));
+  if (rest > 0) zeilen.push(`… +${rest}`);
+
+  return {
+    subject: t.fileDigestSubject(input.files.length, input.projectName),
+    text: [
+      t.hallo(input.recipientName),
+      '',
+      intro,
+      ...zeilen,
+      t.fileDigestTotal(input.totalSizeLabel),
+      '',
+      t.toProjectLine(input.url),
+      '',
+      t.unsubscribeLine(input.unsubscribeUrl),
+    ].join('\n'),
+    html: layout({
+      brand: input.brand,
+      locale: input.locale,
+      title: intro,
+      body: `${zeilen.map((zeile) => paragraph(zeile)).join('')}${paragraph(
+        t.fileDigestTotal(input.totalSizeLabel),
+      )}`,
+      buttonLabel: t.toProject,
+      buttonUrl: input.url,
+      unsubscribeUrl: input.unsubscribeUrl,
+    }),
+  };
+}
+
+// ---------- Neue Fassung (Phase 28) ----------
+
+/**
+ * „Für X steht v3 bereit."
+ *
+ * Die Mail, die bis Phase 28 fehlte – bis dahin erfuhr der Kunde von einer
+ * neuen Fassung nur, wenn er von selbst hineinsah. Der Knopf führt über
+ * `webUrl` **direkt auf die Fassung**, nicht nur aufs Video.
+ *
+ * `internalNote` steht nur in der Mail ans Team: Für Gäste geht sie erst
+ * hinaus, wenn die Fassung freigegeben ist – dort wäre der Hinweis sinnlos.
+ */
+export function renderVersionReadyMail(input: {
+  recipientName: string;
+  projectName: string;
+  videoName: string;
+  versionLabel: string;
+  /** Nur fürs Team: Die Fassung ist noch intern. */
+  internal?: boolean;
+  /** Nur bei einer Freigabe: wer sie durchgewunken hat. */
+  releasedBy?: string | null;
+  url: string;
+  unsubscribeUrl: string;
+  brand?: MailBrand;
+  locale?: Locale;
+}): RenderedMail {
+  const t = texte(input.locale);
+  const intro = t.versionIntro(input.versionLabel, input.videoName);
+  const zusatz = input.internal
+    ? t.versionInternalNote
+    : input.releasedBy
+      ? t.versionReleasedNote(input.releasedBy)
+      : null;
+
+  return {
+    subject: t.versionSubject(input.versionLabel, input.videoName),
+    text: [
+      t.hallo(input.recipientName),
+      '',
+      intro,
+      t.project(input.projectName),
+      ...(zusatz ? [zusatz] : []),
+      '',
+      t.watchLine(input.url),
+      '',
+      t.unsubscribeLine(input.unsubscribeUrl),
+    ].join('\n'),
+    html: layout({
+      brand: input.brand,
+      locale: input.locale,
+      title: intro,
+      body: `${paragraph(t.project(input.projectName))}${zusatz ? paragraph(zusatz) : ''}`,
+      buttonLabel: t.watchInPlayer,
+      buttonUrl: input.url,
+      unsubscribeUrl: input.unsubscribeUrl,
+    }),
+  };
+}
+
+/**
+ * „v3 konnte nicht verarbeitet werden." – nur ans Team.
+ *
+ * Bis Phase 28 bemerkte einen Fehlschlag nur, wer zufällig hinsah: Nach einem
+ * Upload über Nacht stand am Morgen nichts da, und niemand wusste warum.
+ */
+export function renderVersionFailedMail(input: {
+  recipientName: string;
+  projectName: string;
+  videoName: string;
+  versionLabel: string;
+  reason: string | null;
+  url: string;
+  unsubscribeUrl: string;
+  brand?: MailBrand;
+  locale?: Locale;
+}): RenderedMail {
+  const t = texte(input.locale);
+  const intro = t.versionFailedIntro(input.versionLabel, input.videoName);
+  const grund = input.reason ? t.versionFailedReason(input.reason) : null;
+
+  return {
+    subject: t.versionFailedSubject(input.videoName),
+    text: [
+      t.hallo(input.recipientName),
+      '',
+      intro,
+      t.project(input.projectName),
+      ...(grund ? [grund] : []),
+      '',
+      t.goThereLine(input.url),
+      '',
+      t.unsubscribeLine(input.unsubscribeUrl),
+    ].join('\n'),
+    html: layout({
+      brand: input.brand,
+      locale: input.locale,
+      title: intro,
+      body: `${paragraph(t.project(input.projectName))}${grund ? paragraph(grund) : ''}`,
+      buttonLabel: t.view,
       buttonUrl: input.url,
       unsubscribeUrl: input.unsubscribeUrl,
     }),

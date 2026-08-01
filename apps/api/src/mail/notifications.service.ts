@@ -4,8 +4,10 @@ import {
   commentBodyToPlainText,
   framesToTimecode,
   versionLabel as versionNumberLabel,
+  versionWebPath,
 } from '@klappe/shared';
-import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import {
@@ -15,6 +17,8 @@ import {
   pendingNotifications,
   projectFiles,
   projects,
+  shareLinkGrants,
+  shareLinks,
   users,
   videoVersions,
   videos,
@@ -36,8 +40,14 @@ import {
   type CommentDigestEntry,
   renderCommentDigestMail,
   renderCommentMail,
+  renderProjectFileDigestMail,
   renderProjectFileMail,
+  renderVersionFailedMail,
+  renderVersionReadyMail,
 } from './templates';
+
+/** Zweiter Blick auf `users` – wer eine interne Fassung freigegeben hat. */
+const releasers = alias(users, 'releasers');
 
 /**
  * Baut die Benachrichtigungen zusammen und verschickt sie. Läuft im
@@ -342,6 +352,122 @@ export class NotificationsService {
     return 1;
   }
 
+  /**
+   * „Für X steht v3 bereit." (Phase 28)
+   *
+   * **Zwei Zeitpunkte, eine Vorlage.** Das Team erfährt es, sobald die Fassung
+   * fertig verarbeitet ist – auch bei einer internen, denn die interne Runde
+   * ist ja genau der Anlass, warum jemand hinschauen soll. Gäste erfahren es
+   * erst mit der Freigabe; deshalb steht der Kreis im Auftrag und wird nicht
+   * hier hergeleitet.
+   *
+   * Ausgelöst wird nach dem **Verarbeiten**, nicht nach dem Hochladen: Eine
+   * Mail zu einer Fassung, die noch vierzig Minuten rechnet, führt den Kunden
+   * auf eine Seite ohne Bild.
+   */
+  async notifyVersionReady(versionId: string, audience: 'TEAM' | 'GUEST'): Promise<number> {
+    if (!(await this.mailService.isReady())) return 0;
+
+    const row = await this.loadVersion(versionId);
+    if (!row) return 0;
+    // In der Zwischenzeit intern gestellt? Dann geht an die Kundenseite nichts.
+    if (audience === 'GUEST' && row.internal) return 0;
+
+    const empfaenger =
+      audience === 'TEAM'
+        ? await this.loadSubscribers(row.videoId, row.projectId)
+        : await this.loadProjectGuests(row.projectId, row.videoId);
+
+    const auswahl = empfaenger.filter(
+      (kandidat) =>
+        kandidat.isActive &&
+        kandidat.notificationsEnabled &&
+        audienceOf(kandidat) === audience &&
+        // Wer die Fassung selbst hochgeladen hat, weiß Bescheid.
+        kandidat.id !== row.uploadedById,
+    );
+    if (auswahl.length === 0) return 0;
+
+    const brand = await this.mailService.brand();
+    const url = `${this.config.publicUrl}${row.webUrl}`;
+    let sent = 0;
+
+    for (const recipient of auswahl) {
+      const mail = renderVersionReadyMail({
+        brand,
+        locale: await this.mailService.localeFor(recipient.locale),
+        recipientName: recipient.name,
+        projectName: row.projectName,
+        videoName: row.videoName,
+        versionLabel: versionLabelOf(row),
+        internal: audience === 'TEAM' && row.internal,
+        releasedBy: audience === 'GUEST' ? row.releasedByName : null,
+        url,
+        unsubscribeUrl: this.mailService.unsubscribeUrl(recipient.id),
+      });
+      try {
+        if (await this.mailService.send(recipient.email, mail, { kind: 'version-ready', audience })) {
+          sent += 1;
+        }
+      } catch (error) {
+        this.logger.warn(`Fassungs-Hinweis an ${recipient.id} fehlgeschlagen: ${String(error)}`);
+      }
+    }
+    return sent;
+  }
+
+  /**
+   * „v3 konnte nicht verarbeitet werden." – nur ans Team.
+   *
+   * Ein `FAILED` bemerkte bis Phase 28 nur, wer zufällig hinsah: Nach einem
+   * Upload über Nacht stand am Morgen nichts da, und keiner wusste warum.
+   */
+  async notifyVersionFailed(versionId: string): Promise<number> {
+    if (!(await this.mailService.isReady())) return 0;
+
+    const row = await this.loadVersion(versionId);
+    if (!row) return 0;
+
+    const empfaenger = (await this.loadSubscribers(row.videoId, row.projectId)).filter(
+      (kandidat) =>
+        kandidat.isActive && kandidat.notificationsEnabled && audienceOf(kandidat) === 'TEAM',
+    );
+    // Anders als beim Fertigmelden bekommt der Hochladende die Nachricht
+    // **auch** – es ist seine Datei, die nicht durchgelaufen ist.
+    if (empfaenger.length === 0) return 0;
+
+    const brand = await this.mailService.brand();
+    const url = `${this.config.publicUrl}${row.webUrl}`;
+    let sent = 0;
+
+    for (const recipient of empfaenger) {
+      const mail = renderVersionFailedMail({
+        brand,
+        locale: await this.mailService.localeFor(recipient.locale),
+        recipientName: recipient.name,
+        projectName: row.projectName,
+        videoName: row.videoName,
+        versionLabel: versionLabelOf(row),
+        reason: row.processingError,
+        url,
+        unsubscribeUrl: this.mailService.unsubscribeUrl(recipient.id),
+      });
+      try {
+        if (
+          await this.mailService.send(recipient.email, mail, {
+            kind: 'version-failed',
+            audience: 'TEAM',
+          })
+        ) {
+          sent += 1;
+        }
+      } catch (error) {
+        this.logger.warn(`Fehlschlag-Hinweis an ${recipient.id} fehlgeschlagen: ${String(error)}`);
+      }
+    }
+    return sent;
+  }
+
   async notifyProjectFile(projectFileId: string): Promise<number> {
     if (!(await this.mailService.isReady())) return 0;
 
@@ -359,22 +485,12 @@ export class NotificationsService {
 
     if (!row) return 0;
 
-    // Kundenmaterial geht das Team an – Gäste bekommen davon nichts mit.
-    const team = await this.db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        isActive: users.isActive,
-        notificationsEnabled: users.notificationsEnabled,
-        locale: users.locale,
-        role: users.role,
-      })
-      .from(users)
-      .where(or(eq(users.role, 'ADMIN'), eq(users.role, 'MEMBER')));
-
-    const recipients = selectTeamRecipients(team, row.file.uploadedById);
+    const recipients = selectTeamRecipients(
+      await this.projektEmpfaenger(row.file.projectId),
+      row.file.uploadedById,
+    );
     if (recipients.length === 0) return 0;
+    await this.markiereBerichtet([projectFileId]);
 
     const url = `${this.config.publicUrl}/projekte/${row.file.projectId}`;
     const brand = await this.mailService.brand();
@@ -479,6 +595,217 @@ export class NotificationsService {
       .where(and(eq(comments.id, commentId), isNull(comments.deletedAt)))
       .limit(1);
     return row ?? null;
+  }
+
+  /**
+   * Sammelmail über das Kundenmaterial eines Projekts (Phase 28).
+   *
+   * Ein Kunde lädt selten eine Datei – er lädt einen Ordner. Nach demselben
+   * Muster wie bei den Kommentaren: Erst wenn eine Weile Ruhe war, geht
+   * **eine** Mail über alles hinaus, was seither aufgelaufen ist. Die Ruhezeit
+   * ist eine eigene und deutlich höher, weil ein Kameraband länger lädt, als
+   * ein Kommentar zu tippen dauert.
+   */
+  async flushProjectFileDigest(projectId: string): Promise<number> {
+    if (!(await this.mailService.isReady())) return 0;
+
+    const offen = await this.db
+      .select({
+        id: projectFiles.id,
+        filename: projectFiles.filename,
+        sizeBytes: projectFiles.sizeBytes,
+        createdAt: projectFiles.createdAt,
+        uploadedById: projectFiles.uploadedById,
+        uploaderName: users.name,
+      })
+      .from(projectFiles)
+      .leftJoin(users, eq(projectFiles.uploadedById, users.id))
+      .where(and(eq(projectFiles.projectId, projectId), isNull(projectFiles.notifiedAt)))
+      .orderBy(asc(projectFiles.createdAt));
+    if (offen.length === 0) return 0;
+
+    const minuten = await this.notificationSettings.projectFileDigestMinutes();
+    const entscheidung = decideDigest({
+      newestAt: offen.reduce((max, datei) => Math.max(max, datei.createdAt.getTime()), 0),
+      now: Date.now(),
+      minutes: minuten,
+    });
+    if (!entscheidung.send) {
+      await this.mailQueue.enqueue({ kind: 'project-file-digest', projectId }, entscheidung.retryInMs);
+      return 0;
+    }
+
+    const [projekt] = await this.db
+      .select({ name: projects.name })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    if (!projekt) return 0;
+
+    // Laden mehrere Gäste hoch, nennt die Mail den ersten – die Liste der
+    // Dateien darunter beantwortet den Rest.
+    const hochlader = offen.find((datei) => datei.uploaderName)?.uploaderName ?? 'Ein Gast';
+    const hochladerIds = new Set(offen.map((datei) => datei.uploadedById).filter(Boolean));
+    const recipients = (await this.projektEmpfaenger(projectId)).filter(
+      (kandidat) =>
+        kandidat.isActive && kandidat.notificationsEnabled && !hochladerIds.has(kandidat.id),
+    );
+
+    // Die Dateien gelten auch dann als berichtet, wenn niemand eingetragen
+    // ist – sonst liefe die Warteschlange endlos gegen dieselbe Liste.
+    await this.markiereBerichtet(offen.map((datei) => datei.id));
+    if (recipients.length === 0) return 0;
+
+    const gesamt = offen.reduce((summe, datei) => summe + datei.sizeBytes, 0);
+    const brand = await this.mailService.brand();
+    const url = `${this.config.publicUrl}/projekte/${projectId}`;
+    let sent = 0;
+
+    for (const recipient of recipients) {
+      const locale = await this.mailService.localeFor(recipient.locale);
+      // Bei genau einer Datei bleibt es bei der gewohnten Einzelmail – eine
+      // „Sammlung" von einem Stück liest sich albern.
+      const mail =
+        offen.length === 1
+          ? renderProjectFileMail({
+              brand,
+              locale,
+              recipientName: recipient.name,
+              uploaderName: hochlader,
+              projectName: projekt.name,
+              filename: offen[0].filename,
+              sizeLabel: formatBytes(offen[0].sizeBytes),
+              url,
+              unsubscribeUrl: this.mailService.unsubscribeUrl(recipient.id),
+            })
+          : renderProjectFileDigestMail({
+              brand,
+              locale,
+              recipientName: recipient.name,
+              uploaderName: hochlader,
+              projectName: projekt.name,
+              files: offen.map((datei) => ({
+                filename: datei.filename,
+                sizeLabel: formatBytes(datei.sizeBytes),
+              })),
+              totalSizeLabel: formatBytes(gesamt),
+              url,
+              unsubscribeUrl: this.mailService.unsubscribeUrl(recipient.id),
+            });
+
+      try {
+        if (
+          await this.mailService.send(recipient.email, mail, {
+            kind: 'project-file',
+            audience: 'TEAM',
+          })
+        ) {
+          sent += 1;
+        }
+      } catch (error) {
+        this.logger.warn(`Upload-Sammelmail an ${recipient.id} fehlgeschlagen: ${String(error)}`);
+      }
+    }
+    return sent;
+  }
+
+  /**
+   * Wer für dieses Projekt eingetragen ist (Phase 28).
+   *
+   * Bis dahin ging Kundenmaterial an **jedes** Team-Mitglied. Das war bequem,
+   * solange das Team klein war, und wurde mit jedem Projekt lauter. Jetzt
+   * zählt die Eintragung – und dass mindestens eine Person eingetragen
+   * *bleibt*, sichert `SubscriptionsService` ab.
+   */
+  private async projektEmpfaenger(projectId: string): Promise<NotificationCandidate[]> {
+    return this.db
+      .selectDistinctOn([users.id], {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        isActive: users.isActive,
+        notificationsEnabled: users.notificationsEnabled,
+        locale: users.locale,
+        role: users.role,
+      })
+      .from(notificationSubscriptions)
+      .innerJoin(users, eq(notificationSubscriptions.userId, users.id))
+      .where(eq(notificationSubscriptions.projectId, projectId));
+  }
+
+  private async markiereBerichtet(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.db
+      .update(projectFiles)
+      .set({ notifiedAt: new Date() })
+      .where(inArray(projectFiles.id, ids));
+  }
+
+  /** Alles, was eine Fassungs-Mail über ihre Fassung wissen muss (Phase 28). */
+  private async loadVersion(versionId: string) {
+    const [row] = await this.db
+      .select({
+        versionNumber: videoVersions.versionNumber,
+        versionLabel: videoVersions.label,
+        internal: videoVersions.internal,
+        processingError: videoVersions.processingError,
+        uploadedById: videoVersions.uploadedById,
+        releasedByName: releasers.name,
+        videoId: videos.id,
+        videoName: videos.name,
+        projectId: projects.id,
+        projectName: projects.name,
+      })
+      .from(videoVersions)
+      .innerJoin(videos, eq(videoVersions.videoId, videos.id))
+      .innerJoin(projects, eq(videos.projectId, projects.id))
+      .leftJoin(releasers, eq(videoVersions.releasedById, releasers.id))
+      .where(eq(videoVersions.id, versionId))
+      .limit(1);
+    if (!row) return null;
+    // Der Knopf in der Mail führt direkt auf die Fassung, nicht nur aufs
+    // Video (Phase 27/28) – denselben Pfad legt die API als `webUrl` an.
+    return { ...row, webUrl: versionWebPath(row.videoId, Number(row.versionNumber)) };
+  }
+
+  /**
+   * Gäste, die dieses Video sehen dürfen – über eine Projekt- oder eine
+   * Videofreigabe, zurückgezogene und abgelaufene ausgenommen.
+   *
+   * Bewusst die **wirksamen Zugänge** und nicht „alle Gäste des Projekts":
+   * Eine Videofreigabe auf ein anderes Video geht diese Fassung nichts an.
+   */
+  private async loadProjectGuests(
+    projectId: string,
+    videoId: string,
+  ): Promise<NotificationCandidate[]> {
+    const now = new Date();
+    return this.db
+      .selectDistinctOn([users.id], {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        isActive: users.isActive,
+        notificationsEnabled: users.notificationsEnabled,
+        locale: users.locale,
+        role: users.role,
+      })
+      .from(shareLinkGrants)
+      .innerJoin(shareLinks, eq(shareLinkGrants.shareLinkId, shareLinks.id))
+      .innerJoin(users, eq(shareLinkGrants.userId, users.id))
+      .where(
+        and(
+          isNull(shareLinkGrants.revokedAt),
+          isNull(shareLinks.revokedAt),
+          or(isNull(shareLinks.expiresAt), gt(shareLinks.expiresAt, now)),
+          // Einbett-Links haben keinen Empfänger, den man anschreiben könnte.
+          eq(shareLinks.isEmbed, false),
+          or(
+            and(eq(shareLinks.scope, 'PROJECT'), eq(shareLinks.projectId, projectId)),
+            and(eq(shareLinks.scope, 'VIDEO'), eq(shareLinks.videoId, videoId)),
+          ),
+        ),
+      );
   }
 
   /** Video- und Projektname für den Kopf der Sammelmail. */

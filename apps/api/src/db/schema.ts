@@ -574,9 +574,19 @@ export const projectFiles = pgTable(
     mimeType: text('mime_type'),
     storageKey: text('storage_key').notNull(),
     note: text('note'),
+    /**
+     * Wann über diese Datei berichtet wurde (Phase 28). `null` heißt: steht
+     * noch für die nächste Sammelmail an. Ein Kunde lädt selten eine Datei –
+     * er lädt einen Ordner, und daraus soll **eine** Mail werden.
+     */
+    notifiedAt: timestamp('notified_at', { withTimezone: true }),
     ...timestamps,
   },
-  (table) => [index('project_files_project_idx').on(table.projectId, table.createdAt)],
+  (table) => [
+    index('project_files_project_idx').on(table.projectId, table.createdAt),
+    // Die Abfrage der Sammelmail: was in diesem Projekt noch aussteht.
+    index('project_files_pending_idx').on(table.projectId, table.notifiedAt),
+  ],
 );
 
 /**

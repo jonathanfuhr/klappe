@@ -23,6 +23,7 @@ import { comments, projects, users, videoVersions, videos } from '../db/schema';
 import type { VideoVersionRow } from '../db/schema';
 import { EventsService } from '../events/events.service';
 import { SubscriptionsService } from '../mail/subscriptions.service';
+import { MailQueueService } from '../queue/mail-queue.service';
 
 /** Heutiges Datum als `JJJJ-MM-TT` in Ortszeit. */
 function todayIsoDate(): string {
@@ -98,6 +99,7 @@ export class VersionsService {
     private readonly accessService: AccessService,
     private readonly subscriptions: SubscriptionsService,
     private readonly events: EventsService,
+    private readonly mailQueue: MailQueueService,
   ) {}
 
   /**
@@ -453,6 +455,28 @@ export class VersionsService {
       })
       .where(eq(videoVersions.id, versionId));
     await this.meldeFassung(versionId);
+    await this.meldeFertigeFassung(versionId);
+  }
+
+  /**
+   * Erst jetzt darf die Post raus (Phase 28): Eine Mail zu einer Fassung, die
+   * noch vierzig Minuten rechnet, führt den Kunden auf eine Seite ohne Bild.
+   *
+   * Das Team erfährt es immer, Gäste nur bei einer nicht-internen Fassung –
+   * für die interne holt das die Freigabe nach.
+   */
+  private async meldeFertigeFassung(versionId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ internal: videoVersions.internal })
+      .from(videoVersions)
+      .where(eq(videoVersions.id, versionId))
+      .limit(1);
+    if (!row) return;
+
+    await this.mailQueue.enqueue({ kind: 'version-ready', versionId, audience: 'TEAM' });
+    if (!row.internal) {
+      await this.mailQueue.enqueue({ kind: 'version-ready', versionId, audience: 'GUEST' });
+    }
   }
 
   /**
@@ -479,6 +503,9 @@ export class VersionsService {
       })
       .where(eq(videoVersions.id, versionId));
     await this.meldeFassung(versionId);
+    // Ohne diese Mail bemerkt einen Fehlschlag nur, wer zufällig hinsieht –
+    // nach einem Upload über Nacht steht am Morgen nichts da (Phase 28).
+    await this.mailQueue.enqueue({ kind: 'version-failed', versionId });
   }
 
   async setStatus(versionId: string, status: VersionStatus): Promise<void> {
@@ -577,7 +604,20 @@ export class VersionsService {
     if (!bestehend.internal) {
       throw new BadRequestException('Diese Fassung ist nicht intern – es gibt nichts freizugeben.');
     }
-    return this.update(versionId, { internal: false }, scope, user);
+    const freigegeben = await this.update(versionId, { internal: false }, scope, user);
+
+    /*
+     * Jetzt erst erfährt der Kunde davon (Phase 28). Beim Hochladen ging die
+     * Mail nur ans Team; die Freigabe ist der eine bewusste Moment, in dem
+     * die Fassung das Haus verlässt.
+     *
+     * Nur bei einer fertig verarbeiteten Fassung: Wer eine noch rechnende
+     * Fassung freigibt, löst die Mail mit `markReady` aus.
+     */
+    if (bestehend.status === 'READY') {
+      await this.mailQueue.enqueue({ kind: 'version-ready', versionId, audience: 'GUEST' });
+    }
+    return freigegeben;
   }
 
   /** Löschen ist nur erlaubt, solange nicht die letzte Version übrig bleibt. */

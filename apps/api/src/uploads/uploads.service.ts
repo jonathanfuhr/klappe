@@ -19,6 +19,7 @@ import { type UploadRow, type VideoVersionRow, uploads, videoVersions, videos } 
 import { ProjectFilesService } from '../project-files/project-files.service';
 import { ProjectFoldersService } from '../project-files/project-folders.service';
 import { ProjectsService } from '../projects/projects.service';
+import { NotificationSettingsService } from '../settings/notification-settings.service';
 import { MailQueueService } from '../queue/mail-queue.service';
 import { TranscodeQueueService } from '../queue/transcode-queue.service';
 import { AftercareService } from '../renditions/aftercare.service';
@@ -52,6 +53,7 @@ export class UploadsService {
     private readonly projectFoldersService: ProjectFoldersService,
     private readonly queue: TranscodeQueueService,
     private readonly mailQueue: MailQueueService,
+    private readonly notificationSettings: NotificationSettingsService,
     private readonly uploadTranscode: UploadTranscodeService,
     private readonly aftercare: AftercareService,
   ) {
@@ -630,7 +632,22 @@ export class UploadsService {
     });
 
     await this.projectsService.touch(row.projectId);
-    await this.mailQueue.enqueue({ kind: 'project-file', projectFileId: file.id });
+
+    /*
+     * Sammeln statt sofort melden (Phase 28). Ein Kunde lädt selten eine
+     * Datei – er lädt einen Ordner, und zwanzig Mails über zwanzig Dateien
+     * sind zwanzig Mal dieselbe Nachricht. Steht die Ruhezeit auf 0, bleibt
+     * es beim alten Verhalten: eine Mail je Datei.
+     */
+    const ruhezeit = await this.notificationSettings.projectFileDigestMinutes();
+    if (ruhezeit <= 0) {
+      await this.mailQueue.enqueue({ kind: 'project-file', projectFileId: file.id });
+    } else {
+      await this.mailQueue.enqueue(
+        { kind: 'project-file-digest', projectId: row.projectId },
+        ruhezeit * 60_000,
+      );
+    }
     this.logger.log(`Kunden-Upload abgeschlossen: ${row.filename} (${row.sizeBytes} Byte)`);
   }
 

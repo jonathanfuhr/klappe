@@ -16,6 +16,7 @@ import {
   videoVersions,
   videos,
 } from '../db/schema';
+import { SubscriptionsService } from '../mail/subscriptions.service';
 import { StorageService } from '../storage/storage.service';
 import type { CreateProjectDto, UpdateProjectDto } from './projects.dto';
 
@@ -52,6 +53,7 @@ export class ProjectsService {
     @Inject(DB) private readonly db: Database,
     private readonly accessService: AccessService,
     private readonly storage: StorageService,
+    private readonly subscriptions: SubscriptionsService,
   ) {}
 
   private baseQuery() {
@@ -235,6 +237,14 @@ export class ProjectsService {
         createdById: user.id,
       })
       .returning();
+
+    /*
+     * Wer anlegt, ist eingetragen (Phase 28). Ohne das stünde bei einem
+     * Projekt, das nur zum Einsammeln von Kundenmaterial existiert, niemand
+     * in der Liste – der Kunde lädt hoch, und es merkt es keiner. Eingetragen
+     * wird am **Projekt**, nicht am Video: Videos gibt es hier noch keine.
+     */
+    await this.subscriptions.subscribeProjectCreator(user.id, row.id);
     return this.findOneOrFail(row.id, scope);
   }
 

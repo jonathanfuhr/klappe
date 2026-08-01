@@ -48,7 +48,16 @@ export const MAIL_JOB = 'send-notification';
 export type MailJobData =
   | { kind: 'comment'; commentId: string }
   | { kind: 'digest'; userId: string; videoId: string }
-  | { kind: 'project-file'; projectFileId: string };
+  | { kind: 'project-file'; projectFileId: string }
+  /** Sammelmail über das, was in diesem Projekt noch aussteht (Phase 28). */
+  | { kind: 'project-file-digest'; projectId: string }
+  /**
+   * Neue Fassung (Phase 28). Der Empfängerkreis steht im Auftrag, weil es
+   * **zwei Zeitpunkte** gibt: Das Team erfährt es sofort, auch bei einer
+   * internen Fassung – Gäste erst mit der Freigabe.
+   */
+  | { kind: 'version-ready'; versionId: string; audience: 'TEAM' | 'GUEST' }
+  | { kind: 'version-failed'; versionId: string };
 
 /**
  * Vorrang in der Mail-Warteschlange (Phase 20).

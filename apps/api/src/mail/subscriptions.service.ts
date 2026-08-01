@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { NotificationSubscriberDto } from '@klappe/shared';
 import { and, asc, eq, or } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
@@ -26,10 +26,22 @@ export class SubscriptionsService {
       .where(eq(notificationSubscriptions.projectId, projectId));
 
     const gesetzt = new Set(eingetragen.map((zeile) => zeile.userId));
+    /*
+     * Ist nur noch eine Person eingetragen, bleibt ihr Haken zu (Phase 28).
+     * Sonst entstünde ein Projekt, bei dem Kundenmaterial ins Leere läuft:
+     * Der Kunde lädt hoch, und niemand erfährt davon.
+     *
+     * Gezählt wird gegen das **aktive** Team – wer gesperrt ist, kann keine
+     * Mail mehr lesen und hält den Haken deshalb auch nicht offen.
+     */
+    const aktiveEingetragene = team.filter((person) => gesetzt.has(person.id));
+    const letzte = aktiveEingetragene.length === 1 ? aktiveEingetragene[0].id : null;
+
     return team.map((person) => ({
       user: person,
       subscribed: gesetzt.has(person.id),
       inherited: false,
+      locked: person.id === letzte,
     }));
   }
 
@@ -61,6 +73,9 @@ export class SubscriptionsService {
       user: person,
       subscribed: amVideo.has(person.id),
       inherited: ueberProjekt.has(person.id),
+      // Die Garantie hängt am Projekt, nicht am einzelnen Video: Kundenmaterial
+      // landet im Projektordner.
+      locked: false,
     }));
   }
 
@@ -76,6 +91,10 @@ export class SubscriptionsService {
         .values({ userId, projectId })
         .onConflictDoNothing();
     } else {
+      // Der Haken ist in der Oberfläche ausgegraut – hier steht die
+      // Absicherung dahinter, für die API und für ein Rennen zwischen zwei
+      // Personen, die sich gleichzeitig austragen.
+      await this.assertNichtLetzte(projectId, userId);
       await this.db
         .delete(notificationSubscriptions)
         .where(
@@ -112,6 +131,43 @@ export class SubscriptionsService {
         );
     }
     return this.listForVideo(videoId);
+  }
+
+  /**
+   * Wer ein Projekt anlegt, ist dafür eingetragen (Phase 28).
+   *
+   * Schließt die Lücke, die auffiel, als jemand ein Projekt anlegte, **um
+   * vorab Kundenmaterial anzufordern**: Bis zum ersten eigenen Upload stand
+   * niemand in der Liste, der Kunde lud hoch, und es merkte es keiner.
+   */
+  async subscribeProjectCreator(userId: string | null, projectId: string): Promise<void> {
+    if (!userId) return;
+    const [person] = await this.db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!person || person.role === 'GUEST') return;
+
+    await this.db
+      .insert(notificationSubscriptions)
+      .values({ userId, projectId })
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Die letzte eingetragene Person darf sich nicht austragen. Gezählt wird
+   * gegen das aktive Team: Ein gesperrtes Konto liest keine Mail mehr und
+   * hält den Platz deshalb nicht frei.
+   */
+  private async assertNichtLetzte(projectId: string, userId: string): Promise<void> {
+    const liste = await this.listForProject(projectId);
+    const eingetragen = liste.filter((eintrag) => eintrag.subscribed);
+    if (eingetragen.length === 1 && eingetragen[0].user.id === userId) {
+      throw new BadRequestException(
+        'Mindestens eine Person muss für dieses Projekt eingetragen bleiben – sonst bekommt niemand mit, wenn der Kunde Material hochlädt.',
+      );
+    }
   }
 
   /**

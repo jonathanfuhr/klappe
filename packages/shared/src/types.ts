@@ -631,6 +631,13 @@ export interface NotificationSubscriberDto {
    * das nicht einzeln abschalten; dafür geht man ins Projekt.
    */
   inherited: boolean;
+  /**
+   * Der Haken lässt sich nicht lösen (Phase 28): Diese Person ist die
+   * **letzte**, die für das Projekt eingetragen ist. Ohne sie liefe
+   * Kundenmaterial ins Leere – der Kunde lädt hoch, und niemand erfährt davon.
+   * Sobald jemand anderes eingetragen ist, geht der Haken wieder auf.
+   */
+  locked: boolean;
 }
 
 /**
