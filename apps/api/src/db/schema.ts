@@ -831,6 +831,40 @@ export const appSettings = pgTable('app_settings', {
   mailDigestMinutes: integer('mail_digest_minutes').notNull().default(5),
 
   /**
+   * Ruhezeit für Kundenmaterial (Phase 28) – getrennt von der für Kommentare
+   * und bewusst viel höher. Ein Kommentar ist in Sekunden getippt; ein Kunde,
+   * der zwanzig Dateien nacheinander hochlädt, braucht dafür eine Stunde.
+   * Mit fünf Minuten käme pro Datei doch wieder eine Mail.
+   */
+  mailProjectFileDigestMinutes: integer('mail_project_file_digest_minutes')
+    .notNull()
+    .default(30),
+
+  /**
+   * Erwähnungen überspringen die Ruhezeit (Phase 28). „Sammelmail ja, aber
+   * `@mich` sofort" – wer namentlich angesprochen wird, soll nicht erst in
+   * einer Viertelstunde davon erfahren.
+   */
+  mailMentionImmediate: boolean('mail_mention_immediate').notNull().default(true),
+
+  // ---------- Interne Fassungen (Phase 28) ----------
+  /**
+   * Wird die interne Runde in diesem Haus überhaupt gefahren? Aus heißt: Der
+   * Haken verschwindet aus der Oberfläche und `internal` über die API wird
+   * abgewiesen. Die Spalte an der Fassung bleibt bestehen – Abschalten ist
+   * ein Riegel, kein Löschknopf.
+   */
+  internalVersionsEnabled: boolean('internal_versions_enabled').notNull().default(true),
+  /**
+   * Sind neue Fassungen ab Werk intern? **Ja** – die Risiken sind ungleich:
+   * versehentlich intern kostet eine Nachfrage, versehentlich veröffentlicht
+   * hat der Kunde gesehen. Dieselbe Begründung wie beim Endfassungs-Haken:
+   * sichtbar wird eine Fassung durch eine Entscheidung, nicht durch
+   * Vergesslichkeit.
+   */
+  internalVersionsDefault: boolean('internal_versions_default').notNull().default(true),
+
+  /**
    * Wie lange die alten Fassungen eines archivierten Projekts noch liegen
    * bleiben (Phase 18). Danach räumt der tägliche Aufräumer sie weg – die
    * neueste bleibt immer. 30 Tage sind der Standard: lang genug, um einen
@@ -992,6 +1026,24 @@ export const notificationSubscriptions = pgTable(
  * Warteschlange, die sich mit dem Versand leert; das hier ist die Ablage, in
  * der man nachsieht, was man verpasst hat.
  */
+/**
+ * Welche Benachrichtigung an welchen Empfängerkreis hinausgeht (Phase 28).
+ *
+ * Bewusst **eine Zeile je Mailart** statt einer JSON-Spalte: Eine neue Art
+ * soll ein Eintrag sein und keine Wanderung durch ein gewachsenes Objekt.
+ *
+ * Und bewusst **dünn besetzt**: Fehlt die Zeile, gilt „an". Damit ändert das
+ * Update das Verhalten bestehender Anlagen nicht – wer nie etwas einstellt,
+ * merkt von dieser Tabelle nichts.
+ */
+export const notificationSettings = pgTable('notification_settings', {
+  /** Schlüssel aus `NOTIFICATION_KINDS` in `@klappe/shared`. */
+  kind: text('kind').primaryKey(),
+  teamEnabled: boolean('team_enabled').notNull().default(true),
+  guestEnabled: boolean('guest_enabled').notNull().default(true),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const notifications = pgTable(
   'notifications',
   {

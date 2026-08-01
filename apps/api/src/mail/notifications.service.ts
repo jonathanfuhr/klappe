@@ -20,12 +20,14 @@ import {
   videos,
 } from '../db/schema';
 import { MailQueueService } from '../queue/mail-queue.service';
+import { NotificationSettingsService } from '../settings/notification-settings.service';
 import { SettingsService } from '../settings/settings.service';
 import { decideDigest } from './digest';
 import { MailService } from './mail.service';
 import { NotificationCenterService } from './notification-center.service';
 import {
   type NotificationCandidate,
+  audienceOf,
   formatBytes,
   selectCommentRecipients,
   selectTeamRecipients,
@@ -55,6 +57,7 @@ export class NotificationsService {
     @Inject(CONFIG) private readonly config: AppConfig,
     private readonly mailService: MailService,
     private readonly settings: SettingsService,
+    private readonly notificationSettings: NotificationSettingsService,
     private readonly mailQueue: MailQueueService,
     private readonly center: NotificationCenterService,
   ) {}
@@ -70,7 +73,7 @@ export class NotificationsService {
     const subscribers = await this.loadSubscribers(row.videoId, row.projectId);
     const participants = await this.loadGuestParticipants(row.comment.versionId);
 
-    const recipients = await this.nurTeamBeiIntern(
+    const recipients = this.nurTeamBeiIntern(
       row.internal,
       selectCommentRecipients({
         authorId: row.comment.authorId,
@@ -88,10 +91,23 @@ export class NotificationsService {
     if (!(await this.mailService.isReady())) return 0;
 
     const minuten = await this.settings.digestMinutes();
-    if (minuten <= 0) {
+    /*
+     * Erwähnungen überspringen die Ruhezeit (Phase 28). „Sammelmail ja, aber
+     * `@mich` sofort" – wer namentlich angesprochen wird, soll nicht erst in
+     * einer Viertelstunde davon erfahren. Die übrigen Empfänger warten wie
+     * bisher; deshalb wird die Liste hier geteilt und nicht die Ruhezeit
+     * insgesamt übergangen.
+     */
+    const sofortBeiErwaehnung = minuten > 0 && (await this.notificationSettings.mentionImmediate());
+    const sofort = sofortBeiErwaehnung
+      ? recipients.filter((recipient) => recipient.mentioned)
+      : [];
+    const spaeter = recipients.filter((recipient) => !sofort.includes(recipient));
+
+    if (minuten <= 0 || sofort.length > 0) {
       const brand = await this.mailService.brand();
       let sent = 0;
-      for (const recipient of recipients) {
+      for (const recipient of minuten <= 0 ? recipients : sofort) {
         const mail = renderCommentMail({
           brand,
           locale: await this.mailService.localeFor(recipient.locale),
@@ -111,14 +127,22 @@ export class NotificationsService {
 
         // Ein unzustellbarer Empfänger darf die übrigen nicht mitreißen.
         try {
-          await this.mailService.send(recipient.email, mail);
-          sent += 1;
+          const raus = await this.mailService.send(recipient.email, mail, {
+            // Eine Erwähnung ist eine eigene Mailart und getrennt schaltbar:
+            // Wer die Kommentarflut abstellt, will trotzdem wissen, wenn er
+            // namentlich angesprochen wurde.
+            kind: recipient.mentioned ? 'mention' : 'comment',
+            audience: audienceOf(recipient),
+          });
+          if (raus) sent += 1;
         } catch (error) {
           this.logger.warn(`Benachrichtigung an ${recipient.id} fehlgeschlagen: ${String(error)}`);
         }
       }
-      return sent;
+      if (minuten <= 0) return sent;
     }
+
+    if (spaeter.length === 0) return 0;
 
     // Vormerken statt verschicken. Der Eintrag hält nur fest, *dass* jemand
     // etwas verpasst hat – Text, Timecode und Fassung werden erst beim
@@ -126,7 +150,7 @@ export class NotificationsService {
     await this.db
       .insert(pendingNotifications)
       .values(
-        recipients.map((recipient) => ({
+        spaeter.map((recipient) => ({
           userId: recipient.id,
           commentId,
           videoId: row.videoId,
@@ -135,7 +159,7 @@ export class NotificationsService {
       )
       .onConflictDoNothing();
 
-    for (const recipient of recipients) {
+    for (const recipient of spaeter) {
       await this.mailQueue.enqueue(
         { kind: 'digest', userId: recipient.id, videoId: row.videoId },
         minuten * 60_000,
@@ -143,7 +167,7 @@ export class NotificationsService {
     }
 
     this.logger.log(
-      `${recipients.length} Benachrichtigung(en) zu Kommentar ${commentId} vorgemerkt, Versand in ${minuten} Min.`,
+      `${spaeter.length} Benachrichtigung(en) zu Kommentar ${commentId} vorgemerkt, Versand in ${minuten} Min.`,
     );
     return 0;
   }
@@ -226,9 +250,22 @@ export class NotificationsService {
     // weg – sonst bliebe sie für immer liegen. Dasselbe für Kommentare an
     // einer Fassung, die in der Ruhezeit intern gestellt wurde (Phase 27):
     // Für einen Gast gibt es sie inzwischen nicht mehr.
-    const imHaus = empfaenger?.role === 'ADMIN' || empfaenger?.role === 'MEMBER';
+    const kreis = empfaenger ? audienceOf(empfaenger) : 'GUEST';
+    const imHaus = kreis === 'TEAM';
+    /*
+     * Und was der Admin abgeschaltet hat, fällt ebenfalls heraus (Phase 28) –
+     * je Eintrag, nicht je Mail: Wer „Kommentare aus, Erwähnungen an" gesetzt
+     * hat, bekommt eine Sammelmail, in der nur noch die Erwähnungen stehen.
+     */
+    const [kommentareErlaubt, erwaehnungenErlaubt] = await Promise.all([
+      this.notificationSettings.isAllowed('comment', kreis),
+      this.notificationSettings.isAllowed('mention', kreis),
+    ]);
     const sichtbar = wartend.filter(
-      (eintrag) => eintrag.comment.deletedAt === null && (imHaus || !eintrag.internal),
+      (eintrag) =>
+        eintrag.comment.deletedAt === null &&
+        (imHaus || !eintrag.internal) &&
+        (eintrag.mentioned ? erwaehnungenErlaubt : kommentareErlaubt),
     );
     if (!empfaenger || !kopf || sichtbar.length === 0) {
       await this.db.delete(pendingNotifications).where(inArray(pendingNotifications.id, ids));
@@ -284,7 +321,12 @@ export class NotificationsService {
     // wird die Beanspruchung zurückgegeben und der nächste Versuch der
     // Warteschlange bekommt dieselben Kommentare noch einmal zu fassen.
     try {
-      await this.mailService.send(empfaenger.email, mail);
+      await this.mailService.send(empfaenger.email, mail, {
+        // Nach dem Filtern oben steht fest, dass diese Art erlaubt ist:
+        // Ist eine Erwähnung übrig, dann weil Erwähnungen erlaubt sind.
+        kind: sichtbar.some((eintrag) => eintrag.mentioned) ? 'mention' : 'comment',
+        audience: kreis,
+      });
     } catch (error) {
       await this.db
         .update(pendingNotifications)
@@ -326,6 +368,7 @@ export class NotificationsService {
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
         locale: users.locale,
+        role: users.role,
       })
       .from(users)
       .where(or(eq(users.role, 'ADMIN'), eq(users.role, 'MEMBER')));
@@ -351,8 +394,14 @@ export class NotificationsService {
       });
 
       try {
-        await this.mailService.send(recipient.email, mail);
-        sent += 1;
+        // Kundenmaterial geht ausschließlich ans Team – der Kunde weiß ja,
+        // was er hochgeladen hat.
+        if (await this.mailService.send(recipient.email, mail, {
+          kind: 'project-file',
+          audience: 'TEAM',
+        })) {
+          sent += 1;
+        }
       } catch (error) {
         this.logger.warn(`Upload-Hinweis an ${recipient.id} fehlgeschlagen: ${String(error)}`);
       }
@@ -369,26 +418,9 @@ export class NotificationsService {
    * Kunde nichts wissen soll. Mit der Freigabe gelten wieder die gewohnten
    * Abläufe.
    */
-  private async nurTeamBeiIntern<T extends { id: string }>(
-    intern: boolean,
-    empfaenger: T[],
-  ): Promise<T[]> {
-    if (!intern || empfaenger.length === 0) return empfaenger;
-
-    const team = await this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(
-        and(
-          inArray(
-            users.id,
-            empfaenger.map((eintrag) => eintrag.id),
-          ),
-          or(eq(users.role, 'ADMIN'), eq(users.role, 'MEMBER')),
-        ),
-      );
-    const erlaubt = new Set(team.map((eintrag) => eintrag.id));
-    return empfaenger.filter((eintrag) => erlaubt.has(eintrag.id));
+  private nurTeamBeiIntern<T extends { role: UserRole }>(intern: boolean, empfaenger: T[]): T[] {
+    if (!intern) return empfaenger;
+    return empfaenger.filter((eintrag) => audienceOf(eintrag) === 'TEAM');
   }
 
   /**
@@ -464,9 +496,7 @@ export class NotificationsService {
    * Der Empfänger, so wie er *jetzt* dasteht: Wer zwischenzeitlich gesperrt
    * wurde oder abbestellt hat, bekommt die wartende Mail nicht mehr.
    */
-  private async loadRecipient(
-    userId: string,
-  ): Promise<(NotificationCandidate & { role: UserRole }) | null> {
+  private async loadRecipient(userId: string): Promise<NotificationCandidate | null> {
     const [row] = await this.db
       .select({
         id: users.id,
@@ -475,7 +505,8 @@ export class NotificationsService {
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
         locale: users.locale,
-        // Für die Frage, ob interne Fassungen mit in die Sammelmail dürfen.
+        // Für die Frage, ob interne Fassungen mit in die Sammelmail dürfen –
+        // und welcher der beiden Schalter einer Mailart greift (Phase 28).
         role: users.role,
       })
       .from(users)
@@ -494,6 +525,7 @@ export class NotificationsService {
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
         locale: users.locale,
+        role: users.role,
       })
       .from(commentMentions)
       .innerJoin(users, eq(commentMentions.userId, users.id))
@@ -517,6 +549,7 @@ export class NotificationsService {
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
         locale: users.locale,
+        role: users.role,
       })
       .from(comments)
       .innerJoin(users, eq(comments.authorId, users.id))
@@ -545,6 +578,7 @@ export class NotificationsService {
         isActive: users.isActive,
         notificationsEnabled: users.notificationsEnabled,
         locale: users.locale,
+        role: users.role,
       })
       .from(notificationSubscriptions)
       .innerJoin(users, eq(notificationSubscriptions.userId, users.id))

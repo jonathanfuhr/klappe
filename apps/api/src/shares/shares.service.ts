@@ -265,6 +265,8 @@ export class SharesService {
         targetName: target.targetName,
         minutesValid: CODE_TTL_MINUTES,
       }),
+      // Nicht abschaltbar: Ohne den Code kommt kein Gast herein.
+      { kind: 'guest-code', audience: 'GUEST' },
     );
   }
 
@@ -397,6 +399,7 @@ export class SharesService {
         targetName: brand.title,
         minutesValid: CODE_TTL_MINUTES,
       }),
+      { kind: 'guest-code', audience: 'GUEST' },
     );
   }
 

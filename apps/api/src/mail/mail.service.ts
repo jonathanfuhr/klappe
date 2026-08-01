@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { deriveBrandColors, normalizeBrandTitle } from '@klappe/shared';
-import type { Locale } from '@klappe/shared';
+import type { Locale, NotificationAudience, NotificationKind } from '@klappe/shared';
 import { desc, eq, sql } from 'drizzle-orm';
 import { createTransport, type Transporter } from 'nodemailer';
 import { AppConfig, CONFIG } from '../config/configuration';
@@ -8,10 +8,20 @@ import { DB, type Database } from '../db/db.module';
 import { mailFailures } from '../db/schema';
 import type { MailFailureDto } from '@klappe/shared';
 import { LocaleService } from '../i18n/locale.service';
+import { NotificationSettingsService } from '../settings/notification-settings.service';
 import { SettingsService, type SmtpCredentials } from '../settings/settings.service';
 import { Ms365OauthService } from './ms365-oauth.service';
 import { createUnsubscribeToken } from './unsubscribe-token';
 import { DEFAULT_MAIL_BRAND, type MailBrand, type RenderedMail, renderTestMail } from './templates';
+
+/**
+ * Wozu eine Mail gehört und wen sie erreicht (Phase 28). Beides zusammen
+ * beantwortet die Frage, ob der Admin sie zugelassen hat.
+ */
+export interface MailAbsicht {
+  kind: NotificationKind;
+  audience: NotificationAudience;
+}
 
 /**
  * Versand über generisches SMTP (Nodemailer), wie im Konzept entschieden.
@@ -27,6 +37,7 @@ export class MailService {
 
   constructor(
     private readonly settingsService: SettingsService,
+    private readonly notificationSettings: NotificationSettingsService,
     private readonly ms365Oauth: Ms365OauthService,
     private readonly locales: LocaleService,
     @Inject(CONFIG) private readonly config: AppConfig,
@@ -41,8 +52,24 @@ export class MailService {
    * Verschickt eine fertig gerenderte Mail. Wirft, wenn kein Mailserver
    * eingerichtet ist – Aufrufer, für die das kein Fehler ist (etwa
    * Benachrichtigungen), fragen vorher `isReady()`.
+   *
+   * **`absicht` ist Pflicht (Phase 28).** Jede Mail läuft durch diesen einen
+   * Engpass, also wird hier entschieden, ob sie überhaupt hinaus darf. Der
+   * Parameter ist absichtlich nicht optional: Sonst wird die achte Mailart
+   * eingebaut und die Prüfung vergessen – so meldet es der Übersetzer.
+   *
+   * Rückgabe `false` heißt „vom Admin abgeschaltet", nicht „fehlgeschlagen".
+   * Das ist kein Fehler und wird auch nicht als einer vermerkt.
    */
-  async send(to: string, mail: RenderedMail): Promise<void> {
+  async send(to: string, mail: RenderedMail, absicht: MailAbsicht): Promise<boolean> {
+    if (!(await this.notificationSettings.isAllowed(absicht.kind, absicht.audience))) {
+      this.logger.log(
+        `Mail an ${maskEmail(to)} nicht verschickt: ${absicht.kind} ist für ` +
+          `${absicht.audience === 'TEAM' ? 'das Team' : 'Gäste'} abgeschaltet.`,
+      );
+      return false;
+    }
+
     const credentials = await this.settingsService.getCredentials();
     if (!credentials) {
       throw new ServiceUnavailableException(
@@ -72,6 +99,7 @@ export class MailService {
     // geht, soll die Liste das nicht verschweigen.
     await this.clearFailure(to);
     this.logger.log(`Mail verschickt an ${maskEmail(to)}: ${mail.subject}`);
+    return true;
   }
 
   /**
@@ -136,6 +164,9 @@ export class MailService {
         brand: await this.brand(),
         locale: await this.localeFor(locale),
       }),
+      // Von Hand ausgelöst und deshalb nie abschaltbar – wer sie anfordert,
+      // will wissen, ob der Versandweg steht.
+      { kind: 'test', audience: 'TEAM' },
     );
   }
 

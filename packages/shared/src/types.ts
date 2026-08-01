@@ -256,6 +256,17 @@ export interface AiContentSettingsDto {
   kinds: AiKindWithCountDto[];
 }
 
+/**
+ * Interne Fassungen im Workspace (Phase 28). Lesbar fürs Team – das
+ * Upload-Fenster braucht die Vorgabe –, änderbar nur vom Admin.
+ */
+export interface VersionSettingsDto {
+  /** Wird die interne Runde in diesem Haus überhaupt gefahren? */
+  internalEnabled: boolean;
+  /** Sind neue Fassungen ab Werk intern? Ohne Wirkung, wenn `internalEnabled` aus ist. */
+  internalByDefault: boolean;
+}
+
 export interface VideoDto {
   id: string;
   projectId: string;

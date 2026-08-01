@@ -4,6 +4,7 @@ import type {
   ProjectSettingsDto,
   SmtpSettingsDto,
   StorageStatusDto,
+  VersionSettingsDto,
 } from '@klappe/shared';
 import { normalizeEnvironmentNotes } from '@klappe/shared';
 import { eq, sql } from 'drizzle-orm';
@@ -146,6 +147,34 @@ export class SettingsService {
       digestMinutes: row.mailDigestMinutes,
       updatedAt: row.updatedAt.toISOString(),
     };
+  }
+
+  /**
+   * Interne Fassungen (Phase 28). Zwei Schalter, die zusammengehören: ob es
+   * die Funktion überhaupt gibt und ob sie ab Werk greift.
+   */
+  async getVersionSettings(): Promise<VersionSettingsDto> {
+    const row = await this.getRow();
+    return {
+      internalEnabled: row.internalVersionsEnabled,
+      internalByDefault: row.internalVersionsDefault,
+    };
+  }
+
+  async updateVersionSettings(input: {
+    internalEnabled?: boolean;
+    internalByDefault?: boolean;
+  }): Promise<VersionSettingsDto> {
+    await this.getRow();
+    await this.db
+      .update(appSettings)
+      .set({
+        internalVersionsEnabled: input.internalEnabled,
+        internalVersionsDefault: input.internalByDefault,
+        updatedAt: new Date(),
+      })
+      .where(eq(appSettings.id, SETTINGS_ID));
+    return this.getVersionSettings();
   }
 
   /**

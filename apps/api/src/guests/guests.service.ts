@@ -287,6 +287,7 @@ export class GuestsService {
           isActive: users.isActive,
           notificationsEnabled: users.notificationsEnabled,
           locale: users.locale,
+          role: users.role,
         })
         .from(users)
         .where(eq(users.id, userId))
@@ -339,6 +340,8 @@ export class GuestsService {
           url,
           unsubscribeUrl: this.mailService.unsubscribeUrl(userId),
         }),
+        // Geht ausschließlich an die Kundenseite – das Team gibt ja frei.
+        { kind: 'access-granted', audience: 'GUEST' },
       );
     } catch (error) {
       this.logger.warn(`Hinweis auf den neuen Zugang ging nicht raus (${userId}): ${String(error)}`);

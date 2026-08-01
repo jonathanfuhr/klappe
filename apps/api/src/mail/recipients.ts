@@ -1,3 +1,5 @@
+import type { UserRole } from '@klappe/shared';
+
 /**
  * Wer bekommt eine Benachrichtigung? Reine Auswahl-Logik, damit sich die
  * Regeln prüfen lassen, ohne Datenbank und Mailserver anzuwerfen.
@@ -9,6 +11,12 @@ export interface NotificationCandidate {
   email: string;
   isActive: boolean;
   notificationsEnabled: boolean;
+  /**
+   * Team oder Gast (Phase 28). Entscheidet, welcher der beiden Schalter einer
+   * Mailart greift – und ob eine Mail zu einer internen Fassung überhaupt
+   * hinaus darf.
+   */
+  role: UserRole;
   /**
    * Eigene Sprachwahl, wie sie in der Datenbank steht; leer heißt: Vorgabe des
    * Workspace (Phase 26). Jede Mail geht in der Sprache ihres Empfängers
@@ -79,6 +87,11 @@ export function selectTeamRecipients(
     (candidate) =>
       candidate.id !== uploaderId && candidate.isActive && candidate.notificationsEnabled,
   );
+}
+
+/** Team oder Gast? Die Kundenseite ist alles, was `GUEST` ist. */
+export function audienceOf(candidate: { role: UserRole }): 'TEAM' | 'GUEST' {
+  return candidate.role === 'GUEST' ? 'GUEST' : 'TEAM';
 }
 
 /** Dateigröße für die Mail, ohne Abhängigkeit zur Oberfläche. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   type NotificationCandidate,
+  audienceOf,
   formatBytes,
   selectCommentRecipients,
   selectTeamRecipients,
@@ -12,6 +13,7 @@ const person = (id: string, overrides: Partial<NotificationCandidate> = {}): Not
   email: `${id}@example.com`,
   isActive: true,
   notificationsEnabled: true,
+  role: 'MEMBER',
   ...overrides,
 });
 
@@ -149,5 +151,13 @@ describe('formatBytes', () => {
     expect(formatBytes(2_516_582)).toBe('2,4 MB');
     expect(formatBytes(0)).toBe('0 B');
     expect(formatBytes(-1)).toBe('–');
+  });
+});
+
+describe('audienceOf (Phase 28)', () => {
+  it('trennt Team von Kundenseite', () => {
+    expect(audienceOf(person('a', { role: 'ADMIN' }))).toBe('TEAM');
+    expect(audienceOf(person('b', { role: 'MEMBER' }))).toBe('TEAM');
+    expect(audienceOf(person('c', { role: 'GUEST' }))).toBe('GUEST');
   });
 });

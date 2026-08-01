@@ -14,6 +14,8 @@ import {
 import {
   HLS_MODES,
   MAX_ENVIRONMENT_NOTES_LENGTH,
+  MAX_PROJECT_FILE_DIGEST_MINUTES,
+  NOTIFICATION_KINDS,
   PASSWORD_MIN_LENGTH_CEILING,
   PASSWORD_MIN_LENGTH_FLOOR,
   RENDITION_CONTAINERS,
@@ -24,13 +26,18 @@ import {
   type AuthSettingsDto,
   type DownloadPresetDto,
   type MailFailureDto,
+  type NotificationKind,
+  type NotificationSettingsDto,
   type ProjectSettingsDto,
   type SmtpProviderPresetDto,
   type SmtpSettingsDto,
   type StorageStatusDto,
   type TranscodeSettingsDto,
+  type VersionSettingsDto,
 } from '@klappe/shared';
+import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsEmail,
   IsIn,
@@ -40,12 +47,14 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { CurrentUser, Public, Roles } from '../auth/auth.decorators';
 import type { RequestUser } from '../auth/auth.types';
 import { LocaleService } from '../i18n/locale.service';
 import { MailService } from '../mail/mail.service';
 import { AuthSettingsService } from './auth-settings.service';
+import { NotificationSettingsService } from './notification-settings.service';
 import {
   MAX_ARCHIVE_RETENTION_DAYS,
   MAX_MAIL_DIGEST_MINUTES,
@@ -134,6 +143,57 @@ class UpdateSmtpDto {
   @Min(0)
   @Max(MAX_MAIL_DIGEST_MINUTES)
   digestMinutes?: number;
+}
+
+/** Ein Schalterpaar für eine Mailart (Phase 28). */
+class NotificationKindSwitchDto {
+  @IsIn(NOTIFICATION_KINDS)
+  kind!: NotificationKind;
+
+  @IsOptional()
+  @IsBoolean()
+  team?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  guest?: boolean;
+}
+
+class UpdateNotificationSettingsDto {
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => NotificationKindSwitchDto)
+  kinds?: NotificationKindSwitchDto[];
+
+  /** Ruhezeit für Kommentare; `0` schickt sofort und einzeln. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_MAIL_DIGEST_MINUTES)
+  digestMinutes?: number;
+
+  /** Ruhezeit für Kundenmaterial – getrennt und höher. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_PROJECT_FILE_DIGEST_MINUTES)
+  projectFileDigestMinutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  mentionImmediate?: boolean;
+}
+
+/** Interne Fassungen (Phase 28) – die beiden Schalter. */
+class UpdateVersionSettingsDto {
+  @IsOptional()
+  @IsBoolean()
+  internalEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  internalByDefault?: boolean;
 }
 
 /** Projekte (Phase 20) – bis dahin hing das mit an den Mail-Einstellungen. */
@@ -370,6 +430,7 @@ export class SettingsController {
     private readonly authSettings: AuthSettingsService,
     private readonly transcodeSettings: TranscodeSettingsService,
     private readonly locales: LocaleService,
+    private readonly notificationSettings: NotificationSettingsService,
   ) {}
 
   @Roles('ADMIN')
@@ -397,6 +458,49 @@ export class SettingsController {
       fromName: dto.fromName,
       fromEmail: dto.fromEmail,
       digestMinutes: dto.digestMinutes,
+    });
+  }
+
+  /**
+   * Benachrichtigungen (Phase 28) – welche Mail an welchen Empfängerkreis
+   * hinausgeht, dazu die beiden Ruhezeiten. Nur Admin.
+   */
+  @Roles('ADMIN')
+  @Get('benachrichtigungen')
+  getNotificationSettings(): Promise<NotificationSettingsDto> {
+    return this.notificationSettings.get();
+  }
+
+  @Roles('ADMIN')
+  @Put('benachrichtigungen')
+  updateNotificationSettings(
+    @Body() dto: UpdateNotificationSettingsDto,
+  ): Promise<NotificationSettingsDto> {
+    return this.notificationSettings.update({
+      kinds: dto.kinds,
+      digestMinutes: dto.digestMinutes,
+      projectFileDigestMinutes: dto.projectFileDigestMinutes,
+      mentionImmediate: dto.mentionImmediate,
+    });
+  }
+
+  /**
+   * Interne Fassungen (Phase 28). **Lesbar fürs Team**, nicht nur für Admins:
+   * Das Upload-Fenster muss wissen, ob es den Haken überhaupt anbietet und wie
+   * er vorbelegt ist. Ändern darf weiterhin nur der Admin.
+   */
+  @Roles('ADMIN', 'MEMBER')
+  @Get('fassungen')
+  getVersionSettings(): Promise<VersionSettingsDto> {
+    return this.settingsService.getVersionSettings();
+  }
+
+  @Roles('ADMIN')
+  @Put('fassungen')
+  updateVersionSettings(@Body() dto: UpdateVersionSettingsDto): Promise<VersionSettingsDto> {
+    return this.settingsService.updateVersionSettings({
+      internalEnabled: dto.internalEnabled,
+      internalByDefault: dto.internalByDefault,
     });
   }
 
