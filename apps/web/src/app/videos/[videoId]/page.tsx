@@ -33,6 +33,7 @@ import { api, mediaUrl } from '@/lib/api';
 import { useFormat } from '@/lib/format';
 import { useFallbackInterval, useLiveTopic } from '@/lib/live';
 import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
+import { useAiKindName } from '@/lib/ai-kinds';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { useUploads } from '@/lib/uploads-context';
@@ -44,6 +45,7 @@ export default function ReviewPage() {
   const { user } = useSession();
   const { completedCount, enqueue } = useUploads();
   const t = useT();
+  const kindName = useAiKindName();
   const zeigeName = useUserName();
 
   const playerRef = useRef<PlayerHandle>(null);
@@ -455,7 +457,7 @@ export default function ReviewPage() {
             <div className="notice notice--warn">
               <strong>{t('video.aiTitle')}</strong>
               {video.aiKinds.length > 0
-                ? ` (${video.aiKinds.map((art) => art.name).join(', ')})`
+                ? ` (${video.aiKinds.map(kindName).join(', ')})`
                 : ''}{' '}
               {t('video.aiBody')}
             </div>
@@ -546,7 +548,7 @@ export default function ReviewPage() {
                             void api.updateVideo(video.id, { aiKindIds: ids }).then(loadVideo);
                           }}
                         />
-                        {art.name}
+                        {kindName(art)}
                       </label>
                     );
                   })
