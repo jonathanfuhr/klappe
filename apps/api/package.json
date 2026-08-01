@@ -20,7 +20,6 @@
     "@klappe/shared": "*",
     "@nestjs/bullmq": "^11.0.2",
     "@nestjs/common": "^11.0.12",
-    "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.12",
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/platform-express": "^11.0.12",
