@@ -72,11 +72,21 @@ export function SharePanel({
   projectId,
   videoId,
   targetLabel,
+  video,
+  onVideoChanged,
 }: {
   scope: ShareScope;
   projectId: string;
   videoId?: string;
   targetLabel: string;
+  /**
+   * Nur in der Videoansicht gesetzt (Phase 28). Der Haken „nur Endfassung"
+   * gehört hierher und nicht über den Player: Wer fragt „darf der Kunde das
+   * herunterladen?", schaut dort nach, wo die Rechte je Link und je Person
+   * stehen.
+   */
+  video?: VideoDto | null;
+  onVideoChanged?: () => Promise<void> | void;
 }) {
   const t = useT();
   const { formatRelative } = useFormat();
@@ -167,6 +177,33 @@ export function SharePanel({
       </div>
 
       {error ? <div className="notice">{error}</div> : null}
+
+      {/*
+       * Bis Phase 28 standen hier drei Ebenen übereinander: das Recht am Link,
+       * ein Schalter am Video und einer an jeder Fassung. Zwei davon sind
+       * weggefallen – benutzt hat sie nie jemand, und über dem Player sagte
+       * ein Haken namens „v3" niemandem, was er tut. Geblieben ist der eine
+       * Fall, den der Link allein nicht ausdrücken kann.
+       */}
+      {video && onVideoChanged ? (
+        <div style={{ padding: '0 14px 10px' }}>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={video.downloadsFinalOnly}
+              onChange={(event) => {
+                void api
+                  .updateVideo(video.id, { downloadsFinalOnly: event.target.checked })
+                  .then(() => onVideoChanged());
+              }}
+            />
+            {t('video.downloadFinalOnly')}
+          </label>
+          <p className="hint" style={{ marginTop: 4 }}>
+            {t('video.downloadFinalOnlyHint')}
+          </p>
+        </div>
+      ) : null}
 
       <div className="sharepanel__body">
         {guests.length === 0 ? (

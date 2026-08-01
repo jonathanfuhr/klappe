@@ -48,12 +48,12 @@ describe('Team-Mitglieder', () => {
     expect(canListAllProjectFiles(scope)).toBe(true);
   });
 
-  it('kommen auch an abgeschaltete Downloads heran', () => {
+  it('kommen auch an Zwischenstände heran, die für Gäste gesperrt sind', () => {
     expect(
       canDownloadVersion(scope, {
         video: videoA1,
-        videoDownloadsEnabled: false,
-        versionDownloadEnabled: false,
+        downloadsFinalOnly: true,
+        versionIsFinal: false,
       }),
     ).toBe(true);
   });
@@ -106,39 +106,50 @@ describe('Videofreigabe', () => {
 });
 
 describe('Download-Rechte', () => {
-  const alleSchalterAn = { videoDownloadsEnabled: true, versionDownloadEnabled: true };
+  /** Ohne die Endfassungs-Sperre – dann zählt allein das Recht am Link. */
+  const ohneSperre = { downloadsFinalOnly: false, versionIsFinal: false };
 
   it('braucht das Recht am Link', () => {
     expect(
       canDownloadVersion(guestScope([share({ allowDownload: false })]), {
         video: videoA1,
-        ...alleSchalterAn,
+        ...ohneSperre,
       }),
     ).toBe(false);
     expect(
       canDownloadVersion(guestScope([share({ allowDownload: true })]), {
         video: videoA1,
-        ...alleSchalterAn,
+        ...ohneSperre,
       }),
     ).toBe(true);
   });
 
-  it('scheitert am abgeschalteten Video', () => {
+  it('sperrt Zwischenstände, wenn nur die Endfassung raus darf (Phase 28)', () => {
     expect(
       canDownloadVersion(guestScope([share({ allowDownload: true })]), {
         video: videoA1,
-        videoDownloadsEnabled: false,
-        versionDownloadEnabled: true,
+        downloadsFinalOnly: true,
+        versionIsFinal: false,
       }),
     ).toBe(false);
   });
 
-  it('scheitert an der abgeschalteten Fassung', () => {
+  it('lässt die Endfassung durch, auch wenn die Sperre steht', () => {
     expect(
       canDownloadVersion(guestScope([share({ allowDownload: true })]), {
         video: videoA1,
-        videoDownloadsEnabled: true,
-        versionDownloadEnabled: false,
+        downloadsFinalOnly: true,
+        versionIsFinal: true,
+      }),
+    ).toBe(true);
+  });
+
+  it('die Sperre ersetzt das Recht am Link nicht', () => {
+    expect(
+      canDownloadVersion(guestScope([share({ allowDownload: false })]), {
+        video: videoA1,
+        downloadsFinalOnly: false,
+        versionIsFinal: true,
       }),
     ).toBe(false);
   });
@@ -147,8 +158,8 @@ describe('Download-Rechte', () => {
     const scope = guestScope([
       share({ scope: 'VIDEO', videoId: VIDEO_1, allowDownload: true }),
     ]);
-    expect(canDownloadVersion(scope, { video: videoA1, ...alleSchalterAn })).toBe(true);
-    expect(canDownloadVersion(scope, { video: videoA2, ...alleSchalterAn })).toBe(false);
+    expect(canDownloadVersion(scope, { video: videoA1, ...ohneSperre })).toBe(true);
+    expect(canDownloadVersion(scope, { video: videoA2, ...ohneSperre })).toBe(false);
   });
 });
 
@@ -175,15 +186,15 @@ describe('Mehrere Freigaben nebeneinander', () => {
     expect(
       canDownloadVersion(scope, {
         video: videoA1,
-        videoDownloadsEnabled: true,
-        versionDownloadEnabled: true,
+        downloadsFinalOnly: false,
+        versionIsFinal: false,
       }),
     ).toBe(false);
     expect(
       canDownloadVersion(scope, {
         video: videoB1,
-        videoDownloadsEnabled: true,
-        versionDownloadEnabled: true,
+        downloadsFinalOnly: false,
+        versionIsFinal: false,
       }),
     ).toBe(true);
   });

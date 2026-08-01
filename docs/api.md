@@ -61,13 +61,13 @@ ein eigenes Konto.
 | `GET/PATCH/DELETE /v1/projects/:id` | einzeln |
 | `GET /v1/projects/:id/videos` | Videos mit jeweils neuester Version |
 | `POST /v1/projects/:id/videos` | `{ name, description? }` |
-| `GET/PATCH/DELETE /v1/videos/:id` | einzeln; `PATCH` kennt `downloadsEnabled`, `aiContent` und `aiKindIds` |
+| `GET/PATCH/DELETE /v1/videos/:id` | einzeln; `PATCH` kennt `downloadsFinalOnly`, `aiContent` und `aiKindIds` |
 | `GET /v1/videos/:id/versions` | alle Versionen, neueste zuerst |
 | `GET/PATCH/DELETE /v1/versions/:id` | einzeln; die letzte Version eines Videos lässt sich nicht löschen |
 | `POST /v1/versions/:id/freigeben` | interne Fassung freigeben (Team, Phase 27) |
 
-`PATCH /v1/versions/:id` nimmt `{ label?, downloadEnabled?, fileDate?,
-isFinal?, versionNumber?, internal? }`. `fileDate` steht als `JJJJ-MM-TT` und
+`PATCH /v1/versions/:id` nimmt `{ label?, fileDate?, isFinal?, versionNumber?,
+internal? }`. `fileDate` steht als `JJJJ-MM-TT` und
 bestimmt das `JJMMTT` im Download-Dateinamen. `versionNumber` (Phase 25) gibt
 der Fassung eine neue Nummer: jede freie Nummer über 0 ist erlaubt – die
 Aufwärts-Regel gilt nur beim Anlegen; eine vergebene Nummer ergibt `409`.
@@ -335,10 +335,18 @@ Poster und Sprite ändern sich nie und werden entsprechend lange
 zwischengespeichert.
 
 Das Original kommt unter dem vereinbarten Namen (`Content-Disposition`), nicht
-unter dem, den Kamera oder Schnittprogramm vergeben haben. Damit ein Gast es
-überhaupt bekommt, müssen **drei** Schalter zustimmen: das Recht am
-Freigabe-Link, `downloadsEnabled` am Video und `downloadEnabled` an der
-Fassung. Fürs Team gilt keiner davon.
+unter dem, den Kamera oder Schnittprogramm vergeben haben.
+
+Damit ein Gast es überhaupt bekommt, zählt das **Recht am Freigabe-Link** –
+pro Person überschreibbar (Phase 16). Dazu kommt seit Phase 28 die eine
+Einschränkung am Video: `downloadsFinalOnly` sperrt alles außer der
+Endfassung. Fürs Team gilt keines von beiden.
+
+Bis Phase 28 waren es drei Ebenen: zusätzlich ein Schalter am Video und einer
+an jeder Fassung. Beide sind entfallen – sie standen unbeschriftet über dem
+Player und deckten nichts ab, was der Link nicht schon konnte. Geblieben ist
+der eine Fall, der sich anders nicht ausdrücken ließ: „Zwischenstände bleiben
+im Haus, das Ergebnis darf raus."
 
 Die Kachel zu einem Zeitpunkt: `index = floor(sekunden / intervalSeconds)`,
 begrenzt auf `tileCount - 1`; daraus `spalte = index % columns` und

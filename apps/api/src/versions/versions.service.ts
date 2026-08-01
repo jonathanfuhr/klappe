@@ -173,7 +173,7 @@ export class VersionsService {
       : rows;
 
     return sichtbar.map((row) =>
-      this.toDto(row, this.downloadAllowed(scope, video, row.version.downloadEnabled)),
+      this.toDto(row, this.downloadAllowed(scope, video, row.version.isFinal)),
     );
   }
 
@@ -187,14 +187,14 @@ export class VersionsService {
   /** Darf diese Fassung heruntergeladen werden? */
   private downloadAllowed(
     scope: AccessScope,
-    video: { id: string; projectId: string; downloadsEnabled: boolean },
-    versionDownloadEnabled: boolean,
+    video: { id: string; projectId: string; downloadsFinalOnly: boolean },
+    versionIsFinal: boolean,
   ): boolean {
     return this.accessService.canDownload(scope, {
       videoId: video.id,
       projectId: video.projectId,
-      videoDownloadsEnabled: video.downloadsEnabled,
-      versionDownloadEnabled,
+      downloadsFinalOnly: video.downloadsFinalOnly,
+      versionIsFinal,
     });
   }
 
@@ -520,7 +520,6 @@ export class VersionsService {
     versionId: string,
     changes: {
       label?: string | null;
-      downloadEnabled?: boolean;
       fileDate?: string;
       isFinal?: boolean;
       versionNumber?: number;
@@ -576,7 +575,6 @@ export class VersionsService {
       .update(videoVersions)
       .set({
         label: changes.label,
-        downloadEnabled: changes.downloadEnabled,
         fileDate: changes.fileDate,
         isFinal: changes.isFinal,
         versionNumber: neueNummer,
@@ -707,7 +705,6 @@ export class VersionsService {
             }
           : null,
       commentCount: row.commentCount,
-      downloadEnabled: version.downloadEnabled,
       isFinal: version.isFinal,
       internal: version.internal,
       releasedAt: version.releasedAt?.toISOString() ?? null,

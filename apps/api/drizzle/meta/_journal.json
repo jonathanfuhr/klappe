@@ -309,6 +309,20 @@
       "when": 1785619434315,
       "tag": "0043_aufraeum_warnung",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1785622600757,
+      "tag": "0044_endfassungs_download",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1785622609811,
+      "tag": "0045_alte_downloadschalter_entfallen",
+      "breakpoints": true
     }
   ]
 }

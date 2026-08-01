@@ -179,6 +179,13 @@ export const de = {
   'video.aiBody':
     'Gem. Art. 50 EU AI Act besteht ab dem 2. August 2026 ggf. eine Kennzeichnungspflicht für KI-generierte Inhalte. Die Entscheidung, ob und wie die KI-Inhalte im veröffentlichten Content gekennzeichnet werden, liegt beim Auftraggeber.',
   'video.isFinal': 'Endfassung',
+  'video.chipVisible': 'Für Gäste sichtbar',
+  'video.chipDraft': 'Zwischenstand',
+  'video.isFinalHint':
+    'Ohne Haken sieht der Kunde einen Hinweis, dass es ein Zwischenstand ist, und der Download-Dateiname trägt „Vorschau“.',
+  'video.downloadFinalOnly': 'Download nur von der Endfassung erlauben',
+  'video.downloadFinalOnlyHint':
+    'Zwischenstände bleiben dann im Haus, auch wenn der Freigabe-Link das Herunterladen erlaubt. Ab Werk aus – dann gilt allein, was am Link steht.',
   'video.internal': 'Intern',
   'video.internalToggle': 'Interne Fassung',
   'video.internalTitle': 'Interne Fassung.',

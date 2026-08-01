@@ -61,8 +61,10 @@ Upload-Fenster als Anhaltspunkt, welches Projekt zu einer Datei gehört.
 Ein Video im Projekt, mit `sort_order` für eine spätere manuelle Reihenfolge.
 Löschen kaskadiert auf Versionen, Uploads und Kommentare.
 
-`downloads_enabled` ist der Schalter am Video – einer von dreien, die dem
-Download eines Gastes zustimmen müssen.
+`downloads_final_only` sperrt für Gäste alles außer der Endfassung (Phase 28).
+Ab Werk aus – dann entscheidet allein das Recht am Freigabe-Link. Bis dahin
+standen hier und an jeder Fassung je ein Schalter, die zusätzlich zustimmen
+mussten; beide sind entfallen.
 
 `ai_content` ist die KI-Kennzeichnung nach Art. 50 EU AI Act (Phase 24,
 Nachtrag). Sie hängt bewusst am Video, nicht an der Fassung – ob KI-Stimme
@@ -123,9 +125,10 @@ Inhaltliche Gruppen:
   sie als eigener Auftrag und wird deshalb nachgetragen, nicht beim
   Fertigmelden gesetzt.
 - **Verarbeitung** – `progress` (0–100), `processing_error`, Zeitstempel.
-- **Ablage** – `download_enabled` (dritter Schalter für Gäste) und `file_date`
-  (`JJJJ-MM-TT`), das Datum im Download-Dateinamen. Es kommt vom Upload und
-  ist danach änderbar.
+- **Ablage** – `file_date` (`JJJJ-MM-TT`), das Datum im Download-Dateinamen.
+  Es kommt vom Upload und ist danach änderbar. Der Schalter `download_enabled`
+  je Fassung ist in Phase 28 entfallen; für Gäste entscheidet das Recht am
+  Freigabe-Link, dazu `videos.downloads_final_only`.
 - **Interne Runde** (Phase 27) – `internal` heißt: nur fürs Team sichtbar,
   für Gäste und externe Projektadmins gibt es die Fassung nicht. Mit der
   Freigabe fällt der Haken und `released_at`/`released_by_id` halten fest,

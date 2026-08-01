@@ -3193,3 +3193,86 @@ a.badge:hover {
   display: block;
   overflow-x: auto;
 }
+
+/*
+ * Zustands-Chips über dem Player (Phase 28).
+ *
+ * Vorher standen dieselben Angaben zweimal da: als Banner für alle und als
+ * Haken in zwei Schalterleisten fürs Team. Der Chip zeigt den Zustand und ist
+ * fürs Team zugleich der Schalter – eine Zeile statt zweier Leisten.
+ */
+.chipbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip__trigger {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  /* Der Chip bringt seine eigene Form mit; der Knopf ist nur der Auslöser. */
+  display: inline-flex;
+}
+
+.chip {
+  gap: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.chip__trigger:hover .chip,
+.chip__trigger:focus-visible .chip {
+  border-color: var(--klappe-border-strong, var(--klappe-border));
+}
+
+.chip--neutral {
+  background: var(--klappe-surface-hover);
+  color: var(--klappe-text-muted);
+}
+
+.chip--warn,
+.badge--warn {
+  background: color-mix(in srgb, var(--klappe-warning) 18%, transparent);
+  color: var(--klappe-warning);
+}
+
+.chip--ready {
+  background: color-mix(in srgb, var(--klappe-success) 18%, transparent);
+  color: var(--klappe-success);
+}
+
+.chip--accent,
+.badge--accent {
+  background: color-mix(in srgb, var(--klappe-accent) 18%, transparent);
+  color: var(--klappe-accent);
+}
+
+.chip__count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* Der Inhalt des Chip-Menüs – Schalter untereinander, nicht als Liste. */
+.chipmenu {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 300px;
+}
+
+.chipmenu .hint {
+  margin: 0;
+}
+
+.chipmenu__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--klappe-border);
+}

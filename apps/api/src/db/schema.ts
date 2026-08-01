@@ -132,8 +132,18 @@ export const videos = pgTable(
     name: text('name').notNull(),
     description: text('description'),
     sortOrder: integer('sort_order').notNull().default(0),
-    /** Schalter für das ganze Video; wirkt zusätzlich zum Recht am Share-Link. */
-    downloadsEnabled: boolean('downloads_enabled').notNull().default(true),
+    /**
+     * Dürfen Gäste nur die **Endfassung** herunterladen? (Phase 28)
+     *
+     * Ab Werk aus: Was der Freigabe-Link erlaubt, gilt. Bis Phase 28 standen
+     * hier zwei Schalter – einer am Video, einer an jeder Fassung –, die
+     * zusätzlich zum Recht am Link zustimmen mussten. Drei Ebenen für eine
+     * Frage, von denen zwei über dem Player standen und niemandem sagten, was
+     * sie tun; benutzt hat sie nie jemand. Geblieben ist der eine Fall, der
+     * sich damit nicht anders ausdrücken ließ: „Zwischenstände bleiben im
+     * Haus, das Ergebnis darf raus."
+     */
+    downloadsFinalOnly: boolean('downloads_final_only').notNull().default(false),
     /**
      * KI-Kennzeichnung (Phase 24, Nachtrag). Anders als der Endfassungs-Haken
      * hängt sie am **Video**, nicht an einer Fassung: Ob KI-Stimme oder
@@ -217,8 +227,6 @@ export const videoVersions = pgTable(
     processingFinishedAt: timestamp('processing_finished_at', { withTimezone: true }),
 
     uploadedById: uuid('uploaded_by_id').references(() => users.id, { onDelete: 'set null' }),
-    /** Schalter für diese eine Fassung, z. B. wenn nur v3 raus darf. */
-    downloadEnabled: boolean('download_enabled').notNull().default(true),
     /**
      * Endfassung (Phase 17). Solange der Haken fehlt, warnt die Oberfläche
      * Gäste, dass sie eine Vorschau sehen, und der Downloadname trägt es mit.

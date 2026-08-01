@@ -141,7 +141,7 @@ export class VideosService {
         name: dto.name === undefined ? undefined : dto.name.trim(),
         description: dto.description === undefined ? undefined : dto.description.trim() || null,
         sortOrder: dto.sortOrder,
-        downloadsEnabled: dto.downloadsEnabled,
+        downloadsFinalOnly: dto.downloadsFinalOnly,
         aiContent: dto.aiContent,
         updatedAt: new Date(),
       })
@@ -212,7 +212,7 @@ export class VideosService {
       projectCustomer: row.projectCustomer ?? null,
       versionCount: latestByVideo.get(row.video.id)?.count ?? 0,
       latestVersion: latestByVideo.get(row.video.id)?.latest ?? null,
-      downloadsEnabled: row.video.downloadsEnabled,
+      downloadsFinalOnly: row.video.downloadsFinalOnly,
       /*
        * Ist die Kennzeichnung im Workspace abgeschaltet, kommt hier immer
        * `false` an – der Haken bleibt gespeichert, wirkt aber nirgends.
@@ -241,7 +241,7 @@ export class VideosService {
    * daraus die jeweils neueste – statt pro Video eine eigene Abfrage.
    */
   private async loadLatestVersions(
-    videoRows: Array<{ id: string; projectId: string; downloadsEnabled: boolean }>,
+    videoRows: Array<{ id: string; projectId: string; downloadsFinalOnly: boolean }>,
     scope: AccessScope,
   ): Promise<Map<string, { latest: VersionDto; count: number }>> {
     const nurFreigegebene = !this.accessService.canSeeInternal(scope);
@@ -303,8 +303,8 @@ export class VideosService {
       const canDownload = this.accessService.canDownload(scope, {
         videoId: video.id,
         projectId: video.projectId,
-        videoDownloadsEnabled: video.downloadsEnabled,
-        versionDownloadEnabled: row.version.downloadEnabled,
+        downloadsFinalOnly: video.downloadsFinalOnly,
+        versionIsFinal: row.version.isFinal,
       });
 
       // Dank der Sortierung ist die erste Zeile je Video die neueste Version.

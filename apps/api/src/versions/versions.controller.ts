@@ -24,11 +24,6 @@ class UpdateVersionDto {
   @MaxLength(200)
   label?: string;
 
-  /** Schalter für den Download dieser einen Fassung. */
-  @IsOptional()
-  @IsBoolean()
-  downloadEnabled?: boolean;
-
   /** Datum im Dateinamen, `JJJJ-MM-TT`. */
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Das Datum muss im Format JJJJ-MM-TT stehen.' })
@@ -86,7 +81,6 @@ export class VersionsController {
       id,
       {
         label: dto.label === undefined ? undefined : dto.label.trim() || null,
-        downloadEnabled: dto.downloadEnabled,
         fileDate: dto.fileDate,
         isFinal: dto.isFinal,
         versionNumber: dto.versionNumber,

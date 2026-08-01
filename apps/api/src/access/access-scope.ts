@@ -66,20 +66,24 @@ export function canViewVideo(
 }
 
 /**
- * Download eines Originals. Für Gäste müssen alle drei Schalter zusammen
- * passen: das Recht am Link, der Schalter am Video und der an der Fassung.
- * Team-Mitglieder verwalten das Material und kommen immer heran.
+ * Download eines Originals.
+ *
+ * Für Gäste zählt das Recht am Freigabe-Link – pro Person überschreibbar
+ * (Phase 16). Dazu kommt seit Phase 28 die eine verbliebene Einschränkung am
+ * Video: „nur Endfassungen". Team-Mitglieder verwalten das Material und
+ * kommen immer heran.
  */
 export function canDownloadVersion(
   scope: AccessScope,
   input: {
     video: { id: string; projectId: string };
-    videoDownloadsEnabled: boolean;
-    versionDownloadEnabled: boolean;
+    /** Nur die Endfassung darf raus – Zwischenstände bleiben im Haus. */
+    downloadsFinalOnly: boolean;
+    versionIsFinal: boolean;
   },
 ): boolean {
   if (scope.unrestricted) return true;
-  if (!input.videoDownloadsEnabled || !input.versionDownloadEnabled) return false;
+  if (input.downloadsFinalOnly && !input.versionIsFinal) return false;
   return scope.shares.some(
     (share) =>
       share.allowDownload &&

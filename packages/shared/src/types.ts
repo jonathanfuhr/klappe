@@ -280,8 +280,11 @@ export interface VideoDto {
   createdBy: UserSummaryDto | null;
   versionCount: number;
   latestVersion: VersionDto | null;
-  /** Schalter am Video; der tatsächliche Download hängt zusätzlich am Link. */
-  downloadsEnabled: boolean;
+  /**
+   * Dürfen Gäste nur die Endfassung herunterladen? (Phase 28) Ab Werk aus –
+   * dann gilt allein, was der Freigabe-Link erlaubt.
+   */
+  downloadsFinalOnly: boolean;
   /**
    * KI-Kennzeichnung nach Art. 50 EU AI Act (Phase 24, Nachtrag). Gilt –
    * anders als der Endfassungs-Haken – für **alle** Fassungen des Videos.
@@ -346,8 +349,6 @@ export interface VersionDto {
   hasPoster: boolean;
   sprite: VersionSpriteDto | null;
   commentCount: number;
-  /** Schalter für diese Fassung. */
-  downloadEnabled: boolean;
   /** Endfassung (Phase 17)? Ohne Haken warnt die Oberfläche Gäste. */
   isFinal: boolean;
   /**

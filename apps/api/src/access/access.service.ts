@@ -219,12 +219,12 @@ export class AccessService {
   async requireVideo(
     scope: AccessScope,
     videoId: string,
-  ): Promise<{ id: string; projectId: string; downloadsEnabled: boolean }> {
+  ): Promise<{ id: string; projectId: string; downloadsFinalOnly: boolean }> {
     const [row] = await this.db
       .select({
         id: videos.id,
         projectId: videos.projectId,
-        downloadsEnabled: videos.downloadsEnabled,
+        downloadsFinalOnly: videos.downloadsFinalOnly,
       })
       .from(videos)
       .where(eq(videos.id, videoId))
@@ -249,8 +249,8 @@ export class AccessService {
     versionId: string;
     videoId: string;
     projectId: string;
-    videoDownloadsEnabled: boolean;
-    versionDownloadEnabled: boolean;
+    downloadsFinalOnly: boolean;
+    versionIsFinal: boolean;
     internal: boolean;
   }> {
     const [row] = await this.db
@@ -258,8 +258,8 @@ export class AccessService {
         versionId: videoVersions.id,
         videoId: videos.id,
         projectId: videos.projectId,
-        videoDownloadsEnabled: videos.downloadsEnabled,
-        versionDownloadEnabled: videoVersions.downloadEnabled,
+        downloadsFinalOnly: videos.downloadsFinalOnly,
+        versionIsFinal: videoVersions.isFinal,
         internal: videoVersions.internal,
       })
       .from(videoVersions)
@@ -287,14 +287,14 @@ export class AccessService {
     version: {
       videoId: string;
       projectId: string;
-      videoDownloadsEnabled: boolean;
-      versionDownloadEnabled: boolean;
+      downloadsFinalOnly: boolean;
+      versionIsFinal: boolean;
     },
   ): boolean {
     return canDownloadVersion(scope, {
       video: { id: version.videoId, projectId: version.projectId },
-      videoDownloadsEnabled: version.videoDownloadsEnabled,
-      versionDownloadEnabled: version.versionDownloadEnabled,
+      downloadsFinalOnly: version.downloadsFinalOnly,
+      versionIsFinal: version.versionIsFinal,
     });
   }
 
@@ -303,8 +303,8 @@ export class AccessService {
     version: {
       videoId: string;
       projectId: string;
-      videoDownloadsEnabled: boolean;
-      versionDownloadEnabled: boolean;
+      downloadsFinalOnly: boolean;
+      versionIsFinal: boolean;
     },
   ): void {
     if (!this.canDownload(scope, version)) {

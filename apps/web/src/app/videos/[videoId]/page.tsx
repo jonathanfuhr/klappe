@@ -21,6 +21,7 @@ import { AppShell } from '@/components/AppShell';
 import { NotificationPanel } from '@/components/NotificationPanel';
 import { ShareManager } from '@/components/ShareManager';
 import { Uploader } from '@/components/Uploader';
+import { VersionChips } from '@/components/VersionChips';
 import { VersionStatusBadge } from '@/components/VersionStatusBadge';
 import { CommentPanel } from '@/components/comments/CommentPanel';
 import { type CommentMarker, type PlayerHandle, VideoPlayer } from '@/components/player/VideoPlayer';
@@ -406,10 +407,18 @@ export default function ReviewPage() {
               </span>
             ) : null}
             {selectedVersion ? <VersionStatusBadge version={selectedVersion} /> : null}
-            {/* Deutlich sichtbar, dass diese Fassung das Haus nicht verlässt
-                (Phase 27). Sehen kann den Haken ohnehin nur das Team. */}
-            {selectedVersion?.internal ? (
-              <span className="badge badge--processing">{t('video.internal')}</span>
+            {/*
+             * Zustand der Fassung als Chips (Phase 28) – fürs Team zugleich
+             * die Schalter. Vorher standen dafür zwei Leisten unter dem Titel.
+             */}
+            {video && selectedVersion ? (
+              <VersionChips
+                video={video}
+                version={selectedVersion}
+                isTeam={isTeam}
+                aiKatalog={aiKatalog}
+                onChanged={loadVideo}
+              />
             ) : null}
 
             <div className="shell__spacer" />
@@ -553,134 +562,6 @@ export default function ReviewPage() {
             </div>
           ) : null}
 
-          {isTeam && video && selectedVersion ? (
-            <div className="toolbar card" style={{ padding: '8px 14px' }}>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={selectedVersion.isFinal}
-                  onChange={(event) => {
-                    void api
-                      .updateVersion(selectedVersion.id, { isFinal: event.target.checked })
-                      .then(loadVideo);
-                  }}
-                />
-                {t('video.isFinal')}
-              </label>
-              {/* Nachträglich umschaltbar, in beide Richtungen (Phase 27):
-                  Was versehentlich hinausging, lässt sich zurückholen – und
-                  was intern bleiben sollte, nachträglich sperren. Der
-                  Endfassungs-Haken bleibt davon unberührt. */}
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={selectedVersion.internal}
-                  onChange={(event) => {
-                    void api
-                      .updateVersion(selectedVersion.id, { internal: event.target.checked })
-                      .then(loadVideo);
-                  }}
-                />
-                {t('video.internalToggle')}
-              </label>
-              {selectedVersion.releasedAt ? (
-                <span className="muted" style={{ fontSize: 13 }}>
-                  {t('video.internalReleased', {
-                    name: selectedVersion.releasedBy
-                      ? zeigeName(selectedVersion.releasedBy)
-                      : '–',
-                    date: formatDateTime(selectedVersion.releasedAt),
-                  })}
-                </span>
-              ) : null}
-              <span className="muted" style={{ fontSize: 13 }}>
-                {t('video.downloadForGuests')}
-              </span>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={video.downloadsEnabled}
-                  onChange={(event) => {
-                    void api
-                      .updateVideo(video.id, { downloadsEnabled: event.target.checked })
-                      .then(loadVideo);
-                  }}
-                />
-                {t('video.wholeVideo')}
-              </label>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={selectedVersion.downloadEnabled}
-                  onChange={(event) => {
-                    void api
-                      .updateVersion(selectedVersion.id, { downloadEnabled: event.target.checked })
-                      .then(loadVideo);
-                  }}
-                />
-                {versionLabel(selectedVersion.versionNumber)}
-              </label>
-              <span className="hint" style={{ marginTop: 0 }}>
-                {t('video.downloadHint')}
-              </span>
-            </div>
-          ) : null}
-
-          {/*
-           * KI-Kennzeichnung (Phase 24, Nachtrag) – analog zum Endfassungs-
-           * Haken, aber am **Video**: Ob KI-Stimme oder KI-Musik im Schnitt
-           * stecken, ändert sich nicht von Fassung zu Fassung. Die Arten
-           * kommen aus dem Katalog in den Einstellungen; ist die Funktion dort
-           * abgeschaltet, fehlt die Zeile ganz.
-           */}
-          {isTeam && video && aiKatalog?.enabled ? (
-            <div className="toolbar card" style={{ padding: '8px 14px' }}>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={video.aiContent}
-                  onChange={(event) => {
-                    void api.updateVideo(video.id, { aiContent: event.target.checked }).then(loadVideo);
-                  }}
-                />
-                {t('video.aiToggle')}
-              </label>
-
-              {video.aiContent ? (
-                aiKatalog.kinds.length > 0 ? (
-                  aiKatalog.kinds.map((art) => {
-                    const gewaehlt = video.aiKinds.some((eintrag) => eintrag.id === art.id);
-                    return (
-                      <label key={art.id} className="switch">
-                        <input
-                          type="checkbox"
-                          checked={gewaehlt}
-                          onChange={() => {
-                            const ids = gewaehlt
-                              ? video.aiKinds
-                                  .filter((eintrag) => eintrag.id !== art.id)
-                                  .map((eintrag) => eintrag.id)
-                              : [...video.aiKinds.map((eintrag) => eintrag.id), art.id];
-                            void api.updateVideo(video.id, { aiKindIds: ids }).then(loadVideo);
-                          }}
-                        />
-                        {kindName(art)}
-                      </label>
-                    );
-                  })
-                ) : (
-                  <span className="hint" style={{ marginTop: 0 }}>
-                    {t('video.aiNoKinds')}
-                  </span>
-                )
-              ) : (
-                <span className="hint" style={{ marginTop: 0 }}>
-                  {t('video.aiToggleHint')}
-                </span>
-              )}
-            </div>
-          ) : null}
-
           {error ? <div className="notice">{error}</div> : null}
           {loading ? <p className="muted">{t('common.loading')}</p> : null}
 
@@ -784,6 +665,8 @@ export default function ReviewPage() {
               projectId={video.projectId}
               videoId={video.id}
               targetLabel={video.name}
+              video={video}
+              onVideoChanged={loadVideo}
             />
           ) : isTeam && seitenTab === 'benachrichtigungen' && video ? (
             <NotificationPanel scope="VIDEO" projectId={video.projectId} videoId={video.id} />

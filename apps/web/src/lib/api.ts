@@ -226,7 +226,7 @@ export const api = {
     input: {
       name?: string;
       description?: string;
-      downloadsEnabled?: boolean;
+      downloadsFinalOnly?: boolean;
       /** KI-Kennzeichnung (Phase 24, Nachtrag); `aiKindIds` ersetzt die Auswahl. */
       aiContent?: boolean;
       aiKindIds?: string[];
@@ -257,7 +257,6 @@ export const api = {
     id: string,
     input: {
       label?: string;
-      downloadEnabled?: boolean;
       fileDate?: string;
       isFinal?: boolean;
       /** Neue Nummer für diese Fassung (Phase 25) – zum Begradigen von Fehleingaben. */

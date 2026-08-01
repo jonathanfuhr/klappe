@@ -42,7 +42,7 @@ export class UpdateVideoDto {
   /** Schalter für den Download aller Fassungen dieses Videos. */
   @IsOptional()
   @IsBoolean()
-  downloadsEnabled?: boolean;
+  downloadsFinalOnly?: boolean;
 
   /** KI-Kennzeichnung (Phase 24, Nachtrag); gilt für alle Fassungen. */
   @IsOptional()

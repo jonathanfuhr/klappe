@@ -88,6 +88,11 @@ Projekte betreut, findet so zuerst den Kunden und dann das Projekt. Je nach
 Einrichtung stehen auf der Kachel auch einzelne benutzerdefinierte Felder,
 etwa eine Projektnummer.
 
+Der Zustand einer Fassung steht als **Chips** neben ihrer Nummer: ob sie intern
+ist, ob sie ein Zwischenstand oder die Endfassung ist, und ob KI-Inhalte
+gekennzeichnet sind. Wer zum Team gehört, klickt einen Chip an und schaltet ihn
+dort um.
+
 Eine Fassung kann als **Endfassung** markiert sein. Ist sie das nicht, sieht
 jeder, der sie ansieht, einen deutlichen Hinweis darauf, dass es sich um
 einen Zwischenstand handelt.
