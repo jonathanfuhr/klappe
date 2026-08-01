@@ -1,5 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
+  type Locale,
+  type NotificationKind,
   type UserRole,
   commentBodyToPlainText,
   framesToTimecode,
@@ -38,8 +40,14 @@ import {
 } from './recipients';
 import {
   type CommentDigestEntry,
+  type MailBrand,
+  type RenderedMail,
+  renderBackupFailedMail,
+  renderCleanupWarningMail,
   renderCommentDigestMail,
   renderCommentMail,
+  renderDevicePairedMail,
+  renderFirstVisitMail,
   renderProjectFileDigestMail,
   renderProjectFileMail,
   renderVersionFailedMail,
@@ -595,6 +603,203 @@ export class NotificationsService {
       .where(and(eq(comments.id, commentId), isNull(comments.deletedAt)))
       .limit(1);
     return row ?? null;
+  }
+
+  /** „Der Kunde hat zum ersten Mal reingeschaut." – ans Team (Phase 28). */
+  async notifyFirstVisit(userId: string, shareLinkId: string): Promise<number> {
+    if (!(await this.mailService.isReady())) return 0;
+
+    const [ziel] = await this.db
+      .select({
+        gastName: users.name,
+        projectId: shareLinks.projectId,
+        videoProjectId: videos.projectId,
+        videoName: videos.name,
+        projectName: projects.name,
+      })
+      .from(shareLinks)
+      .innerJoin(users, eq(users.id, userId))
+      .leftJoin(videos, eq(shareLinks.videoId, videos.id))
+      .leftJoin(projects, eq(shareLinks.projectId, projects.id))
+      .where(eq(shareLinks.id, shareLinkId))
+      .limit(1);
+
+    const projectId = ziel?.projectId ?? ziel?.videoProjectId;
+    if (!ziel || !projectId) return 0;
+
+    // Bei einer Videofreigabe steht der Projektname nicht am Link; dann nennt
+    // die Mail das Video – das ist ohnehin das, was der Gast gesehen hat.
+    const zielName = ziel.projectName ?? ziel.videoName ?? 'Klappe';
+    return this.kurzeMailAnTeam({
+      projectId,
+      kind: 'guest-first-visit',
+      url: `${this.config.publicUrl}/projekte/${projectId}`,
+      bauen: (recipient, brand, locale) =>
+        renderFirstVisitMail({
+          brand,
+          locale,
+          recipientName: recipient.name,
+          guestName: ziel.gastName,
+          targetName: zielName,
+          url: `${this.config.publicUrl}/projekte/${projectId}`,
+          unsubscribeUrl: this.mailService.unsubscribeUrl(recipient.id),
+        }),
+    });
+  }
+
+  /** Letzte Warnung vor dem Aufräumen archivierter Projekte (Phase 28). */
+  async notifyCleanupWarning(
+    projectId: string,
+    days: number,
+    versionCount: number,
+  ): Promise<number> {
+    if (!(await this.mailService.isReady())) return 0;
+
+    const [projekt] = await this.db
+      .select({ name: projects.name })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    if (!projekt) return 0;
+
+    const url = `${this.config.publicUrl}/projekte/${projectId}`;
+    return this.kurzeMailAnTeam({
+      projectId,
+      kind: 'cleanup-warning',
+      url,
+      bauen: (recipient, brand, locale) =>
+        renderCleanupWarningMail({
+          brand,
+          locale,
+          recipientName: recipient.name,
+          projectName: projekt.name,
+          days,
+          versionCount,
+          url,
+          unsubscribeUrl: this.mailService.unsubscribeUrl(recipient.id),
+        }),
+    });
+  }
+
+  /**
+   * „Die Sicherung ist fehlgeschlagen." – an die Administratoren.
+   *
+   * Nicht an die Eingetragenen eines Projekts, sondern an alle Admins: Eine
+   * Sicherung gehört keinem Projekt, und wer sie einrichtet, ist Admin.
+   */
+  async notifyBackupFailed(reason: string | null): Promise<number> {
+    if (!(await this.mailService.isReady())) return 0;
+
+    const admins = await this.db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        isActive: users.isActive,
+        notificationsEnabled: users.notificationsEnabled,
+        locale: users.locale,
+        role: users.role,
+      })
+      .from(users)
+      .where(and(eq(users.role, 'ADMIN'), eq(users.isActive, true)));
+
+    const url = `${this.config.publicUrl}/einstellungen`;
+    return this.verschicke({
+      empfaenger: admins.filter((kandidat) => kandidat.notificationsEnabled),
+      kind: 'backup-failed',
+      audience: 'TEAM',
+      bauen: (recipient, brand, locale) =>
+        renderBackupFailedMail({
+          brand,
+          locale,
+          recipientName: recipient.name,
+          reason,
+          url,
+          unsubscribeUrl: this.mailService.unsubscribeUrl(recipient.id),
+        }),
+    });
+  }
+
+  /** „Ein neues Gerät nutzt dein Konto." – an den Kontoinhaber (Phase 28). */
+  async notifyDevicePaired(userId: string, clientName: string): Promise<number> {
+    if (!(await this.mailService.isReady())) return 0;
+
+    const empfaenger = await this.loadRecipient(userId);
+    if (!empfaenger) return 0;
+
+    const url = `${this.config.publicUrl}/konto`;
+    return this.verschicke({
+      empfaenger: [empfaenger],
+      kind: 'device-paired',
+      audience: audienceOf(empfaenger),
+      bauen: (recipient, brand, locale) =>
+        renderDevicePairedMail({
+          brand,
+          locale,
+          recipientName: recipient.name,
+          clientName,
+          url,
+          unsubscribeUrl: this.mailService.unsubscribeUrl(recipient.id),
+        }),
+    });
+  }
+
+  /** Eine kurze Mail an alle, die für dieses Projekt eingetragen sind. */
+  private async kurzeMailAnTeam(input: {
+    projectId: string;
+    kind: NotificationKind;
+    url: string;
+    bauen: (
+      recipient: NotificationCandidate,
+      brand: MailBrand,
+      locale: Locale,
+    ) => RenderedMail;
+  }): Promise<number> {
+    const empfaenger = (await this.projektEmpfaenger(input.projectId)).filter(
+      (kandidat) =>
+        kandidat.isActive && kandidat.notificationsEnabled && audienceOf(kandidat) === 'TEAM',
+    );
+    return this.verschicke({
+      empfaenger,
+      kind: input.kind,
+      audience: 'TEAM',
+      bauen: input.bauen,
+    });
+  }
+
+  /** Der gemeinsame Versandlauf: bauen, schicken, Fehler einzeln abfangen. */
+  private async verschicke(input: {
+    empfaenger: NotificationCandidate[];
+    kind: NotificationKind;
+    audience: 'TEAM' | 'GUEST';
+    bauen: (
+      recipient: NotificationCandidate,
+      brand: MailBrand,
+      locale: Locale,
+    ) => RenderedMail;
+  }): Promise<number> {
+    if (input.empfaenger.length === 0) return 0;
+    const brand = await this.mailService.brand();
+    let sent = 0;
+
+    for (const recipient of input.empfaenger) {
+      const locale = await this.mailService.localeFor(recipient.locale);
+      try {
+        if (
+          await this.mailService.send(recipient.email, input.bauen(recipient, brand, locale), {
+            kind: input.kind,
+            audience: input.audience,
+          })
+        ) {
+          sent += 1;
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Hinweis (${input.kind}) an ${recipient.id} fehlgeschlagen: ${String(error)}`,
+        );
+      }
+    }
+    return sent;
   }
 
   /**

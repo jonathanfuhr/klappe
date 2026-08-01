@@ -12,6 +12,7 @@
  * Neustart des Containers löst keinen zusätzlichen Lauf aus.
  */
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { MailQueueService } from '../queue/mail-queue.service';
 import { BackupService } from './backup.service';
 
 /** So oft wird nachgesehen, ob etwas fällig ist. */
@@ -25,7 +26,10 @@ export class BackupSchedulerService implements OnModuleInit, OnModuleDestroy {
   private timer: NodeJS.Timeout | null = null;
   private erstlauf: NodeJS.Timeout | null = null;
 
-  constructor(private readonly backup: BackupService) {}
+  constructor(
+    private readonly backup: BackupService,
+    private readonly mailQueue: MailQueueService,
+  ) {}
 
   onModuleInit(): void {
     this.erstlauf = setTimeout(() => void this.pruefe(), ERSTLAUF_MS);
@@ -59,6 +63,14 @@ export class BackupSchedulerService implements OnModuleInit, OnModuleDestroy {
       // Der Grund steht bereits in den Einstellungen und im Protokoll des
       // Dienstes; hier soll nur der Timer weiterlaufen.
       this.logger.error(`Geplante Sicherung fehlgeschlagen: ${String(error)}`);
+      // Und seit Phase 28 erfahren es die Administratoren: Eine Sicherung, von
+      // der niemand weiß, dass sie nicht läuft, ist keine.
+      await this.mailQueue
+        .enqueue({
+          kind: 'backup-failed',
+          reason: (error instanceof Error ? error.message : String(error)).slice(0, 500),
+        })
+        .catch(() => undefined);
     }
   }
 }

@@ -57,7 +57,13 @@ export type MailJobData =
    * internen Fassung – Gäste erst mit der Freigabe.
    */
   | { kind: 'version-ready'; versionId: string; audience: 'TEAM' | 'GUEST' }
-  | { kind: 'version-failed'; versionId: string };
+  | { kind: 'version-failed'; versionId: string }
+  /** Ein Gast hat eine Freigabe zum ersten Mal geöffnet (Phase 28). */
+  | { kind: 'guest-first-visit'; userId: string; shareLinkId: string }
+  /** Letzte Warnung, bevor alte Fassungen eines Archivprojekts wegfallen. */
+  | { kind: 'cleanup-warning'; projectId: string; days: number; versionCount: number }
+  | { kind: 'backup-failed'; reason: string | null }
+  | { kind: 'device-paired'; userId: string; clientName: string };
 
 /**
  * Vorrang in der Mail-Warteschlange (Phase 20).

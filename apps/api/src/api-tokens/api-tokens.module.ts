@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { QueueModule } from '../queue/queue.module';
 import { SettingsService } from '../settings/settings.service';
 import { ApiAccessController } from './api-access.controller';
 import { ApiAccessService } from './api-access.service';
@@ -15,6 +16,8 @@ import { DeviceFlowService } from './device-flow.service';
  * API-Token durch.
  */
 @Module({
+  // `QueueModule` wegen des Empfangsscheins bei einer Gerätekopplung (Phase 28).
+  imports: [QueueModule],
   controllers: [ApiTokensController, ApiAccessController, DeviceFlowController],
   providers: [ApiTokensService, ApiAccessService, DeviceFlowService, SettingsService],
   exports: [ApiTokensService, DeviceFlowService],

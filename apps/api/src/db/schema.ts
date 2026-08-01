@@ -109,6 +109,14 @@ export const projects = pgTable(
     description: text('description'),
     createdById: uuid('created_by_id').references(() => users.id, { onDelete: 'set null' }),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    /**
+     * Wann vor dem Aufräumen gewarnt wurde (Phase 28). Die alten Fassungen
+     * eines archivierten Projekts verschwinden nach Ablauf der Frist – das
+     * ist der einzige Vorgang in Klappe, der Material von sich aus löscht,
+     * und er soll nicht unangekündigt kommen. Der Zeitstempel verhindert,
+     * dass die Warnung täglich wiederkehrt.
+     */
+    cleanupWarnedAt: timestamp('cleanup_warned_at', { withTimezone: true }),
     ...timestamps,
   },
   (table) => [index('projects_created_at_idx').on(table.createdAt)],

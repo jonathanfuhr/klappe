@@ -87,6 +87,18 @@ interface MailTexte {
   versionFailedSubject: (video: string) => string;
   versionFailedIntro: (version: string, video: string) => string;
   versionFailedReason: (reason: string) => string;
+  // Weitere Hinweise (Phase 28)
+  firstVisitSubject: (guest: string, target: string) => string;
+  firstVisitIntro: (guest: string, target: string) => string;
+  cleanupSubject: (project: string) => string;
+  cleanupIntro: (project: string, days: number) => string;
+  cleanupDetail: (count: number) => string;
+  backupSubject: string;
+  backupIntro: string;
+  backupReason: (reason: string) => string;
+  deviceSubject: (client: string) => string;
+  deviceIntro: (client: string) => string;
+  deviceHint: string;
   // Zugang freigeschaltet
   accessSubject: (target: string) => string;
   accessIntro: (actor: string, target: string) => string;
@@ -150,6 +162,22 @@ const DE: MailTexte = {
   versionFailedIntro: (version, video) =>
     `${version} von „${video}“ konnte nicht verarbeitet werden.`,
   versionFailedReason: (reason) => `Grund: ${reason}`,
+  firstVisitSubject: (guest, target) => `${guest} war zum ersten Mal in ${target}`,
+  firstVisitIntro: (guest, target) => `${guest} hat „${target}“ zum ersten Mal geöffnet.`,
+  cleanupSubject: (project) => `Alte Fassungen werden bald gelöscht: ${project}`,
+  cleanupIntro: (project, days) =>
+    days <= 0
+      ? `Im archivierten Projekt „${project}“ werden die alten Fassungen jetzt gelöscht.`
+      : `Im archivierten Projekt „${project}“ werden die alten Fassungen in ${days} Tag(en) gelöscht.`,
+  cleanupDetail: (count) =>
+    `Betroffen sind ${count} Fassung(en). Die jeweils neueste bleibt erhalten. Wer etwas davon behalten will, lädt es vorher herunter oder holt das Projekt aus dem Archiv.`,
+  backupSubject: 'Die Datenbanksicherung ist fehlgeschlagen',
+  backupIntro: 'Die geplante Sicherung der Datenbank konnte nicht erstellt werden.',
+  backupReason: (reason) => `Grund: ${reason}`,
+  deviceSubject: (client) => `Neues Gerät verbunden: ${client}`,
+  deviceIntro: (client) => `„${client}“ nutzt ab jetzt dein Konto über die Schnittstelle.`,
+  deviceHint:
+    'Warst du das nicht, trenne das Gerät unter „Profil und Sicherheit“ – der Zugang gilt sofort nicht mehr.',
   accessSubject: (target) => `Freigeschaltet: ${target}`,
   accessIntro: (actor, target) => `${actor} hat „${target}“ für dich freigegeben.`,
   accessNoNewLink: 'Du brauchst dafür keinen neuen Link – melde dich an wie gewohnt.',
@@ -212,6 +240,22 @@ const EN: MailTexte = {
   versionFailedSubject: (video) => `Processing failed: ${video}`,
   versionFailedIntro: (version, video) => `${version} of “${video}” could not be processed.`,
   versionFailedReason: (reason) => `Reason: ${reason}`,
+  firstVisitSubject: (guest, target) => `${guest} visited ${target} for the first time`,
+  firstVisitIntro: (guest, target) => `${guest} opened “${target}” for the first time.`,
+  cleanupSubject: (project) => `Old versions will be deleted soon: ${project}`,
+  cleanupIntro: (project, days) =>
+    days <= 0
+      ? `In the archived project “${project}” the old versions are being deleted now.`
+      : `In the archived project “${project}” the old versions will be deleted in ${days} day(s).`,
+  cleanupDetail: (count) =>
+    `${count} version(s) are affected. The newest one of each video is kept. If you want to keep any of them, download them first or take the project out of the archive.`,
+  backupSubject: 'The database backup failed',
+  backupIntro: 'The scheduled database backup could not be created.',
+  backupReason: (reason) => `Reason: ${reason}`,
+  deviceSubject: (client) => `New device connected: ${client}`,
+  deviceIntro: (client) => `“${client}” now uses your account through the API.`,
+  deviceHint:
+    'If that was not you, disconnect the device under “Profile and security” – access stops immediately.',
   accessSubject: (target) => `Now available: ${target}`,
   accessIntro: (actor, target) => `${actor} shared “${target}” with you.`,
   accessNoNewLink: 'You do not need a new link for that – sign in as usual.',
@@ -675,6 +719,142 @@ export function renderVersionFailedMail(input: {
       unsubscribeUrl: input.unsubscribeUrl,
     }),
   };
+}
+
+// ---------- Kurze Hinweise (Phase 28) ----------
+
+/**
+ * Vier Mails, die dasselbe tun: einen Satz sagen und einen Knopf anbieten.
+ * Sie teilen sich deshalb einen Rumpf – vier fast gleiche Funktionen
+ * nebeneinander wären vier Stellen, an denen dieselbe Änderung nachzuziehen
+ * wäre.
+ */
+function kurzerHinweis(input: {
+  recipientName: string;
+  subject: string;
+  intro: string;
+  lines: Array<string | null>;
+  buttonLabel: string;
+  url: string;
+  unsubscribeUrl: string;
+  linkLine: (url: string) => string;
+  brand?: MailBrand;
+  locale?: Locale;
+}): RenderedMail {
+  const t = texte(input.locale);
+  const zeilen = input.lines.filter((zeile): zeile is string => Boolean(zeile));
+
+  return {
+    subject: input.subject,
+    text: [
+      t.hallo(input.recipientName),
+      '',
+      input.intro,
+      ...zeilen,
+      '',
+      input.linkLine(input.url),
+      '',
+      t.unsubscribeLine(input.unsubscribeUrl),
+    ].join('\n'),
+    html: layout({
+      brand: input.brand,
+      locale: input.locale,
+      title: input.intro,
+      body: zeilen.map((zeile) => paragraph(zeile)).join(''),
+      buttonLabel: input.buttonLabel,
+      buttonUrl: input.url,
+      unsubscribeUrl: input.unsubscribeUrl,
+    }),
+  };
+}
+
+/** „Der Kunde hat zum ersten Mal reingeschaut." – ans Team. */
+export function renderFirstVisitMail(input: {
+  recipientName: string;
+  guestName: string;
+  targetName: string;
+  url: string;
+  unsubscribeUrl: string;
+  brand?: MailBrand;
+  locale?: Locale;
+}): RenderedMail {
+  const t = texte(input.locale);
+  return kurzerHinweis({
+    ...input,
+    subject: t.firstVisitSubject(input.guestName, input.targetName),
+    intro: t.firstVisitIntro(input.guestName, input.targetName),
+    lines: [],
+    buttonLabel: t.toProject,
+    linkLine: t.toProjectLine,
+  });
+}
+
+/**
+ * Letzte Warnung vor dem Aufräumen – ans Team.
+ *
+ * Das Löschen alter Fassungen archivierter Projekte ist der einzige Vorgang,
+ * bei dem Klappe von sich aus Material entfernt. Er soll nicht unangekündigt
+ * kommen.
+ */
+export function renderCleanupWarningMail(input: {
+  recipientName: string;
+  projectName: string;
+  days: number;
+  versionCount: number;
+  url: string;
+  unsubscribeUrl: string;
+  brand?: MailBrand;
+  locale?: Locale;
+}): RenderedMail {
+  const t = texte(input.locale);
+  return kurzerHinweis({
+    ...input,
+    subject: t.cleanupSubject(input.projectName),
+    intro: t.cleanupIntro(input.projectName, input.days),
+    lines: [t.cleanupDetail(input.versionCount)],
+    buttonLabel: t.toProject,
+    linkLine: t.toProjectLine,
+  });
+}
+
+/** „Die Sicherung ist fehlgeschlagen." – an die Administratoren. */
+export function renderBackupFailedMail(input: {
+  recipientName: string;
+  reason: string | null;
+  url: string;
+  unsubscribeUrl: string;
+  brand?: MailBrand;
+  locale?: Locale;
+}): RenderedMail {
+  const t = texte(input.locale);
+  return kurzerHinweis({
+    ...input,
+    subject: t.backupSubject,
+    intro: t.backupIntro,
+    lines: [input.reason ? t.backupReason(input.reason) : null],
+    buttonLabel: t.view,
+    linkLine: t.goThereLine,
+  });
+}
+
+/** „Ein neues Gerät nutzt dein Konto." – an den Kontoinhaber. */
+export function renderDevicePairedMail(input: {
+  recipientName: string;
+  clientName: string;
+  url: string;
+  unsubscribeUrl: string;
+  brand?: MailBrand;
+  locale?: Locale;
+}): RenderedMail {
+  const t = texte(input.locale);
+  return kurzerHinweis({
+    ...input,
+    subject: t.deviceSubject(input.clientName),
+    intro: t.deviceIntro(input.clientName),
+    lines: [t.deviceHint],
+    buttonLabel: t.view,
+    linkLine: t.goThereLine,
+  });
 }
 
 // ---------- Zugang freigeschaltet (Phase 20) ----------

@@ -12,6 +12,7 @@ import type { ApiTokenDto } from '@klappe/shared';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { type ApiTokenRow, apiTokens, users } from '../db/schema';
+import { MailQueueService } from '../queue/mail-queue.service';
 import { SettingsService } from '../settings/settings.service';
 import { createApiToken, maskApiToken, parseApiToken, verifyApiTokenSecret } from './api-token';
 
@@ -44,6 +45,7 @@ export class ApiTokensService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly settings: SettingsService,
+    private readonly mailQueue: MailQueueService,
   ) {}
 
   /**
@@ -132,6 +134,17 @@ export class ApiTokensService {
       .returning();
 
     this.logger.log(`API-Token ausgestellt: ${row.name} (${maskApiToken(row.selector)})`);
+    /*
+     * Ein Empfangsschein an den Kontoinhaber (Phase 28). Beide Wege kommen
+     * hier vorbei – die Kopplung im Browser und der von Hand ausgestellte
+     * Token –, deshalb steht die Meldung an dieser einen Stelle. Sie fällt
+     * auf, wenn es nicht das eigene Gerät war.
+     */
+    await this.mailQueue.enqueue({
+      kind: 'device-paired',
+      userId: input.userId,
+      clientName: row.name,
+    });
     return { token: toDto(row), plaintext: neu.plaintext };
   }
 

@@ -57,6 +57,22 @@ export class MailProcessor extends WorkerHost {
         if (sent > 0) this.logger.log(`${sent} Hinweis(e) auf Fehlschlag ${data.versionId}`);
         break;
       }
+      case 'guest-first-visit': {
+        await this.notifications.notifyFirstVisit(data.userId, data.shareLinkId);
+        break;
+      }
+      case 'cleanup-warning': {
+        await this.notifications.notifyCleanupWarning(data.projectId, data.days, data.versionCount);
+        break;
+      }
+      case 'backup-failed': {
+        await this.notifications.notifyBackupFailed(data.reason);
+        break;
+      }
+      case 'device-paired': {
+        await this.notifications.notifyDevicePaired(data.userId, data.clientName);
+        break;
+      }
       default: {
         // Unbekannte Job-Art: nicht endlos wiederholen, nur festhalten.
         this.logger.warn(`Unbekannte Mail-Aufgabe: ${JSON.stringify(data)}`);

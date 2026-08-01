@@ -12,7 +12,7 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { and, isNotNull, lt, or, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import {
   deviceAuthorizations,
@@ -24,12 +24,20 @@ import {
   videoVersions,
   videos,
 } from '../db/schema';
+import { MailQueueService } from '../queue/mail-queue.service';
 import { SettingsService } from '../settings/settings.service';
 import { StorageService } from '../storage/storage.service';
 
 /** Einmal am Tag genügt; der erste Lauf kommt kurz nach dem Start. */
 const INTERVAL_MS = 24 * 60 * 60 * 1000;
 const FIRST_RUN_DELAY_MS = 5 * 60 * 1000;
+
+/**
+ * So viele Tage vor dem Löschen wird gewarnt (Phase 28). Eine Woche: lang
+ * genug, um noch etwas herunterzuladen oder das Projekt aus dem Archiv zu
+ * holen, kurz genug, dass die Mail nicht in Vergessenheit gerät.
+ */
+const WARNUNG_VORLAUF_TAGE = 7;
 
 /**
  * So lange bleibt eine verwaiste Datei liegen, bevor sie fliegt. Die Karenz
@@ -64,6 +72,7 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @Inject(DB) private readonly db: Database,
+    private readonly mailQueue: MailQueueService,
     private readonly storage: StorageService,
     private readonly settings: SettingsService,
   ) {}
@@ -85,6 +94,9 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
       const codes = await this.cleanupLoginCodes();
       const kopplungen = await this.cleanupDeviceAuthorizations();
       const hinweise = await this.cleanupPendingNotifications();
+      // Erst warnen, dann löschen: Sonst kommt die Warnung zu einem Verlust,
+      // der schon eingetreten ist (Phase 28).
+      await this.warnBeforeCleanup();
       // Vor dem Datei-Durchlauf: Was hier wegfällt, ist danach verwaist und
       // wird im selben Lauf mit abgeräumt.
       const fassungen = await this.cleanupArchivedVersions();
@@ -130,6 +142,71 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
    * Die Dateien selbst werden nicht hier gelöscht: Sie sind nach dem Wegfall
    * der Zeilen verwaist und gehen im selben Lauf durch `cleanupOrphanFiles`.
    */
+  /**
+   * Letzte Warnung vor dem Aufräumen (Phase 28).
+   *
+   * Das Löschen alter Fassungen archivierter Projekte ist der einzige
+   * Vorgang, bei dem Klappe von sich aus Material entfernt – er soll nicht
+   * unangekündigt kommen. Gewarnt wird, sobald die Frist in weniger als einer
+   * Woche abläuft, und **einmal je Projekt**: Der Zeitstempel in
+   * `cleanup_warned_at` verhindert, dass daraus eine tägliche Mahnung wird.
+   */
+  async warnBeforeCleanup(): Promise<number> {
+    const tage = await this.settings.archiveRetentionDays();
+    // Eine Frist von 0 heißt „sofort" – dafür gibt es kein Vorher.
+    if (tage <= 0) return 0;
+
+    const vorlauf = Math.min(WARNUNG_VORLAUF_TAGE, tage);
+    const schwelle = new Date(Date.now() - (tage - vorlauf) * 24 * 60 * 60 * 1000);
+
+    const faellig = await this.db
+      .select({
+        id: projects.id,
+        archivedAt: projects.archivedAt,
+        betroffen: sql<number>`(
+          select count(*)::int
+          from ${videoVersions} v
+          join ${videos} w on w.id = v.video_id
+          where w.project_id = ${projects.id}
+            and v.id <> (
+              select v2.id from ${videoVersions} v2
+              where v2.video_id = w.id and v2.status = 'READY'
+              order by v2.version_number desc
+              limit 1
+            )
+        )`,
+      })
+      .from(projects)
+      .where(
+        and(
+          isNotNull(projects.archivedAt),
+          lt(projects.archivedAt, schwelle),
+          isNull(projects.cleanupWarnedAt),
+        ),
+      );
+
+    let gewarnt = 0;
+    for (const projekt of faellig) {
+      // Nichts zu verlieren, nichts zu warnen – der Vermerk wird trotzdem
+      // gesetzt, sonst läuft die Abfrage täglich gegen dasselbe Projekt.
+      if (projekt.betroffen > 0 && projekt.archivedAt) {
+        const restMs = projekt.archivedAt.getTime() + tage * 86_400_000 - Date.now();
+        await this.mailQueue.enqueue({
+          kind: 'cleanup-warning',
+          projectId: projekt.id,
+          days: Math.max(0, Math.ceil(restMs / 86_400_000)),
+          versionCount: projekt.betroffen,
+        });
+        gewarnt += 1;
+      }
+      await this.db
+        .update(projects)
+        .set({ cleanupWarnedAt: new Date() })
+        .where(eq(projects.id, projekt.id));
+    }
+    return gewarnt;
+  }
+
   async cleanupArchivedVersions(): Promise<number> {
     const tage = await this.settings.archiveRetentionDays();
     const grenze = new Date(Date.now() - tage * 24 * 60 * 60 * 1000);

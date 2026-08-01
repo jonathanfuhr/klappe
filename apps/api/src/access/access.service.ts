@@ -2,6 +2,7 @@ import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } fro
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
+import { MailQueueService } from '../queue/mail-queue.service';
 import { shareLinkGrants, shareLinks, videoVersions, videos } from '../db/schema';
 import {
   type AccessScope,
@@ -44,7 +45,10 @@ export class AccessService {
   /** Wann zuletzt für einen Gast geschrieben wurde. */
   private readonly lastTouch = new Map<string, number>();
 
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly mailQueue: MailQueueService,
+  ) {}
 
   async loadScope(user: RequestUser): Promise<AccessScope> {
     if (user.role !== 'GUEST') return teamScope(user.role);
@@ -126,10 +130,31 @@ export class AccessService {
 
   async touchGrants(user: RequestUser): Promise<void> {
     if (user.role !== 'GUEST') return;
+
+    /*
+     * Der Erstbesuch fällt genau hier auf (Phase 28): Vorher stand nirgends
+     * `last_seen_at`. Deshalb zuerst die noch leeren Zeilen – ihre Rückgabe
+     * ist die Antwort auf „hat der Kunde schon reingeschaut?" –, danach der
+     * Rest wie bisher.
+     */
+    const ersteBesuche = await this.db
+      .update(shareLinkGrants)
+      .set({ lastSeenAt: sql`now()` })
+      .where(and(eq(shareLinkGrants.userId, user.id), isNull(shareLinkGrants.lastSeenAt)))
+      .returning({ shareLinkId: shareLinkGrants.shareLinkId });
+
     await this.db
       .update(shareLinkGrants)
       .set({ lastSeenAt: sql`now()` })
       .where(eq(shareLinkGrants.userId, user.id));
+
+    for (const grant of ersteBesuche) {
+      await this.mailQueue.enqueue({
+        kind: 'guest-first-visit',
+        userId: user.id,
+        shareLinkId: grant.shareLinkId,
+      });
+    }
   }
 
   // ---------- Prüfungen mit klarer Fehlermeldung ----------

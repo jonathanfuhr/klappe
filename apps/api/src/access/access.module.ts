@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { QueueModule } from '../queue/queue.module';
 import { AccessService } from './access.service';
 
 /**
@@ -7,6 +8,9 @@ import { AccessService } from './access.service';
  */
 @Global()
 @Module({
+  // Wegen des Hinweises „Gast war zum ersten Mal da" (Phase 28) – der
+  // Erstbesuch fällt genau hier auf, beim Vermerken des Zugriffs.
+  imports: [QueueModule],
   providers: [AccessService],
   exports: [AccessService],
 })
