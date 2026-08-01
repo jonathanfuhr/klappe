@@ -136,18 +136,3 @@ export function applyMentions(
 
   return rest.replace(/\u0000(\d+)\u0000/g, (_treffer, index: string) => geschuetzt[Number(index)]);
 }
-
-/**
- * Umgekehrter Weg: die eindeutige Form für die Anzeige im Eingabefeld
- * auflösen. Wird beim Bearbeiten eines vorhandenen Kommentars gebraucht.
- */
-export function mentionsForEditing(body: string): {
-  text: string;
-  chosen: { label: string; userId: string }[];
-} {
-  const chosen = parseMentions(body).map((mention) => ({
-    label: mention.label,
-    userId: mention.userId,
-  }));
-  return { text: commentBodyToPlainText(body), chosen };
-}

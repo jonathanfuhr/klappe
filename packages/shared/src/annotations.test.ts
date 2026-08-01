@@ -4,7 +4,6 @@ import {
   DEFAULT_ANNOTATION_WIDTH,
   MAX_POINTS_PER_STROKE,
   MAX_STROKES_PER_ANNOTATION,
-  annotationPointCount,
   isAnnotationEmpty,
   sanitizeAnnotation,
 } from './annotations';
@@ -95,18 +94,10 @@ describe('sanitizeAnnotation', () => {
   });
 });
 
-describe('isAnnotationEmpty / annotationPointCount', () => {
+describe('isAnnotationEmpty', () => {
   it('erkennt leere Zeichnungen', () => {
     expect(isAnnotationEmpty(null)).toBe(true);
     expect(isAnnotationEmpty({ strokes: [] })).toBe(true);
     expect(isAnnotationEmpty({ strokes: [stroke([{ x: 0, y: 0 }])] })).toBe(false);
-  });
-
-  it('zählt alle Punkte', () => {
-    expect(
-      annotationPointCount({
-        strokes: [stroke([{ x: 0, y: 0 }, { x: 1, y: 1 }]), stroke([{ x: 0.5, y: 0.5 }])],
-      }),
-    ).toBe(3);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyMentions, mentionsForEditing, tokenizeCommentBody } from './mentions';
+import { applyMentions, tokenizeCommentBody } from './mentions';
 
 const jonathan = { label: 'Jonathan Fuhr', userId: '11111111-1111-4111-8111-111111111111' };
 const jona = { label: 'Jonathan', userId: '22222222-2222-4222-8222-222222222222' };
@@ -56,30 +56,6 @@ describe('applyMentions', () => {
   it('trifft auch am Textende', () => {
     expect(applyMentions('Frag mal @Jonathan', [jona])).toBe(
       `Frag mal @[Jonathan](${jona.userId})`,
-    );
-  });
-});
-
-describe('mentionsForEditing', () => {
-  it('löst die Auszeichnung fürs Bearbeiten wieder auf', () => {
-    const body = `Hallo @[Jonathan Fuhr](${jonathan.userId})!`;
-    const { text, chosen } = mentionsForEditing(body);
-    expect(text).toBe('Hallo @Jonathan Fuhr!');
-    expect(chosen).toEqual([{ label: 'Jonathan Fuhr', userId: jonathan.userId }]);
-  });
-
-  // Der wichtigste Fall: bearbeiten, ohne dass die Zuordnung verlorengeht.
-  it('überlebt den Weg hin und zurück', () => {
-    const body = `@[Jonathan Fuhr](${jonathan.userId}) bitte prüfen`;
-    const { text, chosen } = mentionsForEditing(body);
-    expect(applyMentions(text, chosen)).toBe(body);
-  });
-
-  it('erkennt die Auszeichnung danach als Mention', () => {
-    const { text, chosen } = mentionsForEditing(`Hi @[Jonathan](${jona.userId})`);
-    const tokens = tokenizeCommentBody(applyMentions(text, chosen));
-    expect(tokens.some((token) => token.type === 'mention' && token.label === 'Jonathan')).toBe(
-      true,
     );
   });
 });

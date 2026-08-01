@@ -109,8 +109,3 @@ export function sanitizeAnnotation(input: unknown): Annotation | null {
 export function isAnnotationEmpty(annotation: Annotation | null | undefined): boolean {
   return !annotation || annotation.strokes.length === 0;
 }
-
-/** Anzahl der Punkte insgesamt – für Anzeige und Grenzwerte. */
-export function annotationPointCount(annotation: Annotation): number {
-  return annotation.strokes.reduce((sum, stroke) => sum + stroke.points.length, 0);
-}

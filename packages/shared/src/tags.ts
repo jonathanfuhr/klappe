@@ -34,12 +34,12 @@ export function colorForTagName(name: string): string {
   return TAG_COLORS[hash % TAG_COLORS.length];
 }
 
-/** Leerraum aufräumen und auf eine handliche Länge kürzen. */
+/**
+ * Leerraum aufräumen und auf eine handliche Länge kürzen. Ob zwei Namen
+ * dasselbe Schlagwort meinen, entscheidet nicht der Code, sondern der
+ * eindeutige Index `tags_name_unique` – der vergleicht über `lower()` und
+ * kann anders als eine Prüfung im Dienst nicht überholt werden.
+ */
 export function normalizeTagName(name: string): string {
   return name.trim().replace(/\s+/g, ' ').slice(0, MAX_TAG_NAME_LENGTH);
-}
-
-/** Zwei Tags gelten als gleich, wenn sie sich nur in der Schreibweise unterscheiden. */
-export function isSameTagName(left: string, right: string): boolean {
-  return normalizeTagName(left).toLowerCase() === normalizeTagName(right).toLowerCase();
 }

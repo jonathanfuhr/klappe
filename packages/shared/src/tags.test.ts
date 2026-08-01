@@ -3,7 +3,6 @@ import {
   MAX_TAG_NAME_LENGTH,
   TAG_COLORS,
   colorForTagName,
-  isSameTagName,
   normalizeTagName,
 } from './tags';
 
@@ -40,16 +39,5 @@ describe('colorForTagName', () => {
     const namen = ['Imagefilm', 'Social', 'Messe', 'Recruiting', 'Kunde A', 'Kunde B', 'Intern', 'Reel'];
     const farben = new Set(namen.map(colorForTagName));
     expect(farben.size).toBeGreaterThan(2);
-  });
-});
-
-describe('isSameTagName', () => {
-  it('erkennt gleiche Namen trotz anderer Schreibweise', () => {
-    expect(isSameTagName('Imagefilm', 'imagefilm')).toBe(true);
-    expect(isSameTagName(' Social  Media ', 'social media')).toBe(true);
-  });
-
-  it('unterscheidet verschiedene Namen', () => {
-    expect(isSameTagName('Imagefilm', 'Imagefilme')).toBe(false);
   });
 });
