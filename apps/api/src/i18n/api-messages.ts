@@ -17,8 +17,8 @@
  *   den englischen in derselben Reihenfolge wieder eingesetzt.
  *
  * Wer eine Meldung ändert, muss den Eintrag hier mitziehen – sonst bleibt sie
- * auf Deutsch stehen. `api-messages.test.ts` prüft, dass jedes Muster genau
- * eine Einsetzung je `{}` hat und dass beide Seiten gleich viele tragen.
+ * auf Deutsch stehen. Der Block `Katalog` in `translate.test.ts` prüft, dass
+ * jedes Muster eine Einsetzung trägt und dass beide Seiten gleich viele haben.
  */
 
 /** Sätze ohne eingesetzte Werte. */
@@ -94,6 +94,7 @@ export const EXAKT: Record<string, string> = {
   'Die Kopplung ist ungültig geworden. Bitte neu starten.':
     'The pairing has become invalid. Please start again.',
   'Die Verbindung wurde abgelehnt.': 'The connection was declined.',
+  'Die Versionsnummer muss größer als 0 sein.': 'The version number has to be greater than 0.',
   'Die kurze Kante ist keine Zahl.': 'The short edge is not a number.',
   'Die letzte Version eines Videos kann nicht gelöscht werden – bitte das Video löschen.':
     'The last version of a video cannot be deleted – please delete the video instead.',
@@ -249,6 +250,7 @@ export interface MeldungsMuster {
 
 export const MUSTER: MeldungsMuster[] = [
   { de: '{} antwortete mit HTTP {}.', en: '{} answered with HTTP {}.' },
+  { de: '{} gibt es in diesem Video schon.', en: '{} already exists in this video.' },
   {
     de: 'Das Passwort muss mindestens {} Zeichen lang sein.',
     en: 'The password must be at least {} characters long.',
@@ -299,9 +301,14 @@ export const MUSTER: MeldungsMuster[] = [
   },
   { de: 'Die Sicherung ist fehlgeschlagen: {}', en: 'The backup failed: {}' },
   {
+    de: 'Die Versionsnummer darf höchstens {} sein.',
+    en: 'The version number may be at most {}.',
+  },
+  {
     de: 'Die Wiederherstellung ist fehlgeschlagen: {} — der Stand von vorher liegt als „{}“ bereit.',
     en: 'The restore failed: {} — the previous state is available as “{}”.',
   },
+  { de: 'Die neue Fassung muss über {} liegen.', en: 'The new version has to be above {}.' },
   { de: 'Ein Feld namens „{}“ gibt es schon.', en: 'A field called “{}” already exists.' },
   { de: 'Ein Format namens „{}“ gibt es schon.', en: 'A format called “{}” already exists.' },
   {
