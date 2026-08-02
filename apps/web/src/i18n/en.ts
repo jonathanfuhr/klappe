@@ -239,6 +239,7 @@ export const en: Record<MessageKey, Message> = {
   'shortcuts.mute': 'Mute',
   'shortcuts.fullscreen': 'Fullscreen',
   'shortcuts.spaceKey': 'Space',
+  'shortcuts.rotateFullscreen': 'Rotating to landscape starts fullscreen',
 
   // ---------- Comments ----------
   'comments.title': 'Comments',

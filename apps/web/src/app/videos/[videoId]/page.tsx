@@ -964,6 +964,18 @@ function ShortcutHelp() {
           </div>
         ))}
       </div>
+      {/*
+        Am Handy hilft eine Tastenliste wenig – dort gibt es keine Tastatur,
+        aber eine Geste, die dasselbe tut wie „F". Sie stand bisher nirgends
+        (1.3.2). Ein- und ausgeblendet wird sie im Stylesheet: Eine Abfrage im
+        JavaScript liefe beim Hydrieren mit der Server-Fassung auseinander.
+      */}
+      <div className="shortcuts shortcuts--touch">
+        <div>
+          <span className="shortcuts__key">⟳</span>
+          {t('shortcuts.rotateFullscreen')}
+        </div>
+      </div>
     </div>
   );
 }

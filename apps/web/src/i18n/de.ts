@@ -245,6 +245,7 @@ export const de = {
   'shortcuts.mute': 'Ton stumm',
   'shortcuts.fullscreen': 'Vollbild',
   'shortcuts.spaceKey': 'Leer',
+  'shortcuts.rotateFullscreen': 'Ins Querformat drehen startet das Vollbild',
 
   // ---------- Kommentare ----------
   'comments.title': 'Kommentare',

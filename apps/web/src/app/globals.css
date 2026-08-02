@@ -763,6 +763,9 @@ button {
   aspect-ratio: auto;
   flex: 1 1 auto;
   min-height: 0;
+  /* Hebt die Handy-Obergrenze weiter unten wieder auf – im Vollbild soll das
+     Bild alles nehmen, was übrig ist. */
+  max-height: none;
 }
 
 .player__stage video {
@@ -891,6 +894,10 @@ button {
 .iconbutton {
   width: 32px;
   height: 32px;
+  /* In einer Flex-Leiste schrumpfen Kinder von sich aus. Eine volle
+     Bedienleiste drückte die Knöpfe deshalb unter ihre gesetzte Größe – am
+     Handy bis zur Unbedienbarkeit (1.3.2). Die Leiste bricht lieber um. */
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
   border-radius: var(--klappe-radius-sm);
@@ -1657,6 +1664,21 @@ button {
   gap: 6px 18px;
   font-size: 13px;
   color: var(--klappe-text-muted);
+}
+
+/*
+ * Der Hinweis auf die Drehgeste steht nur dort, wo er zutrifft: auf Geräten
+ * ohne Zeiger. Am Schreibtisch wäre er eine Zeile Rauschen.
+ */
+.shortcuts--touch {
+  display: none;
+}
+
+@media (hover: none) {
+  .shortcuts--touch {
+    display: grid;
+    margin-top: 6px;
+  }
 }
 
 .shortcuts__key {
@@ -2868,6 +2890,23 @@ a.badge:hover {
     max-height: none;
   }
 
+  /*
+   * Die Bühne folgt hier dem Material statt stur 16:9 zu halten (1.3.2).
+   * In der einen Spalte des Handys lief ein Hochkant-Video sonst auf einen
+   * schmalen Streifen in der Mitte des Querformat-Kastens hinaus – winzig,
+   * obwohl ringsum Platz war. Der Player gibt sein Format als
+   * `--klappe-bild-format` mit; fehlt es (noch keine Metadaten), bleibt 16:9.
+   *
+   * Nach oben gedeckelt, denn ein 9:16-Bild wäre sonst höher als der Schirm
+   * und schöbe Zeitleiste und Bedienleiste hinaus – dann lieber seitliche
+   * Balken.
+   */
+  .player__stage {
+    aspect-ratio: var(--klappe-bild-format, 16 / 9);
+    max-height: 68vh;
+    max-height: 68dvh;
+  }
+
   /* Die Steuerleiste brach in drei bis vier Reihen um. */
   .player__controls {
     gap: 6px;
@@ -2928,9 +2967,33 @@ a.badge:hover {
     opacity: 1;
   }
 
+  /*
+   * 44 px – das Maß, unter dem eine Fingerkuppe zu raten anfängt. Vorher
+   * standen hier 40, und die Zeichen darin blieben in Zeigergröße: Der Knopf
+   * war zwar da, das Ziel darin aber nicht zu sehen (1.3.2).
+   */
   .iconbutton {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Die Bedienleiste des Players besteht aus Schriftzeichen, nicht aus
+     Symbolen – ohne eigene Größe blieben sie bei Fließtextgröße stehen. */
+  .player__controls .iconbutton {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  /* Farbtupfer und Strichstärken sind ebenso Ziele für den Finger. */
+  .pentools {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .pentools__color,
+  .pentools__width {
+    width: 32px;
+    height: 32px;
   }
 }
 

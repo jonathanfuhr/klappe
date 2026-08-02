@@ -14,6 +14,7 @@ import {
   isAnnotationEmpty,
 } from '@klappe/shared';
 import {
+  type CSSProperties,
   type ReactNode,
   forwardRef,
   useCallback,
@@ -127,15 +128,26 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
 
+  /**
+   * Gemeint ist hier nur der **Rahmen** im Vollbild: Nur dann liegt die
+   * Kommentarspalte innerhalb des Vollbild-Elements und ist überhaupt
+   * sichtbar. Das iOS-eigene Video-Vollbild zählt bewusst nicht dazu – dort
+   * zeichnet Safari über allem, was wir rendern, und die Spalte bleibt
+   * richtigerweise in der Seitenleiste.
+   */
   useEffect(() => {
     const onChange = () => {
-      const active = document.fullscreenElement === containerRef.current;
+      const active = vollbildElement() === containerRef.current;
       setIsFullscreen(active);
       if (!active) setPanelOpen(false);
       onFullscreenChange?.(active);
     };
     document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
+    document.addEventListener('webkitfullscreenchange', onChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      document.removeEventListener('webkitfullscreenchange', onChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -342,11 +354,11 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
     if (typeof window === 'undefined' || !window.matchMedia) return;
     const quer = window.matchMedia('(orientation: landscape) and (hover: none) and (max-height: 560px)');
     const wechsel = (event: MediaQueryListEvent) => {
-      if (event.matches) {
-        void toggleFullscreen(containerRef.current, videoRef.current);
-      } else if (document.fullscreenElement) {
-        void document.exitFullscreen().catch(() => undefined);
-      }
+      // Nur handeln, wenn Lage und Zustand auseinanderlaufen. Sonst würde ein
+      // Drehen ins Querformat ein Vollbild, das iOS von sich aus schon
+      // gestartet hat, gleich wieder schließen.
+      if (event.matches === istVollbild(videoRef.current)) return;
+      void toggleFullscreen(containerRef.current, videoRef.current);
     };
     quer.addEventListener('change', wechsel);
     return () => quer.removeEventListener('change', wechsel);
@@ -484,6 +496,20 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   const hlsPlayback = useHlsSource(videoRef, version, hasProxy);
   const playbackSource = hlsPlayback.source;
 
+  /**
+   * Das Seitenverhältnis des Materials, als Stellgröße ans Stylesheet
+   * gereicht. Am Schreibtisch bleibt die Bühne bei 16:9 – ein Hochformat
+   * bekommt dort seitliche Balken, und die Leisten stehen still. Auf dem
+   * einspaltigen Handy-Layout aber war genau das der Fehler (1.3.2): Ein
+   * Hochkant-Video schrumpfte in den 16:9-Kasten auf einen schmalen Streifen
+   * in der Mitte. Dort folgt die Bühne deshalb dem Bild.
+   */
+  const bühnenStil = useMemo<CSSProperties | undefined>(() => {
+    const { width, height } = version.media;
+    if (!width || !height) return undefined;
+    return { '--klappe-bild-format': `${width} / ${height}` } as CSSProperties;
+  }, [version.media]);
+
   const onProgress = useCallback(() => {
     const video = videoRef.current;
     if (!video || video.buffered.length === 0 || !video.duration) return;
@@ -492,7 +518,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
 
   return (
     <div className="player" ref={containerRef}>
-      <div className="player__stage">
+      <div className="player__stage" style={bühnenStil}>
         {hasProxy ? (
           <video
             ref={videoRef}
@@ -785,27 +811,106 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   );
 });
 
+/** Ältere WebKit-Fassungen kennen dieselben Dinge nur mit Präfix. */
+type VollbildVideo = HTMLVideoElement & {
+  webkitEnterFullscreen?: () => void;
+  webkitExitFullscreen?: () => void;
+  webkitDisplayingFullscreen?: boolean;
+};
+
+type VollbildRahmen = HTMLElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+};
+
+type VollbildDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  webkitFullscreenEnabled?: boolean;
+  webkitExitFullscreen?: () => Promise<void> | void;
+};
+
+/** Das gerade groß gezogene Element – auch bei WebKit mit Präfix. */
+function vollbildElement(): Element | null {
+  const doc = document as VollbildDocument;
+  return document.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+}
+
+/**
+ * Ist irgendetwas groß? Das iPhone zeigt sein Vollbild am `video` selbst,
+ * davon weiß `document` nichts – deshalb die zweite Frage.
+ */
+function istVollbild(video: HTMLVideoElement | null): boolean {
+  if (vollbildElement()) return true;
+  return (video as VollbildVideo | null)?.webkitDisplayingFullscreen === true;
+}
+
 /**
  * Vollbild – mit eigenem Weg für iPhone und iPad.
  *
- * Dort kennt Safari `requestFullscreen()` auf einem `div` nicht; nur das
- * `video`-Element selbst kann über `webkitEnterFullscreen()` groß werden.
- * Das kostet zwar die eigenen Leisten (iOS zeigt seine eigenen), ist aber der
- * einzige Weg, auf dem der Knopf dort überhaupt etwas tut – vorher blieb er
- * wirkungslos.
+ * Am Schreibtisch wird der ganze Rahmen groß, damit Zeitleiste, Bedienleiste
+ * und die Kommentarspalte mitkommen. Auf dem iPhone kennt Safari das für ein
+ * `div` nicht; dort kann nur das `video` selbst über `webkitEnterFullscreen()`
+ * groß werden, mit iOS-eigenen Leisten.
+ *
+ * Genau daran hing der tote Knopf (1.3.2): `requestFullscreen` **gibt es**
+ * auf dem iPhone, es lehnt nur ab. Die abgelehnte Zusage wurde verschluckt
+ * und danach kehrte die Funktion zurück – der einzige Weg, der dort etwas
+ * bewirkt, kam nie an die Reihe. Jetzt entscheidet zuerst `fullscreenEnabled`
+ * (auf dem iPhone `false`), und ein trotzdem abgelehnter Versuch fällt weiter
+ * durch, statt still zu enden.
  */
 async function toggleFullscreen(
   element: HTMLElement | null,
   video: HTMLVideoElement | null,
 ): Promise<void> {
-  if (document.fullscreenElement) {
-    await document.exitFullscreen().catch(() => undefined);
+  const doc = document as VollbildDocument;
+  const clip = video as VollbildVideo | null;
+
+  // ---------- verlassen ----------
+  if (vollbildElement()) {
+    try {
+      await (document.exitFullscreen ? document.exitFullscreen() : doc.webkitExitFullscreen?.());
+    } catch {
+      // Abgelehnt – dann bleibt es eben groß. Ein Fehler wäre hier folgenlos.
+    }
     return;
   }
-  if (element?.requestFullscreen) {
-    await element.requestFullscreen().catch(() => undefined);
+  if (clip?.webkitDisplayingFullscreen) {
+    versuche(() => clip.webkitExitFullscreen?.());
     return;
   }
-  const iosVideo = video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
-  iosVideo?.webkitEnterFullscreen?.();
+
+  // ---------- betreten ----------
+  const rahmen = element as VollbildRahmen | null;
+  const rahmenGehtGross = doc.fullscreenEnabled || doc.webkitFullscreenEnabled === true;
+  if (rahmen && rahmenGehtGross) {
+    try {
+      if (rahmen.requestFullscreen) {
+        await rahmen.requestFullscreen();
+        return;
+      }
+      if (rahmen.webkitRequestFullscreen) {
+        await rahmen.webkitRequestFullscreen();
+        return;
+      }
+    } catch {
+      // Weiter zum Video – lieber iOS-eigene Leisten als ein toter Knopf.
+    }
+  }
+
+  // Auf dem iPhone der einzige Weg. Bewusst ohne `await` davor, damit der
+  // Aufruf in derselben Tipp-Geste steckt, die Safari dafür verlangt.
+  versuche(() => clip?.webkitEnterFullscreen?.());
+}
+
+/**
+ * Die WebKit-Wege werfen, wenn Safari sie gerade nicht erlaubt – etwa beim
+ * Drehen, wo keine Tipp-Geste dahintersteckt. Das ist kein Fehler, sondern
+ * eine Absage; sie soll nur nicht als unbehandelte Ausnahme enden.
+ */
+function versuche(aktion: () => void): void {
+  try {
+    aktion();
+  } catch {
+    // Absichtlich still.
+  }
 }
