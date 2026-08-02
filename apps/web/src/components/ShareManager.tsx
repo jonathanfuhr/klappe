@@ -72,6 +72,16 @@ export function ShareManager({
         projectId: scope === 'PROJECT' ? projectId : undefined,
         videoId: scope === 'VIDEO' ? videoId : undefined,
         allowComments: true,
+        /*
+         * Download ab Werk erlaubt. Ein Freigabe-Link geht an einen Kunden,
+         * der mit dem Material arbeiten soll – ihn erst freizuschalten war ein
+         * Handgriff, den man jedes Mal nachholen musste. Wer ihn nicht will,
+         * nimmt den Haken hier gleich wieder weg.
+         *
+         * Bewusst hier und nicht als Vorgabe der API: Ein Skript, das Links
+         * anlegt, soll den Download weiterhin ausdrücklich verlangen müssen.
+         */
+        allowDownload: true,
       });
       await load();
     } catch (createError) {

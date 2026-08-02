@@ -441,6 +441,11 @@ DaVinci Resolve gibt es keine.
 | `POST /v1/videos/:videoId/embed` | Einbett-Link anlegen (oder den vorhandenen zurückgeben) |
 | `DELETE /v1/videos/:videoId/embed` | Einbettung sofort abschalten |
 | `DELETE /v1/shares/:id` | entziehen – wirkt sofort |
+
+Vorgaben beim Anlegen: `allowComments` steht auf `true`, `allowDownload` und
+`allowUpload` auf `false` – ein Skript muss den Download also ausdrücklich
+verlangen. Die Weboberfläche setzt ihn beim Anlegen von sich aus auf `true`:
+Ein Freigabe-Link geht an einen Kunden, der mit dem Material arbeiten soll.
 | `GET /v1/shares/:id/guests` | wer über den Link hereingekommen ist |
 | `DELETE /v1/shares/:id/guests/:userId` | einzelnem Gast den Zugang entziehen |
 | `POST /v1/shares/:id/guests/:userId` | Entzug zurücknehmen |
