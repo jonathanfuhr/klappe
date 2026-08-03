@@ -1,6 +1,7 @@
 import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import type { RequestUser } from '../auth/auth.types';
+import { AworkNotifyService } from '../awork/awork-notify.service';
 import { DB, type Database } from '../db/db.module';
 import { MailQueueService } from '../queue/mail-queue.service';
 import { shareLinkGrants, shareLinks, videoVersions, videos } from '../db/schema';
@@ -48,6 +49,7 @@ export class AccessService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly mailQueue: MailQueueService,
+    private readonly awork: AworkNotifyService,
   ) {}
 
   async loadScope(user: RequestUser): Promise<AccessScope> {
@@ -154,6 +156,10 @@ export class AccessService {
         userId: user.id,
         shareLinkId: grant.shareLinkId,
       });
+      // Und als Kommentar ins awork-Projekt (Phase 30) – das Signal, dass der
+      // Kunde wirklich hineingeschaut hat, ist auch fürs Projektmanagement
+      // eine Nachricht.
+      await this.awork.erstbesuch(user.id, grant.shareLinkId);
     }
   }
 

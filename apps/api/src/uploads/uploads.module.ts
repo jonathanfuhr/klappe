@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AworkModule } from '../awork/awork.module';
 import { MailModule } from '../mail/mail.module';
 import { ProjectFilesModule } from '../project-files/project-files.module';
 import { ProjectsModule } from '../projects/projects.module';
@@ -27,6 +28,9 @@ import { UploadsService } from './uploads.service';
     // Zwischenspeicher – dort wird `markReady` direkt aufgerufen, nicht über
     // den Worker (Phase 19).
     RenditionsModule,
+    // Kundenmaterial wandert seit Phase 30 auch als Kommentar ins
+    // awork-Projekt – dieselbe Ruhezeit wie die Sammelmail.
+    AworkModule,
   ],
   controllers: [UploadsController],
   providers: [UploadsService, UploadsCleanupService, UploadTranscodeService],

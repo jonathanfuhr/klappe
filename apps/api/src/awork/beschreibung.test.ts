@@ -4,6 +4,10 @@ import {
   baueAenderungsHinweis,
   baueAufgabenTitel,
   baueBeschreibung,
+  baueEndfassungText,
+  baueErstbesuchText,
+  baueFassungVerfuegbarText,
+  baueKundenmaterialText,
   sortiereKommentare,
 } from './beschreibung';
 
@@ -145,5 +149,65 @@ describe('baueAenderungsHinweis', () => {
   it('zaehlt im Singular und im Plural richtig', () => {
     expect(baueAenderungsHinweis(1, 'https://example.de')).toContain('1 neue Anmerkung');
     expect(baueAenderungsHinweis(3, 'https://example.de')).toContain('3 neue Anmerkungen');
+  });
+});
+
+describe('Projekt-Kommentare', () => {
+  const url = 'https://klappe.example.de/projekte/abc';
+
+  it('nennt bei Kundenmaterial Anzahl, Namen und Hochladenden', () => {
+    const text = baueKundenmaterialText({
+      dateien: ['A001.mxf', 'A002.mxf'],
+      hochgeladenVon: 'Anna Beispiel',
+      url,
+    });
+    expect(text).toContain('2 neue Dateien');
+    expect(text).toContain('von Anna Beispiel');
+    expect(text).toContain('A001.mxf');
+    expect(text).toContain('A002.mxf');
+  });
+
+  it('formuliert eine einzelne Datei im Singular', () => {
+    const text = baueKundenmaterialText({ dateien: ['A001.mxf'], hochgeladenVon: null, url });
+    expect(text).toContain('eine neue Datei');
+    expect(text).not.toContain('von ');
+  });
+
+  it('kuerzt lange Dateilisten ab', () => {
+    // Eine Liste mit achtzig Namen liest ohnehin niemand.
+    const dateien = Array.from({ length: 15 }, (_, index) => `A${index}.mxf`);
+    const text = baueKundenmaterialText({ dateien, hochgeladenVon: null, url });
+    expect(text).toContain('15 neue Dateien');
+    expect(text).toContain('und 5 weitere');
+    expect(text).not.toContain('A12.mxf');
+  });
+
+  it('maskiert Dateinamen mit spitzen Klammern', () => {
+    const text = baueKundenmaterialText({
+      dateien: ['<böse>.mxf'],
+      hochgeladenVon: null,
+      url,
+    });
+    expect(text).not.toContain('<böse>');
+    expect(text).toContain('&lt;böse&gt;');
+  });
+
+  it('nennt beim Erstbesuch Gast und Ziel', () => {
+    const text = baueErstbesuchText({ gastName: 'Ben Kunde', zielName: 'Imagefilm', url });
+    expect(text).toContain('Ben Kunde');
+    expect(text).toContain('Imagefilm');
+  });
+
+  it('nennt bei einer verfuegbaren Fassung Video und Nummer', () => {
+    const text = baueFassungVerfuegbarText({ videoName: 'Imagefilm', versionLabel: 'v2', url });
+    expect(text).toContain('Imagefilm');
+    expect(text).toContain('v2');
+  });
+
+  it('nennt bei der Endfassung Video und Nummer', () => {
+    const text = baueEndfassungText({ videoName: 'Imagefilm', versionLabel: 'v3', url });
+    expect(text).toContain('Endfassung');
+    expect(text).toContain('Imagefilm');
+    expect(text).toContain('v3');
   });
 });

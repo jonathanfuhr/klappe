@@ -18,6 +18,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { AccessService, type AccessScope } from '../access/access.service';
 import { resolutionLabel } from '../transcode/media-plan';
 import type { RequestUser } from '../auth/auth.types';
+import { AworkNotifyService } from '../awork/awork-notify.service';
 import { DB, type Database } from '../db/db.module';
 import { comments, projects, users, videoVersions, videos } from '../db/schema';
 import type { VideoVersionRow } from '../db/schema';
@@ -100,6 +101,7 @@ export class VersionsService {
     private readonly subscriptions: SubscriptionsService,
     private readonly events: EventsService,
     private readonly mailQueue: MailQueueService,
+    private readonly awork: AworkNotifyService,
   ) {}
 
   /**
@@ -476,6 +478,10 @@ export class VersionsService {
     await this.mailQueue.enqueue({ kind: 'version-ready', versionId, audience: 'TEAM' });
     if (!row.internal) {
       await this.mailQueue.enqueue({ kind: 'version-ready', versionId, audience: 'GUEST' });
+      // Für awork ist genau das der Moment „beim Kunden angekommen" (Phase 30).
+      // Der zweite Weg dorthin ist die nachträgliche Freigabe; dass daraus nur
+      // eine Meldung wird, regelt der Vermerk im Sync.
+      await this.awork.fassungVerfuegbar(versionId);
     }
   }
 
@@ -586,6 +592,10 @@ export class VersionsService {
       .returning();
     if (!row) throw new NotFoundException('Version nicht gefunden.');
     if (changes.internal !== undefined) await this.meldeFassung(versionId);
+    // Der Endfassungs-Haken wandert als Vermerk nach awork (Phase 30) – ohne
+    // dort etwas zu schließen: Er sagt etwas über den Film, nicht über den
+    // Stand der Korrekturen.
+    if (changes.isFinal) await this.awork.endfassung(versionId);
     return this.findOneOrFail(row.id, scope);
   }
 
@@ -614,6 +624,7 @@ export class VersionsService {
      */
     if (bestehend.status === 'READY') {
       await this.mailQueue.enqueue({ kind: 'version-ready', versionId, audience: 'GUEST' });
+      await this.awork.fassungVerfuegbar(versionId);
     }
     return freigegeben;
   }

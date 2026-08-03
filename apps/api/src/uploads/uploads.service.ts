@@ -12,6 +12,7 @@ import { and, eq, lt, sql } from 'drizzle-orm';
 import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { RequestUser } from '../auth/auth.types';
+import { AworkNotifyService } from '../awork/awork-notify.service';
 import { sanitizeFilename } from '../common/normalize';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
@@ -56,6 +57,7 @@ export class UploadsService {
     private readonly notificationSettings: NotificationSettingsService,
     private readonly uploadTranscode: UploadTranscodeService,
     private readonly aftercare: AftercareService,
+    private readonly awork: AworkNotifyService,
   ) {
     // Wird die Verarbeitung im Zwischenspeicher fertig, *nachdem* jemand
     // gespeichert hat, muss sie den Umzug selbst anstoßen. Der Rückruf wird
@@ -648,6 +650,10 @@ export class UploadsService {
         ruhezeit * 60_000,
       );
     }
+    // Und als Kommentar ins awork-Projekt, sofern eingerichtet (Phase 30).
+    // Dieselbe Ruhezeit wie die Mail: Ein Kunde lädt einen Ordner hoch, kein
+    // Kommentarfeld soll zwanzig Zeilen davon bekommen.
+    await this.awork.kundenmaterial(row.projectId, Math.max(ruhezeit, 0) * 60_000);
     this.logger.log(`Kunden-Upload abgeschlossen: ${row.filename} (${row.sizeBytes} Byte)`);
   }
 

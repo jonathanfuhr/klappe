@@ -34,6 +34,22 @@ export class AworkProcessor extends WorkerHost {
           if (geschrieben) this.logger.log(`Korrekturen zu Fassung ${data.versionId} in awork.`);
           break;
         }
+        case 'kundenmaterial': {
+          await this.sync.kundenmaterial(data.projectId);
+          break;
+        }
+        case 'erstbesuch': {
+          await this.sync.erstbesuch(data.userId, data.shareLinkId);
+          break;
+        }
+        case 'fassung-verfuegbar': {
+          await this.sync.fassungVerfuegbar(data.versionId);
+          break;
+        }
+        case 'endfassung': {
+          await this.sync.endfassung(data.versionId);
+          break;
+        }
         default: {
           // Unbekannte Art: nicht endlos wiederholen, nur festhalten.
           this.logger.warn(`Unbekannte awork-Aufgabe: ${JSON.stringify(data)}`);

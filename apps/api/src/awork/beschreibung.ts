@@ -124,6 +124,72 @@ export function baueAenderungsHinweis(neue: number, url: string): string {
   )}">Fassung öffnen</a>`;
 }
 
+/**
+ * Die Meldungen, die als Projekt-Kommentar nach awork gehen (Phase 30).
+ *
+ * Jede nennt, worum es geht – Video und Fassung, bei Kundenmaterial die
+ * Dateinamen. Wer in awork einen solchen Kommentar liest, soll nicht erst in
+ * Klappe nachsehen müssen, was gemeint war.
+ */
+export function baueKundenmaterialText(input: {
+  dateien: string[];
+  hochgeladenVon: string | null;
+  url: string;
+}): string {
+  const anzahl = input.dateien.length;
+  const kopf =
+    anzahl === 1
+      ? '<strong>Kundenmaterial in Klappe:</strong> eine neue Datei'
+      : `<strong>Kundenmaterial in Klappe:</strong> ${anzahl} neue Dateien`;
+  const von = input.hochgeladenVon ? ` von ${escape(input.hochgeladenVon)}` : '';
+  // Bei vielen Dateien nur die ersten – eine Liste mit achtzig Namen liest
+  // ohnehin niemand, und die Zahl oben sagt schon alles Nötige.
+  const gezeigt = input.dateien.slice(0, 10);
+  const rest = anzahl - gezeigt.length;
+  const liste = gezeigt.map((name) => `<li>${escape(name)}</li>`).join('');
+  const mehr = rest > 0 ? `<li>… und ${rest} weitere</li>` : '';
+
+  return `<p>${kopf}${von}.</p><ul>${liste}${mehr}</ul><p><a href="${escapeAttribut(
+    input.url,
+  )}">Im Projekt ansehen</a></p>`;
+}
+
+export function baueErstbesuchText(input: {
+  gastName: string;
+  zielName: string;
+  url: string;
+}): string {
+  return `<p><strong>Erster Blick:</strong> ${escape(input.gastName)} hat „${escape(
+    input.zielName,
+  )}" in Klappe zum ersten Mal geöffnet.</p><p><a href="${escapeAttribut(
+    input.url,
+  )}">Im Projekt ansehen</a></p>`;
+}
+
+export function baueFassungVerfuegbarText(input: {
+  videoName: string;
+  versionLabel: string;
+  url: string;
+}): string {
+  return `<p><strong>Neue Fassung beim Kunden:</strong> ${escape(input.videoName)} · ${escape(
+    input.versionLabel,
+  )} ist in Klappe freigegeben und für den Kunden sichtbar.</p><p><a href="${escapeAttribut(
+    input.url,
+  )}">Fassung öffnen</a></p>`;
+}
+
+export function baueEndfassungText(input: {
+  videoName: string;
+  versionLabel: string;
+  url: string;
+}): string {
+  return `<p><strong>Endfassung:</strong> ${escape(input.videoName)} · ${escape(
+    input.versionLabel,
+  )} ist in Klappe als Endfassung markiert.</p><p><a href="${escapeAttribut(
+    input.url,
+  )}">Fassung öffnen</a></p>`;
+}
+
 /** Der Aufgabentitel: Präfix aus den Einstellungen, Video, Fassung, Runde. */
 export function baueAufgabenTitel(input: {
   prefix: string;

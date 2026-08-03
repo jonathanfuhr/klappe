@@ -19,14 +19,17 @@ import {
   versionLabel as versionNumberLabel,
   versionWebPath,
 } from '@klappe/shared';
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, notExists, sql } from 'drizzle-orm';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import {
+  aworkNotices,
   aworkTasks,
   commentMentions,
   comments,
+  projectFiles,
   projects,
+  shareLinks,
   users,
   videoVersions,
   videos,
@@ -40,6 +43,10 @@ import {
   baueAenderungsHinweis,
   baueAufgabenTitel,
   baueBeschreibung,
+  baueEndfassungText,
+  baueErstbesuchText,
+  baueFassungVerfuegbarText,
+  baueKundenmaterialText,
 } from './beschreibung';
 
 @Injectable()
@@ -115,6 +122,194 @@ export class AworkSyncService {
     await this.setzeBearbeiter(aufgabe.aworkTask, fassung);
     await this.pflegeStatus(aufgabe.aworkTask, aworkProjectId, kommentare);
     return true;
+  }
+
+  // -------------------------------------------------------- Projekt-Kommentare
+
+  /**
+   * Kundenmaterial melden – gesammelt, wie die Sammelmail.
+   *
+   * Gemeldet wird, was noch keinen Vermerk hat. Dadurch stimmt die Meldung
+   * auch dann, wenn während der Ruhezeit weitere Dateien dazukamen oder ein
+   * früherer Versuch gescheitert ist.
+   */
+  async kundenmaterial(projectId: string): Promise<boolean> {
+    return this.projektKommentar(projectId, async (aworkProjectId) => {
+      const offen = await this.db
+        .select({
+          id: projectFiles.id,
+          filename: projectFiles.filename,
+          uploaderName: users.name,
+        })
+        .from(projectFiles)
+        .leftJoin(users, eq(projectFiles.uploadedById, users.id))
+        .where(
+          and(
+            eq(projectFiles.projectId, projectId),
+            notExists(
+              this.db
+                .select({ eins: sql`1` })
+                .from(aworkNotices)
+                .where(
+                  and(
+                    eq(aworkNotices.kind, 'kundenmaterial'),
+                    eq(aworkNotices.referenceId, projectFiles.id),
+                  ),
+                ),
+            ),
+          ),
+        )
+        .orderBy(asc(projectFiles.createdAt));
+      if (offen.length === 0) return null;
+
+      // Bei mehreren Hochladenden bleibt der Name weg – „von Anna und drei
+      // anderen" wäre eine Behauptung, die niemand geprüft hat.
+      const namen = new Set(offen.map((datei) => datei.uploaderName).filter(Boolean));
+      const text = baueKundenmaterialText({
+        dateien: offen.map((datei) => datei.filename),
+        hochgeladenVon: namen.size === 1 ? [...namen][0] : null,
+        url: `${this.config.publicUrl}/projekte/${projectId}`,
+      });
+
+      await this.client.createProjectComment(aworkProjectId, text);
+      await this.vermerke(
+        projectId,
+        'kundenmaterial',
+        offen.map((datei) => datei.id),
+      );
+      return `${offen.length} Kundendatei(en)`;
+    });
+  }
+
+  /** „Der Kunde hat zum ersten Mal reingeschaut." */
+  async erstbesuch(userId: string, shareLinkId: string): Promise<boolean> {
+    const [ziel] = await this.db
+      .select({
+        gastName: users.name,
+        projectId: shareLinks.projectId,
+        videoProjectId: videos.projectId,
+        videoName: videos.name,
+        projectName: projects.name,
+      })
+      .from(shareLinks)
+      .innerJoin(users, eq(users.id, userId))
+      .leftJoin(videos, eq(shareLinks.videoId, videos.id))
+      .leftJoin(projects, eq(shareLinks.projectId, projects.id))
+      .where(eq(shareLinks.id, shareLinkId))
+      .limit(1);
+
+    const projectId = ziel?.projectId ?? ziel?.videoProjectId;
+    if (!ziel || !projectId) return false;
+
+    return this.projektKommentar(projectId, async (aworkProjectId) => {
+      const referenz = `${userId}:${shareLinkId}`;
+      if (await this.schonVermerkt('erstbesuch', referenz)) return null;
+
+      // Bei einer Videofreigabe steht der Projektname nicht am Link; dann
+      // nennt die Meldung das Video – das ist ohnehin das, was der Gast sah.
+      const zielName = ziel.projectName ?? ziel.videoName ?? 'Klappe';
+      await this.client.createProjectComment(
+        aworkProjectId,
+        baueErstbesuchText({
+          gastName: ziel.gastName,
+          zielName,
+          url: `${this.config.publicUrl}/projekte/${projectId}`,
+        }),
+      );
+      await this.vermerke(projectId, 'erstbesuch', [referenz]);
+      return `Erstbesuch ${ziel.gastName}`;
+    });
+  }
+
+  /**
+   * Eine Fassung ist beim Kunden angekommen.
+   *
+   * Zwei Wege führen hierher – fertig verarbeitet und nachträglich freigegeben.
+   * Dass daraus nur eine Meldung wird, regelt der Vermerk; geprüft wird
+   * zusätzlich der Zustand, denn zwischen Einreihen und Ausführen kann die
+   * Fassung wieder intern gestellt worden sein.
+   */
+  async fassungVerfuegbar(versionId: string): Promise<boolean> {
+    const fassung = await this.ladeFassung(versionId);
+    if (!fassung || fassung.internal) return false;
+
+    return this.projektKommentar(fassung.projectId, async (aworkProjectId) => {
+      if (await this.schonVermerkt('fassung-verfuegbar', versionId)) return null;
+
+      await this.client.createProjectComment(
+        aworkProjectId,
+        baueFassungVerfuegbarText({
+          videoName: fassung.videoName,
+          versionLabel: fassung.versionLabel,
+          url: `${this.config.publicUrl}${versionWebPath(fassung.videoId, fassung.versionNumber)}`,
+        }),
+      );
+      await this.vermerke(fassung.projectId, 'fassung-verfuegbar', [versionId]);
+      return `${fassung.videoName} ${fassung.versionLabel}`;
+    });
+  }
+
+  /** Endfassung markiert. Rührt bewusst keine Aufgabe an. */
+  async endfassung(versionId: string): Promise<boolean> {
+    const fassung = await this.ladeFassung(versionId);
+    if (!fassung || fassung.internal) return false;
+
+    return this.projektKommentar(fassung.projectId, async (aworkProjectId) => {
+      if (await this.schonVermerkt('endfassung', versionId)) return null;
+
+      await this.client.createProjectComment(
+        aworkProjectId,
+        baueEndfassungText({
+          videoName: fassung.videoName,
+          versionLabel: fassung.versionLabel,
+          url: `${this.config.publicUrl}${versionWebPath(fassung.videoId, fassung.versionNumber)}`,
+        }),
+      );
+      await this.vermerke(fassung.projectId, 'endfassung', [versionId]);
+      return `${fassung.videoName} ${fassung.versionLabel}`;
+    });
+  }
+
+  /**
+   * Das Gerüst für alle Projekt-Kommentare: Anbindung prüfen, Zuordnung holen,
+   * die eigentliche Arbeit machen lassen. Gibt die Arbeit `null` zurück, gab
+   * es nichts zu melden.
+   */
+  private async projektKommentar(
+    projectId: string,
+    arbeit: (aworkProjectId: string) => Promise<string | null>,
+  ): Promise<boolean> {
+    if (!(await this.settings.isReady())) return false;
+
+    const zuordnung = await this.links.resolve(projectId);
+    if (zuordnung.art !== 'verknuepft') return false;
+
+    const ergebnis = await arbeit(zuordnung.link.aworkProjectId);
+    if (ergebnis === null) return false;
+    this.logger.log(`awork-Kommentar in Projekt ${projectId}: ${ergebnis}`);
+    return true;
+  }
+
+  private async schonVermerkt(kind: string, referenceId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: aworkNotices.id })
+      .from(aworkNotices)
+      .where(and(eq(aworkNotices.kind, kind), eq(aworkNotices.referenceId, referenceId)))
+      .limit(1);
+    return Boolean(row);
+  }
+
+  /**
+   * Vermerkt das Gemeldete. Erst **nach** dem Schreiben: Scheitert der Aufruf
+   * an awork, soll der nächste Anlauf es erneut versuchen – ein Vermerk davor
+   * hieße, dass die Meldung still verloren geht.
+   */
+  private async vermerke(projectId: string, kind: string, referenzen: string[]): Promise<void> {
+    if (referenzen.length === 0) return;
+    await this.db
+      .insert(aworkNotices)
+      .values(referenzen.map((referenceId) => ({ projectId, kind, referenceId })))
+      .onConflictDoNothing();
   }
 
   // ------------------------------------------------------------------ Aufgabe

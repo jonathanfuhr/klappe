@@ -52,4 +52,51 @@ describe('Wurzelmodule', () => {
     expect(importe(AppModule)).toContain(AworkModule);
     expect(anbieter(AppModule)).not.toContain(AworkProcessor);
   });
+
+  /*
+   * Ringe im Importgraphen (Phase 30).
+   *
+   * Nest löst sie nur mit `forwardRef` auf, und bis dahin startet der Container
+   * gar nicht oder – schlimmer – ein Anbieter kommt als `undefined` an. Der
+   * Übersetzer sieht davon nichts. Die awork-Anbindung hängt an vier Stellen
+   * im Baum, unter anderem am `AccessModule`, und das ist `@Global()`; deshalb
+   * wird der Graph hier einmal ganz abgelaufen.
+   */
+  it.each([
+    ['AppModule', AppModule],
+    ['WorkerModule', WorkerModule],
+  ])('%s hat keine Modul-Ringe', (_name, wurzel) => {
+    const ringe: string[] = [];
+    const pfad: object[] = [];
+    const fertig = new Set<object>();
+
+    const lauf = (modul: object): void => {
+      const stelle = pfad.indexOf(modul);
+      if (stelle !== -1) {
+        ringe.push([...pfad.slice(stelle), modul].map(nameVon).join(' → '));
+        return;
+      }
+      if (fertig.has(modul)) return;
+
+      pfad.push(modul);
+      for (const eintrag of importe(modul)) {
+        // `DynamicModule` (etwa `JwtModule.register({})`) trägt das eigentliche
+        // Modul unter `module`; alles ohne Metadaten wird übersprungen.
+        const naechstes =
+          typeof eintrag === 'function'
+            ? eintrag
+            : ((eintrag as { module?: object } | null)?.module ?? null);
+        if (naechstes) lauf(naechstes);
+      }
+      pfad.pop();
+      fertig.add(modul);
+    };
+
+    lauf(wurzel);
+    expect(ringe).toEqual([]);
+  });
 });
+
+function nameVon(modul: object): string {
+  return (modul as { name?: string }).name ?? 'unbekannt';
+}

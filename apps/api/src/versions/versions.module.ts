@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AworkModule } from '../awork/awork.module';
 import { MailModule } from '../mail/mail.module';
 import { QueueModule } from '../queue/queue.module';
 import { RenditionsModule } from '../renditions/renditions.module';
@@ -12,7 +13,9 @@ import { VersionsService } from './versions.service';
 // QueueModule, weil eine fertige oder fehlgeschlagene Fassung eine Mail
 // einreiht (Phase 28).
 @Module({
-  imports: [MailModule, QueueModule, RenditionsModule],
+  // AworkModule, weil eine beim Kunden angekommene Fassung und der
+  // Endfassungs-Haken als Kommentar ins awork-Projekt gehen (Phase 30).
+  imports: [MailModule, QueueModule, RenditionsModule, AworkModule],
   controllers: [VersionsController],
   providers: [VersionsService],
   exports: [VersionsService],
