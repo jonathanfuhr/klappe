@@ -50,6 +50,10 @@ export class AworkProcessor extends WorkerHost {
           await this.sync.endfassung(data.versionId);
           break;
         }
+        case 'projekte-abholen': {
+          await this.sync.projekteAbholen();
+          break;
+        }
         default: {
           // Unbekannte Art: nicht endlos wiederholen, nur festhalten.
           this.logger.warn(`Unbekannte awork-Aufgabe: ${JSON.stringify(data)}`);

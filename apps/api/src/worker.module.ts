@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AccessModule } from './access/access.module';
 import { AworkModule } from './awork/awork.module';
+import { AworkPollService } from './awork/awork-poll.service';
 import { AworkProcessor } from './awork/awork.processor';
 import { AworkSyncService } from './awork/awork-sync.service';
 import { EventsModule } from './events/events.module';
@@ -52,6 +53,14 @@ import { VersionsModule } from './versions/versions.module';
     // Warteschlange sitzen.
     AworkModule,
   ],
-  providers: [NotificationsService, MailProcessor, AworkSyncService, AworkProcessor],
+  providers: [
+    NotificationsService,
+    MailProcessor,
+    AworkSyncService,
+    AworkProcessor,
+    // Der Taktgeber gehört wie das Aufräumen in den Worker: Er soll einmal im
+    // Haus laufen, nicht in jedem Prozess, der zufällig gestartet wurde.
+    AworkPollService,
+  ],
 })
 export class WorkerModule {}

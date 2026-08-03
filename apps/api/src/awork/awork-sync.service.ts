@@ -27,6 +27,7 @@ import {
   aworkTasks,
   commentMentions,
   comments,
+  projectFieldValues,
   projectFiles,
   projects,
   shareLinks,
@@ -38,6 +39,7 @@ import { SubscriptionsService } from '../mail/subscriptions.service';
 import { AworkClient, AworkError, type AworkTask } from './awork.client';
 import { AworkLinksService } from './awork-links.service';
 import { AworkSettingsService } from './awork-settings.service';
+import { freifeldWert, normalisiereProjektnummer } from './matching';
 import {
   type AworkKommentar,
   baueAenderungsHinweis,
@@ -122,6 +124,230 @@ export class AworkSyncService {
     await this.setzeBearbeiter(aufgabe.aworkTask, fassung);
     await this.pflegeStatus(aufgabe.aworkTask, aworkProjectId, kommentare);
     return true;
+  }
+
+  // ------------------------------------------------------------ Gegenrichtung
+
+  /**
+   * Nach neuen awork-Projekten sehen (Phase 30).
+   *
+   * Drei Dinge in einem Durchgang, weil sie dieselbe Projektliste brauchen:
+   * neue Projekte übernehmen, fehlende Projektnummern angleichen und den
+   * Klappe-Link nach awork schreiben.
+   *
+   * **Ohne Projektnummer wird nichts angelegt.** Interne Vorhaben brauchen
+   * kein Klappe, und ein Projekt ohne Nummer ließe sich später auch nicht
+   * zuordnen – es entstünde eine Karteileiche, die bei jedem Durchgang aufs
+   * Neue anböte, sie anzulegen.
+   */
+  async projekteAbholen(): Promise<{ angelegt: number; verknuepft: number }> {
+    if (!(await this.settings.isReady())) return { angelegt: 0, verknuepft: 0 };
+
+    const config = await this.settings.syncConfig();
+    if (!config.projectNumberFieldId || !config.aworkProjectNumberFieldId) {
+      this.logger.warn('awork-Abholung übersprungen: Die Projektnummer-Felder sind nicht gewählt.');
+      return { angelegt: 0, verknuepft: 0 };
+    }
+
+    const aworkProjekte = await this.client.listProjects();
+    let angelegt = 0;
+    let verknuepft = 0;
+
+    for (const projekt of aworkProjekte) {
+      // Ein abgeschlossenes Projekt braucht kein Review mehr.
+      if (projekt.isArchived) continue;
+
+      const nummer = freifeldWert(projekt.customFields, config.aworkProjectNumberFieldId);
+
+      try {
+        const bestehend = await this.links.linkForAworkProject(projekt.id);
+
+        /*
+         * Kein Nummer drüben. Zum Anlegen reicht das nicht – wohl aber für die
+         * Gegenrichtung: Ist das Projekt schon (etwa von Hand) verknüpft und
+         * Klappe kennt eine Nummer, wandert sie nach awork. Das ist der Fall,
+         * für den „fehlende Projektnummern angleichen" gemacht ist.
+         */
+        if (!nummer) {
+          if (bestehend) await this.schreibeNummerNachAwork(bestehend.projectId);
+          continue;
+        }
+
+        if (bestehend) {
+          await this.nachpflegen(bestehend.projectId, projekt, nummer, config);
+          continue;
+        }
+
+        // Gibt es das Projekt in Klappe schon, nur ohne Verknüpfung? Dann
+        // verknüpfen statt ein zweites anlegen.
+        const treffer = await this.klappeProjektMitNummer(nummer, config.projectNumberFieldId);
+        if (treffer) {
+          await this.links.speichere(treffer, projekt.id, projekt.name, 'nummer');
+          await this.nachpflegen(treffer, projekt, nummer, config);
+          verknuepft += 1;
+          continue;
+        }
+
+        if (!config.autoCreateProjects) continue;
+
+        const projectId = await this.legeKlappeProjektAn(projekt, nummer, config);
+        await this.links.speichere(projectId, projekt.id, projekt.name, 'angelegt');
+        await this.nachpflegen(projectId, projekt, nummer, config);
+        angelegt += 1;
+      } catch (error) {
+        // Ein Projekt, das klemmt, darf den Rest des Durchgangs nicht mitreißen.
+        this.logger.error(`awork-Projekt ${projekt.id} übersprungen: ${beschreibe(error)}`);
+      }
+    }
+
+    await this.settings.merkePollLauf(new Date());
+    if (angelegt > 0 || verknuepft > 0) {
+      this.logger.log(`awork-Abholung: ${angelegt} angelegt, ${verknuepft} verknüpft.`);
+    }
+    return { angelegt, verknuepft };
+  }
+
+  /**
+   * Das Klappe-Projekt zu einer Projektnummer – über den normalisierten Wert,
+   * nicht über einen SQL-Vergleich: `J26 Q3-P0153` und `j26q3p0153` sind
+   * dieselbe Nummer, und diese Regel steht in `matching.ts`, nicht im SQL.
+   */
+  private async klappeProjektMitNummer(
+    nummer: string,
+    fieldId: string,
+  ): Promise<string | null> {
+    const gesucht = normalisiereProjektnummer(nummer);
+    const werte = await this.db
+      .select({ projectId: projectFieldValues.projectId, value: projectFieldValues.value })
+      .from(projectFieldValues)
+      .where(eq(projectFieldValues.fieldId, fieldId));
+
+    const treffer = werte.filter((zeile) => normalisiereProjektnummer(zeile.value) === gesucht);
+    // Zwei Klappe-Projekte mit derselben Nummer klärt ein Mensch, nicht der
+    // Abholer – sonst hinge die Anbindung am Zufall der Sortierung.
+    if (treffer.length !== 1) return null;
+    return treffer[0].projectId;
+  }
+
+  /**
+   * Legt das Klappe-Projekt an.
+   *
+   * Wer es in awork angelegt hat, wird über seine Mailadresse eingetragen –
+   * dieselbe Regel wie in Klappe selbst („wer anlegt, ist eingetragen"). Ohne
+   * passendes Konto greift der Ersatz aus den Einstellungen; steht auch dort
+   * niemand, bleibt das Projekt ohne Eintrag, und das kommt ins Protokoll:
+   * Sonst lädt der Kunde Material hoch, und es merkt es keiner.
+   */
+  private async legeKlappeProjektAn(
+    projekt: { id: string; name: string; companyName: string | null; createdBy: string | null },
+    nummer: string,
+    config: { projectNumberFieldId: string | null; fallbackUserId: string | null },
+  ): Promise<string> {
+    const anleger = projekt.createdBy ? await this.links.klappeUserFor(projekt.createdBy) : null;
+    const eintragen = anleger ?? config.fallbackUserId;
+    if (!anleger) {
+      this.logger.warn(
+        `awork-Projekt „${projekt.name}": Anleger hat kein Klappe-Konto – ${
+          eintragen ? 'Ersatz eingetragen' : 'niemand eingetragen'
+        }.`,
+      );
+    }
+
+    const [row] = await this.db
+      .insert(projects)
+      .values({
+        name: projekt.name.trim() || 'Ohne Namen',
+        customer: projekt.companyName?.trim() || null,
+        createdById: eintragen,
+      })
+      .returning();
+
+    if (config.projectNumberFieldId) {
+      await this.db
+        .insert(projectFieldValues)
+        .values({ projectId: row.id, fieldId: config.projectNumberFieldId, value: nummer })
+        .onConflictDoNothing();
+    }
+
+    await this.subscriptions.subscribeProjectCreator(eintragen, row.id);
+    this.logger.log(`Projekt „${projekt.name}" aus awork übernommen (${nummer}).`);
+    return row.id;
+  }
+
+  /**
+   * Was nach dem Verknüpfen zu tun bleibt: fehlende Projektnummer angleichen
+   * und den Klappe-Link einmalig nach awork schreiben.
+   *
+   * Angeglichen wird nur, was **fehlt**. Einen vorhandenen Wert zu
+   * überschreiben hieße zu entscheiden, welche Seite recht hat – und das kann
+   * hier niemand wissen.
+   */
+  private async nachpflegen(
+    projectId: string,
+    projekt: { id: string; name: string },
+    nummer: string,
+    config: {
+      projectNumberFieldId: string | null;
+      aworkProjectNumberFieldId: string | null;
+      syncProjectNumber: boolean;
+      writeBackLink: boolean;
+    },
+  ): Promise<void> {
+    if (config.syncProjectNumber && config.projectNumberFieldId) {
+      const [vorhanden] = await this.db
+        .select({ value: projectFieldValues.value })
+        .from(projectFieldValues)
+        .where(
+          and(
+            eq(projectFieldValues.projectId, projectId),
+            eq(projectFieldValues.fieldId, config.projectNumberFieldId),
+          ),
+        )
+        .limit(1);
+      if (!vorhanden?.value?.trim()) {
+        await this.db
+          .insert(projectFieldValues)
+          .values({ projectId, fieldId: config.projectNumberFieldId, value: nummer })
+          .onConflictDoUpdate({
+            target: [projectFieldValues.projectId, projectFieldValues.fieldId],
+            set: { value: nummer, updatedAt: new Date() },
+          });
+      }
+    }
+
+    if (config.writeBackLink && !(await this.schonVermerkt('klappe-link', projectId))) {
+      await this.client.createProjectComment(
+        projekt.id,
+        `<p><strong>Klappe:</strong> Die Freigaben und Korrekturen zu diesem Projekt laufen über <a href="${this.config.publicUrl}/projekte/${projectId}">Klappe</a>.</p>`,
+      );
+      await this.vermerke(projectId, 'klappe-link', [projectId]);
+    }
+  }
+
+  /**
+   * Die Projektnummer aus Klappe nach awork tragen, falls sie dort fehlt.
+   * Läuft beim Verknüpfen mit – die Gegenrichtung zu `nachpflegen`.
+   */
+  async schreibeNummerNachAwork(projectId: string): Promise<void> {
+    const config = await this.settings.syncConfig();
+    if (!config.syncProjectNumber || !config.aworkProjectNumberFieldId) return;
+
+    const link = await this.links.linkFor(projectId);
+    if (!link) return;
+
+    const nummer = await this.links.projektnummer(projectId);
+    if (!nummer) return;
+
+    const projekt = await this.client.getProject(link.aworkProjectId);
+    if (!projekt) return;
+    if (freifeldWert(projekt.customFields, config.aworkProjectNumberFieldId)) return;
+
+    await this.client.setProjectCustomField(
+      link.aworkProjectId,
+      config.aworkProjectNumberFieldId,
+      nummer,
+    );
+    this.logger.log(`Projektnummer ${nummer} nach awork geschrieben (${link.aworkProjectId}).`);
   }
 
   // -------------------------------------------------------- Projekt-Kommentare

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AppModule } from './app.module';
 import { AworkModule } from './awork/awork.module';
+import { AworkPollService } from './awork/awork-poll.service';
 import { AworkProcessor } from './awork/awork.processor';
 import { AworkSyncService } from './awork/awork-sync.service';
 import { I18nModule } from './i18n/i18n.module';
@@ -44,6 +45,8 @@ describe('Wurzelmodule', () => {
     expect(importe(WorkerModule)).toContain(AworkModule);
     expect(anbieter(WorkerModule)).toContain(AworkProcessor);
     expect(anbieter(WorkerModule)).toContain(AworkSyncService);
+    // Der Taktgeber für die Gegenrichtung soll einmal im Haus laufen.
+    expect(anbieter(WorkerModule)).toContain(AworkPollService);
   });
 
   it('AppModule reiht awork-Meldungen nur ein und verarbeitet sie nicht', () => {
@@ -51,6 +54,8 @@ describe('Wurzelmodule', () => {
     // anfassen – genau das soll die Trennung verhindern.
     expect(importe(AppModule)).toContain(AworkModule);
     expect(anbieter(AppModule)).not.toContain(AworkProcessor);
+    // Zwei Taktgeber hiessen zwei Abholungen im selben Takt.
+    expect(anbieter(AppModule)).not.toContain(AworkPollService);
   });
 
   /*
