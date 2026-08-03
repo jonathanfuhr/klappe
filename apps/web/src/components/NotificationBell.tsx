@@ -124,10 +124,15 @@ export function NotificationBell() {
     }
   };
 
-  const leeren = async () => {
-    setEntries([]);
+  /**
+   * Die gelesenen Einträge wegräumen. Ungelesenes bleibt stehen, deshalb
+   * wird hier gefiltert und nicht geleert – und der Zähler kommt vom Server,
+   * statt hier auf 0 gesetzt zu werden: Er ändert sich nicht.
+   */
+  const gelesenEntfernen = async () => {
+    setEntries((current) => current?.filter((eintrag) => eintrag.readAt === null) ?? null);
     try {
-      const { unread: anzahl } = await api.clearNotifications();
+      const { unread: anzahl } = await api.clearReadNotifications();
       setUnread(anzahl);
     } catch {
       void zaehlen();
@@ -173,11 +178,16 @@ export function NotificationBell() {
                 {t('bell.markAllRead')}
               </button>
             ) : null}
-            {/* Erst anbieten, wenn es etwas zu leeren gibt – ein Knopf, der
-                auf eine leere Liste zeigt, ist eine Falle ohne Wirkung. */}
-            {entries && entries.length > 0 ? (
-              <button type="button" className="button button--ghost" onClick={() => void leeren()}>
-                {t('bell.clearAll')}
+            {/* Erst anbieten, wenn wirklich Gelesenes dasteht. Ein Knopf, der
+                nur auf Ungelesenes zeigt, sähe wirkungslos aus – und wäre es
+                auch. */}
+            {entries?.some((eintrag) => eintrag.readAt !== null) ? (
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => void gelesenEntfernen()}
+              >
+                {t('bell.clearRead')}
               </button>
             ) : null}
           </div>

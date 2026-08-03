@@ -46,15 +46,16 @@ export class NotificationCenterController {
   }
 
   /**
-   * Die Zentrale leeren (Phase 29). Steht **vor** der Route mit Kennung:
-   * Nest prüft in Reihenfolge der Deklaration, und `:id` würde einen leeren
-   * Pfad zwar nicht fangen – aber die Absicht soll auch beim Lesen von oben
-   * nach unten stimmen.
+   * Die gelesenen Einträge entfernen (Phase 29) – das Gegenstück zum `POST`
+   * auf denselben Pfad, der sie als gelesen markiert.
+   *
+   * Muss **vor** der Route mit Kennung stehen: Nest prüft in Reihenfolge der
+   * Deklaration, und `:id` würde sonst „read" fangen und der `ParseUUIDPipe`
+   * mit einem 400 antworten.
    */
-  @Delete()
-  async clear(@CurrentUser() user: RequestUser): Promise<{ unread: number }> {
-    await this.center.clear(user.id);
-    return { unread: 0 };
+  @Delete('read')
+  async clearRead(@CurrentUser() user: RequestUser): Promise<{ unread: number }> {
+    return { unread: await this.center.clearRead(user.id) };
   }
 
   @Delete(':id')

@@ -5,7 +5,7 @@ import {
   framesToTimecode,
   versionLabel as versionNumberLabel,
 } from '@klappe/shared';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { comments, notifications, projects, users, videoVersions, videos } from '../db/schema';
 import { EventsService } from '../events/events.service';
@@ -167,12 +167,23 @@ export class NotificationCenterService {
   }
 
   /**
-   * Die ganze Zentrale leeren – auch Ungelesenes. Das ist gewollt: „Alles
-   * gelesen" steht als sanftere Handlung daneben, und ein Leeren, das die
-   * Hälfte stehen lässt, wäre keines.
+   * Die gelesenen Einträge entfernen (Phase 29).
+   *
+   * Ungelesenes bleibt stehen – aus demselben Grund, aus dem der tägliche
+   * Aufräumer es liegen lässt: Es ist das, was noch niemand angesehen hat.
+   * Ein Knopf, der es mit wegnimmt, erledigt eine unerledigte Sache still.
+   * Damit ist dieser Knopf nichts anderes als der Aufräumer von Hand, ohne
+   * die Woche Wartezeit.
+   *
+   * Zurück kommt der ungelesene Stand, der dabei unverändert bleibt. Das ist
+   * kein Beiwerk: Die Zahl am Glöckchen darf nicht auf 0 springen, während
+   * dort noch etwas liegt.
    */
-  async clear(userId: string): Promise<void> {
-    await this.db.delete(notifications).where(eq(notifications.userId, userId));
+  async clearRead(userId: string): Promise<number> {
+    await this.db
+      .delete(notifications)
+      .where(and(eq(notifications.userId, userId), isNotNull(notifications.readAt)));
+    return this.unreadCount(userId);
   }
 
   /** Ohne `ids` gilt alles als gelesen. Gibt die neue ungelesene Zahl zurück. */
