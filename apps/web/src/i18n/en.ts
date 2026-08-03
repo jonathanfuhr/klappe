@@ -1208,4 +1208,92 @@ export const en: Record<MessageKey, Message> = {
   'apiAccess.workspaceDevices': 'Connected devices in the workspace',
   'apiAccess.workspaceDevicesHint':
     'All accounts. Everyone disconnects their own devices under “My account” too – here the operator can reach all of them.',
+
+  // ---------- awork integration (Phase 30) ----------
+  'settings.navAwork': 'awork',
+  'awork.intro':
+    'Change requests from Klappe end up as a task in the matching awork project, and the people subscribed here are entered there as assignees. The counterpart is found through the project number, which exists as a custom field in both systems.',
+  'awork.enable': 'Use the awork integration',
+  'awork.enableHint':
+    'Off means: nothing goes to awork any more, and the integration no longer appears on project pages. Existing links and tasks stay in place and apply again as soon as the switch goes back.',
+  'awork.lastError': 'Last access to awork failed: {error}',
+  'awork.connectionTitle': 'Connection',
+  'awork.apiKey': 'API key',
+  'awork.apiKeyStored': 'Stored – enter a new one to replace it',
+  'awork.apiKeyHint':
+    'In awork, create a “client application” under Settings → Integrations and generate an API key there. It never expires and carries administrator rights – best create a dedicated API user for it, so changes in awork do not appear under someone else’s name.',
+  'awork.check': 'Test connection',
+  'awork.lastCheck': 'Last tested: {when}',
+  'awork.matchingTitle': 'Matching the projects',
+  'awork.matchingHint':
+    'Both sides keep a project number as a custom field. This is where you say which field is meant on each side. The customer name serves as a cross-check: if it differs, nothing is matched silently – you are asked instead.',
+  'awork.klappeField': 'Project number in Klappe',
+  'awork.aworkField': 'Project number in awork',
+  'awork.fieldNone': '— none —',
+  'awork.aworkFieldEmpty':
+    'The custom fields from awork appear here once the connection has been tested.',
+  'awork.tasksTitle': 'Tasks',
+  'awork.taskList': 'Task list',
+  'awork.taskListHint':
+    'Change-request tasks are filed into this list. If the project does not have it, Klappe creates it.',
+  'awork.taskPrefix': 'Title starts with',
+  'awork.taskPrefixHint':
+    'The video name and version follow, for example “Change requests: Image film · v2”.',
+  'awork.eventsTitle': 'What is reported to awork',
+  'awork.eventsHint':
+    'Change requests are the point of the integration and cannot be switched off. Everything else goes into the awork project as a comment – each naming the video and version.',
+  'awork.always': 'always on',
+  'awork.eventKorrekturen': 'Change requests as a task',
+  'awork.eventKorrekturenHint':
+    'The comments on a version, sorted by timecode, as a task in the project. Collected within the same window as the digest mail; later comments extend the same task. If it has already been completed in awork, a new round begins.',
+  'awork.eventKundenmaterial': 'Customer uploaded files',
+  'awork.eventKundenmaterialHint': 'A comment in the project with the count and file names.',
+  'awork.eventErstbesuch': 'Customer opens the share for the first time',
+  'awork.eventErstbesuchHint':
+    'The sign that the customer really did look – including the name of what they opened.',
+  'awork.eventFassung': 'New version has reached the customer',
+  'awork.eventFassungHint':
+    'Only once the customer can actually see it: fully processed and no longer internal. Releasing it later counts just the same.',
+  'awork.eventEndfassung': 'Marked as final version',
+  'awork.eventEndfassungHint': 'A note only – open tasks are left untouched.',
+  'awork.eventErledigen': 'Close the task once everything is done',
+  'awork.eventErledigenHint':
+    'When every comment on a version has been ticked off, the task in awork is set to done.',
+  'awork.backTitle': 'Other direction: awork → Klappe',
+  'awork.backHint':
+    'Klappe checks regularly whether new projects have been created in awork. Projects without a project number are left out – internal work does not need Klappe.',
+  'awork.autoCreate': 'Create new awork projects in Klappe',
+  'awork.autoCreateHint':
+    'Name, customer and project number are carried over. Whoever created the project in awork is subscribed to its notifications through their email address.',
+  'awork.fallbackUser': 'Subscribe instead',
+  'awork.fallbackNone': '— nobody —',
+  'awork.fallbackUserHint':
+    'Applies when the creator from awork has no Klappe account. Without it, such a project ends up with nobody subscribed – and then no one notices when the customer uploads material.',
+  'awork.writeBackLink': 'Write the Klappe link back to awork',
+  'awork.writeBackLinkHint':
+    'Once per project, as a comment in the awork project. The project description is left untouched.',
+  'awork.syncNumber': 'Fill in missing project numbers',
+  'awork.syncNumberHint':
+    'Adds the number on whichever side it is missing. Existing values are never overwritten.',
+
+  // Linking on the project page
+  'awork.projectTitle': 'awork',
+  'awork.projectLinked': 'Linked to {name}',
+  'awork.projectLinkedUnnamed': 'Linked to an awork project',
+  'awork.projectTasks': {
+    one: '{count} task created',
+    other: '{count} tasks created',
+  },
+  'awork.projectNone': 'Not linked to an awork project yet.',
+  'awork.projectNumber': 'Project number: {number}',
+  'awork.projectNoNumber': 'No project number – matching needs one.',
+  'awork.projectSearch': 'Find the match',
+  'awork.projectChoose': 'Link manually',
+  'awork.projectUnlink': 'Remove link',
+  'awork.projectUnlinkConfirm':
+    'Remove the link? New change requests will no longer go to awork. Existing tasks stay there.',
+  'awork.projectPick': 'Choose an awork project',
+  'awork.matchedNumber': 'through the project number',
+  'awork.matchedManual': 'linked manually',
+  'awork.matchedCreated': 'taken over from awork',
 };

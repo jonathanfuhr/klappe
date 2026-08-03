@@ -2,7 +2,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import IORedis from 'ioredis';
 import { AppConfig, CONFIG } from '../config/configuration';
-import { MAIL_QUEUE, TRANSCODE_QUEUE } from './queue.constants';
+import { AWORK_QUEUE, MAIL_QUEUE, TRANSCODE_QUEUE } from './queue.constants';
+import { AworkQueueService } from './awork-queue.service';
 import { MailQueueService } from './mail-queue.service';
 import { TranscodeQueueService } from './transcode-queue.service';
 
@@ -36,8 +37,23 @@ import { TranscodeQueueService } from './transcode-queue.service';
         removeOnFail: { age: 60 * 60 * 24 * 7 },
       },
     }),
+    BullModule.registerQueue({
+      name: AWORK_QUEUE,
+      defaultJobOptions: {
+        /*
+         * Mehr Versuche als beim Mailversand und mit größerem Abstand: awork
+         * ist ein fremder Dienst hinter fremdem Netz. Wer eine Wartung fährt,
+         * ist nach zwei Minuten selten fertig – nach knapp einer Viertelstunde
+         * dagegen meistens.
+         */
+        attempts: 5,
+        backoff: { type: 'exponential', delay: 60_000 },
+        removeOnComplete: { age: 60 * 60 * 24, count: 500 },
+        removeOnFail: { age: 60 * 60 * 24 * 7 },
+      },
+    }),
   ],
-  providers: [TranscodeQueueService, MailQueueService],
-  exports: [BullModule, TranscodeQueueService, MailQueueService],
+  providers: [TranscodeQueueService, MailQueueService, AworkQueueService],
+  exports: [BullModule, TranscodeQueueService, MailQueueService, AworkQueueService],
 })
 export class QueueModule {}

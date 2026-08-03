@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { AworkProjectLink } from '@/components/AworkProjectLink';
 import { NotificationPanel } from '@/components/NotificationPanel';
 import { SharePanel } from '@/components/SharePanel';
 import { ProjectFieldValues } from '@/components/ProjectFieldValues';
@@ -194,6 +195,8 @@ export default function ProjectPage() {
         ) : null}
 
         {project ? <ProjectFieldValues project={project} isTeam={isTeam} onChanged={load} /> : null}
+
+        {isTeam ? <AworkProjectLink projectId={projectId} /> : null}
 
         {uploaderOffen && canManage ? (
           <div style={{ marginTop: 16 }}>

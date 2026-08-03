@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { AccessModule } from './access/access.module';
 import { ApiTokensModule } from './api-tokens/api-tokens.module';
+import { AworkModule } from './awork/awork.module';
 import { EventsModule } from './events/events.module';
 import { BackupModule } from './backup/backup.module';
 import { AuthModule } from './auth/auth.module';
@@ -69,6 +70,7 @@ import { VideosModule } from './videos/videos.module';
     SettingsModule,
     TagsModule,
     AiContentModule,
+    AworkModule,
   ],
   controllers: [HealthController],
   providers: [

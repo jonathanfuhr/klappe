@@ -958,6 +958,78 @@ export const appSettings = pgTable('app_settings', {
   /** Verschlüsselt abgelegt, siehe `common/secret-box.ts`. */
   vapidPrivateKeyEncrypted: text('vapid_private_key_encrypted'),
 
+  // ---------- awork-Anbindung (Phase 30) ----------
+  /**
+   * Ab Werk **aus**. Wer Klappe ohne awork betreibt, soll von der Anbindung
+   * nichts sehen – dieselbe Zurückhaltung wie beim externen API-Zugriff.
+   */
+  aworkEnabled: boolean('awork_enabled').notNull().default(false),
+  /**
+   * Der API-Schlüssel einer „Client Application" in awork. Verschlüsselt
+   * abgelegt, siehe `common/secret-box.ts`.
+   *
+   * Er trägt **Administratorrechte** und hängt an keinem Menschen – deshalb
+   * gehört in awork ein eigener API-Benutzer davor, sonst stehen die
+   * Änderungen dort unter einem beliebigen Namen.
+   */
+  aworkApiKeyEncrypted: text('awork_api_key_encrypted'),
+  /**
+   * Welches Klappe-Projektfeld die Projektnummer trägt (siehe
+   * `project_field_defs`). Ohne diese Angabe findet die Zuordnung nichts.
+   */
+  aworkProjectNumberFieldId: uuid('awork_project_number_field_id').references(
+    () => projectFieldDefs.id,
+    { onDelete: 'set null' },
+  ),
+  /**
+   * Das Gegenstück in awork: die Kennung der dortigen Freifeld-Definition.
+   * Eine Zeichenkette, kein `uuid` – es ist eine fremde Kennung, und Klappe
+   * prüft sie nicht gegen die eigene Datenbank.
+   */
+  aworkProjectNumberCustomFieldId: text('awork_project_number_custom_field_id'),
+  /** Aufgabenliste, in die die Korrektur-Aufgaben einsortiert werden. */
+  aworkTaskListName: text('awork_task_list_name').notNull().default('Postproduktion'),
+  /** Steht vor dem Videonamen im Aufgabentitel. */
+  aworkTaskTitlePrefix: text('awork_task_title_prefix').notNull().default('Korrektur: '),
+  /**
+   * Wer eingetragen wird, wenn ein aus awork übernommenes Projekt keinen
+   * passenden Klappe-Nutzer als Anleger hat – etwa weil dort jemand sitzt, der
+   * Klappe gar nicht benutzt.
+   */
+  aworkFallbackUserId: uuid('awork_fallback_user_id').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+  /**
+   * Neue awork-Projekte von sich aus in Klappe anlegen. Ab Werk aus: Das ist
+   * der einzige Teil der Anbindung, der ungefragt Dinge **anlegt**.
+   */
+  aworkAutoCreateProjects: boolean('awork_auto_create_projects').notNull().default(false),
+  /** Den Klappe-Link als Projekt-Kommentar nach awork schreiben. */
+  aworkWriteBackLink: boolean('awork_write_back_link').notNull().default(true),
+  /** Fehlende Projektnummern zwischen beiden Seiten angleichen. */
+  aworkSyncProjectNumber: boolean('awork_sync_project_number').notNull().default(true),
+
+  /**
+   * Die Ereignis-Schalter (Katalog in `@klappe/shared`, `awork.ts`). Bewusst
+   * Spalten und keine dünn besetzte Tabelle wie bei den Mailarten: Dort ging
+   * es darum, das Verhalten **bestehender** Anlagen nicht zu ändern – hier ist
+   * die ganze Anbindung neu und ab Werk aus, also darf der Standard einfach
+   * in der Spalte stehen.
+   */
+  aworkEventKundenmaterial: boolean('awork_event_kundenmaterial').notNull().default(true),
+  aworkEventErstbesuch: boolean('awork_event_erstbesuch').notNull().default(true),
+  aworkEventFassungVerfuegbar: boolean('awork_event_fassung_verfuegbar')
+    .notNull()
+    .default(false),
+  aworkEventEndfassung: boolean('awork_event_endfassung').notNull().default(false),
+  aworkEventAufgabeErledigen: boolean('awork_event_aufgabe_erledigen').notNull().default(false),
+
+  /** Wann zuletzt nach neuen awork-Projekten gesehen wurde. */
+  aworkPollLastRunAt: timestamp('awork_poll_last_run_at', { withTimezone: true }),
+  /** Ergebnis des letzten Verbindungsversuchs – für die Anzeige. */
+  aworkLastCheckAt: timestamp('awork_last_check_at', { withTimezone: true }),
+  aworkLastError: text('awork_last_error'),
+
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -1312,6 +1384,121 @@ export const deviceAuthorizations = pgTable(
   ],
 );
 
+/**
+ * Welches Klappe-Projekt zu welchem awork-Projekt gehört (Phase 30).
+ *
+ * Einmal gefunden, bleibt die Zuordnung stehen: Gesucht wird über die
+ * Projektnummer, aber nur beim ersten Mal. Danach ist der Name auf beiden
+ * Seiten frei – die beiden Systeme benennen dasselbe Projekt ohnehin oft
+ * verschieden, und eine Umbenennung darf die Verbindung nicht kappen.
+ *
+ * Je Seite höchstens eine Zeile: Das Klappe-Projekt ist der Schlüssel, die
+ * awork-Kennung zusätzlich eindeutig. Zwei Klappe-Projekte, die auf dasselbe
+ * awork-Projekt zeigen, würden dort zwei Sätze Aufgaben erzeugen.
+ */
+export const aworkProjectLinks = pgTable(
+  'awork_project_links',
+  {
+    projectId: uuid('project_id')
+      .primaryKey()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    aworkProjectId: text('awork_project_id').notNull(),
+    /** Nur zur Anzeige – maßgeblich ist die Kennung. */
+    aworkProjectName: text('awork_project_name'),
+    /** `nummer`, `manuell` oder `angelegt`, siehe `AworkMatchSource`. */
+    matchedBy: text('matched_by').notNull().default('nummer'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('awork_project_links_awork_idx').on(table.aworkProjectId)],
+);
+
+/**
+ * Die Korrektur-Aufgaben, die Klappe in awork angelegt hat (Phase 30).
+ *
+ * Eine Zeile ist **eine Runde einer Fassung**. Kommen nach dem Erledigen der
+ * Aufgabe weitere Kommentare, entsteht Runde 2 – die erledigte Aufgabe wird
+ * nie wieder angefasst. Sonst stünde eine abgehakte Aufgabe plötzlich wieder
+ * offen, oder schlimmer: Sie bliebe erledigt und die neuen Punkte lägen
+ * unbemerkt in ihrer Beschreibung.
+ */
+export const aworkTasks = pgTable(
+  'awork_tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    versionId: uuid('version_id')
+      .notNull()
+      .references(() => videoVersions.id, { onDelete: 'cascade' }),
+    aworkTaskId: text('awork_task_id').notNull(),
+    /** Fortlaufend ab 1 je Fassung. */
+    round: integer('round').notNull().default(1),
+    /**
+     * In awork erledigt – gemerkt beim letzten Sync. Ab dann ist diese Zeile
+     * Geschichte und eine neue Runde beginnt.
+     */
+    closed: boolean('closed').notNull().default(false),
+    /**
+     * Wie viele Kommentare beim letzten Schreiben in der Beschreibung standen.
+     * Die Differenz ergibt das „3 neue Punkte" im Aufgaben-Kommentar – ohne
+     * diesen Stand wüsste niemand, was seit dem letzten Mal dazukam.
+     */
+    syncedCommentCount: integer('synced_comment_count').notNull().default(0),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('awork_tasks_version_round_idx').on(table.versionId, table.round),
+    index('awork_tasks_version_idx').on(table.versionId),
+  ],
+);
+
+/**
+ * Was schon nach awork gemeldet wurde (Phase 30).
+ *
+ * Die Meldungen ohne Aufgabencharakter – Kundenmaterial, erster Besuch, neue
+ * Fassung, Endfassung – gehen als Projekt-Kommentar hinaus, und ein
+ * Kommentar lässt sich nicht zurücknehmen. Es gibt aber mehrere Wege zu
+ * demselben Ereignis: Eine Fassung kommt beim Kunden an, indem sie fertig
+ * verarbeitet wird **oder** indem jemand sie nachträglich freigibt. Ohne
+ * diesen Vermerk stünde der Hinweis zweimal im Projekt.
+ *
+ * `referenceId` ist bewusst Text und keine Fremdschlüsselspalte: Mal ist es
+ * eine Fassung, mal eine Datei, mal ein Gast an einem Freigabe-Link.
+ */
+export const aworkNotices = pgTable(
+  'awork_notices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    /** Schlüssel aus `AWORK_EVENTS` in `@klappe/shared`. */
+    kind: text('kind').notNull(),
+    referenceId: text('reference_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('awork_notices_kind_reference_idx').on(table.kind, table.referenceId),
+    index('awork_notices_project_idx').on(table.projectId),
+  ],
+);
+
+/**
+ * Zwischenspeicher der Nutzer-Zuordnung über die Mailadresse (Phase 30).
+ *
+ * Beide Systeme kennen dieselben Leute unter derselben Adresse; die Zuordnung
+ * wird trotzdem festgehalten, damit nicht vor jedem Setzen der Bearbeiter die
+ * ganze awork-Nutzerliste geholt werden muss. Verfällt nach
+ * `AWORK_USER_CACHE_HOURS` von selbst – tritt jemand neu ein, steht er
+ * spätestens am nächsten Tag drin.
+ */
+export const aworkUsers = pgTable('awork_users', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  aworkUserId: text('awork_user_id').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   comments: many(comments),
@@ -1390,3 +1577,5 @@ export type DownloadPresetRow = typeof downloadPresets.$inferSelect;
 export type VersionRenditionRow = typeof versionRenditions.$inferSelect;
 export type ApiTokenRow = typeof apiTokens.$inferSelect;
 export type DeviceAuthorizationRow = typeof deviceAuthorizations.$inferSelect;
+export type AworkProjectLinkRow = typeof aworkProjectLinks.$inferSelect;
+export type AworkTaskRow = typeof aworkTasks.$inferSelect;

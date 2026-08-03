@@ -1213,6 +1213,93 @@ export const de = {
   'apiAccess.workspaceDevices': 'Verbundene Geräte im Workspace',
   'apiAccess.workspaceDevicesHint':
     'Alle Konten. Jeder trennt seine eigenen Geräte unter „Mein Konto" auch selbst – hier kommt der Betreiber an alle heran.',
+
+  // ---------- awork-Anbindung (Phase 30) ----------
+  'settings.navAwork': 'awork',
+  'awork.intro':
+    'Korrekturen aus Klappe landen als Aufgabe im passenden awork-Projekt, die Eingetragenen stehen dort als Bearbeiter. Gefunden wird das Gegenstück über die Projektnummer, die es in beiden Systemen als Freifeld gibt.',
+  'awork.enable': 'awork-Anbindung verwenden',
+  'awork.enableHint':
+    'Aus heißt: Es geht nichts mehr nach awork, und die Anbindung taucht auf den Projektseiten nicht auf. Bestehende Zuordnungen und Aufgaben bleiben erhalten und gelten wieder, sobald der Schalter zurückgeht.',
+  'awork.lastError': 'Letzter Zugriff auf awork gescheitert: {error}',
+  'awork.connectionTitle': 'Verbindung',
+  'awork.apiKey': 'API-Schlüssel',
+  'awork.apiKeyStored': 'Hinterlegt – zum Ersetzen neu eingeben',
+  'awork.apiKeyHint':
+    'In awork unter Einstellungen → Integrationen als „Client Application" anlegen und dort einen API-Schlüssel erzeugen. Er gilt unbegrenzt und hat Administratorrechte – am besten einen eigenen API-Benutzer dafür anlegen, damit die Änderungen in awork nicht unter einem fremden Namen stehen.',
+  'awork.check': 'Verbindung prüfen',
+  'awork.lastCheck': 'Zuletzt geprüft: {when}',
+  'awork.matchingTitle': 'Zuordnung der Projekte',
+  'awork.matchingHint':
+    'Beide Seiten führen eine Projektnummer als Freifeld. Hier steht, welches Feld jeweils gemeint ist. Der Kundenname dient als Gegenprobe: Weicht er ab, wird nicht stillschweigend zugeordnet, sondern nachgefragt.',
+  'awork.klappeField': 'Projektnummer in Klappe',
+  'awork.aworkField': 'Projektnummer in awork',
+  'awork.fieldNone': '— keines —',
+  'awork.aworkFieldEmpty':
+    'Erst nach einer geprüften Verbindung stehen hier die Freifelder aus awork zur Auswahl.',
+  'awork.tasksTitle': 'Aufgaben',
+  'awork.taskList': 'Aufgabenliste',
+  'awork.taskListHint':
+    'In diese Liste werden die Korrektur-Aufgaben einsortiert. Gibt es sie im Projekt nicht, legt Klappe sie an.',
+  'awork.taskPrefix': 'Titel beginnt mit',
+  'awork.taskPrefixHint': 'Dahinter stehen Videoname und Fassung, etwa „Korrektur: Imagefilm · v2".',
+  'awork.eventsTitle': 'Was nach awork gemeldet wird',
+  'awork.eventsHint':
+    'Die Korrekturen sind der Zweck der Anbindung und lassen sich nicht abschalten. Alles andere geht als Kommentar ins awork-Projekt – jeweils mit Video und Fassung im Text.',
+  'awork.always': 'immer an',
+  'awork.eventKorrekturen': 'Korrekturen als Aufgabe',
+  'awork.eventKorrekturenHint':
+    'Die Kommentare einer Fassung, nach Timecode sortiert, als Aufgabe im Projekt. Gesammelt im selben Zeitfenster wie die Sammelmail; spätere Kommentare erweitern dieselbe Aufgabe. Ist sie in awork bereits erledigt, beginnt eine neue Runde.',
+  'awork.eventKundenmaterial': 'Kunde hat Daten hochgeladen',
+  'awork.eventKundenmaterialHint': 'Ein Kommentar im Projekt mit Anzahl und Dateinamen.',
+  'awork.eventErstbesuch': 'Kunde öffnet die Freigabe zum ersten Mal',
+  'awork.eventErstbesuchHint':
+    'Das Zeichen, dass der Kunde wirklich hineingeschaut hat – mit dem Namen dessen, was er geöffnet hat.',
+  'awork.eventFassung': 'Neue Fassung ist beim Kunden',
+  'awork.eventFassungHint':
+    'Erst wenn der Kunde sie auch sehen kann: fertig verarbeitet und nicht mehr intern. Nachträgliches Freigeben zählt genauso.',
+  'awork.eventEndfassung': 'Endfassung markiert',
+  'awork.eventEndfassungHint': 'Nur ein Vermerk – offene Aufgaben bleiben davon unberührt.',
+  'awork.eventErledigen': 'Aufgabe schließen, wenn alles erledigt ist',
+  'awork.eventErledigenHint':
+    'Sind alle Kommentare einer Fassung abgehakt, wird die Aufgabe in awork auf erledigt gesetzt.',
+  'awork.backTitle': 'Gegenrichtung: awork → Klappe',
+  'awork.backHint':
+    'Klappe sieht regelmäßig nach, ob in awork neue Projekte angelegt wurden. Projekte ohne Projektnummer bleiben außen vor – interne Vorhaben brauchen kein Klappe.',
+  'awork.autoCreate': 'Neue awork-Projekte in Klappe anlegen',
+  'awork.autoCreateHint':
+    'Name, Kunde und Projektnummer werden übernommen. Wer das Projekt in awork angelegt hat, wird über seine Mailadresse für die Benachrichtigungen eingetragen.',
+  'awork.fallbackUser': 'Ersatzweise eintragen',
+  'awork.fallbackNone': '— niemand —',
+  'awork.fallbackUserHint':
+    'Greift, wenn der Anleger aus awork kein Klappe-Konto hat. Ohne Angabe bleibt ein solches Projekt ohne Eintrag – dann bekommt niemand mit, wenn der Kunde Material hochlädt.',
+  'awork.writeBackLink': 'Klappe-Link nach awork schreiben',
+  'awork.writeBackLinkHint':
+    'Einmal je Projekt, als Kommentar im awork-Projekt. Die Projektbeschreibung bleibt unangetastet.',
+  'awork.syncNumber': 'Fehlende Projektnummern angleichen',
+  'awork.syncNumberHint':
+    'Trägt die Nummer auf der Seite nach, auf der sie fehlt. Bestehende Werte werden nie überschrieben.',
+
+  // Zuordnung auf der Projektseite
+  'awork.projectTitle': 'awork',
+  'awork.projectLinked': 'Verknüpft mit {name}',
+  'awork.projectLinkedUnnamed': 'Verknüpft mit awork-Projekt',
+  'awork.projectTasks': {
+    one: '{count} Aufgabe angelegt',
+    other: '{count} Aufgaben angelegt',
+  },
+  'awork.projectNone': 'Noch keinem awork-Projekt zugeordnet.',
+  'awork.projectNumber': 'Projektnummer: {number}',
+  'awork.projectNoNumber': 'Ohne Projektnummer – die Zuordnung braucht sie.',
+  'awork.projectSearch': 'Zuordnung suchen',
+  'awork.projectChoose': 'Von Hand zuordnen',
+  'awork.projectUnlink': 'Zuordnung lösen',
+  'awork.projectUnlinkConfirm':
+    'Zuordnung lösen? Neue Korrekturen gehen dann nicht mehr nach awork. Bestehende Aufgaben bleiben dort stehen.',
+  'awork.projectPick': 'awork-Projekt wählen',
+  'awork.matchedNumber': 'über die Projektnummer',
+  'awork.matchedManual': 'von Hand zugeordnet',
+  'awork.matchedCreated': 'aus awork übernommen',
 } satisfies Dictionary;
 
 /** Alle bekannten Schlüssel – die anderen Sprachen müssen genau diese tragen. */

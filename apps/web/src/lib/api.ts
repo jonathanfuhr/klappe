@@ -5,6 +5,13 @@ import type {
   ApiAccessSettingsDto,
   ApiTokenDto,
   AuthSettingsDto,
+  AworkCheckDto,
+  AworkEvent,
+  AworkFieldDto,
+  AworkProjectDto,
+  AworkProjectLinkDto,
+  AworkProjectStateDto,
+  AworkSettingsDto,
   BackupFileDto,
   BackupSettingsDto,
   BrandingDto,
@@ -824,6 +831,45 @@ export const api = {
   listAllDevices: () => request<ApiTokenDto[]>('/v1/settings/geraete'),
   revokeAnyDevice: (id: string) =>
     request<void>(`/v1/settings/geraete/${id}`, { method: 'DELETE' }),
+
+  // ---------------------------------------------------------- awork (Phase 30)
+  getAworkSettings: () => request<AworkSettingsDto>('/v1/settings/awork'),
+  updateAworkSettings: (input: {
+    enabled?: boolean;
+    /** Leer lassen heißt „unverändert" – siehe SMTP-Passwort. */
+    apiKey?: string;
+    projectNumberFieldId?: string | null;
+    aworkProjectNumberFieldId?: string | null;
+    taskListName?: string;
+    taskTitlePrefix?: string;
+    fallbackUserId?: string | null;
+    autoCreateProjects?: boolean;
+    writeBackLink?: boolean;
+    syncProjectNumber?: boolean;
+    events?: { event: AworkEvent; enabled: boolean }[];
+  }) =>
+    request<AworkSettingsDto>('/v1/settings/awork', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  checkAwork: (apiKey?: string) =>
+    request<AworkCheckDto>('/v1/settings/awork/pruefen', {
+      method: 'POST',
+      body: JSON.stringify(apiKey ? { apiKey } : {}),
+    }),
+  listAworkFields: () => request<AworkFieldDto[]>('/v1/settings/awork/felder'),
+  listAworkProjects: () => request<AworkProjectDto[]>('/v1/awork/projekte'),
+  getAworkProjectState: (projectId: string) =>
+    request<AworkProjectStateDto>(`/v1/projects/${projectId}/awork`),
+  linkAworkProject: (projectId: string, aworkProjectId: string) =>
+    request<AworkProjectLinkDto>(`/v1/projects/${projectId}/awork`, {
+      method: 'PUT',
+      body: JSON.stringify({ aworkProjectId }),
+    }),
+  resolveAworkProject: (projectId: string) =>
+    request<AworkProjectLinkDto>(`/v1/projects/${projectId}/awork/zuordnen`, { method: 'POST' }),
+  unlinkAworkProject: (projectId: string) =>
+    request<void>(`/v1/projects/${projectId}/awork`, { method: 'DELETE' }),
 };
 
 export const mediaUrl = {

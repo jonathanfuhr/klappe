@@ -330,6 +330,13 @@
       "when": 1785733194178,
       "tag": "0046_push_benachrichtigungen",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1785741253810,
+      "tag": "0047_awork_anbindung",
+      "breakpoints": true
     }
   ]
 }

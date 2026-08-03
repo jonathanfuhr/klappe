@@ -65,6 +65,33 @@ export type MailJobData =
   | { kind: 'backup-failed'; reason: string | null }
   | { kind: 'device-paired'; userId: string; clientName: string };
 
+export const AWORK_QUEUE = 'awork';
+export const AWORK_JOB = 'awork-sync';
+
+/**
+ * Was nach awork zu melden ist (Phase 30).
+ *
+ * Eine eigene Warteschlange und nicht ein weiterer Zweig in `MailJobData`:
+ * awork ist ein Fremdsystem, das ausfallen darf, ohne dass die Sammelpost
+ * stehen bleibt. Getrennte Warteschlangen heißt getrennte Wiederholungen und
+ * getrennte Fehlersuche.
+ *
+ * Gesammelt wird über die **Auftragskennung**: Ein wartender Auftrag mit
+ * derselben Kennung nimmt weitere Meldungen desselben Gegenstands auf, statt
+ * sich daneben zu stellen – siehe `AworkQueueService`.
+ */
+export type AworkJobData =
+  /** Die Kommentare einer Fassung als Aufgabe schreiben. */
+  | { kind: 'korrekturen'; versionId: string }
+  /** Kundenmaterial in diesem Projekt – gesammelt, mit allen neuen Dateien. */
+  | { kind: 'kundenmaterial'; projectId: string }
+  | { kind: 'erstbesuch'; userId: string; shareLinkId: string }
+  /** Eine Fassung ist beim Kunden angekommen (fertig **und** nicht intern). */
+  | { kind: 'fassung-verfuegbar'; versionId: string }
+  | { kind: 'endfassung'; versionId: string }
+  /** Gegenrichtung: nach neuen awork-Projekten sehen. */
+  | { kind: 'projekte-abholen' };
+
 /**
  * Vorrang in der Mail-Warteschlange (Phase 20).
  *

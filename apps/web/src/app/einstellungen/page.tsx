@@ -5,6 +5,7 @@ import { AppShell } from '@/components/AppShell';
 import { AiPanel } from '@/components/settings/AiPanel';
 import { ApiAccessPanel } from '@/components/settings/ApiAccessPanel';
 import { AuthPanel } from '@/components/settings/AuthPanel';
+import { AworkPanel } from '@/components/settings/AworkPanel';
 import { BackupPanel } from '@/components/settings/BackupPanel';
 import { BrandingPanel } from '@/components/settings/BrandingPanel';
 import { FieldsPanel } from '@/components/settings/FieldsPanel';
@@ -36,6 +37,7 @@ const BEREICHE = [
   { id: 'auth', schluessel: 'settings.navAuth', team: false },
   { id: 'api', schluessel: 'settings.navApi', team: false },
   { id: 'benachrichtigungen', schluessel: 'settings.navNotifications', team: false },
+  { id: 'awork', schluessel: 'settings.navAwork', team: false },
   { id: 'mail', schluessel: 'settings.navMail', team: false },
   { id: 'transcode', schluessel: 'settings.navTranscode', team: false },
   { id: 'speicher', schluessel: 'settings.navStorage', team: false },
@@ -100,6 +102,7 @@ export default function SettingsPage() {
           {gewaehlt === 'auth' ? <AuthPanel /> : null}
           {gewaehlt === 'api' ? <ApiAccessPanel /> : null}
           {gewaehlt === 'benachrichtigungen' ? <NotificationsPanel /> : null}
+          {gewaehlt === 'awork' ? <AworkPanel /> : null}
           {gewaehlt === 'mail' ? <SmtpPanel /> : null}
           {gewaehlt === 'transcode' ? <TranscodePanel /> : null}
           {gewaehlt === 'speicher' ? <StoragePanel /> : null}
