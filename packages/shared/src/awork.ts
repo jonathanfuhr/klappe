@@ -171,5 +171,17 @@ export interface AworkProjectStateDto {
 export const MAX_AWORK_TASK_TITLE_PREFIX = 60;
 export const MAX_AWORK_TASK_LIST_NAME = 120;
 
+/**
+ * Obergrenze für den API-Schlüssel.
+ *
+ * awork gibt ihn als JWT aus, und das wird schnell über tausend Zeichen lang –
+ * die ersten 512 waren eine Fehlannahme nach dem Vorbild des SMTP-Passworts.
+ * Ganz ohne Grenze bleibt es trotzdem nicht: Der Schlüssel geht bei jedem
+ * Aufruf als `Authorization: Bearer …` hinaus, und HTTP-Server weisen Kopfzeilen
+ * jenseits von etwa 8 KB ab. Wer hier mehr einträgt, bekäme statt einer klaren
+ * Meldung eine abgelehnte Anfrage bei awork.
+ */
+export const MAX_AWORK_API_KEY = 4096;
+
 /** Die eine Adresse der awork-API. Steht hier, damit sie nur einmal existiert. */
 export const AWORK_API_BASE_URL = 'https://api.awork.com/api/v1';

@@ -24,6 +24,7 @@ import {
   type AworkProjectLinkDto,
   type AworkProjectStateDto,
   type AworkSettingsDto,
+  MAX_AWORK_API_KEY,
   MAX_AWORK_TASK_LIST_NAME,
   MAX_AWORK_TASK_TITLE_PREFIX,
 } from '@klappe/shared';
@@ -62,7 +63,7 @@ class UpdateAworkDto {
   /** Leer lassen heißt „unverändert"; ein leerer String löscht den Schlüssel. */
   @IsOptional()
   @IsString()
-  @MaxLength(512)
+  @MaxLength(MAX_AWORK_API_KEY)
   apiKey?: string;
 
   @IsOptional()
@@ -111,7 +112,7 @@ class CheckAworkDto {
   /** Ohne Angabe wird der gespeicherte Schlüssel geprüft. */
   @IsOptional()
   @IsString()
-  @MaxLength(512)
+  @MaxLength(MAX_AWORK_API_KEY)
   apiKey?: string;
 }
 
