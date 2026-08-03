@@ -377,6 +377,14 @@ mitgeschickten Header, denn awork signiert nicht. Der Worker fragt deshalb alle
 fünf Minuten nach; bei 1000 erlaubten Anfragen je Minute kostet das nichts, und
 es läuft auch hinter einem Tunnel oder nur über Tailscale.
 
+**Eine erfolglose Suche wird gemerkt.** Findet sich zu einer Projektnummer
+kein awork-Projekt – ein Tippfehler genügt –, holte vorher jeder weitere
+Kommentar in diesem Projekt erneut die vollständige awork-Projektliste. Jetzt
+ruht die Suche eine Viertelstunde. Ausgenommen ist der Fall „gar keine
+Projektnummer": Dort wird ohnehin nichts abgefragt, und wer die Nummer
+nachträgt, soll beim nächsten Kommentar zugeordnet werden. Der Knopf
+*Zuordnung suchen* übergeht die Sperre.
+
 **Eine eigene Warteschlange.** awork darf ausfallen, ohne dass die Sammelpost
 stehen bleibt: getrennte Wiederholungen, getrennte Fehlersuche. Was awork von
 sich aus nicht mag – ein falscher Schlüssel, ein gelöschtes Projekt –, endet

@@ -36,7 +36,7 @@ import {
   videos,
 } from '../db/schema';
 import { SubscriptionsService } from '../mail/subscriptions.service';
-import { AworkClient, AworkError, type AworkTask } from './awork.client';
+import { AworkClient, AworkError, type AworkProject, type AworkTask, type AworkTaskStatus } from './awork.client';
 import { AworkLinksService } from './awork-links.service';
 import { AworkSettingsService } from './awork-settings.service';
 import { freifeldWert, normalisiereProjektnummer } from './matching';
@@ -87,7 +87,9 @@ export class AworkSyncService {
     const zuordnung = await this.links.resolve(fassung.projectId);
     if (zuordnung.art !== 'verknuepft') {
       this.logger.log(
-        `Fassung ${versionId}: kein awork-Projekt zugeordnet (${zuordnung.grund.art}).`,
+        `Fassung ${versionId}: kein awork-Projekt zugeordnet (${
+          zuordnung.art === 'gesperrt' ? 'zuletzt vergeblich gesucht' : zuordnung.grund.art
+        }).`,
       );
       return false;
     }
@@ -109,6 +111,17 @@ export class AworkSyncService {
       kommentare,
     });
 
+    /*
+     * Die Aufgabenstatus des Projekts holt sich der Auftrag höchstens einmal –
+     * gebraucht werden sie beim Anlegen (für „offen") und beim Schließen (für
+     * „erledigt"), und beides kann im selben Durchgang vorkommen. Erst beim
+     * ersten Zugriff, damit ein Durchgang ohne Statuswechsel gar nicht danach
+     * fragt.
+     */
+    let status: AworkTaskStatus[] | null = null;
+    const statusHolen = async (): Promise<AworkTaskStatus[]> =>
+      (status ??= await this.client.listTaskStatuses(aworkProjectId));
+
     const aufgabe = bestand
       ? await this.erweitere(bestand, beschreibung, kommentare.length, url)
       : await this.legeAn({
@@ -118,11 +131,12 @@ export class AworkSyncService {
           beschreibung,
           anzahl: kommentare.length,
           runde: (await this.hoechsteRunde(versionId)) + 1,
+          statusHolen,
         });
     if (!aufgabe) return false;
 
     await this.setzeBearbeiter(aufgabe.aworkTask, fassung);
-    await this.pflegeStatus(aufgabe.aworkTask, aworkProjectId, kommentare);
+    await this.pflegeStatus(aufgabe.aworkTask, kommentare, statusHolen);
     return true;
   }
 
@@ -150,6 +164,30 @@ export class AworkSyncService {
     }
 
     const aworkProjekte = await this.client.listProjects();
+
+    /*
+     * Beide Nachschlagewerke **einmal** vor der Schleife, nicht je Projekt.
+     * Vorher lud jedes awork-Projekt ohne Verknüpfung die gesamte
+     * Projektnummer-Spalte neu – bei 200 Projekten hier und 300 dort waren das
+     * 200 Abfragen über je 300 Zeilen, alle fünf Minuten.
+     *
+     * Beide Karten werden in der Schleife **mitgepflegt**: Ein frisch
+     * angelegtes Projekt muss dem nächsten awork-Projekt mit derselben Nummer
+     * sofort auffallen, sonst legte der Durchgang es ein zweites Mal an.
+     */
+    const nachAworkId = await this.links.alleLinks();
+    const nachNummer = await this.klappeProjekteNachNummer(config.projectNumberFieldId);
+    /*
+     * Welche Klappe-Projekte schon vergeben sind.
+     *
+     * Nötig, weil zwei awork-Projekte dieselbe Projektnummer tragen können.
+     * Ohne diese Prüfung bekäme das zweite denselben Klappe-Treffer, und
+     * `speichere` schriebe die bestehende Verknüpfung still auf das neue
+     * awork-Projekt um – die Korrekturen liefen fortan ins falsche Projekt,
+     * ohne dass irgendwo etwas fehlschlägt.
+     */
+    const belegt = new Set(nachAworkId.values());
+
     let angelegt = 0;
     let verknuepft = 0;
 
@@ -160,31 +198,43 @@ export class AworkSyncService {
       const nummer = freifeldWert(projekt.customFields, config.aworkProjectNumberFieldId);
 
       try {
-        const bestehend = await this.links.linkForAworkProject(projekt.id);
+        const bestehend = nachAworkId.get(projekt.id) ?? null;
 
         /*
-         * Kein Nummer drüben. Zum Anlegen reicht das nicht – wohl aber für die
+         * Keine Nummer drüben. Zum Anlegen reicht das nicht – wohl aber für die
          * Gegenrichtung: Ist das Projekt schon (etwa von Hand) verknüpft und
          * Klappe kennt eine Nummer, wandert sie nach awork. Das ist der Fall,
          * für den „fehlende Projektnummern angleichen" gemacht ist.
          */
         if (!nummer) {
-          if (bestehend) await this.schreibeNummerNachAwork(bestehend.projectId);
+          if (bestehend) await this.schreibeNummerNachAwork(bestehend, projekt);
           continue;
         }
 
         if (bestehend) {
-          await this.nachpflegen(bestehend.projectId, projekt, nummer, config);
+          await this.nachpflegen(bestehend, projekt, nummer, config);
           continue;
         }
 
         // Gibt es das Projekt in Klappe schon, nur ohne Verknüpfung? Dann
-        // verknüpfen statt ein zweites anlegen.
-        const treffer = await this.klappeProjektMitNummer(nummer, config.projectNumberFieldId);
-        if (treffer) {
+        // verknüpfen statt ein zweites anlegen. Mehrere Klappe-Projekte mit
+        // derselben Nummer klärt ein Mensch, nicht der Abholer – sonst hinge
+        // die Zuordnung am Zufall der Sortierung.
+        const schluessel = normalisiereProjektnummer(nummer);
+        const kandidaten = (nachNummer.get(schluessel) ?? []).filter((id) => !belegt.has(id));
+        if (kandidaten.length === 1) {
+          const treffer = kandidaten[0];
           await this.links.speichere(treffer, projekt.id, projekt.name, 'nummer');
+          nachAworkId.set(projekt.id, treffer);
+          belegt.add(treffer);
           await this.nachpflegen(treffer, projekt, nummer, config);
           verknuepft += 1;
+          continue;
+        }
+        if (kandidaten.length > 1) {
+          this.logger.warn(
+            `awork-Projekt „${projekt.name}": ${kandidaten.length} Klappe-Projekte tragen die Nummer ${nummer} – bitte von Hand zuordnen.`,
+          );
           continue;
         }
 
@@ -192,6 +242,9 @@ export class AworkSyncService {
 
         const projectId = await this.legeKlappeProjektAn(projekt, nummer, config);
         await this.links.speichere(projectId, projekt.id, projekt.name, 'angelegt');
+        nachAworkId.set(projekt.id, projectId);
+        belegt.add(projectId);
+        nachNummer.set(schluessel, [...(nachNummer.get(schluessel) ?? []), projectId]);
         await this.nachpflegen(projectId, projekt, nummer, config);
         angelegt += 1;
       } catch (error) {
@@ -208,25 +261,28 @@ export class AworkSyncService {
   }
 
   /**
-   * Das Klappe-Projekt zu einer Projektnummer – über den normalisierten Wert,
-   * nicht über einen SQL-Vergleich: `J26 Q3-P0153` und `j26q3p0153` sind
-   * dieselbe Nummer, und diese Regel steht in `matching.ts`, nicht im SQL.
+   * Alle Klappe-Projekte nach Projektnummer, in einem Zug.
+   *
+   * Verglichen wird über den **normalisierten** Wert, nicht über SQL:
+   * `J26 Q3-P0153` und `j26q3p0153` sind dieselbe Nummer, und diese Regel
+   * steht in `matching.ts`. Mehrere Projekte je Nummer sind möglich – wie
+   * damit umzugehen ist, entscheidet der Aufrufer.
    */
-  private async klappeProjektMitNummer(
-    nummer: string,
-    fieldId: string,
-  ): Promise<string | null> {
-    const gesucht = normalisiereProjektnummer(nummer);
+  private async klappeProjekteNachNummer(fieldId: string): Promise<Map<string, string[]>> {
     const werte = await this.db
       .select({ projectId: projectFieldValues.projectId, value: projectFieldValues.value })
       .from(projectFieldValues)
       .where(eq(projectFieldValues.fieldId, fieldId));
 
-    const treffer = werte.filter((zeile) => normalisiereProjektnummer(zeile.value) === gesucht);
-    // Zwei Klappe-Projekte mit derselben Nummer klärt ein Mensch, nicht der
-    // Abholer – sonst hinge die Anbindung am Zufall der Sortierung.
-    if (treffer.length !== 1) return null;
-    return treffer[0].projectId;
+    const karte = new Map<string, string[]>();
+    for (const zeile of werte) {
+      const schluessel = normalisiereProjektnummer(zeile.value);
+      if (!schluessel) continue;
+      const liste = karte.get(schluessel);
+      if (liste) liste.push(zeile.projectId);
+      else karte.set(schluessel, [zeile.projectId]);
+    }
+    return karte;
   }
 
   /**
@@ -327,8 +383,12 @@ export class AworkSyncService {
   /**
    * Die Projektnummer aus Klappe nach awork tragen, falls sie dort fehlt.
    * Läuft beim Verknüpfen mit – die Gegenrichtung zu `nachpflegen`.
+   *
+   * `bekannt` ist das awork-Projekt, wenn es der Aufrufer ohnehin schon in der
+   * Hand hat – die Abholung hat es aus der Projektliste. Ohne diesen Weg holte
+   * sie jedes Projekt ein zweites Mal einzeln.
    */
-  async schreibeNummerNachAwork(projectId: string): Promise<void> {
+  async schreibeNummerNachAwork(projectId: string, bekannt?: AworkProject): Promise<void> {
     const config = await this.settings.syncConfig();
     if (!config.syncProjectNumber || !config.aworkProjectNumberFieldId) return;
 
@@ -338,7 +398,8 @@ export class AworkSyncService {
     const nummer = await this.links.projektnummer(projectId);
     if (!nummer) return;
 
-    const projekt = await this.client.getProject(link.aworkProjectId);
+    const projekt =
+      bekannt?.id === link.aworkProjectId ? bekannt : await this.client.getProject(link.aworkProjectId);
     if (!projekt) return;
     if (freifeldWert(projekt.customFields, config.aworkProjectNumberFieldId)) return;
 
@@ -608,10 +669,11 @@ export class AworkSyncService {
     beschreibung: string;
     anzahl: number;
     runde: number;
+    statusHolen: () => Promise<AworkTaskStatus[]>;
   }): Promise<{ aworkTask: AworkTask } | null> {
     const { taskListName, taskTitlePrefix } = await this.settings.syncConfig();
 
-    const status = await this.client.listTaskStatuses(input.aworkProjectId);
+    const status = await input.statusHolen();
     const offen = status.find((eintrag) => eintrag.type === 'todo') ?? status[0];
     if (!offen) {
       this.logger.warn(`awork-Projekt ${input.aworkProjectId} hat keine Aufgabenstatus.`);
@@ -745,14 +807,14 @@ export class AworkSyncService {
    */
   private async pflegeStatus(
     aworkTask: AworkTask,
-    aworkProjectId: string,
     kommentare: AworkKommentar[],
+    statusHolen: () => Promise<AworkTaskStatus[]>,
   ): Promise<void> {
     if (kommentare.length === 0) return;
     if (!kommentare.every((eintrag) => eintrag.erledigt)) return;
     if (!(await this.settings.eventEnabled('aufgabe-erledigen'))) return;
 
-    const status = await this.client.listTaskStatuses(aworkProjectId);
+    const status = await statusHolen();
     const fertig = status.find((eintrag) => eintrag.type === 'done');
     if (!fertig || aworkTask.taskStatusId === fertig.id) return;
 

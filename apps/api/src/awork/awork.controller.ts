@@ -274,8 +274,15 @@ export class AworkController {
   async resolve(
     @Param('id', new ParseUUIDPipe()) projectId: string,
   ): Promise<AworkProjectLinkDto> {
-    const ergebnis = await this.links.resolve(projectId);
+    // `frisch`: Wer den Knopf drückt, will jetzt gesucht haben – nicht die
+    // Antwort von vor zehn Minuten.
+    const ergebnis = await this.links.resolve(projectId, { frisch: true });
     if (ergebnis.art === 'verknuepft') return ergebnis.link;
+    // Mit `frisch` kann die Suchsperre nicht greifen; der Zweig ist nur da,
+    // damit der Übersetzer den Fall abgedeckt sieht.
+    if (ergebnis.art === 'gesperrt') {
+      throw new BadRequestException('Die Suche läuft gerade – bitte kurz warten.');
+    }
 
     const grund = ergebnis.grund;
     throw new BadRequestException(

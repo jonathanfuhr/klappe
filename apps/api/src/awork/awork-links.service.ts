@@ -29,9 +29,25 @@ import { type AworkKandidat, type ProjektTreffer, findeProjekt, freifeldWert } f
  */
 export const AWORK_USER_CACHE_HOURS = 24;
 
+/**
+ * So lange wird eine erfolglose Suche nicht wiederholt.
+ *
+ * Ohne diese Sperre holte **jeder** Kommentar in einem Projekt, dessen Nummer
+ * in awork nicht vorkommt – ein Tippfehler genügt –, die vollständige
+ * awork-Projektliste. Fünfzehn Minuten sind kurz genug, dass ein neu
+ * angelegtes awork-Projekt zügig gefunden wird, und lang genug, dass ein
+ * Nachmittag Kommentare nicht dieselbe Liste dreißigmal abruft.
+ *
+ * Im Speicher und nicht in der Datenbank: Nach einem Neustart darf ruhig
+ * wieder gesucht werden, und die Sperre ist nichts, was jemand nachlesen will.
+ */
+const SUCHSPERRE_MS = 15 * 60 * 1000;
+
 @Injectable()
 export class AworkLinksService {
   private readonly logger = new Logger(AworkLinksService.name);
+  /** Projekt-Kennung → wann zuletzt vergeblich gesucht wurde. */
+  private readonly erfolglos = new Map<string, number>();
 
   constructor(
     @Inject(DB) private readonly db: Database,
@@ -48,6 +64,23 @@ export class AworkLinksService {
       .where(eq(aworkProjectLinks.projectId, projectId))
       .limit(1);
     return row ? toLinkDto(row) : null;
+  }
+
+  /**
+   * Alle Verknüpfungen auf einmal, nach awork-Kennung.
+   *
+   * Für die Abholung, die sonst je awork-Projekt eine Abfrage bräuchte. Die
+   * Tabelle hat höchstens so viele Zeilen wie es Projekte gibt – das passt in
+   * einen Zug.
+   */
+  async alleLinks(): Promise<Map<string, string>> {
+    const zeilen = await this.db
+      .select({
+        aworkProjectId: aworkProjectLinks.aworkProjectId,
+        projectId: aworkProjectLinks.projectId,
+      })
+      .from(aworkProjectLinks);
+    return new Map(zeilen.map((zeile) => [zeile.aworkProjectId, zeile.projectId]));
   }
 
   /** Umgekehrt: Gehört dieses awork-Projekt schon zu einem Klappe-Projekt? */
@@ -91,10 +124,16 @@ export class AworkLinksService {
    * **nicht** gespeichert, sondern gemeldet: Eine falsche Zuordnung schriebe
    * Korrekturen ins Projekt eines fremden Kunden, und das fällt niemandem auf.
    */
-  async resolve(projectId: string): Promise<
+  async resolve(
+    projectId: string,
+    /** `frisch` übergeht die Suchsperre – für den Knopf „Zuordnung suchen". */
+    options: { frisch?: boolean } = {},
+  ): Promise<
     | { art: 'verknuepft'; link: AworkProjectLinkDto }
     // Ein Treffer kommt als `verknuepft` zurück – hier bleibt nur, was schiefging.
     | { art: 'nicht-moeglich'; grund: Exclude<ProjektTreffer, { art: 'treffer' }> }
+    /** Vor Kurzem schon vergeblich gesucht – es wurde nichts abgefragt. */
+    | { art: 'gesperrt' }
   > {
     const bestehend = await this.linkFor(projectId);
     if (bestehend) return { art: 'verknuepft', link: bestehend };
@@ -106,12 +145,24 @@ export class AworkLinksService {
       .limit(1);
     if (!projekt) return { art: 'nicht-moeglich', grund: { art: 'ohne-nummer' } };
 
+    /*
+     * Ohne Projektnummer wird gar nichts abgefragt – die Prüfung liest nur die
+     * eigene Datenbank. Deshalb steht sie **vor** der Suchsperre: Wer die
+     * Nummer nachträgt, soll beim nächsten Kommentar zugeordnet werden und
+     * nicht erst eine Viertelstunde später.
+     */
     const nummer = await this.projektnummer(projectId);
     if (!nummer) return { art: 'nicht-moeglich', grund: { art: 'ohne-nummer' } };
+
+    if (!options.frisch) {
+      const zuletzt = this.erfolglos.get(projectId);
+      if (zuletzt && Date.now() - zuletzt < SUCHSPERRE_MS) return { art: 'gesperrt' };
+    }
 
     const treffer = findeProjekt(nummer, projekt.customer, await this.kandidaten());
     if (treffer.art !== 'treffer') {
       this.logger.log(`Projekt ${projectId}: keine awork-Zuordnung (${treffer.art}).`);
+      this.erfolglos.set(projectId, Date.now());
       return { art: 'nicht-moeglich', grund: treffer };
     }
 
@@ -145,12 +196,16 @@ export class AworkLinksService {
         set: { aworkProjectId, aworkProjectName, matchedBy },
       })
       .returning();
+    // Gefunden heisst: Die Suchsperre hat sich erledigt.
+    this.erfolglos.delete(projectId);
     this.logger.log(`Projekt ${projectId} ↔ awork ${aworkProjectId} (${matchedBy}).`);
     return toLinkDto(row);
   }
 
   async entferne(projectId: string): Promise<void> {
     await this.db.delete(aworkProjectLinks).where(eq(aworkProjectLinks.projectId, projectId));
+    // Wer von Hand löst, will danach neu suchen dürfen.
+    this.erfolglos.delete(projectId);
   }
 
   // -------------------------------------------------------------------- Nutzer
