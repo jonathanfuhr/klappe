@@ -105,57 +105,85 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
     if (this.timer) clearInterval(this.timer);
   }
 
-  async runAll(): Promise<CleanupReport> {
+  /**
+   * Ein Schritt, dessen Fehler hier endet.
+   *
+   * Vorher lag ein einziges `try` um den ganzen Lauf. Ein Fehler in der Mitte
+   * riss damit alles Nachfolgende mit – und genau das geschah: Die
+   * mehrdeutige Spalte in `warnBeforeCleanup` liess seit Phase 28 die beiden
+   * Schritte danach nie laufen, darunter das Wegräumen verwaister Dateien.
+   * Auf einem Medienserver ist das kein Schönheitsfehler.
+   *
+   * Ein Lauf, der zur Hälfte durchkommt, ist besser als keiner. Und der Name
+   * im Log sagt, welche Hälfte fehlt – „Aufräumen fehlgeschlagen" allein sagt
+   * das nicht, deshalb ist es so lange niemandem aufgefallen.
+   */
+  private async schritt<T>(name: string, aufgabe: () => Promise<T>, ersatz: T): Promise<T> {
     try {
-      const codes = await this.cleanupLoginCodes();
-      const kopplungen = await this.cleanupDeviceAuthorizations();
-      const hinweise = await this.cleanupPendingNotifications();
-      const gelesene = await this.cleanupReadNotifications();
-      // Erst warnen, dann löschen: Sonst kommt die Warnung zu einem Verlust,
-      // der schon eingetreten ist (Phase 28).
-      await this.warnBeforeCleanup();
-      // Vor dem Datei-Durchlauf: Was hier wegfällt, ist danach verwaist und
-      // wird im selben Lauf mit abgeräumt.
-      const fassungen = await this.cleanupArchivedVersions();
-      const dateien = await this.cleanupOrphanFiles();
-
-      if (
-        codes > 0 ||
-        dateien.count > 0 ||
-        hinweise > 0 ||
-        gelesene > 0 ||
-        fassungen > 0 ||
-        kopplungen > 0
-      ) {
-        this.logger.log(
-          `Aufgeräumt: ${codes} Anmeldecodes, ${kopplungen} abgelaufene Gerätekopplungen, ` +
-            `${hinweise} liegengebliebene Benachrichtigungen, ` +
-            `${gelesene} gelesene Einträge der Zentrale, ` +
-            `${fassungen} alte Fassungen aus archivierten Projekten, ` +
-            `${dateien.count} verwaiste Dateien (${Math.round(dateien.bytes / 1024 / 1024)} MB).`,
-        );
-      }
-      return {
-        loginCodes: codes,
-        orphanFiles: dateien.count,
-        freedBytes: dateien.bytes,
-        pendingNotifications: hinweise,
-        archivedVersions: fassungen,
-        deviceAuthorizations: kopplungen,
-        readNotifications: gelesene,
-      };
+      return await aufgabe();
     } catch (error) {
-      this.logger.error(`Aufräumen fehlgeschlagen: ${String(error)}`);
-      return {
-        loginCodes: 0,
-        orphanFiles: 0,
-        freedBytes: 0,
-        pendingNotifications: 0,
-        archivedVersions: 0,
-        deviceAuthorizations: 0,
-        readNotifications: 0,
-      };
+      this.logger.error(`Aufräumen – Schritt „${name}" fehlgeschlagen: ${String(error)}`);
+      return ersatz;
     }
+  }
+
+  async runAll(): Promise<CleanupReport> {
+    const codes = await this.schritt('Anmeldecodes', () => this.cleanupLoginCodes(), 0);
+    const kopplungen = await this.schritt(
+      'Gerätekopplungen',
+      () => this.cleanupDeviceAuthorizations(),
+      0,
+    );
+    const hinweise = await this.schritt(
+      'liegengebliebene Benachrichtigungen',
+      () => this.cleanupPendingNotifications(),
+      0,
+    );
+    const gelesene = await this.schritt(
+      'gelesene Einträge der Zentrale',
+      () => this.cleanupReadNotifications(),
+      0,
+    );
+    // Erst warnen, dann löschen: Sonst kommt die Warnung zu einem Verlust,
+    // der schon eingetreten ist (Phase 28).
+    await this.schritt('Warnung vor dem Aufräumen', () => this.warnBeforeCleanup(), 0);
+    // Vor dem Datei-Durchlauf: Was hier wegfällt, ist danach verwaist und
+    // wird im selben Lauf mit abgeräumt.
+    const fassungen = await this.schritt(
+      'alte Fassungen archivierter Projekte',
+      () => this.cleanupArchivedVersions(),
+      0,
+    );
+    const dateien = await this.schritt('verwaiste Dateien', () => this.cleanupOrphanFiles(), {
+      count: 0,
+      bytes: 0,
+    });
+
+    if (
+      codes > 0 ||
+      dateien.count > 0 ||
+      hinweise > 0 ||
+      gelesene > 0 ||
+      fassungen > 0 ||
+      kopplungen > 0
+    ) {
+      this.logger.log(
+        `Aufgeräumt: ${codes} Anmeldecodes, ${kopplungen} abgelaufene Gerätekopplungen, ` +
+          `${hinweise} liegengebliebene Benachrichtigungen, ` +
+          `${gelesene} gelesene Einträge der Zentrale, ` +
+          `${fassungen} alte Fassungen aus archivierten Projekten, ` +
+          `${dateien.count} verwaiste Dateien (${Math.round(dateien.bytes / 1024 / 1024)} MB).`,
+      );
+    }
+    return {
+      loginCodes: codes,
+      orphanFiles: dateien.count,
+      freedBytes: dateien.bytes,
+      pendingNotifications: hinweise,
+      archivedVersions: fassungen,
+      deviceAuthorizations: kopplungen,
+      readNotifications: gelesene,
+    };
   }
 
   /**
@@ -207,11 +235,23 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
       .select({
         id: projects.id,
         archivedAt: projects.archivedAt,
+        /*
+         * Der Bezug auf das äußere Projekt steht ausgeschrieben als
+         * `projects.id` und nicht als eingesetzte Spalte: Drizzle macht aus
+         * einer eingesetzten Spalte nur `"id"`, ohne die Tabelle davor. In
+         * dieser Unterabfrage sind aber `video_versions v` und `videos w` im
+         * Blick, und beide haben eine Spalte `id` – Postgres wies die ganze
+         * Abfrage als mehrdeutig zurück, und seit Phase 28 scheiterte damit
+         * jeder Aufräumlauf an dieser Stelle.
+         *
+         * Die Erklärung steht außerhalb des Templates, nicht darin: Ein
+         * Backtick im Text würde das Template beenden.
+         */
         betroffen: sql<number>`(
           select count(*)::int
           from ${videoVersions} v
           join ${videos} w on w.id = v.video_id
-          where w.project_id = ${projects.id}
+          where w.project_id = projects.id
             and v.id <> (
               select v2.id from ${videoVersions} v2
               where v2.video_id = w.id and v2.status = 'READY'
