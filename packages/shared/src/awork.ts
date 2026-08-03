@@ -59,16 +59,6 @@ const AWORK_EVENT_INFOS: readonly AworkEventInfo[] = [
   { event: 'aufgabe-erledigen', defaultOn: false, target: 'aufgabe' },
 ];
 
-const NACH_EREIGNIS = new Map(AWORK_EVENT_INFOS.map((info) => [info.event, info]));
-
-export function aworkEventInfo(event: AworkEvent): AworkEventInfo {
-  const info = NACH_EREIGNIS.get(event);
-  // Kann nur passieren, wenn jemand die Liste oben erweitert und den Eintrag
-  // vergisst – dann lieber laut als still durchgelassen.
-  if (!info) throw new Error(`Unbekanntes awork-Ereignis: ${event}`);
-  return info;
-}
-
 /** Die Ereignisse in der Reihenfolge, in der sie in den Einstellungen stehen. */
 export function aworkEvents(): AworkEventInfo[] {
   return [...AWORK_EVENT_INFOS];

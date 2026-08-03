@@ -27,12 +27,6 @@ export function istHandgeraet(): boolean {
   return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 }
 
-/** Der Stand der Erlaubnis, ohne sie anzufragen. */
-export function erlaubnis(): NotificationPermission | null {
-  if (!pushMoeglich()) return null;
-  return Notification.permission;
-}
-
 /**
  * Den Service Worker anmelden. Mehrfach aufzurufen ist unschädlich – der
  * Browser gibt dieselbe Anmeldung zurück, statt eine zweite anzulegen.

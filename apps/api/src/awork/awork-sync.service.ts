@@ -379,7 +379,15 @@ export class AworkSyncService {
                 .where(
                   and(
                     eq(aworkNotices.kind, 'kundenmaterial'),
-                    eq(aworkNotices.referenceId, projectFiles.id),
+                    /*
+                     * Ausdrücklich nach `text` gewandelt: `reference_id` ist
+                     * Text (dort steht mal eine Fassung, mal eine Datei, mal
+                     * ein Gast an einem Freigabe-Link), `project_files.id` ist
+                     * `uuid`. Für `text = uuid` kennt Postgres keinen Operator
+                     * und bricht die Abfrage ab – bei einem Spaltenvergleich
+                     * gibt es anders als beim Parameter nichts zu erraten.
+                     */
+                    sql`${aworkNotices.referenceId} = ${projectFiles.id}::text`,
                   ),
                 ),
             ),
