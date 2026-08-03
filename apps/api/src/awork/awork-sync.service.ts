@@ -195,7 +195,18 @@ export class AworkSyncService {
       // Ein abgeschlossenes Projekt braucht kein Review mehr.
       if (projekt.isArchived) continue;
 
-      const nummer = freifeldWert(projekt.customFields, config.aworkProjectNumberFieldId);
+      /*
+       * Geprüft wird der **normalisierte** Wert, nicht der rohe (1.5).
+       *
+       * Ein Feld mit „-", „." oder „/" darin ist ausgefüllt, trägt aber keine
+       * Nummer – jemand hat dort einen Strich hingesetzt, um das Feld
+       * loszuwerden. Roh betrachtet gilt das als vorhanden, und beim ersten
+       * Lauf sind darüber zwei Projekte in Klappe gelandet, die keines
+       * brauchten. Normalisiert bleibt nichts übrig, und genau so soll es
+       * zählen: als „keine Nummer".
+       */
+      const roh = freifeldWert(projekt.customFields, config.aworkProjectNumberFieldId);
+      const nummer = normalisiereProjektnummer(roh) ? roh : null;
 
       try {
         const bestehend = nachAworkId.get(projekt.id) ?? null;

@@ -98,6 +98,19 @@ describe('findeProjekt', () => {
     // Sonst würden alle nummernlosen Projekte auf beiden Seiten zusammenfallen.
     expect(findeProjekt(null, 'Ohne Nummer KG', kandidaten).art).toBe('ohne-nummer');
   });
+
+  it('behandelt einen blossen Strich wie eine fehlende Nummer', () => {
+    /*
+     * Aufgefallen beim ersten Lauf gegen den echten Workspace: In zwei
+     * awork-Projekten stand „-" im Feld – ausgefüllt, aber ohne Aussage.
+     * Roh betrachtet galt das als Nummer, und beide landeten als neue
+     * Projekte in Klappe.
+     */
+    for (const platzhalter of ['-', '--', '.', '/', ' - ', '___']) {
+      expect(normalisiereProjektnummer(platzhalter)).toBe('');
+      expect(findeProjekt(platzhalter, null, kandidaten).art).toBe('ohne-nummer');
+    }
+  });
 });
 
 describe('freifeldWert', () => {
