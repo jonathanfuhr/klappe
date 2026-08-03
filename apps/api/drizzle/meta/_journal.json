@@ -323,6 +323,13 @@
       "when": 1785622609811,
       "tag": "0045_alte_downloadschalter_entfallen",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1785733194178,
+      "tag": "0046_push_benachrichtigungen",
+      "breakpoints": true
     }
   ]
 }

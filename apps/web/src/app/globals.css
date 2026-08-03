@@ -3217,6 +3217,31 @@ a.badge:hover {
   background: var(--klappe-surface-raised);
 }
 
+/*
+ * Der Fuss der Zentrale (Phase 29): Push wird nicht beworben, sondern steht
+ * da, wo man hinkommt, wenn man die Liste zu Ende gelesen hat.
+ */
+.bell__fuss {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-top: 1px solid var(--klappe-border);
+  background: var(--klappe-surface-raised);
+}
+
+.bell__push {
+  font-size: 12px;
+}
+
+.bell__push-hint {
+  font-size: 12px;
+  color: var(--klappe-text-muted);
+  /* Die Absage gehört unter den Knopf, nicht daneben – sie ist länger als er. */
+  flex: 1 1 100%;
+}
+
 /* Ungelesen bekommt einen Balken links – Fettschrift allein geht unter. */
 .bell__item[data-unread='true'] {
   box-shadow: inset 3px 0 0 var(--klappe-accent);

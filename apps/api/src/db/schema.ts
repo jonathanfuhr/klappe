@@ -943,6 +943,21 @@ export const appSettings = pgTable('app_settings', {
   proxyVideoBitrateKbps: integer('proxy_video_bitrate_kbps'),
   proxyPreset: text('proxy_preset'),
 
+  // ---------- Push-Benachrichtigungen (Phase 29) ----------
+  /**
+   * Das VAPID-Paar, mit dem sich dieser Server bei Apple, Google und Mozilla
+   * ausweist. Es wird beim ersten Bedarf erzeugt und bleibt dann liegen: Ein
+   * neues Paar macht **alle** bestehenden Abos ungültig, denn der öffentliche
+   * Schlüssel steckt in jedem einzelnen davon.
+   *
+   * Deshalb steht es in der Datenbank und nicht in der `.env` – dort ginge es
+   * beim nächsten Neuaufsetzen des Containers verloren, und alle Geräte
+   * müssten sich stillschweigend neu anmelden.
+   */
+  vapidPublicKey: text('vapid_public_key'),
+  /** Verschlüsselt abgelegt, siehe `common/secret-box.ts`. */
+  vapidPrivateKeyEncrypted: text('vapid_private_key_encrypted'),
+
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -1069,6 +1084,48 @@ export const notificationSettings = pgTable('notification_settings', {
   guestEnabled: boolean('guest_enabled').notNull().default(true),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Angemeldete Geräte für Push-Benachrichtigungen (Phase 29).
+ *
+ * Eine Zeile ist **ein Browser auf einem Gerät**, nicht eine Person: Wer am
+ * Mac und am Handy zusagt, steht zweimal darin. Der `endpoint` ist die
+ * Adresse, an die Apple, Google oder Mozilla zustellen; er ist von sich aus
+ * eindeutig und deshalb der Schlüssel, an dem ein doppeltes Anmelden
+ * desselben Geräts erkannt wird.
+ *
+ * `p256dh` und `auth` sind die Schlüssel des Browsers. Mit ihnen wird die
+ * Nutzlast verschlüsselt, bevor sie den Server verlässt – der Push-Dienst
+ * dazwischen sieht nur, **dass** etwas kam, nie was.
+ */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    /**
+     * Woher das Abo kam, für die Geräteliste im Konto. Roh vom Browser und
+     * nur zur Anzeige – nichts hängt davon ab.
+     */
+    userAgent: text('user_agent'),
+    /**
+     * Wann zuletzt wirklich zugestellt wurde. Ein Abo, das nur scheitert,
+     * fliegt ohnehin beim ersten 404/410 – dieser Zeitstempel ist für den
+     * Menschen, der wissen will, ob das Gerät noch mitspielt.
+     */
+    lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('push_subscriptions_endpoint_idx').on(table.endpoint),
+    index('push_subscriptions_user_idx').on(table.userId),
+  ],
+);
 
 export const notifications = pgTable(
   'notifications',

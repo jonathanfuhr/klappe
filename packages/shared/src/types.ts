@@ -599,6 +599,21 @@ export interface ProjectFileDto {
 }
 
 /** Ein Eintrag der Benachrichtigungszentrale (Phase 18). */
+/**
+ * Was der Browser braucht, um sich für Push anzumelden (Phase 29).
+ *
+ * `publicKey` ist `null`, solange der Server noch kein Schlüsselpaar hat –
+ * dann steht die Zeile zum Einschalten gar nicht erst da.
+ */
+export interface PushKeyDto {
+  publicKey: string | null;
+}
+
+/** Ob dieses Gerät gerade angemeldet ist – nach `endpoint` gefragt. */
+export interface PushStateDto {
+  subscribed: boolean;
+}
+
 export interface NotificationDto {
   id: string;
   /** Erwähnung oder gewöhnlicher Kommentar – die Liste hebt Ersteres hervor. */

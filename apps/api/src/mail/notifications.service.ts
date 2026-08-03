@@ -104,7 +104,11 @@ export class NotificationsService {
 
     // Zuerst in die Zentrale, dann erst der Versand: Wer ohne Mailserver
     // arbeitet oder die Mail übersieht, findet den Hinweis trotzdem.
-    await this.center.record(commentId, row.videoId, recipients);
+    await this.center.record(commentId, row.videoId, recipients, {
+      customer: row.customer,
+      projectName: row.projectName,
+      videoName: row.videoName,
+    });
 
     if (!(await this.mailService.isReady())) return 0;
 
@@ -586,6 +590,8 @@ export class NotificationsService {
         videoName: videos.name,
         projectId: projects.id,
         projectName: projects.name,
+        /** Für die Push-Kachel (Phase 29): Ein Video heisst manchmal nur „Imagefilm". */
+        customer: projects.customer,
         versionNumber: videoVersions.versionNumber,
         versionLabel: videoVersions.label,
         fpsNum: videoVersions.fpsNum,

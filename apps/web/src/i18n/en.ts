@@ -475,6 +475,11 @@ export const en: Record<MessageKey, Message> = {
   'bell.markAllRead': 'Mark all read',
   'bell.clearRead': 'Remove read',
   'bell.remove': 'Remove entry',
+  'push.enableDesktop': 'Enable desktop notifications',
+  'push.enableDevice': 'Enable device notifications',
+  'push.disable': 'Turn off notifications on this device',
+  'push.denied':
+    'The browser refused. Permission can only be granted again in its own settings.',
   'bell.empty': 'Nothing new. Comments on films you follow and mentions land here.',
   'bell.mentioned': 'mentioned',
   'bell.reply': ' · reply',

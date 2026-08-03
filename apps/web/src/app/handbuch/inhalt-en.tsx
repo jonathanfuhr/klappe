@@ -336,6 +336,24 @@ export function HandbuchEn() {
         <p>
           Independently of that there is the <strong>notification centre</strong>: the bell in the
           header. It shows immediately who wrote what and where – guests have this centre too.
+          Single entries can be removed with the <span className="kbd">✕</span>, and{' '}
+          <strong>Remove read</strong> clears everything already seen. Unread entries stay. A read
+          entry disappears on its own after a week.
+        </p>
+        <h3>Notifications on your device</h3>
+        <p>
+          At the bottom of the centre there is <strong>Enable desktop notifications</strong> (on a
+          computer) or <strong>Enable device notifications</strong> (on a phone). Klappe then
+          reaches you even with no window open. The notification names the client, project and
+          video – deliberately no comment text, since it appears on a lock screen. If several
+          comments arrive for the same video, the same notification grows instead of stacking: it
+          alerts once and then counts up quietly until you visit the video page again.
+        </p>
+        <p>
+          <strong>On iPhone and iPad</strong> this row only appears once Klappe has been added via{' '}
+          <em>Share → Add to Home Screen</em>. Apple allows no notifications in an ordinary Safari
+          tab, so the row is not shown there at all. Open Klappe from the home screen icon and it
+          is there.
         </p>
       </section>
 

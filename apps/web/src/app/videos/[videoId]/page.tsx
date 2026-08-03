@@ -204,6 +204,24 @@ export default function ReviewPage() {
   }, [videoId]);
 
   /**
+   * Wer hier steht, hat die Kommentarspalte vor sich – die Einträge der
+   * Zentrale zu diesem Video sind damit gesehen (Phase 29).
+   *
+   * Das ist mehr als Kosmetik am Glöckchen: Die Zahl auf der Push-Kachel ist
+   * genau dieser ungelesene Stand. Ohne diesen Aufruf käme sie nie auf 0
+   * zurück, und das Gerät brummte für dieses Video genau einmal – danach
+   * würde die Kachel nur noch stumm fortgeschrieben.
+   *
+   * Einmal je Video, nicht bei jedem Neuladen der Kommentare: Es geht um den
+   * Besuch, nicht um jede Regung auf der Seite.
+   */
+  useEffect(() => {
+    void api.markNotificationsRead(undefined, videoId).catch(() => {
+      // Der Lesestand ist Beiwerk – das Video anzusehen ist der Zweck.
+    });
+  }, [videoId]);
+
+  /**
    * Interne Fassung freigeben (Phase 27). Mit Rückfrage: Danach steht sie beim
    * Kunden, und ein Zurücknehmen ändert nichts mehr daran, dass er sie in der
    * Zwischenzeit vielleicht schon gesehen hat.

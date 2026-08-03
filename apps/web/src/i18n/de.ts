@@ -482,6 +482,11 @@ export const de = {
   'bell.markAllRead': 'Alle gelesen',
   'bell.clearRead': 'Gelesene entfernen',
   'bell.remove': 'Eintrag entfernen',
+  'push.enableDesktop': 'Desktop-Benachrichtigungen aktivieren',
+  'push.enableDevice': 'Geräte-Benachrichtigungen aktivieren',
+  'push.disable': 'Benachrichtigungen auf diesem Gerät abschalten',
+  'push.denied':
+    'Der Browser hat es abgelehnt. Die Erlaubnis lässt sich nur in seinen eigenen Einstellungen wieder erteilen.',
   'bell.empty': 'Nichts Neues. Hier landen Kommentare zu Filmen, die du verfolgst, und Erwähnungen.',
   'bell.mentioned': 'erwähnt',
   'bell.reply': ' · Antwort',

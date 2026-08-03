@@ -52,8 +52,15 @@ export const config = {
    * es ohne Sitzungs-Cookie, und eine Weiterleitung aufs Login käme dort als
    * unlesbares Manifest an – das iPhone legte dann wieder eine Kachel ohne
    * Symbol an.
+   *
+   * `sw.js` ebenso (Phase 29), und dort wiegt es schwerer: Der Browser holt
+   * den Service Worker von sich aus nach, auch lange nachdem jemand zuletzt
+   * da war. Läuft die Sitzung in der Zwischenzeit ab, käme statt JavaScript
+   * eine Login-Seite zurück – der Browser lehnt sie wegen des falschen Typs
+   * ab und wirft den Service Worker im Zweifel weg. Push wäre danach still
+   * tot, ohne dass jemand etwas anfasst hätte.
    */
   matcher: [
-    '/((?!_next/static|_next/image|v1/|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|v1/|favicon.ico|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)',
   ],
 };

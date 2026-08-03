@@ -8,6 +8,13 @@ import { api } from '@/lib/api';
 import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { useFallbackInterval, useLive } from '@/lib/live';
+import {
+  ausschalten as pushAusschalten,
+  bestehendesAbo,
+  einschalten as pushEinschalten,
+  istHandgeraet,
+  pushMoeglich,
+} from '@/lib/push';
 
 /** Wie oft nach neuen Einträgen gesehen wird, solange die Seite offen ist. */
 const POLL_MS = 60_000;
@@ -33,6 +40,49 @@ export function NotificationBell() {
   const [entries, setEntries] = useState<NotificationDto[] | null>(null);
   const [busy, setBusy] = useState(false);
   const huelle = useRef<HTMLDivElement>(null);
+
+  /**
+   * Push (Phase 29). `null` heisst: Dieser Browser kann es nicht – dann steht
+   * die Zeile gar nicht erst da. Auf einem iPhone im gewöhnlichen Safari-Tab
+   * ist das der Fall, und genau so ist es gemeint: Dort schaltet erst „Zum
+   * Home-Bildschirm" die Sache frei, und ein Schalter, der nichts tut, wäre
+   * schlechter als keiner.
+   *
+   * Erst nach dem ersten Rendern ermittelt – auf dem Server gibt es weder
+   * `navigator` noch `window`, und ein Unterschied zwischen Server- und
+   * Browser-Fassung würde React beim Hydrieren bemängeln.
+   */
+  const [pushAn, setPushAn] = useState<boolean | null>(null);
+  const [pushHandgeraet, setPushHandgeraet] = useState(false);
+  const [pushLaeuft, setPushLaeuft] = useState(false);
+  const [pushAbgelehnt, setPushAbgelehnt] = useState(false);
+
+  useEffect(() => {
+    if (!pushMoeglich()) return;
+    setPushHandgeraet(istHandgeraet());
+    void bestehendesAbo().then((abo) => setPushAn(Boolean(abo)));
+  }, []);
+
+  const pushUmschalten = async () => {
+    setPushLaeuft(true);
+    setPushAbgelehnt(false);
+    try {
+      if (pushAn) {
+        await pushAusschalten();
+        setPushAn(false);
+      } else {
+        // Läuft bewusst direkt aus dem Klick heraus: Safari gibt die Erlaubnis
+        // nur innerhalb einer Geste her.
+        const geklappt = await pushEinschalten();
+        setPushAn(geklappt);
+        setPushAbgelehnt(!geklappt);
+      }
+    } catch {
+      setPushAbgelehnt(true);
+    } finally {
+      setPushLaeuft(false);
+    }
+  };
 
   const zaehlen = useCallback(async () => {
     try {
@@ -236,6 +286,28 @@ export function NotificationBell() {
               </div>
             ))}
           </div>
+
+          {/* Ganz unten und zurückhaltend – nicht beworben, aber auffindbar.
+              Fehlt `PushManager`, steht hier nichts: am iPhone im Tab ist das
+              der Normalfall, dort schaltet erst die Web-App es frei. */}
+          {pushAn !== null ? (
+            <div className="bell__fuss">
+              <button
+                type="button"
+                className="button button--ghost bell__push"
+                onClick={() => void pushUmschalten()}
+                disabled={pushLaeuft}
+                aria-pressed={pushAn}
+              >
+                {pushAn
+                  ? t('push.disable')
+                  : pushHandgeraet
+                    ? t('push.enableDevice')
+                    : t('push.enableDesktop')}
+              </button>
+              {pushAbgelehnt ? <span className="bell__push-hint">{t('push.denied')}</span> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

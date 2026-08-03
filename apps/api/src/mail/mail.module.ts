@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PushModule } from '../push/push.module';
 import { NotificationSettingsService } from '../settings/notification-settings.service';
 import { SettingsService } from '../settings/settings.service';
 import { MailService } from './mail.service';
@@ -17,6 +18,8 @@ import { SubscriptionsService } from './subscriptions.service';
  * startet gar keinen HTTP-Server, Controller sind dort wirkungslos.
  */
 @Module({
+  // Die Zentrale stösst den Push an – dieselbe Stelle, dieselbe Sekunde.
+  imports: [PushModule],
   controllers: [SubscriptionsController, NotificationCenterController],
   providers: [
     SettingsService,

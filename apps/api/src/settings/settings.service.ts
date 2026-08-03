@@ -74,7 +74,8 @@ export interface UpdateSmtpInput {
   digestMinutes?: number;
 }
 
-const SETTINGS_ID = 1;
+/** Die eine Einstellungszeile. Auch das Push-Modul schreibt dort hinein. */
+export const SETTINGS_ID = 1;
 
 /**
  * Ruhezeit vor dem Versand (Phase 18). Fünf Minuten sind der Vorschlag: Wer

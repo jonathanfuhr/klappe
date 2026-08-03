@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { NotificationDto, UserRole } from '@klappe/shared';
 import {
   commentBodyToPlainText,
@@ -9,6 +9,10 @@ import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import { comments, notifications, projects, users, videoVersions, videos } from '../db/schema';
 import { EventsService } from '../events/events.service';
+import { LocaleService } from '../i18n/locale.service';
+import { PushService } from '../push/push.service';
+import { renderCommentPush } from '../push/push-texte';
+import { NotificationSettingsService } from '../settings/notification-settings.service';
 
 /** So viel Kommentartext steht in der Liste; der Rest steht im Player. */
 const EXCERPT_LENGTH = 160;
@@ -22,11 +26,31 @@ const EXCERPT_LENGTH = 160;
  * trotzdem. Deshalb werden die Einträge geschrieben, **bevor** der Versand
  * überhaupt geprüft wird.
  */
+/** Was auf der Kachel steht – die Zentrale kennt die Namen sonst nicht. */
+export interface PushKontext {
+  customer: string | null;
+  projectName: string;
+  videoName: string;
+}
+
+/** Empfänger, so wie ihn die Auswahl in `recipients.ts` liefert. */
+export interface ZentralenEmpfaenger {
+  id: string;
+  mentioned: boolean;
+  role?: UserRole;
+  locale?: string | null;
+}
+
 @Injectable()
 export class NotificationCenterService {
+  private readonly logger = new Logger(NotificationCenterService.name);
+
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly events: EventsService,
+    private readonly push: PushService,
+    private readonly notificationSettings: NotificationSettingsService,
+    private readonly locales: LocaleService,
   ) {}
 
   /**
@@ -36,7 +60,8 @@ export class NotificationCenterService {
   async record(
     commentId: string,
     videoId: string,
-    recipients: { id: string; mentioned: boolean }[],
+    recipients: ZentralenEmpfaenger[],
+    kontext: PushKontext,
   ): Promise<void> {
     if (recipients.length === 0) return;
     await this.db
@@ -56,6 +81,78 @@ export class NotificationCenterService {
     for (const recipient of recipients) {
       this.events.publish({ topic: 'notification', id: recipient.id, userId: recipient.id });
     }
+
+    await this.pushen(videoId, recipients, kontext);
+  }
+
+  /**
+   * Push an die angemeldeten Geräte (Phase 29) – **nach** dem Eintrag, nie
+   * statt seiner. Der Eintrag steht schon, wenn wir hier ankommen; ein
+   * Fehlschlag beim Push darf deshalb nichts aufhalten und wird nur notiert.
+   *
+   * Ohne Ruhezeit: Die Kette gleicher Meldungen bei einem Kunden-Review
+   * bündelt nicht der Server, sondern der Browser. Jede Meldung zu demselben
+   * Video trägt denselben `tag`; der Browser schreibt damit die vorhandene
+   * Kachel fort, statt eine zweite zu stapeln – es brummt einmal, danach
+   * zählt sie still hoch. Die Zahl ist der ungelesene Stand für dieses Video,
+   * sie geht also von selbst auf 0 zurück, sobald jemand hingesehen hat.
+   */
+  private async pushen(
+    videoId: string,
+    recipients: ZentralenEmpfaenger[],
+    kontext: PushKontext,
+  ): Promise<void> {
+    for (const recipient of recipients) {
+      try {
+        // Push hängt am selben Admin-Schalter wie die Mail. Der Schalter sagt
+        // „diese Art geht hinaus", nicht „diese Art geht per Mail hinaus" –
+        // ein zweiter Satz Schalter je Weg wäre eine Verdopplung ohne Frage,
+        // die er beantwortet.
+        const kind = recipient.mentioned ? 'mention' : 'comment';
+        const audience = recipient.role === 'GUEST' ? 'GUEST' : 'TEAM';
+        if (!(await this.notificationSettings.isAllowed(kind, audience))) continue;
+
+        const unread = await this.unreadCountForVideo(recipient.id, videoId);
+        const { title, body } = renderCommentPush({
+          locale: await this.locales.forUser(recipient.locale),
+          mentioned: recipient.mentioned,
+          unread,
+          customer: kontext.customer,
+          projectName: kontext.projectName,
+          videoName: kontext.videoName,
+        });
+
+        await this.push.sendToUser(recipient.id, {
+          title,
+          body,
+          tag: `video-${videoId}`,
+          url: `/videos/${videoId}`,
+        });
+      } catch (error) {
+        this.logger.warn(`Push an ${recipient.id} fehlgeschlagen: ${String(error)}`);
+      }
+    }
+  }
+
+  /**
+   * Der ungelesene Stand für **ein** Video. Grundlage der Zahl auf der
+   * Push-Kachel; deshalb dieselben Bedingungen wie in `unreadCount`, nur
+   * zusätzlich auf das Video eingeschränkt.
+   */
+  async unreadCountForVideo(userId: string, videoId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ anzahl: sql<number>`count(*)::int` })
+      .from(notifications)
+      .innerJoin(comments, eq(notifications.commentId, comments.id))
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.videoId, videoId),
+          isNull(notifications.readAt),
+          isNull(comments.deletedAt),
+        ),
+      );
+    return row?.anzahl ?? 0;
   }
 
   async list(
@@ -186,17 +283,35 @@ export class NotificationCenterService {
     return this.unreadCount(userId);
   }
 
-  /** Ohne `ids` gilt alles als gelesen. Gibt die neue ungelesene Zahl zurück. */
-  async markRead(userId: string, ids?: string[]): Promise<number> {
+  /**
+   * Ohne `ids` und ohne `videoId` gilt alles als gelesen. Gibt die neue
+   * ungelesene Zahl zurück.
+   *
+   * `videoId` kam mit Phase 29 dazu: Wer eine Videoseite öffnet, hat die
+   * Kommentarspalte vor sich – die Einträge dazu sind damit gesehen. Ohne das
+   * käme die Push-Kachel für dieses Video nie auf 0 zurück und brummte
+   * genau einmal, für immer.
+   */
+  async markRead(userId: string, ids?: string[], videoId?: string): Promise<number> {
     const wen =
       ids && ids.length > 0
         ? and(eq(notifications.userId, userId), inArray(notifications.id, ids))
-        : eq(notifications.userId, userId);
+        : videoId
+          ? and(eq(notifications.userId, userId), eq(notifications.videoId, videoId))
+          : eq(notifications.userId, userId);
 
-    await this.db
+    const geaendert = await this.db
       .update(notifications)
       .set({ readAt: new Date() })
-      .where(and(wen, isNull(notifications.readAt)));
+      .where(and(wen, isNull(notifications.readAt)))
+      .returning({ id: notifications.id });
+
+    // Das Glöckchen soll auch dann nachziehen, wenn woanders gelesen wurde –
+    // etwa weil eine Videoseite geöffnet wurde. Sonst stünde die Zahl bis zum
+    // nächsten Minutentakt auf dem alten Stand.
+    if (geaendert.length > 0) {
+      this.events.publish({ topic: 'notification', id: userId, userId });
+    }
 
     return this.unreadCount(userId);
   }

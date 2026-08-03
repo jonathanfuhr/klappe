@@ -11,6 +11,11 @@ class MarkReadDto {
   @IsArray()
   @IsUUID('4', { each: true })
   ids?: string[];
+
+  /** Alles zu einem Video – gesetzt beim Öffnen der Videoseite (Phase 29). */
+  @IsOptional()
+  @IsUUID('4')
+  videoId?: string;
 }
 
 /**
@@ -42,7 +47,7 @@ export class NotificationCenterController {
     @CurrentUser() user: RequestUser,
     @Body() dto: MarkReadDto,
   ): Promise<{ unread: number }> {
-    return { unread: await this.center.markRead(user.id, dto.ids) };
+    return { unread: await this.center.markRead(user.id, dto.ids, dto.videoId) };
   }
 
   /**

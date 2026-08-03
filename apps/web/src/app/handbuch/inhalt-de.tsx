@@ -334,7 +334,27 @@ export function HandbuchDe() {
             <p>
               Unabhängig davon gibt es die <strong>Benachrichtigungszentrale</strong>: das
               Glockensymbol in der Kopfzeile. Dort steht sofort, wer was wo geschrieben hat –
-              auch Gäste haben diese Zentrale.
+              auch Gäste haben diese Zentrale. Einzelne Einträge lassen sich über das{' '}
+              <span className="kbd">✕</span> entfernen, und <strong>Gelesene entfernen</strong>{' '}
+              räumt alles weg, was schon gesehen wurde. Ungelesenes bleibt dabei stehen. Von
+              selbst verschwindet ein gelesener Eintrag nach einer Woche.
+            </p>
+            <h3>Benachrichtigungen auf dem Gerät</h3>
+            <p>
+              Ganz unten in der Zentrale steht{' '}
+              <strong>Desktop-Benachrichtigungen aktivieren</strong> (am Rechner) bzw.{' '}
+              <strong>Geräte-Benachrichtigungen aktivieren</strong> (am Telefon). Danach meldet
+              sich Klappe auch, wenn kein Fenster offen ist. Auf der Meldung steht Kunde, Projekt
+              und Video – bewusst kein Kommentartext, denn sie erscheint auf einem
+              Sperrbildschirm. Kommen mehrere Kommentare zum selben Video, wächst dieselbe
+              Meldung mit, statt sich zu stapeln: Es meldet sich einmal und zählt danach still
+              hoch, bis die Videoseite wieder besucht wurde.
+            </p>
+            <p>
+              <strong>Am iPhone und iPad</strong> gibt es diese Zeile nur, wenn Klappe über{' '}
+              <em>Teilen → Zum Home-Bildschirm</em> abgelegt wurde. Im gewöhnlichen Safari-Tab
+              erlaubt Apple keine Benachrichtigungen; die Zeile steht dort deshalb gar nicht
+              erst. Wird Klappe von der Kachel aus geöffnet, ist sie da.
             </p>
           </section>
 

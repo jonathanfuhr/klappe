@@ -23,6 +23,8 @@ import type {
   MailFailureDto,
   ProjectSettingsDto,
   NotificationDto,
+  PushKeyDto,
+  PushStateDto,
   NotificationKind,
   NotificationSettingsDto,
   NotificationSubscriberDto,
@@ -447,11 +449,11 @@ export const api = {
   listNotifications: (limit = 50) =>
     request<NotificationDto[]>(`/v1/notifications?limit=${limit}`),
   unreadNotifications: () => request<{ unread: number }>('/v1/notifications/count'),
-  /** Ohne `ids` gilt alles als gelesen. */
-  markNotificationsRead: (ids?: string[]) =>
+  /** Ohne `ids` gilt alles als gelesen; mit `videoId` alles zu diesem Video. */
+  markNotificationsRead: (ids?: string[], videoId?: string) =>
     request<{ unread: number }>('/v1/notifications/read', {
       method: 'POST',
-      body: JSON.stringify(ids ? { ids } : {}),
+      body: JSON.stringify(videoId ? { videoId } : ids ? { ids } : {}),
     }),
   /** Entfernt genau diesen Eintrag und meldet den neuen ungelesenen Stand. */
   deleteNotification: (id: string) =>
@@ -459,6 +461,26 @@ export const api = {
   /** Entfernt die gelesenen Einträge; Ungelesenes bleibt stehen (Phase 29). */
   clearReadNotifications: () =>
     request<{ unread: number }>('/v1/notifications/read', { method: 'DELETE' }),
+
+  // ---------- Push-Benachrichtigungen (Phase 29) ----------
+  pushKey: () => request<PushKeyDto>('/v1/push/key'),
+  pushState: (endpoint: string) =>
+    request<PushStateDto>(`/v1/push/state?endpoint=${encodeURIComponent(endpoint)}`),
+  pushSubscribe: (eingang: {
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+    userAgent?: string;
+  }) =>
+    request<PushStateDto>('/v1/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify(eingang),
+    }),
+  pushUnsubscribe: (endpoint: string) =>
+    request<PushStateDto>('/v1/push/unsubscribe', {
+      method: 'POST',
+      body: JSON.stringify({ endpoint }),
+    }),
 
   // ---------- Benachrichtigungen je Projekt und Video (Phase 18) ----------
   listProjectSubscribers: (projectId: string) =>
