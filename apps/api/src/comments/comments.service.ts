@@ -16,6 +16,7 @@ import {
 } from '@klappe/shared';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
+import { AworkNotifyService } from '../awork/awork-notify.service';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
 import {
@@ -46,6 +47,7 @@ export class CommentsService {
     private readonly accessService: AccessService,
     private readonly mailQueue: MailQueueService,
     private readonly events: EventsService,
+    private readonly awork: AworkNotifyService,
   ) {}
 
   /**
@@ -190,6 +192,8 @@ export class CommentsService {
 
     await this.syncMentions(row.id, row.body);
     await this.mailQueue.enqueue({ kind: 'comment', commentId: row.id });
+    // Und in die Korrektur-Aufgabe in awork, sofern eingerichtet (Phase 30).
+    await this.awork.kommentarGeaendert(versionId);
     // Alle, die dieses Video offen haben, sehen den Kommentar sofort – ohne
     // den Sekundentakt von früher (Phase 18).
     this.events.publish({ topic: 'video', id: access.videoId, projectId: access.projectId });
@@ -242,7 +246,13 @@ export class CommentsService {
     await this.meldeAenderung(row.versionId);
   }
 
-  /** Video und Projekt zur Fassung heraussuchen und die Änderung melden. */
+  /**
+   * Video und Projekt zur Fassung heraussuchen und die Änderung melden.
+   *
+   * Seit Phase 30 geht sie auch nach awork: Bearbeitet, gelöscht, abgehakt –
+   * die Aufgabenbeschreibung dort entsteht ohnehin komplett neu, es zählt nur,
+   * dass überhaupt nachgesehen wird.
+   */
   private async meldeAenderung(versionId: string): Promise<void> {
     const [row] = await this.db
       .select({ videoId: videos.id, projectId: videos.projectId })
@@ -251,6 +261,7 @@ export class CommentsService {
       .where(eq(videoVersions.id, versionId))
       .limit(1);
     if (row) this.events.publish({ topic: 'video', id: row.videoId, projectId: row.projectId });
+    await this.awork.kommentarGeaendert(versionId);
   }
 
   async setResolved(

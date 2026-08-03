@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AccessModule } from './access/access.module';
+import { AworkModule } from './awork/awork.module';
+import { AworkProcessor } from './awork/awork.processor';
+import { AworkSyncService } from './awork/awork-sync.service';
 import { EventsModule } from './events/events.module';
 import { AppConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
@@ -44,7 +47,11 @@ import { VersionsModule } from './versions/versions.module';
     // hat in einem Prozess nichts verloren, der Anfragen beantworten soll.
     MaintenanceModule,
     BackupSchedulerModule,
+    // Die awork-Anbindung (Phase 30). Der Verarbeiter steht wie beim Mailversand
+    // hier und nicht im Modul selbst: Im API-Prozess soll niemand auf der
+    // Warteschlange sitzen.
+    AworkModule,
   ],
-  providers: [NotificationsService, MailProcessor],
+  providers: [NotificationsService, MailProcessor, AworkSyncService, AworkProcessor],
 })
 export class WorkerModule {}

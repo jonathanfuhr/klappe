@@ -379,6 +379,20 @@ export class AworkClient {
   }
 
   /**
+   * Legt eine Aufgabenliste an. Nötig, wenn ein Projekt die eingestellte
+   * Liste nicht hat – die Aufgabe soll dann trotzdem entstehen und nicht am
+   * fehlenden Fach scheitern.
+   */
+  async createTaskList(aworkProjectId: string, name: string): Promise<AworkTaskList> {
+    const row = await this.request<{ id: string; name?: string | null }>(
+      'POST',
+      `/projects/${aworkProjectId}/tasklists`,
+      { body: { name } },
+    );
+    return { id: row.id, name: row.name ?? name };
+  }
+
+  /**
    * Legt eine Aufgabe im Projekt an.
    *
    * `entityId` plus `baseType` – **nicht** `projectId`; das Feld gibt es an
