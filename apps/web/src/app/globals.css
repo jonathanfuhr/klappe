@@ -737,6 +737,17 @@ button {
      schrumpfen und schiebt die Leisten hinaus. */
   flex: 0 1 auto;
   min-height: 0;
+  /*
+   * Mittig, wenn die Bühne schmaler ausfällt als der Player (1.5).
+   *
+   * Stößt ein Hochkant-Bild an die Höhengrenze, leitet WebKit die Breite aus
+   * dem Seitenverhältnis ab – die Bühne wird also schmaler als der Rahmen und
+   * klebte dann am linken Rand, der Rest blieb leerer Flex-Platz. Chrome
+   * streckt stattdessen auf volle Breite; dort ist die Bühne so breit wie der
+   * Rahmen und dieser Ausgleich wirkungslos. Genau deshalb `auto` und keine
+   * feste Ausrichtung: Es greift nur in der Engine, die es braucht.
+   */
+  margin-inline: auto;
   /* Sicherheitsnetz: Was doch einmal größer wird, ragt nicht in die Leisten. */
   overflow: hidden;
 }
@@ -808,7 +819,9 @@ button {
 .player__controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  /* Etwas mehr Luft als in den übrigen Leisten (1.5): Die Symbole stehen hier
+     dicht an dicht und werden im Zweifel mit dem Daumen getroffen. */
+  gap: 14px;
   padding: 8px 12px;
   background: var(--klappe-surface);
   border-top: 1px solid var(--klappe-border);
@@ -2950,10 +2963,10 @@ a.badge:hover {
    * schöbe.
    */
   .player__controls {
-    gap: 6px;
+    gap: 12px;
     padding: 6px 8px;
     justify-content: center;
-    row-gap: 4px;
+    row-gap: 6px;
   }
 
   .player__controls .player__umbruch {
@@ -3029,12 +3042,6 @@ a.badge:hover {
     height: 44px;
   }
 
-  /* Die Bedienleiste des Players besteht aus Schriftzeichen, nicht aus
-     Symbolen – ohne eigene Größe blieben sie bei Fließtextgröße stehen. */
-  .player__controls .iconbutton {
-    font-size: 18px;
-    line-height: 1;
-  }
 
   /* Farbtupfer und Strichstärken sind ebenso Ziele für den Finger. */
   .pentools {

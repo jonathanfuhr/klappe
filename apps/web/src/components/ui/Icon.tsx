@@ -28,7 +28,14 @@ export type IconName =
   | 'tag'
   | 'fullscreen'
   | 'volume'
-  | 'volume-off';
+  | 'volume-off'
+  | 'play'
+  | 'pause'
+  | 'frame-back'
+  | 'frame-forward'
+  | 'shuttle-back'
+  | 'shuttle-forward'
+  | 'pen';
 
 const PFADE: Record<IconName, ReactElement> = {
   plus: (
@@ -160,6 +167,61 @@ const PFADE: Record<IconName, ReactElement> = {
       <path d="M11 4.5 6.5 9H3v6h3.5l4.5 4.5z" />
       <line x1="16" y1="9.5" x2="21" y2="14.5" />
       <line x1="21" y1="9.5" x2="16" y2="14.5" />
+    </>
+  ),
+
+  /*
+   * Die Transportzeichen (1.5). Vorher standen hier Schriftzeichen – ◀| ▶ |▶
+   * ✎ –, und die kamen aus verschiedenen Zeichensätzen: Jedes hatte seine
+   * eigene Größe und Strichstärke, der Stift war winzig gegen den Rest. Als
+   * Pfade im selben 24er-Raster sind sie endlich gleich groß.
+   *
+   * Alle im Umriss wie die übrigen Symbole. Ein gefülltes Play-Dreieck stünde
+   * als einziges massiv in der Reihe.
+   */
+  play: (
+    <>
+      <path d="M7.5 4.8v14.4L19 12z" />
+    </>
+  ),
+  pause: (
+    <>
+      <rect x="7" y="4.8" width="3.6" height="14.4" rx="0.9" />
+      <rect x="13.4" y="4.8" width="3.6" height="14.4" rx="0.9" />
+    </>
+  ),
+  /* Ein Bild zurück: Dreieck gegen die Wand. */
+  'frame-back': (
+    <>
+      <path d="M18.5 5.4v13.2L9 12z" />
+      <line x1="6" y1="5.4" x2="6" y2="18.6" />
+    </>
+  ),
+  'frame-forward': (
+    <>
+      <path d="M5.5 5.4v13.2L15 12z" />
+      <line x1="18" y1="5.4" x2="18" y2="18.6" />
+    </>
+  ),
+  /* Zwei Dreiecke: schnelles Spulen. */
+  'shuttle-back': (
+    <>
+      <path d="M11.5 6v12L3.5 12z" />
+      <path d="M20.5 6v12L12.5 12z" />
+    </>
+  ),
+  'shuttle-forward': (
+    <>
+      <path d="M3.5 6v12l8-6z" />
+      <path d="M12.5 6v12l8-6z" />
+    </>
+  ),
+  /* Stift mit Unterlage – erkennbar auch dort, wo er klein steht. */
+  pen: (
+    <>
+      <path d="M12.5 20.5H21" />
+      <path d="M16.2 3.9a2.1 2.1 0 0 1 3 3L7.6 18.4l-4 1 1-4z" />
+      <path d="M14.7 5.4 17.7 8.4" />
     </>
   ),
 };

@@ -77,6 +77,13 @@ const SHUTTLE_RATES = [1, 2, 4, 8] as const;
 /** Merkt sich, ob Zeichnungen in Fahrt sichtbar bleiben (Phase 20). */
 const SPEICHER_ZEICHNUNG = 'klappe.zeichnung-bei-fahrt';
 
+/**
+ * Kantenlänge der Symbole in der Bedienleiste (1.5). Zwei Pixel größer als das
+ * Standardmaß der übrigen Werkzeugleisten: Hier wird im Zweifel mit dem Daumen
+ * getroffen, und die Leiste steht auf dunklem Grund.
+ */
+const PLAYER_ICON = 20;
+
 export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function VideoPlayer(
   {
     version,
@@ -638,7 +645,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           title={t('player.rewindTitle')}
           aria-label={t('player.rewind')}
         >
-          ◀◀
+          <Icon name="shuttle-back" size={PLAYER_ICON} />
         </button>
         <button
           type="button"
@@ -648,7 +655,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           title={t('player.frameBackTitle')}
           aria-label={t('player.frameBack')}
         >
-          ◀|
+          <Icon name="frame-back" size={PLAYER_ICON} />
         </button>
         <button
           type="button"
@@ -659,7 +666,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           aria-label={playing ? t('player.pause') : t('player.play')}
           data-active={playing}
         >
-          {rate !== 0 ? '❚❚' : '▶'}
+          <Icon name={rate !== 0 ? 'pause' : 'play'} size={PLAYER_ICON} />
         </button>
         <button
           type="button"
@@ -669,7 +676,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           title={t('player.frameForwardTitle')}
           aria-label={t('player.frameForward')}
         >
-          |▶
+          <Icon name="frame-forward" size={PLAYER_ICON} />
         </button>
         <button
           type="button"
@@ -680,7 +687,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           title={t('player.forwardTitle')}
           aria-label={t('player.forward')}
         >
-          ▶▶
+          <Icon name="shuttle-forward" size={PLAYER_ICON} />
         </button>
 
         <span className="player__rate mono" data-mobil="aus">
@@ -753,7 +760,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           aria-label={t('player.mute')}
           data-active={muted}
         >
-          <Icon name={muted ? 'volume-off' : 'volume'} />
+          <Icon name={muted ? 'volume-off' : 'volume'} size={PLAYER_ICON} />
         </button>
         <button
           type="button"
@@ -763,7 +770,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           title={t('player.fullscreenTitle')}
           aria-label={t('player.fullscreen')}
         >
-          <Icon name="fullscreen" />
+          <Icon name="fullscreen" size={PLAYER_ICON} />
         </button>
         <button
           type="button"
@@ -785,7 +792,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           {/* Ohne `data-active`: Das offene und das durchgestrichene Auge sagen
               den Zustand schon: Eine zusätzliche Einfärbung in der Akzentfarbe
               las sich wie eine Warnung, obwohl hier nichts im Argen liegt. */}
-          <Icon name={zeichnungBeiFahrt ? 'eye' : 'eye-off'} />
+          <Icon name={zeichnungBeiFahrt ? 'eye' : 'eye-off'} size={PLAYER_ICON} />
         </button>
         <button
           type="button"
@@ -796,7 +803,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           aria-label={t('player.draw')}
           data-active={drawingMode}
         >
-          ✎
+          <Icon name="pen" size={PLAYER_ICON} />
         </button>
         <button
           type="button"
@@ -806,7 +813,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           title={t('player.commentTitle')}
           aria-label={t('player.comment')}
         >
-          <Icon name="comment" />
+          <Icon name="comment" size={PLAYER_ICON} />
         </button>
       </div>
 
