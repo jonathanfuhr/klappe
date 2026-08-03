@@ -117,6 +117,13 @@ export interface AworkSettingsDto {
   updatedAt: string;
 }
 
+/** Eine Freifeld-Definition aus awork, für die Auswahl in den Einstellungen. */
+export interface AworkFieldDto {
+  id: string;
+  name: string;
+  type: string;
+}
+
 /** Antwort des Verbindungstests in den Einstellungen. */
 export interface AworkCheckDto {
   ok: boolean;
@@ -125,13 +132,15 @@ export interface AworkCheckDto {
   /** Wie viele Nutzer und Projekte gefunden wurden – der Beweis, dass es geht. */
   userCount: number | null;
   projectCount: number | null;
-}
-
-/** Eine Freifeld-Definition aus awork, für die Auswahl in den Einstellungen. */
-export interface AworkFieldDto {
-  id: string;
-  name: string;
-  type: string;
+  /**
+   * Die Projekt-Freifelder, gleich mitgeliefert.
+   *
+   * Beim Einrichten wird mit einem Schlüssel geprüft, der noch **gar nicht
+   * gespeichert** ist – die Auswahl über den eigenen Endpunkt käme deshalb
+   * leer zurück. Da der Test den Schlüssel ohnehin in der Hand hat, holt er
+   * die Felder gleich mit.
+   */
+  fields: AworkFieldDto[];
 }
 
 /** Ein awork-Projekt, für die manuelle Zuordnung im Klappe-Projekt. */

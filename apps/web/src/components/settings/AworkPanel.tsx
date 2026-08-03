@@ -132,7 +132,9 @@ export function AworkPanel() {
     try {
       const ergebnis = await api.checkAwork(form.apiKey || undefined);
       setPruefung(ergebnis);
-      if (ergebnis.ok) setAworkFelder(await api.listAworkFields().catch(() => []));
+      // Der Test liefert die Freifelder gleich mit – er hat den Schlüssel in
+      // der Hand, auch wenn er noch nicht gespeichert ist.
+      if (ergebnis.ok) setAworkFelder(ergebnis.fields);
     } catch (checkError) {
       setError(checkError instanceof Error ? checkError.message : t('common.saveFailed'));
     } finally {

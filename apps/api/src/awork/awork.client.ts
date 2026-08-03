@@ -124,9 +124,19 @@ export class AworkClient {
   private async request<T>(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
-    options: { body?: unknown; query?: Record<string, string | number | undefined> } = {},
+    options: {
+      body?: unknown;
+      query?: Record<string, string | number | undefined>;
+      /**
+       * Ausdrücklich mitgegebener Schlüssel. Nur fürs **Einrichten**: Solange
+       * die Anbindung nicht eingeschaltet ist, liefert `apiKey()` bewusst
+       * nichts – und genau dann muss die Freifeld-Auswahl schon gefüllt sein,
+       * denn eingeschaltet wird als Letztes.
+       */
+      apiKey?: string;
+    } = {},
   ): Promise<T> {
-    const apiKey = await this.settings.apiKey();
+    const apiKey = options.apiKey ?? (await this.settings.apiKey());
     if (!apiKey) throw new AworkNotConfiguredError();
     return this.requestWithKey<T>(method, path, apiKey, options);
   }
@@ -309,10 +319,15 @@ export class AworkClient {
 
   // ----------------------------------------------------------------- Freifelder
 
-  async listCustomFieldDefinitions(): Promise<AworkCustomFieldDefinition[]> {
+  /**
+   * `apiKey` wird beim Einrichten mitgegeben – dort ist die Anbindung noch
+   * ausgeschaltet, und ohne die Freifelder lässt sie sich nicht fertig
+   * einrichten.
+   */
+  async listCustomFieldDefinitions(apiKey?: string): Promise<AworkCustomFieldDefinition[]> {
     const rows = await this.request<
       { id: string; name?: string | null; type?: string | null; entity?: string | null }[]
-    >('GET', '/customfielddefinitions');
+    >('GET', '/customfielddefinitions', { apiKey });
     return (rows ?? []).map((row) => ({
       id: row.id,
       name: row.name ?? '',

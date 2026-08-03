@@ -667,21 +667,66 @@ für das Video Eingetragenen, und die Beschreibung enthält den Kommentarverlauf
 nach Timecode, mit Antworten, Erledigt-Haken und einem Vermerk, wo gezeichnet
 wurde. Alles Übrige geht als **Projekt-Kommentar** hinaus.
 
-**Einrichten**, in dieser Reihenfolge:
+#### Voraussetzung: die Projektnummer
 
-1. In awork unter *Einstellungen → Integrationen* eine „Client Application"
-   anlegen und dort einen API-Schlüssel erzeugen. Er gilt unbegrenzt und hat
-   Administratorrechte – dafür am besten einen eigenen API-Benutzer anlegen,
-   damit die Änderungen dort nicht unter einem fremden Namen stehen. Einzelne
-   Nutzer müssen sich **nicht** bei awork anmelden; der Schlüssel wird einmal
-   vom Admin hinterlegt.
-2. Den Schlüssel eintragen und *Verbindung prüfen* – das geht auch, bevor die
-   Anbindung scharf geschaltet ist.
-3. Die beiden Projektnummer-Felder wählen: das Klappe-Feld und die
-   awork-Freifeld-Definition. Ohne diese Wahl findet die Zuordnung nichts.
-4. Aufgabenliste und Titel-Präfix prüfen (Vorgabe: *Postproduktion* und
+**Ohne Projektnummer läuft nichts.** Sie ist der einzige Schlüssel, über den
+sich ein Klappe-Projekt und ein awork-Projekt finden – Projektnamen weichen
+zwischen beiden Systemen regelmäßig ab und taugen dafür nicht.
+
+Gebraucht wird sie als **Freifeld auf beiden Seiten**:
+
+- in Klappe unter *Einstellungen → Benutzerdefinierte Felder* (etwa
+  „Projektnummer"; Tippvorschläge dort am besten aus, sie helfen bei einer
+  einmaligen Nummer nicht),
+- in awork als Freifeld am Projekt.
+
+Beide müssen **denselben Wert** tragen. Schreibweise und Trenner sind egal:
+`J26Q3P0153`, `j26q3p0153` und `J26 Q3-P0153` gelten als dieselbe Nummer.
+
+Was ohne sie passiert: Ein Klappe-Projekt ohne Nummer wird nie zugeordnet, es
+gehen also keine Korrekturen hinaus (die Projektseite zeigt das an, und von
+Hand zuordnen geht weiterhin). Ein awork-Projekt ohne Nummer wird beim Abholen
+übersprungen und **nicht** in Klappe angelegt – so bleiben interne Vorhaben
+außen vor, die kein Review brauchen.
+
+#### Den API-Schlüssel erzeugen
+
+In awork, unter *Einstellungen → Integrationen*:
+
+1. **API-Benutzer anlegen.** Ein eigenes Konto, etwa „Klappe". Ohne ihn stehen
+   alle Änderungen, die Klappe in awork macht, unter dem Namen eines echten
+   Menschen.
+2. **Client Application anlegen.** Name und Client ID frei wählbar (`klappe`
+   genügt). *Vertraulicher Client* **an** – Klappe ist ein Server und kann ein
+   Geheimnis sicher aufbewahren. Eine *Redirect URI* wird **nicht** gebraucht:
+   Sie gehört zum OAuth-Anmeldefluss, den Klappe nicht benutzt. Verlangt das
+   Formular trotzdem eine, die eigene Klappe-Adresse eintragen – nie eine
+   fremde.
+3. **Das Client Secret, das jetzt erscheint, ist nicht der API-Schlüssel.** Es
+   gehört zu OAuth und wird hier nicht gebraucht. Sicher ablegen oder
+   ignorieren; es lässt sich neu erzeugen.
+4. **Den Schlüssel erzeugen:** die Anwendung in der Liste öffnen → *API-Keys
+   verwalten* → neuen Key erzeugen und dabei den API-Benutzer aus Schritt 1
+   auswählen. **Dieser** Wert kommt nach Klappe. Er ist ein JWT und damit
+   ziemlich lang – das ist normal.
+
+Der Schlüssel gilt unbegrenzt und trägt Administratorrechte. Einzelne Nutzer
+müssen sich **nicht** bei awork anmelden; er wird einmal vom Admin hinterlegt.
+In Klappe liegt er verschlüsselt (`JWT_SECRET`-abgeleitet, wie das
+SMTP-Passwort) und verlässt den Server nie wieder.
+
+#### In Klappe eintragen
+
+In dieser Reihenfolge – die Anbindung wird als **Letztes** eingeschaltet:
+
+1. Schlüssel eintragen und *Verbindung prüfen*. Der Test läuft ausdrücklich
+   auch mit noch ausgeschalteter Anbindung und mit einem Schlüssel, der noch
+   nicht gespeichert ist.
+2. Die beiden Projektnummer-Felder wählen: links das Klappe-Feld, rechts die
+   awork-Definition. Die rechte Auswahl füllt sich mit dem Verbindungstest.
+3. Aufgabenliste und Titel-Präfix prüfen (Vorgabe: *Postproduktion* und
    `Korrektur: `). Fehlt die Liste im awork-Projekt, legt Klappe sie an.
-5. Die Anbindung einschalten.
+4. Speichern, dann die Anbindung einschalten.
 
 **Zuordnung.** Gefunden wird über die Projektnummer, die es in beiden Systemen
 als Freifeld gibt; der Kundenname ist die Gegenprobe. Weicht er ab, wird nicht

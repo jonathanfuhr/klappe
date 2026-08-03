@@ -453,7 +453,8 @@ export function HandbuchEn() {
           <li>
             <strong>awork</strong> – the link to the project management tool: change requests on a
             version become a task there, with the subscribed people as its assignees (off by
-            default).
+            default). For a project to find its counterpart, the same <strong>project number</strong>
+            must be filled in on both sides – without it, nothing goes out.
           </li>
           <li>
             <strong>Backup</strong> – whether and how often the database is backed up, and

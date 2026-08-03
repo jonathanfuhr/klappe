@@ -173,33 +173,58 @@ export class AworkController {
         message: 'Es ist kein API-Schlüssel hinterlegt.',
         userCount: null,
         projectCount: null,
+        fields: [],
       };
     }
 
     try {
       const ergebnis = await this.client.check(key);
       await this.settings.merkeErgebnis(null);
+      /*
+       * Die Freifelder gleich mit: Geprüft wird oft mit einem Schlüssel, der
+       * noch nicht gespeichert ist – ein zweiter Aufruf käme leer zurück, und
+       * die Auswahl bliebe ausgerechnet in dem Moment leer, in dem sie
+       * gebraucht wird.
+       */
+      const felder = await this.projektFelder(key);
       return {
         ok: true,
         message: `Verbindung steht: ${ergebnis.userCount} Nutzer, ${ergebnis.projectCount} Projekte gefunden.`,
         userCount: ergebnis.userCount,
         projectCount: ergebnis.projectCount,
+        fields: felder,
       };
     } catch (error) {
       const meldung = error instanceof AworkError ? error.message : String(error);
       await this.settings.merkeErgebnis(meldung);
-      return { ok: false, message: meldung, userCount: null, projectCount: null };
+      return { ok: false, message: meldung, userCount: null, projectCount: null, fields: [] };
     }
   }
 
-  /** Die Freifelder aus awork – zur Auswahl, welches die Projektnummer trägt. */
-  @Roles('ADMIN')
-  @Get('settings/awork/felder')
-  async fields(): Promise<AworkFieldDto[]> {
-    const felder = await this.client.listCustomFieldDefinitions();
+  private async projektFelder(apiKey: string): Promise<AworkFieldDto[]> {
+    const felder = await this.client.listCustomFieldDefinitions(apiKey);
     return felder
       .filter((feld) => feld.entity === 'project')
       .map((feld) => ({ id: feld.id, name: feld.name, type: feld.type }));
+  }
+
+  /**
+   * Die Freifelder aus awork – zur Auswahl, welches die Projektnummer trägt.
+   *
+   * Läuft ausdrücklich mit dem **gespeicherten** Schlüssel und nicht über die
+   * übliche Prüfung „ist die Anbindung an?". Beim Einrichten ist sie das noch
+   * nicht: Erst kommt der Schlüssel, dann die Feld-Auswahl, und eingeschaltet
+   * wird zuletzt. Ohne diese Ausnahme bliebe die Auswahl leer, und man käme
+   * nie zum letzten Schritt.
+   */
+  @Roles('ADMIN')
+  @Get('settings/awork/felder')
+  async fields(): Promise<AworkFieldDto[]> {
+    const key = await this.settings.apiKeyForCheck();
+    // Ohne Schlüssel gibt es nichts zu holen – eine leere Liste ist hier die
+    // ehrliche Antwort, die Oberfläche sagt dazu schon das Nötige.
+    if (!key) return [];
+    return this.projektFelder(key);
   }
 
   // ------------------------------------------------------ Zuordnung je Projekt
