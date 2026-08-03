@@ -656,6 +656,66 @@ Filterleiste, der Sortier- und der Gruppier-Auswahl der Projektliste steht, und
 ob sein Wert auf der Projektkachel erscheint. Auch die Schlagworte lassen sich
 hier workspace-weit abschalten.
 
+### awork
+
+Die Anbindung an das Projektmanagement [awork](https://www.awork.com) – ab Werk
+**aus**. Wer Klappe ohne awork betreibt, sieht davon nichts.
+
+Ist sie an, entstehen die Korrekturen zu einer Fassung als **Aufgabe** im
+zugeordneten awork-Projekt: Titel `Korrektur: <Video> · v2`, Bearbeiter sind die
+für das Video Eingetragenen, und die Beschreibung enthält den Kommentarverlauf
+nach Timecode, mit Antworten, Erledigt-Haken und einem Vermerk, wo gezeichnet
+wurde. Alles Übrige geht als **Projekt-Kommentar** hinaus.
+
+**Einrichten**, in dieser Reihenfolge:
+
+1. In awork unter *Einstellungen → Integrationen* eine „Client Application"
+   anlegen und dort einen API-Schlüssel erzeugen. Er gilt unbegrenzt und hat
+   Administratorrechte – dafür am besten einen eigenen API-Benutzer anlegen,
+   damit die Änderungen dort nicht unter einem fremden Namen stehen. Einzelne
+   Nutzer müssen sich **nicht** bei awork anmelden; der Schlüssel wird einmal
+   vom Admin hinterlegt.
+2. Den Schlüssel eintragen und *Verbindung prüfen* – das geht auch, bevor die
+   Anbindung scharf geschaltet ist.
+3. Die beiden Projektnummer-Felder wählen: das Klappe-Feld und die
+   awork-Freifeld-Definition. Ohne diese Wahl findet die Zuordnung nichts.
+4. Aufgabenliste und Titel-Präfix prüfen (Vorgabe: *Postproduktion* und
+   `Korrektur: `). Fehlt die Liste im awork-Projekt, legt Klappe sie an.
+5. Die Anbindung einschalten.
+
+**Zuordnung.** Gefunden wird über die Projektnummer, die es in beiden Systemen
+als Freifeld gibt; der Kundenname ist die Gegenprobe. Weicht er ab, wird nicht
+stillschweigend zugeordnet, sondern nachgefragt. Steht die Verknüpfung, bleibt
+sie – die Projektnamen dürfen danach frei auseinanderlaufen. Auf der
+Projektseite steht eine Zeile, die den Stand zeigt und für Sonderfälle die
+Zuordnung von Hand erlaubt.
+
+**Was gemeldet wird** – je Ereignis ein Schalter:
+
+| Ereignis | In awork als | Ab Werk |
+| --- | --- | --- |
+| Korrekturen zu einer Fassung | Aufgabe | an, nicht abschaltbar |
+| Kunde hat Daten hochgeladen | Projekt-Kommentar | an |
+| Kunde öffnet die Freigabe zum ersten Mal | Projekt-Kommentar | an |
+| Neue Fassung ist beim Kunden | Projekt-Kommentar | aus |
+| Endfassung markiert | Projekt-Kommentar | aus |
+| Aufgabe schließen, wenn alles erledigt ist | Aufgabe | aus |
+
+Interne Fassungen und ihre Kommentare bleiben im Haus. Gast-Login-Codes,
+Transcoding- und Sicherungsfehler gehen nie nach awork – Betrieb und Sicherheit
+bleiben bei Mail und Push.
+
+**Gegenrichtung.** Der Worker sieht alle fünf Minuten nach, ob in awork neue
+Projekte entstanden sind. Ein Projekt **ohne Projektnummer** wird übersprungen –
+interne Vorhaben brauchen kein Klappe. Beim Anlegen werden Name, Kunde (aus der
+Firma) und Projektnummer übernommen; wer das Projekt in awork angelegt hat, wird
+über seine Mailadresse für die Benachrichtigungen eingetragen. Hat er kein
+Klappe-Konto, greift der hier einstellbare Ersatznutzer – ohne ihn bliebe das
+Projekt ohne Eintrag, und dann bekäme niemand mit, wenn der Kunde Material
+hochlädt. Dazu optional: fehlende Projektnummern auf der Seite nachtragen, auf
+der sie fehlen (vorhandene Werte werden nie überschrieben), und den Klappe-Link
+einmalig als Kommentar ins awork-Projekt schreiben.
+
 ### Speicher
 
 Wie voll das Dateisystem hinter `MEDIA_DIR` ist: frei, belegt, gesamt – und

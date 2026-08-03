@@ -451,6 +451,11 @@ export function HandbuchEn() {
             occupies.
           </li>
           <li>
+            <strong>awork</strong> – the link to the project management tool: change requests on a
+            version become a task there, with the subscribed people as its assignees (off by
+            default).
+          </li>
+          <li>
             <strong>Backup</strong> – whether and how often the database is backed up, and
             restoring a backup.
           </li>

@@ -432,6 +432,7 @@ export function HandbuchDe() {
               <li><strong>E-Mail-Versand</strong> – SMTP-Einrichtung, Bündel-Zeitfenster, unzustellbare Mails.</li>
               <li><strong>Transcode</strong> – welche Download-Formate angeboten und wann sie erzeugt werden.</li>
               <li><strong>Speicher</strong> – wie viel Platz auf der Platte noch frei ist und wie viel davon Klappe belegt.</li>
+              <li><strong>awork</strong> – die Anbindung ans Projektmanagement: Korrekturen zu einer Fassung werden dort zur Aufgabe, die Eingetragenen stehen als Bearbeiter darin (ab Werk aus).</li>
               <li><strong>Datensicherung</strong> – ob und wie oft die Datenbank gesichert wird, und das Wiedereinspielen einer Sicherung.</li>
             </ul>
           </section>

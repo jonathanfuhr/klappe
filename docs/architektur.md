@@ -331,6 +331,63 @@ Ein Detail, das leicht falsch läuft: **Abgelehnte Versuche zählen nicht mit.**
 Sonst könnte sich jemand durch stures Weiterklopfen selbst dauerhaft
 aussperren – und ein Angreifer damit fremde Konten.
 
+### Die awork-Anbindung schreibt, sie spiegelt nicht (Phase 30)
+
+Klappe und awork führen dieselben Projekte, aber keine gemeinsame Datenbank.
+Die Anbindung ist deshalb bewusst **einseitig gedacht**: Klappe schreibt, was
+in awork als Arbeit oder als Nachricht ankommen soll – Korrekturen als Aufgabe,
+alles Übrige als Projekt-Kommentar. Zurück kommt nur, was Klappe von sich aus
+nicht wissen kann: dass ein neues Projekt entstanden ist.
+
+Ein echter Abgleich in beide Richtungen bräuchte für jedes Feld eine Antwort
+auf „welche Seite hat recht?", und die gibt es meistens nicht. Angeglichen wird
+deshalb nur, was auf einer Seite **fehlt**.
+
+**Die Aufgabenbeschreibung gehört vollständig Klappe.** Sie entsteht bei jeder
+Änderung neu, nie durch Anhängen. Nur so stimmen auch nachträglich geänderte,
+gelöschte und abgehakte Kommentare. Der Preis: Was jemand von Hand
+hineinschreibt, ist beim nächsten Kommentar weg – deshalb steht ein Hinweis
+darauf oben in der Beschreibung, und Notizen gehören in einen Aufgaben-Kommentar.
+
+**Runden statt Wiederbeleben.** Ist die Aufgabe in awork erledigt und kommen
+danach neue Kommentare, entsteht eine zweite. Eine abgehakte Aufgabe wieder
+aufzureißen wäre unhöflich gegenüber dem, der sie abgehakt hat – und neue Punkte
+still in ihre Beschreibung zu legen wäre schlimmer: Sie stünden dort, gelesen
+hätte sie niemand.
+
+**Ein kurzer Aufgaben-Kommentar bei jeder Erweiterung.** awork benachrichtigt
+seine Bearbeiter bei einem Kommentar, nicht bei einer still geänderten
+Beschreibung. Ohne diese Zeile bliebe jede Erweiterung unbemerkt.
+
+**Gesammelt wird im Takt der Sammelmail.** Dieselbe Einstellung, dieselbe
+Ruhezeit: Wer sein Postfach im Fünf-Minuten-Takt bekommt, will die Aufgabe nicht
+im Sekundentakt aktualisiert sehen. Technisch trägt jeder Auftrag eine feste
+Kennung; ein wartender Auftrag nimmt weitere Änderungen desselben Gegenstands
+beim Ausführen von selbst mit, weil die Beschreibung ohnehin frisch entsteht.
+
+**Zuordnung über die Projektnummer, einmal.** Ein Freifeld auf beiden Seiten,
+der Kundenname als Gegenprobe. Weicht er ab, wird nicht stillschweigend
+zugeordnet – eine falsche Zuordnung schriebe Korrekturen ins Projekt eines
+fremden Kunden, und das fällt niemandem auf. Steht die Verknüpfung, bleibt sie
+stehen; die Projektnamen dürfen sich danach frei auseinanderentwickeln.
+
+**Abholen statt Webhook.** awork kann Webhooks, die bräuchten aber eine aus dem
+Internet erreichbare Instanz – und abgesichert wären sie nur über einen
+mitgeschickten Header, denn awork signiert nicht. Der Worker fragt deshalb alle
+fünf Minuten nach; bei 1000 erlaubten Anfragen je Minute kostet das nichts, und
+es läuft auch hinter einem Tunnel oder nur über Tailscale.
+
+**Eine eigene Warteschlange.** awork darf ausfallen, ohne dass die Sammelpost
+stehen bleibt: getrennte Wiederholungen, getrennte Fehlersuche. Was awork von
+sich aus nicht mag – ein falscher Schlüssel, ein gelöschtes Projekt –, endet
+nach dem ersten Versuch im Protokoll statt in fünf Anläufen.
+
+**Zwei Eigenheiten der awork-API** prägen den Client: `PUT` ersetzt immer das
+ganze Objekt (fehlende Felder werden geleert), deshalb wird vor jedem Schreiben
+frisch gelesen; und `setassignees` ersetzt die komplette Bearbeiterliste,
+deshalb kommen die vorhandenen Bearbeiter mit. Wer in awork von Hand jemanden
+eingetragen hat, behält ihn – Klappe weiß nicht, warum er dort steht.
+
 ## Was der Worker tut
 
 1. `ffprobe` liest Dauer, Framerate als Bruch, Auflösung, Codecs, Pixelformat,

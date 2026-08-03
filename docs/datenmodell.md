@@ -362,3 +362,54 @@ keine fertigen Dateien wegwerfen.
 
 `requested_by_id` ist `null`, wenn die Datei aus der Vorab-Erzeugung stammt und
 nicht auf Klick.
+
+## awork_project_links
+
+Welches Klappe-Projekt zu welchem awork-Projekt gehört (Phase 30). Der
+Schlüssel ist das Klappe-Projekt, die awork-Kennung zusätzlich eindeutig: Zwei
+Klappe-Projekte auf demselben awork-Projekt würden dort zwei Sätze Aufgaben
+erzeugen.
+
+Gefunden wird über die Projektnummer – ein Freifeld auf beiden Seiten –, aber
+nur **einmal**. Danach steht die Verknüpfung fest, und die Namen dürfen sich
+frei auseinanderentwickeln; die beiden Systeme benennen dasselbe Projekt
+ohnehin oft verschieden, und eine Umbenennung darf die Verbindung nicht
+kappen. `matched_by` hält fest, wie sie zustande kam: `nummer`, `manuell` oder
+`angelegt` (aus awork übernommen).
+
+## awork_tasks
+
+Die Korrektur-Aufgaben, die Klappe in awork angelegt hat. Eine Zeile ist **eine
+Runde einer Fassung**, eindeutig je (`version_id`, `round`).
+
+Kommen nach dem Erledigen der Aufgabe weitere Kommentare, entsteht Runde 2 –
+die erledigte wird nie wieder angefasst. Sonst stünde eine abgehakte Aufgabe
+plötzlich wieder offen, oder schlimmer: Sie bliebe erledigt, und die neuen
+Punkte lägen unbemerkt in ihrer Beschreibung. Dasselbe greift, wenn die
+Aufgabe in awork gelöscht oder in ein anderes Projekt verschoben wurde.
+
+`synced_comment_count` ist der Stand beim letzten Schreiben. Die Differenz
+ergibt das „3 neue Anmerkungen" im Aufgaben-Kommentar – ohne diesen Stand
+wüsste niemand, was seit dem letzten Mal dazukam.
+
+## awork_notices
+
+Was schon nach awork gemeldet wurde. Die Meldungen ohne Aufgabencharakter
+gehen als Projekt-Kommentar hinaus, und ein Kommentar lässt sich nicht
+zurücknehmen. Es gibt aber mehrere Wege zu demselben Ereignis: Eine Fassung
+kommt beim Kunden an, indem sie fertig verarbeitet wird **oder** indem jemand
+sie nachträglich freigibt. Ohne diesen Vermerk stünde der Hinweis zweimal im
+Projekt.
+
+Eindeutig je (`kind`, `reference_id`). `reference_id` ist bewusst Text und
+keine Fremdschlüsselspalte: Mal ist es eine Fassung, mal eine Datei, mal ein
+Gast an einem Freigabe-Link. Vermerkt wird **nach** dem Schreiben – scheitert
+der Aufruf an awork, soll der nächste Anlauf es erneut versuchen.
+
+## awork_users
+
+Zwischenspeicher der Nutzer-Zuordnung über die Mailadresse. Beide Systeme
+kennen dieselben Leute unter derselben Adresse; die Zuordnung wird trotzdem
+festgehalten, damit nicht vor jedem Setzen der Bearbeiter die ganze
+awork-Nutzerliste geholt werden muss. Sie verfällt nach 24 Stunden von selbst,
+damit neu eingetretene Kolleginnen dazukommen.
