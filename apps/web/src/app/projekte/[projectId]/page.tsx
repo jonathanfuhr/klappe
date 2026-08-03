@@ -196,7 +196,13 @@ export default function ProjectPage() {
 
         {project ? <ProjectFieldValues project={project} isTeam={isTeam} onChanged={load} /> : null}
 
-        {isTeam ? <AworkProjectLink projectId={projectId} /> : null}
+        {/* Etwas Luft zur Freifeld-Zeile darüber: Beide sind schmale Leisten,
+            und ohne Abstand lasen sie sich wie ein einziger Block. */}
+        {isTeam ? (
+          <div style={{ marginTop: 16 }}>
+            <AworkProjectLink projectId={projectId} />
+          </div>
+        ) : null}
 
         {uploaderOffen && canManage ? (
           <div style={{ marginTop: 16 }}>

@@ -25,7 +25,10 @@ export type IconName =
   | 'filter'
   | 'sort'
   | 'group'
-  | 'tag';
+  | 'tag'
+  | 'fullscreen'
+  | 'volume'
+  | 'volume-off';
 
 const PFADE: Record<IconName, ReactElement> = {
   plus: (
@@ -124,6 +127,39 @@ const PFADE: Record<IconName, ReactElement> = {
     <>
       <path d="M11.4 3.5H20v8.6l-8.7 8.7a1.4 1.4 0 0 1-2 0l-6.6-6.6a1.4 1.4 0 0 1 0-2z" />
       <circle cx="16.4" cy="7.1" r="1.4" />
+    </>
+  ),
+  /*
+   * Vollbild: zwei Pfeile, die diagonal in die Ecken zeigen. Das ⛶ von vorher
+   * war ein Schriftzeichen – es stand in jeder Schrift anders da und sagte
+   * nicht, in welche Richtung es geht.
+   *
+   * Zwei Diagonalen und nicht vier: Mit allen vier Ecken wären es acht Striche
+   * auf 18 × 18 Pixel, und daraus wird ein Fleck. So bleiben die Pfeilspitzen
+   * auch am Handy als solche zu erkennen.
+   */
+  fullscreen: (
+    <>
+      <path d="M14.5 3.5H21v6.5" />
+      <path d="M9.5 20.5H3V14" />
+      <path d="M21 3.5 13.5 11" />
+      <path d="M3 20.5 10.5 13" />
+    </>
+  ),
+  /* Lautsprecher als Strichzeichnung – die Emoji davor brachten ihre eigene
+     Farbe mit und fielen zwischen den übrigen Zeichen heraus. */
+  volume: (
+    <>
+      <path d="M11 4.5 6.5 9H3v6h3.5l4.5 4.5z" />
+      <path d="M15 9.8a3.4 3.4 0 0 1 0 4.4" />
+      <path d="M17.6 7a7 7 0 0 1 0 10" />
+    </>
+  ),
+  'volume-off': (
+    <>
+      <path d="M11 4.5 6.5 9H3v6h3.5l4.5 4.5z" />
+      <line x1="16" y1="9.5" x2="21" y2="14.5" />
+      <line x1="21" y1="9.5" x2="16" y2="14.5" />
     </>
   ),
 };

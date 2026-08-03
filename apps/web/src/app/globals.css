@@ -348,6 +348,15 @@ button {
   flex: 1;
 }
 
+/*
+ * Erzwingt am Handy den Zeilenumbruch in der Player-Leiste (1.5). Am
+ * Schreibtisch nimmt das Element keinen Platz ein – dort passt alles in eine
+ * Zeile, und ein Umbruch wäre nur ein Loch.
+ */
+.player__umbruch {
+  display: none;
+}
+
 .shell__user {
   display: flex;
   align-items: center;
@@ -2513,10 +2522,19 @@ a.badge:hover {
  * nimmt dann auch die Tastatur-Navigation heraus; ein `pointer-events: none`
  * täte das nicht.
  */
-.abschnitt {
+/*
+ * Ein Abschnitt, der sich als Ganzes sperren lässt. Ohne `.card` ist er reines
+ * Layout ohne eigene Optik; zusammen mit `.card` behält die Karte ihren Rahmen
+ * und ihr Polster - sonst stünde ein sperrbarer Block ohne Rahmen zwischen
+ * lauter Karten (1.5).
+ */
+.abschnitt:not(.card) {
   border: 0;
   margin: 0;
   padding: 0;
+}
+
+.abschnitt {
   min-width: 0; /* sonst sprengt eine breite Tabelle das Raster */
 }
 
@@ -2780,16 +2798,14 @@ a.badge:hover {
     padding: calc(8px + var(--klappe-safe-top)) 14px 8px;
   }
 
+  /*
+   * Das Hauptmenü fällt weg (1.5). Es führt seit Phase 24 nur noch auf die
+   * Projektliste – und dorthin kommt man mit dem Logo daneben genauso. Vorher
+   * belegte es hier eine **eigene Zeile** über die volle Breite (`order: 3`),
+   * und die Kopfzeile war damit auf dem Telefon doppelt so hoch wie nötig.
+   */
   .shell__nav {
-    margin-left: 0;
-    order: 3;
-    width: 100%;
-    overflow-x: auto;
-  }
-
-  .shell__nav a {
-    padding: 8px 12px;
-    white-space: nowrap;
+    display: none;
   }
 
   /*
@@ -2907,11 +2923,28 @@ a.badge:hover {
     max-height: 68dvh;
   }
 
-  /* Die Steuerleiste brach in drei bis vier Reihen um. */
+  /*
+   * Die Steuerleiste brach in drei bis vier Reihen um. Jetzt sind es genau
+   * zwei, und die Stelle steht fest: `player__umbruch` trennt das Fahren oben
+   * von den Werkzeugen unten (1.5). Beide Zeilen stehen für sich mittig –
+   * deshalb verschwindet auch der Platzhalter, der sonst alles nach rechts
+   * schöbe.
+   */
   .player__controls {
     gap: 6px;
     padding: 6px 8px;
     justify-content: center;
+    row-gap: 4px;
+  }
+
+  .player__controls .player__umbruch {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
+  }
+
+  .player__controls .shell__spacer {
+    display: none;
   }
 
   .timeline__scale {

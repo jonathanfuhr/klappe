@@ -311,7 +311,7 @@ export function AworkPanel() {
         </div>
       </form>
 
-      <fieldset className="abschnitt" disabled={!settings.enabled || busy}>
+      <fieldset className="card abschnitt" style={{ padding: 20 }} disabled={!settings.enabled || busy}>
         <h2 className="section__title" style={{ marginTop: 0 }}>
           {t('awork.eventsTitle')}
         </h2>
@@ -359,7 +359,7 @@ export function AworkPanel() {
         </table>
       </fieldset>
 
-      <fieldset className="abschnitt" disabled={!settings.enabled || busy}>
+      <fieldset className="card abschnitt" style={{ padding: 20 }} disabled={!settings.enabled || busy}>
         <h2 className="section__title" style={{ marginTop: 0 }}>
           {t('awork.backTitle')}
         </h2>

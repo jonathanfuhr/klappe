@@ -120,7 +120,13 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
    * Die Wahl bleibt im Browser, nicht am Video – sie sagt etwas über die
    * Arbeitsweise, nicht über den Film.
    */
-  const [zeichnungBeiFahrt, setZeichnungBeiFahrt] = useState(true);
+  /**
+   * Zeichnungen **während der Fahrt** einblenden? Ab Werk nein (1.5): Eine
+   * Zeichnung gehört zu genau einem Bild. Läuft sie mit, klebt sie über
+   * Sekunden im Bild und meint dort längst etwas anderes – gemeint war der
+   * eine Frame, auf dem sie entstanden ist. Wer sie sehen will, hält an.
+   */
+  const [zeichnungBeiFahrt, setZeichnungBeiFahrt] = useState(false);
   const [scrubbing, setScrubbing] = useState(false);
   const scrubTimer = useRef<number | null>(null);
 
@@ -176,7 +182,9 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
   // gibt es kein `localStorage`, und ein Unterschied zwischen Server- und
   // Browser-Fassung würde React beim Hydrieren bemängeln.
   useEffect(() => {
-    setZeichnungBeiFahrt(window.localStorage.getItem(SPEICHER_ZEICHNUNG) !== 'aus');
+    // Nur ein ausdrückliches „an" schaltet ein – fehlt der Eintrag, gilt der
+    // Standard von oben.
+    setZeichnungBeiFahrt(window.localStorage.getItem(SPEICHER_ZEICHNUNG) === 'an');
   }, []);
 
   useEffect(() => () => {
@@ -690,6 +698,18 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           {formatDuration(durationSeconds)}
         </span>
 
+        {/*
+         * Umbruchstelle für schmale Schirme (1.5). Am Handy passt die Leiste
+         * nicht in eine Zeile, und sie brach bisher irgendwo um – zuletzt
+         * zwischen Stift und Kommentar, was die beiden zusammengehörigen
+         * Werkzeuge auseinanderriss. Jetzt bricht sie **hier**: oben das
+         * Fahren, unten die Werkzeuge, beide Zeilen für sich mittig.
+         *
+         * Ein leeres Element mit voller Breite statt zweier Wrapper: Am
+         * Schreibtisch bleibt die Leiste damit unverändert eine Zeile.
+         */}
+        <div className="player__umbruch" aria-hidden />
+
         <div className="shell__spacer" />
 
         {/* Stufenwahl der HLS-Leiter (Phase 22). Nur wenn hls.js spielt –
@@ -733,7 +753,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           aria-label={t('player.mute')}
           data-active={muted}
         >
-          {muted ? '🔇' : '🔊'}
+          <Icon name={muted ? 'volume-off' : 'volume'} />
         </button>
         <button
           type="button"
@@ -743,7 +763,7 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           title={t('player.fullscreenTitle')}
           aria-label={t('player.fullscreen')}
         >
-          ⛶
+          <Icon name="fullscreen" />
         </button>
         <button
           type="button"
@@ -761,8 +781,10 @@ export const VideoPlayer = forwardRef<PlayerHandle, VideoPlayerProps>(function V
           }
           aria-label={t('player.drawingsWhilePlaying')}
           aria-pressed={zeichnungBeiFahrt}
-          data-active={zeichnungBeiFahrt}
         >
+          {/* Ohne `data-active`: Das offene und das durchgestrichene Auge sagen
+              den Zustand schon: Eine zusätzliche Einfärbung in der Akzentfarbe
+              las sich wie eine Warnung, obwohl hier nichts im Argen liegt. */}
           <Icon name={zeichnungBeiFahrt ? 'eye' : 'eye-off'} />
         </button>
         <button
