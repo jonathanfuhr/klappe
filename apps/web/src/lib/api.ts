@@ -453,6 +453,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(ids ? { ids } : {}),
     }),
+  /** Entfernt genau diesen Eintrag und meldet den neuen ungelesenen Stand. */
+  deleteNotification: (id: string) =>
+    request<{ unread: number }>(`/v1/notifications/${id}`, { method: 'DELETE' }),
+  /** Leert die Zentrale – auch Ungelesenes (Phase 29). */
+  clearNotifications: () =>
+    request<{ unread: number }>('/v1/notifications', { method: 'DELETE' }),
 
   // ---------- Benachrichtigungen je Projekt und Video (Phase 18) ----------
   listProjectSubscribers: (projectId: string) =>

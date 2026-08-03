@@ -473,6 +473,8 @@ export const en: Record<MessageKey, Message> = {
   'bell.unreadLabel': 'Notifications ({count} unread)',
   'bell.unreadTitle': '{count} unread',
   'bell.markAllRead': 'Mark all read',
+  'bell.clearAll': 'Clear',
+  'bell.remove': 'Remove entry',
   'bell.empty': 'Nothing new. Comments on films you follow and mentions land here.',
   'bell.mentioned': 'mentioned',
   'bell.reply': ' · reply',

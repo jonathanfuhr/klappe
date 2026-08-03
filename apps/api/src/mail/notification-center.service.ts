@@ -148,6 +148,33 @@ export class NotificationCenterService {
     return row?.anzahl ?? 0;
   }
 
+  /**
+   * Einen Eintrag entfernen (Phase 29).
+   *
+   * Gelöscht wird wirklich, nicht verborgen: Die Zeile ist nur ein Zeiger auf
+   * einen Kommentar, und der bleibt unberührt, wo er steht. Wer hier
+   * aufräumt, verliert eine Liste, nie einen Inhalt.
+   *
+   * Der Filter auf `userId` ist keine Vorsicht, sondern die Regel: Ein
+   * Eintrag gehört genau einer Person. Eine fremde Kennung trifft damit
+   * schlicht keine Zeile.
+   */
+  async remove(userId: string, id: string): Promise<number> {
+    await this.db
+      .delete(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.id, id)));
+    return this.unreadCount(userId);
+  }
+
+  /**
+   * Die ganze Zentrale leeren – auch Ungelesenes. Das ist gewollt: „Alles
+   * gelesen" steht als sanftere Handlung daneben, und ein Leeren, das die
+   * Hälfte stehen lässt, wäre keines.
+   */
+  async clear(userId: string): Promise<void> {
+    await this.db.delete(notifications).where(eq(notifications.userId, userId));
+  }
+
   /** Ohne `ids` gilt alles als gelesen. Gibt die neue ungelesene Zahl zurück. */
   async markRead(userId: string, ids?: string[]): Promise<number> {
     const wen =

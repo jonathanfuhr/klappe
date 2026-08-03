@@ -3162,14 +3162,27 @@ a.badge:hover {
   line-height: 1.5;
 }
 
+/*
+ * Eintrag und ×: Die Hülle trägt seit Phase 29 nur noch die Auszeichnung –
+ * der Knopf steckt darin. Vorher war die Zeile selbst der Knopf, und ein
+ * zweiter darin wäre ein Knopf im Knopf gewesen.
+ */
 .bell__item {
+  display: flex;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--klappe-border);
+}
+
+.bell__hin {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  width: 100%;
-  padding: 10px 12px;
+  /* `min-width: 0` gehört dazu: Ohne das weigert sich ein Flex-Kind zu
+     schrumpfen, und der lange Kommentarauszug schöbe das × hinaus. */
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 4px 10px 12px;
   border: none;
-  border-bottom: 1px solid var(--klappe-border);
   background: none;
   color: inherit;
   font: inherit;
@@ -3177,8 +3190,27 @@ a.badge:hover {
   cursor: pointer;
 }
 
+/* Das Hervorheben hängt an der Hülle, damit auch die Spalte mit dem × mitgeht
+   – sonst bliebe rechts ein heller Streifen stehen. */
 .bell__item:hover {
   background: var(--klappe-surface-hover);
+}
+
+/*
+ * Immer sichtbar, nur zurückhaltend: Ein × , das erst beim Zeigen erscheint,
+ * gibt es auf einem Handy nie zu sehen. Beim Überfahren hebt es sich vom
+ * schon eingefärbten Zeilenhintergrund ab, deshalb `surface-raised` statt
+ * des gewohnten `surface-hover`.
+ */
+.bell__weg {
+  align-self: flex-start;
+  margin: 6px 6px 0 0;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.bell__weg:hover:not(:disabled) {
+  background: var(--klappe-surface-raised);
 }
 
 /* Ungelesen bekommt einen Balken links – Fettschrift allein geht unter. */

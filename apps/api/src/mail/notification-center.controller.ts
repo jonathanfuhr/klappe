@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import type { NotificationDto } from '@klappe/shared';
 import { IsArray, IsOptional, IsUUID } from 'class-validator';
 import { CurrentUser } from '../auth/auth.decorators';
@@ -43,5 +43,25 @@ export class NotificationCenterController {
     @Body() dto: MarkReadDto,
   ): Promise<{ unread: number }> {
     return { unread: await this.center.markRead(user.id, dto.ids) };
+  }
+
+  /**
+   * Die Zentrale leeren (Phase 29). Steht **vor** der Route mit Kennung:
+   * Nest prüft in Reihenfolge der Deklaration, und `:id` würde einen leeren
+   * Pfad zwar nicht fangen – aber die Absicht soll auch beim Lesen von oben
+   * nach unten stimmen.
+   */
+  @Delete()
+  async clear(@CurrentUser() user: RequestUser): Promise<{ unread: number }> {
+    await this.center.clear(user.id);
+    return { unread: 0 };
+  }
+
+  @Delete(':id')
+  async remove(
+    @CurrentUser() user: RequestUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ unread: number }> {
+    return { unread: await this.center.remove(user.id, id) };
   }
 }

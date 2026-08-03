@@ -108,6 +108,32 @@ export function NotificationBell() {
     }
   };
 
+  /**
+   * Einen Eintrag wegräumen (Phase 29). Erst aus der Liste, dann melden: Ein
+   * Tippen aufs × soll sofort wirken und nicht auf den Server warten.
+   * Scheitert es, holt der Zähler den richtigen Stand – und die Liste wird
+   * beim nächsten Öffnen ohnehin frisch geholt.
+   */
+  const entfernen = async (id: string) => {
+    setEntries((current) => current?.filter((eintrag) => eintrag.id !== id) ?? null);
+    try {
+      const { unread: anzahl } = await api.deleteNotification(id);
+      setUnread(anzahl);
+    } catch {
+      void zaehlen();
+    }
+  };
+
+  const leeren = async () => {
+    setEntries([]);
+    try {
+      const { unread: anzahl } = await api.clearNotifications();
+      setUnread(anzahl);
+    } catch {
+      void zaehlen();
+    }
+  };
+
   const hingehen = async (entry: NotificationDto) => {
     setOpen(false);
     if (!entry.readAt) {
@@ -147,6 +173,13 @@ export function NotificationBell() {
                 {t('bell.markAllRead')}
               </button>
             ) : null}
+            {/* Erst anbieten, wenn es etwas zu leeren gibt – ein Knopf, der
+                auf eine leere Liste zeigt, ist eine Falle ohne Wirkung. */}
+            {entries && entries.length > 0 ? (
+              <button type="button" className="button button--ghost" onClick={() => void leeren()}>
+                {t('bell.clearAll')}
+              </button>
+            ) : null}
           </div>
 
           <div className="bell__list">
@@ -155,28 +188,42 @@ export function NotificationBell() {
               <p className="bell__leer">{t('bell.empty')}</p>
             ) : null}
 
+            {/* Der Eintrag war bis Phase 29 selbst ein Knopf. Das × darin
+                wäre ein Knopf im Knopf gewesen – ungültiges HTML, und kein
+                Browser trennt die beiden Klickflächen zuverlässig. Jetzt
+                trägt eine Hülle die Auszeichnung, darin springt der linke
+                Teil ins Video und der rechte räumt die Zeile weg. */}
             {(entries ?? []).map((entry) => (
-              <button
+              <div
                 key={entry.id}
-                type="button"
                 className="bell__item"
                 data-unread={entry.readAt === null}
                 data-mention={entry.mentioned}
-                onClick={() => void hingehen(entry)}
               >
-                <span className="bell__zeile">
-                  <strong>{entry.authorName}</strong>
-                  {entry.mentioned ? <span className="badge">{t('bell.mentioned')}</span> : null}
-                  <span className="shell__spacer" />
-                  <span className="faint">{formatRelative(entry.createdAt)}</span>
-                </span>
-                <span className="bell__wo">
-                  {entry.projectName} · {entry.videoName} · {entry.versionLabel}
-                  {entry.timecode ? ` · ${entry.timecode}` : ''}
-                  {entry.isReply ? t('bell.reply') : ''}
-                </span>
-                <span className="bell__text">{entry.excerpt}</span>
-              </button>
+                <button type="button" className="bell__hin" onClick={() => void hingehen(entry)}>
+                  <span className="bell__zeile">
+                    <strong>{entry.authorName}</strong>
+                    {entry.mentioned ? <span className="badge">{t('bell.mentioned')}</span> : null}
+                    <span className="shell__spacer" />
+                    <span className="faint">{formatRelative(entry.createdAt)}</span>
+                  </span>
+                  <span className="bell__wo">
+                    {entry.projectName} · {entry.videoName} · {entry.versionLabel}
+                    {entry.timecode ? ` · ${entry.timecode}` : ''}
+                    {entry.isReply ? t('bell.reply') : ''}
+                  </span>
+                  <span className="bell__text">{entry.excerpt}</span>
+                </button>
+                <button
+                  type="button"
+                  className="iconbutton bell__weg"
+                  onClick={() => void entfernen(entry.id)}
+                  aria-label={t('bell.remove')}
+                  title={t('bell.remove')}
+                >
+                  ✕
+                </button>
+              </div>
             ))}
           </div>
         </div>

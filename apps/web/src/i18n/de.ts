@@ -480,6 +480,8 @@ export const de = {
   'bell.unreadLabel': 'Benachrichtigungen ({count} ungelesen)',
   'bell.unreadTitle': '{count} ungelesen',
   'bell.markAllRead': 'Alle gelesen',
+  'bell.clearAll': 'Leeren',
+  'bell.remove': 'Eintrag entfernen',
   'bell.empty': 'Nichts Neues. Hier landen Kommentare zu Filmen, die du verfolgst, und Erwähnungen.',
   'bell.mentioned': 'erwähnt',
   'bell.reply': ' · Antwort',

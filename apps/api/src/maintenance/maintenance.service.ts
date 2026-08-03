@@ -17,6 +17,7 @@ import { DB, type Database } from '../db/db.module';
 import {
   deviceAuthorizations,
   loginCodes,
+  notifications,
   pendingNotifications,
   projectFiles,
   projects,
@@ -53,6 +54,19 @@ const ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
  */
 const PENDING_NOTIFICATION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * So lange bleibt ein **gelesener** Eintrag in der Zentrale stehen (Phase 29).
+ *
+ * Bisher sammelte sie nur an: Hinein ging alles, heraus nichts – gelesen hieß
+ * bloß „nicht mehr fett". Eine Woche ist lang genug, um etwas noch einmal zu
+ * suchen, und kurz genug, dass aus der Liste kein Archiv wird.
+ *
+ * Ungelesenes bleibt liegen, egal wie alt. Das ist gerade das, was noch
+ * niemand angesehen hat – es nach einer Frist wegzuräumen hieße, eine
+ * unerledigte Sache still zu erledigen.
+ */
+const GELESENE_BENACHRICHTIGUNG_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 export interface CleanupReport {
   loginCodes: number;
   orphanFiles: number;
@@ -62,6 +76,8 @@ export interface CleanupReport {
   archivedVersions: number;
   /** Abgelaufene Gerätekopplungen (Phase 27). */
   deviceAuthorizations: number;
+  /** Längst gelesene Einträge der Zentrale (Phase 29). */
+  readNotifications: number;
 }
 
 @Injectable()
@@ -94,6 +110,7 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
       const codes = await this.cleanupLoginCodes();
       const kopplungen = await this.cleanupDeviceAuthorizations();
       const hinweise = await this.cleanupPendingNotifications();
+      const gelesene = await this.cleanupReadNotifications();
       // Erst warnen, dann löschen: Sonst kommt die Warnung zu einem Verlust,
       // der schon eingetreten ist (Phase 28).
       await this.warnBeforeCleanup();
@@ -102,10 +119,18 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
       const fassungen = await this.cleanupArchivedVersions();
       const dateien = await this.cleanupOrphanFiles();
 
-      if (codes > 0 || dateien.count > 0 || hinweise > 0 || fassungen > 0 || kopplungen > 0) {
+      if (
+        codes > 0 ||
+        dateien.count > 0 ||
+        hinweise > 0 ||
+        gelesene > 0 ||
+        fassungen > 0 ||
+        kopplungen > 0
+      ) {
         this.logger.log(
           `Aufgeräumt: ${codes} Anmeldecodes, ${kopplungen} abgelaufene Gerätekopplungen, ` +
             `${hinweise} liegengebliebene Benachrichtigungen, ` +
+            `${gelesene} gelesene Einträge der Zentrale, ` +
             `${fassungen} alte Fassungen aus archivierten Projekten, ` +
             `${dateien.count} verwaiste Dateien (${Math.round(dateien.bytes / 1024 / 1024)} MB).`,
         );
@@ -117,6 +142,7 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
         pendingNotifications: hinweise,
         archivedVersions: fassungen,
         deviceAuthorizations: kopplungen,
+        readNotifications: gelesene,
       };
     } catch (error) {
       this.logger.error(`Aufräumen fehlgeschlagen: ${String(error)}`);
@@ -127,8 +153,26 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
         pendingNotifications: 0,
         archivedVersions: 0,
         deviceAuthorizations: 0,
+        readNotifications: 0,
       };
     }
+  }
+
+  /**
+   * Gelesene Einträge der Zentrale nach ihrer Frist (Phase 29).
+   *
+   * `isNotNull` steht hier neben dem Vergleich, obwohl SQL eine `NULL` beim
+   * Kleiner-als ohnehin nie trifft. Es ist die eigentliche Aussage dieser
+   * Abfrage – dass Ungelesenes bleibt –, und die soll im Code stehen und
+   * nicht aus der Dreiwertigkeit von SQL erschlossen werden müssen.
+   */
+  async cleanupReadNotifications(): Promise<number> {
+    const schwelle = new Date(Date.now() - GELESENE_BENACHRICHTIGUNG_MAX_AGE_MS);
+    const weg = await this.db
+      .delete(notifications)
+      .where(and(isNotNull(notifications.readAt), lt(notifications.readAt, schwelle)))
+      .returning({ id: notifications.id });
+    return weg.length;
   }
 
   /**
