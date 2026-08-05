@@ -38,9 +38,18 @@ RUN apt-get update \
   && apt-get purge -y curl gnupg && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/*
 
+# Welcher Stand hier steckt (1.5.1). Beides kommt von aussen, weil es im
+# Container nicht zu ermitteln ist: Ein .git liegt hier nicht, und die
+# Dateizeit sagt nur etwas ueber das Entpacken. Fehlen sie, zeigt die
+# Oberflaeche nur die Version - besser als eine geratene Angabe.
+ARG KLAPPE_COMMIT=""
+ARG KLAPPE_BUILT_AT=""
+
 ENV NODE_ENV=production \
     STORAGE_DIR=/data \
-    PORT=3001
+    PORT=3001 \
+    KLAPPE_COMMIT=${KLAPPE_COMMIT} \
+    KLAPPE_BUILT_AT=${KLAPPE_BUILT_AT}
 
 WORKDIR /app
 COPY package.json package-lock.json ./

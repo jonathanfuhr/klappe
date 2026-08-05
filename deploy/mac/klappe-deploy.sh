@@ -204,8 +204,13 @@ fi
 # `--build` erzwingt ein neues Image; ohne das liefe der alte Stand weiter.
 # Die Datenbank-Migration läuft im Startskript des api-Containers mit.
 schritt "Container bauen und starten"
+# Commit und Bauzeitpunkt wandern ins Image und stehen danach in der
+# Oberfläche unter „Über diese Software" (1.5.1). Im Container ist beides
+# sonst nicht zu ermitteln – ein .git liegt dort nicht.
+export KLAPPE_COMMIT="$(git rev-parse --short HEAD)"
+export KLAPPE_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 docker compose "${COMPOSE[@]}" up -d --build
-gut "Gestartet"
+gut "Gestartet (Version $(node -p "require('./package.json').version"), Commit ${KLAPPE_COMMIT})"
 
 schritt "Auf die API warten"
 BEREIT=""

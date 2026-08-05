@@ -49,6 +49,11 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        # Setzt das Deploy-Skript; von Hand gebaut bleiben sie leer, dann
+        # zeigt die Oberflaeche nur die Versionsnummer.
+        KLAPPE_COMMIT: ${KLAPPE_COMMIT:-}
+        KLAPPE_BUILT_AT: ${KLAPPE_BUILT_AT:-}
     image: klappe/api:latest
     restart: unless-stopped
     command: ['api']

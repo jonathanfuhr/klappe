@@ -1,6 +1,6 @@
 {
   "name": "klappe",
-  "version": "0.4.0",
+  "version": "1.5.1",
   "private": true,
   "description": "Klappe – selbst gehostetes Video-Review- und Freigabe-Tool",
   "license": "AGPL-3.0-only",
@@ -19,6 +19,7 @@
     "test:watch": "vitest",
     "migrate": "npm run migrate -w @klappe/api",
     "db:generate": "npm run db:generate -w @klappe/api",
+    "version:bump": "node scripts/version-anheben.mjs",
     "dev:api": "npm run dev -w @klappe/api",
     "dev:worker": "npm run dev:worker -w @klappe/api",
     "dev:web": "npm run dev -w @klappe/web"

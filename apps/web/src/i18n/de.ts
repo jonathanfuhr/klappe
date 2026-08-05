@@ -1090,6 +1090,16 @@ export const de = {
   'about.licenseEnd':
     '(AGPL-3.0). Kurz gefasst: Klappe darf jeder nutzen, verändern und weitergeben. Wer eine veränderte Fassung betreibt und sie anderen über ein Netz zugänglich macht, muss deren Quellcode ebenfalls unter dieser Lizenz herausgeben. Der vollständige Text steht als Datei',
   'about.licenseFileEnd': 'im Repository.',
+  'about.versionFooter': 'Klappe {version} · {commit}',
+  'about.versionTitle': 'Stand dieser Installation',
+  'about.versionHint':
+    'Welcher Stand hier gerade läuft. Die Nummer folgt dem Zweig im Repository; das Kürzel dahinter ist der Commit, aus dem gebaut wurde.',
+  'about.versionApi': 'Server',
+  'about.versionWeb': 'Oberfläche',
+  'about.versionBuiltAt': 'gebaut am {when}',
+  'about.versionUnknownCommit': 'ohne Commit-Angabe (Entwicklungsmodus)',
+  'about.versionMismatch':
+    'Server und Oberfläche laufen auf verschiedenen Ständen. Nach einem Update hilft meist, die Seite neu zu laden; bleibt es so, wurde nur eine der beiden Hälften neu gebaut.',
   'about.installationTitle': 'Diese Installation',
   'about.installationHint':
     'Freitext des Admins – etwa auf welcher Hardware oder in welcher Umgebung dieser Klappe-Stack läuft. Klappe kann das nicht selbst erkennen; das trägt nur ein Admin vor Ort ein.',

@@ -1085,6 +1085,16 @@ export const en: Record<MessageKey, Message> = {
   'about.licenseEnd':
     '(AGPL-3.0). In short: anyone may use, modify and redistribute Klappe. Whoever runs a modified version and makes it available to others over a network must release its source code under this licence as well. The full text is in the file',
   'about.licenseFileEnd': 'in the repository.',
+  'about.versionFooter': 'Klappe {version} · {commit}',
+  'about.versionTitle': 'Version of this installation',
+  'about.versionHint':
+    'Which state is running here. The number follows the branch in the repository; the short hash after it is the commit it was built from.',
+  'about.versionApi': 'Server',
+  'about.versionWeb': 'Interface',
+  'about.versionBuiltAt': 'built on {when}',
+  'about.versionUnknownCommit': 'no commit recorded (development mode)',
+  'about.versionMismatch':
+    'Server and interface are running different versions. After an update, reloading the page usually helps; if it persists, only one of the two halves was rebuilt.',
   'about.installationTitle': 'This installation',
   'about.installationHint':
     'Free text by the admin – for instance which hardware or environment this Klappe stack runs on. Klappe cannot detect that itself; only an admin on site enters it.',

@@ -17,6 +17,7 @@ import { StoragePanel } from '@/components/settings/StoragePanel';
 import { TranscodePanel } from '@/components/settings/TranscodePanel';
 import { UsersPanel } from '@/components/settings/UsersPanel';
 import { SectionNav } from '@/components/ui/SectionNav';
+import { VersionsFuss } from '@/components/VersionsFuss';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
@@ -107,6 +108,12 @@ export default function SettingsPage() {
           {gewaehlt === 'transcode' ? <TranscodePanel /> : null}
           {gewaehlt === 'speicher' ? <StoragePanel /> : null}
           {gewaehlt === 'sicherung' ? <BackupPanel /> : null}
+
+          {/* Der Stand ganz unten, auf jedem Bereich (1.5.1): Wer in den
+              Einstellungen sitzt und sich fragt, ob eine Änderung überhaupt
+              schon ausgerollt ist, soll die Antwort sehen, ohne die Seite zu
+              wechseln. Ausführlich steht sie unter „Über diese Software". */}
+          <VersionsFuss />
         </div>
       </div>
     </AppShell>

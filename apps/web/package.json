@@ -1,6 +1,6 @@
 {
   "name": "@klappe/web",
-  "version": "0.4.0",
+  "version": "1.5.1",
   "private": true,
   "description": "Klappe Web-Oberfläche",
   "license": "AGPL-3.0-only",

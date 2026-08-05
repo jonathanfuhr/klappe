@@ -1,5 +1,6 @@
 'use client';
 
+import type { BuildInfoDto } from '@klappe/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { api } from '@/lib/api';
@@ -8,6 +9,13 @@ import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 const MAX_LENGTH = 4000;
+
+/**
+ * Die Version der Oberfläche, beim Bauen aus der `package.json` eingesetzt
+ * (siehe `next.config.mjs`). Im Entwicklungsmodus ohne Build steht dort
+ * nichts – dann bleibt ein Strich stehen statt einer falschen Zahl.
+ */
+const WEB_VERSION = process.env.NEXT_PUBLIC_KLAPPE_VERSION ?? '–';
 
 /**
  * „Über diese Software": feste Angaben zu Klappe und zum Autor, plus ein
@@ -25,6 +33,7 @@ export default function AboutPage() {
 
   const [notes, setNotes] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [build, setBuild] = useState<BuildInfoDto | null>(null);
   const [entwurf, setEntwurf] = useState('');
   const [bearbeiten, setBearbeiten] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -35,6 +44,7 @@ export default function AboutPage() {
       const about = await api.getAbout();
       setNotes(about.environmentNotes);
       setUpdatedAt(about.updatedAt);
+      setBuild(about.build);
       setEntwurf(about.environmentNotes ?? '');
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : t('common.loadFailed'));
@@ -110,6 +120,56 @@ export default function AboutPage() {
               </a>{' '}
               {t('about.licenseEnd')} <code>LICENSE</code> {t('about.licenseFileEnd')}
             </p>
+          </section>
+
+          {/*
+            Der Stand dieser Anlage (1.5.1). Server und Oberfläche nennen ihn
+            getrennt: Sie werden getrennt gebaut, und wenn nur eine Hälfte
+            erneuert wurde, ist genau das die Auskunft, die man braucht.
+          */}
+          <section className="card manual__section">
+            <h2>{t('about.versionTitle')}</h2>
+            <p className="hint" style={{ marginTop: 0 }}>
+              {t('about.versionHint')}
+            </p>
+
+            <table className="table">
+              <tbody>
+                <tr>
+                  <td>{t('about.versionApi')}</td>
+                  <td className="mono">
+                    {build ? (
+                      <>
+                        {build.version}
+                        {build.commit ? ` · ${build.commit}` : ''}
+                      </>
+                    ) : (
+                      '–'
+                    )}
+                    {build && !build.commit ? (
+                      <div className="faint" style={{ fontSize: 12 }}>
+                        {t('about.versionUnknownCommit')}
+                      </div>
+                    ) : null}
+                    {build?.builtAt ? (
+                      <div className="faint" style={{ fontSize: 12 }}>
+                        {t('about.versionBuiltAt', { when: formatDateTime(build.builtAt) })}
+                      </div>
+                    ) : null}
+                  </td>
+                </tr>
+                <tr>
+                  <td>{t('about.versionWeb')}</td>
+                  <td className="mono">{WEB_VERSION}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {build && build.version !== WEB_VERSION ? (
+              <div className="notice notice--warn" style={{ marginTop: 12 }}>
+                {t('about.versionMismatch')}
+              </div>
+            ) : null}
           </section>
 
           <section className="card manual__section">

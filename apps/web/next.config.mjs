@@ -1,7 +1,17 @@
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Die eigene Versionsnummer für die Anzeige unter „Über diese Software"
+ * (1.5.1). Sie wird beim Bauen eingesetzt – im Browser gibt es keine
+ * `package.json` zu lesen. Die Oberfläche nennt sie getrennt von der des
+ * Servers: Beide werden getrennt gebaut, und wenn nur eine Hälfte erneuert
+ * wurde, ist genau das die Auskunft, die man braucht.
+ */
+const paketVersion = JSON.parse(readFileSync(join(here, 'package.json'), 'utf8')).version;
 
 /**
  * Die Web-App ist der einzige nach außen offene Dienst. Alles unter `/v1`
@@ -14,6 +24,7 @@ const apiUrl = process.env.API_INTERNAL_URL ?? 'http://localhost:3001';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  env: { NEXT_PUBLIC_KLAPPE_VERSION: paketVersion },
   // Klappe benutzt den Bildoptimierer von Next nicht: Vorschaubilder liegen
   // hinter der Authentifizierung der API und werden als schlichtes <img>
   // eingebunden. Ausdrücklich abgeschaltet, damit der Weg über `sharp`

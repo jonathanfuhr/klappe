@@ -8,6 +8,7 @@ import type {
 } from '@klappe/shared';
 import { normalizeEnvironmentNotes } from '@klappe/shared';
 import { eq, sql } from 'drizzle-orm';
+import { buildInfo } from '../common/build-info';
 import { decryptSecret, encryptSecret } from '../common/secret-box';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
@@ -289,6 +290,7 @@ export class SettingsService {
     return {
       environmentNotes: row.environmentNotes,
       updatedAt: row.updatedAt.toISOString(),
+      build: buildInfo(),
     };
   }
 
