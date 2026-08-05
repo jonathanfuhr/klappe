@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -85,15 +86,67 @@ export class AuthService {
   }
 
   /**
+   * Den ersten Admin im Browser anlegen (1.5.1).
+   *
+   * Der Weg für eine frische Anlage: Wer Klappe zum ersten Mal öffnet, legt
+   * sein Konto selbst an, statt Zugangsdaten in die `.env` zu schreiben. Ein
+   * Passwort in einer Datei bleibt dort stehen – im Klartext, in jeder
+   * Sicherung, und meist unverändert.
+   *
+   * Die Route ist öffentlich und **genau einmal** benutzbar: Sobald irgendein
+   * Konto existiert, wird sie abgewiesen. Das ist die ganze Absicherung, und
+   * sie genügt, weil das Zeitfenster zwischen erstem Start und erstem Konto
+   * ohnehin dem gehört, der den Container gestartet hat.
+   */
+  async setupFirstAdmin(input: {
+    email: string;
+    name: string;
+    password: string;
+  }): Promise<void> {
+    if (!(await this.authSettings.isFreshInstall())) {
+      throw new ForbiddenException(
+        'Es gibt bereits Konten – die Ersteinrichtung ist abgeschlossen.',
+      );
+    }
+
+    const policy = await this.authSettings.getPasswordPolicy();
+    const verstoss = validatePasswordStrength(input.password, policy);
+    if (verstoss) throw new BadRequestException(verstoss);
+
+    const email = input.email.trim().toLowerCase();
+    const [angelegt] = await this.db
+      .insert(users)
+      .values({
+        email,
+        name: input.name.trim() || email,
+        role: 'ADMIN',
+        nameConfirmed: true,
+        passwordHash: await hashPassword(input.password),
+      })
+      // Zwei gleichzeitige Einrichtungen: Der Zweite läuft ins Leere statt in
+      // einen Datenbankfehler – geprüft wird gleich danach.
+      .onConflictDoNothing()
+      .returning();
+
+    if (!angelegt) {
+      throw new ForbiddenException('Die Ersteinrichtung ist bereits erfolgt.');
+    }
+    this.logger.log(`Ersteinrichtung: Admin ${email} angelegt.`);
+  }
+
+  /**
    * Legt beim ersten Start den Admin aus `ADMIN_EMAIL`/`ADMIN_PASSWORD` an.
-   * Existiert das Konto schon, passiert nichts – das Passwort wird also nicht
-   * bei jedem Neustart zurückgesetzt.
+   *
+   * Seit 1.5.1 der **Nebenweg**: Normalerweise entsteht der erste Admin im
+   * Browser (siehe `setupFirstAdmin`). Wer die beiden Variablen dennoch
+   * setzt, bekommt weiter sein Startkonto – für automatisierte Aufbauten, die
+   * keinen Menschen am Browser haben.
    */
   async ensureBootstrapAdmin(): Promise<void> {
     const { email, password, name } = this.config.bootstrapAdmin;
     if (!email || !password) {
-      this.logger.warn(
-        'ADMIN_EMAIL/ADMIN_PASSWORD sind nicht gesetzt – es wird kein Startkonto angelegt.',
+      this.logger.log(
+        'Kein ADMIN_EMAIL/ADMIN_PASSWORD gesetzt – der erste Admin wird im Browser angelegt.',
       );
       return;
     }

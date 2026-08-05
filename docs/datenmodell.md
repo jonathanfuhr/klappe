@@ -413,3 +413,19 @@ kennen dieselben Leute unter derselben Adresse; die Zuordnung wird trotzdem
 festgehalten, damit nicht vor jedem Setzen der Bearbeiter die ganze
 awork-Nutzerliste geholt werden muss. Sie verfällt nach 24 Stunden von selbst,
 damit neu eingetretene Kolleginnen dazukommen.
+
+## awork_ignored_projects
+
+awork-Projekte, die **nicht** wieder automatisch nach Klappe geholt werden
+(1.5.1). Ein Eintrag entsteht beim Löschen eines Klappe-Projekts, das mit
+awork verknüpft war.
+
+Ohne diesen Vermerk drehte sich ein Kreisel: Das Löschen entfernt per Kaskade
+auch die Verknüpfung, der nächste Abhol-Lauf fand das awork-Projekt „neu" vor
+und legte es samt Kommentar wieder an – wer aufräumen wollte, bekam alles
+binnen fünf Minuten zurück.
+
+Bewusst eine **eigene Tabelle ohne Fremdschlüssel aufs Projekt**: Jeder
+Vermerk, der am Projekt hinge, stürbe in genau dem Löschvorgang, den er
+überleben soll. Ein manuelles Zuordnen hebt ihn wieder auf – wer das Projekt
+zurückholt, meint das auch so.

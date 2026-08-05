@@ -12,7 +12,7 @@ import { eq } from 'drizzle-orm';
 import { decryptSecret, encryptSecret } from '../common/secret-box';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
-import { appSettings } from '../db/schema';
+import { appSettings, users } from '../db/schema';
 import { parseDomainList } from '../auth/microsoft/entra';
 import { SettingsService } from './settings.service';
 
@@ -109,7 +109,21 @@ export class AuthSettingsService {
       microsoft,
       microsoftLabel: row.oidcButtonLabel?.trim() || DEFAULT_BUTTON_LABEL,
       passwordPolicy: await this.getPasswordPolicy(),
+      needsSetup: await this.isFreshInstall(),
     };
+  }
+
+  /**
+   * Steht die Anlage noch ganz am Anfang? (1.5.1)
+   *
+   * Gezählt wird über **alle** Konten, nicht nur über Admins: Sobald irgendwo
+   * ein Konto existiert, ist die Anlage in Betrieb, und die Einrichtung darf
+   * nie wieder offenstehen. Ein Workspace, in dem jemand alle Admins gelöscht
+   * hat, wird nicht zur Selbstbedienung.
+   */
+  async isFreshInstall(): Promise<boolean> {
+    const [zeile] = await this.db.select({ id: users.id }).from(users).limit(1);
+    return !zeile;
   }
 
   /** Darf sich dieser Benutzer mit Passwort anmelden? */

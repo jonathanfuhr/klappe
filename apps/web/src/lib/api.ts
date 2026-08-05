@@ -123,6 +123,9 @@ function extractMessage(payload: unknown): string | null {
 }
 
 export const api = {
+  /** Ersteinrichtung: der erste Admin einer frischen Anlage (1.5.1). */
+  setup: (input: { email: string; name: string; password: string }) =>
+    request<void>('/v1/auth/setup', { method: 'POST', body: JSON.stringify(input) }),
   login: (email: string, password: string) =>
     request<LoginResponseDto>('/v1/auth/login', {
       method: 'POST',
@@ -147,6 +150,8 @@ export const api = {
       tagIds?: string[];
       tagMatch?: 'any' | 'all';
       sort?: string;
+      /** Auf- oder absteigend; ohne Angabe entscheidet die Sortierung selbst. */
+      sortDir?: 'asc' | 'desc';
       /** Mehrere Kunden = einer genügt (Phase 16). */
       customers?: string[];
       /** Je Feld die gewählten Werte; Felder untereinander UND. */
@@ -157,6 +162,7 @@ export const api = {
     if (options.tagIds?.length) query.set('tags', options.tagIds.join(','));
     if (options.tagMatch) query.set('tagMatch', options.tagMatch);
     if (options.sort) query.set('sort', options.sort);
+    if (options.sortDir) query.set('sortDir', options.sortDir);
     for (const kunde of options.customers ?? []) query.append('customer', kunde);
     for (const filter of options.fieldFilters ?? []) {
       for (const wert of filter.values) query.append('field', `${filter.fieldId}:${wert}`);

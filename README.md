@@ -312,14 +312,23 @@ der Repo.
 
 ```bash
 cp .env.example .env
-# In .env mindestens POSTGRES_PASSWORD, JWT_SECRET, ADMIN_EMAIL und
-# ADMIN_PASSWORD setzen. Geheimnisse erzeugen: openssl rand -hex 32
+# In .env mindestens POSTGRES_PASSWORD und JWT_SECRET setzen.
+# Geheimnisse erzeugen: openssl rand -hex 32
 docker compose up -d --build
 ```
 
-Danach läuft die Oberfläche auf <http://localhost:3000>. Beim ersten Start wird
-aus `ADMIN_EMAIL` / `ADMIN_PASSWORD` ein Administrator angelegt; existiert das
-Konto bereits, bleibt das Passwort unangetastet.
+Danach läuft die Oberfläche auf <http://localhost:3000>. Beim ersten Öffnen
+empfängt eine **Ersteinrichtung**: Dort werden Name, E-Mail und Passwort des
+ersten Kontos festgelegt, das damit Administrator wird. Anschließend ist man
+gleich angemeldet.
+
+Die Seite steht nur offen, solange es **kein einziges Konto** gibt – danach
+weist der Server sie ab und die Anmeldung erscheint wie gewohnt.
+
+Zugangsdaten in der `.env` braucht es dafür nicht mehr. Wer ohne Menschen am
+Browser aufsetzt – etwa in einem automatisierten Aufbau –, kann weiterhin
+`ADMIN_EMAIL` und `ADMIN_PASSWORD` setzen; dann entsteht das Konto beim Start
+wie bisher.
 
 ### Was mindestens in die `.env` gehört
 
@@ -327,7 +336,7 @@ Konto bereits, bleibt das Passwort unangetastet.
 | --- | --- |
 | `POSTGRES_PASSWORD` | Datenbankpasswort |
 | `JWT_SECRET` | Signiert Sitzungen und verschlüsselt SMTP-Passwort und OIDC-Secret. Ändert man ihn, sind alle Sitzungen und die hinterlegten Geheimnisse ungültig. |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | das erste Konto |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | *optional* – das erste Konto. Leer lassen: Es entsteht beim ersten Öffnen im Browser. |
 | `PUBLIC_URL` | die Adresse, unter der Klappe erreichbar ist |
 | `MEDIA_DIR` | Pfad für die Mediendateien (siehe unten) |
 
@@ -887,6 +896,23 @@ bleibt im Container, nur der Worker läuft nativ auf macOS
 den Dauerbetrieb einrichtet (Homebrew und Docker, Neustart nach
 Stromausfall, kein Ruhezustand, automatische Anmeldung, Automounts, SSH),
 in [docs/mac-server.md](docs/mac-server.md).
+
+**Updates laufen über ein Skript**, weil dieser Aufbau als einziger zwei
+Hälften hat – Container *und* nativer Worker:
+
+```bash
+./deploy/mac/klappe-update.sh
+```
+
+Es holt den Stand, zieht die Abhängigkeiten nach (`npm ci`), baut den Server,
+baut und startet die Container – dabei läuft die Datenbank-Migration im Start
+des `api`-Containers mit – und startet zuletzt den nativen Worker neu. Am Ende
+steht, was läuft.
+
+Der `npm ci`-Schritt ist der wichtigste: Kommt mit einer Version eine neue
+Abhängigkeit dazu und fehlt sie, scheitert der Build, das alte `dist/` bleibt
+liegen, und der Worker läuft unbemerkt mit altem Stand weiter. Genau das ist
+schon passiert – vier Tage lang.
 
 ---
 

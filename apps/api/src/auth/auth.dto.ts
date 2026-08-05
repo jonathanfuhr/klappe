@@ -12,6 +12,27 @@ export class LoginDto {
   password!: string;
 }
 
+/** Der erste Admin einer frischen Anlage (1.5.1). */
+export class SetupDto {
+  @IsEmail({}, { message: 'Bitte eine gültige E-Mail-Adresse angeben.' })
+  @MaxLength(320)
+  email!: string;
+
+  @IsString()
+  @MinLength(1, { message: 'Bitte einen Namen angeben.' })
+  @MaxLength(120)
+  name!: string;
+
+  /*
+   * Wie beim Passwortwechsel nur „nicht leer": Die Regeln kommen aus der
+   * Richtlinie des Workspace, und die kennt erst der Dienst.
+   */
+  @IsString()
+  @MinLength(1, { message: 'Bitte ein Passwort angeben.' })
+  @MaxLength(PASSWORD_MAX_LENGTH)
+  password!: string;
+}
+
 export class ChangePasswordDto {
   @IsString()
   @MaxLength(512)

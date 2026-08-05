@@ -6,6 +6,8 @@ import { AccessService, type AccessScope } from '../access/access.service';
 import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
 import {
+  aworkIgnoredProjects,
+  aworkProjectLinks,
   projectFieldDefs,
   projectFieldValues,
   projectFiles,
@@ -39,6 +41,13 @@ export interface ProjectListOptions {
   tagMatch?: 'any' | 'all';
   /** `field:<uuid>` sortiert nach einem benutzerdefinierten Feld. */
   sort?: 'updated' | 'created' | 'name' | 'customer' | `field:${string}`;
+  /**
+   * Richtung der Sortierung (1.5.1). Ab Werk `desc` für Datumsfelder und
+   * `asc` für alles Übrige – das war schon vorher das feste Verhalten, es ist
+   * jetzt nur wählbar. Bei einer Projektnummer will man in aller Regel die
+   * jüngste oben haben, bei einem Namen das A ganz vorn.
+   */
+  sortDir?: 'asc' | 'desc';
   /** Exakte Kundennamen (mehrere = eines genügt); Schreibweise egal. */
   customers?: string[];
   /** Je Feld: gewählte Werte (mehrere = eines genügt); Felder untereinander UND. */
@@ -139,28 +148,53 @@ export class ProjectsService {
     const feldSortierung = options.sort?.startsWith('field:')
       ? options.sort.slice('field:'.length)
       : null;
+
+    /*
+     * Die Richtung (1.5.1). Ohne Angabe gilt, was vorher fest im Code stand:
+     * Datumsfelder absteigend (das Neueste zuerst), alles Übrige aufsteigend.
+     *
+     * `richtung` kommt aus einer festen Auswahl und nie aus der Anfrage –
+     * eingesetzt wird es in rohes SQL, und dort hätte eine durchgereichte
+     * Zeichenkette nichts zu suchen.
+     */
+    const absteigend =
+      options.sortDir === undefined
+        ? options.sort === 'created' || options.sort === undefined || options.sort === 'updated'
+        : options.sortDir === 'desc';
+    const richtung = absteigend ? sql`desc` : sql`asc`;
+
+    /**
+     * Leere Werte bleiben unten, in beide Richtungen. Sonst stünden bei
+     * „absteigend" zuerst dreißig Projekte ohne Nummer – und die Liste sähe
+     * aus, als wäre sie kaputt.
+     */
+    const leereAnsEnde = (leerPruefung: ReturnType<typeof sql>) =>
+      sql`${leerPruefung} asc`;
+
     const sortiert =
       options.sort === 'name'
-        ? gefiltert.orderBy(sql`lower(${projects.name})`)
+        ? gefiltert.orderBy(sql`lower(${projects.name}) ${richtung}`)
         : options.sort === 'created'
-          ? gefiltert.orderBy(desc(projects.createdAt))
+          ? gefiltert.orderBy(sql`${projects.createdAt} ${richtung}`)
           : options.sort === 'customer'
             ? // Projekte ohne Kunden ans Ende, sonst wäre die erste „Gruppe" die
               // namenlose – innerhalb des Kunden entscheidet der Projektname.
               gefiltert.orderBy(
-                sql`(${projects.customer} is null or ${projects.customer} = '')`,
-                sql`lower(coalesce(${projects.customer}, ''))`,
-                sql`lower(${projects.name})`,
+                leereAnsEnde(sql`(${projects.customer} is null or ${projects.customer} = '')`),
+                sql`lower(coalesce(${projects.customer}, '')) ${richtung}`,
+                sql`lower(${projects.name}) asc`,
               )
             : feldSortierung
               ? // Nach einem benutzerdefinierten Feld – Projekte ohne Wert ans
                 // Ende, dieselbe Ordnung wie beim Kunden.
                 gefiltert.orderBy(
-                  sql`(select v.value from ${projectFieldValues} v where v.project_id = ${projects.id} and v.field_id = ${feldSortierung}) is null`,
-                  sql`lower((select v.value from ${projectFieldValues} v where v.project_id = ${projects.id} and v.field_id = ${feldSortierung}))`,
-                  sql`lower(${projects.name})`,
+                  leereAnsEnde(
+                    sql`(select v.value from ${projectFieldValues} v where v.project_id = ${projects.id} and v.field_id = ${feldSortierung}) is null`,
+                  ),
+                  sql`lower((select v.value from ${projectFieldValues} v where v.project_id = ${projects.id} and v.field_id = ${feldSortierung})) ${richtung}`,
+                  sql`lower(${projects.name}) asc`,
                 )
-              : gefiltert.orderBy(desc(projects.updatedAt));
+              : gefiltert.orderBy(sql`${projects.updatedAt} ${richtung}`);
 
     const rows = await sortiert;
     return rows.map((row) => this.toDto(row, scope));
@@ -291,8 +325,32 @@ export class ProjectsService {
       .from(projectFiles)
       .where(eq(projectFiles.projectId, id));
 
+    /*
+     * War das Projekt mit awork verknüpft, bleibt ein Vermerk zurück, der das
+     * automatische Wiederanlegen unterbindet (Phase 30, Nachtrag 1.5). Er muss
+     * **vor** dem Löschen entstehen: Die Verknüpfung hängt per Kaskade am
+     * Projekt und ist gleich weg – und mit ihr das Wissen, welches
+     * awork-Projekt gemeint war. Ohne den Vermerk holte der nächste
+     * Abhol-Lauf das eben Gelöschte binnen Minuten zurück.
+     */
+    const [verknuepfung] = await this.db
+      .select({ aworkProjectId: aworkProjectLinks.aworkProjectId })
+      .from(aworkProjectLinks)
+      .where(eq(aworkProjectLinks.projectId, id))
+      .limit(1);
+
     const [row] = await this.db.delete(projects).where(eq(projects.id, id)).returning();
     if (!row) throw new NotFoundException('Projekt nicht gefunden.');
+
+    if (verknuepfung) {
+      await this.db
+        .insert(aworkIgnoredProjects)
+        .values({ aworkProjectId: verknuepfung.aworkProjectId, projectName: row.name })
+        .onConflictDoNothing();
+      this.logger.log(
+        `awork-Projekt ${verknuepfung.aworkProjectId} wird nicht mehr automatisch geholt („${row.name}" wurde gelöscht).`,
+      );
+    }
 
     return [
       ...versionen.flatMap((v) => [

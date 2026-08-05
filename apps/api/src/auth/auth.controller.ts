@@ -7,7 +7,7 @@ import { AuthSettingsService } from '../settings/auth-settings.service';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { CurrentUser, Public } from './auth.decorators';
-import { ChangePasswordDto, LoginDto } from './auth.dto';
+import { ChangePasswordDto, LoginDto, SetupDto } from './auth.dto';
 import type { RequestUser } from './auth.types';
 
 @Controller('v1/auth')
@@ -24,6 +24,22 @@ export class AuthController {
   @Get('methods')
   methods(): Promise<LoginMethodsDto> {
     return this.authSettings.getLoginMethods();
+  }
+
+  /**
+   * Die Ersteinrichtung: den ersten Admin anlegen (1.5.1).
+   *
+   * Öffentlich, aber genau einmal benutzbar – der Dienst weist ab, sobald
+   * irgendein Konto existiert. Die Bremse steht trotzdem davor, damit ein
+   * offener Container nicht mit Anfragen geflutet werden kann, solange das
+   * Fenster offen ist.
+   */
+  @Public()
+  @RateLimit({ name: 'setup', limit: 5, windowMs: 60_000 })
+  @Post('setup')
+  @HttpCode(204)
+  async setup(@Body() dto: SetupDto): Promise<void> {
+    await this.authService.setupFirstAdmin(dto);
   }
 
   @Public()

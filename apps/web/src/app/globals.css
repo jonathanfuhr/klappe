@@ -738,16 +738,21 @@ button {
   flex: 0 1 auto;
   min-height: 0;
   /*
-   * Mittig, wenn die Bühne schmaler ausfällt als der Player (1.5).
+   * Ausdrücklich volle Breite, nicht nur die gestreckte (1.5).
    *
    * Stößt ein Hochkant-Bild an die Höhengrenze, leitet WebKit die Breite aus
-   * dem Seitenverhältnis ab – die Bühne wird also schmaler als der Rahmen und
-   * klebte dann am linken Rand, der Rest blieb leerer Flex-Platz. Chrome
-   * streckt stattdessen auf volle Breite; dort ist die Bühne so breit wie der
-   * Rahmen und dieser Ausgleich wirkungslos. Genau deshalb `auto` und keine
-   * feste Ausrichtung: Es greift nur in der Engine, die es braucht.
+   * dem Seitenverhältnis ab – die Bühne wurde schmaler als der Rahmen und
+   * klebte am linken Rand. Der erste Versuch, das mit `margin-inline: auto`
+   * zu zentrieren, ging schief: Auto-Ränder heben in der Flex-Spalte das
+   * Strecken auf, und weil das Video absolut positioniert ist, hat die Bühne
+   * keinen Inhalt im Fluss – in WebKit blieb ihr gar keine Größe, und der
+   * Player verschwand komplett (Desktop wie Handy).
+   *
+   * Mit fester Breite ist beiden Achsen genügt: Die Höhe deckelt weiterhin
+   * `max-height`, und das Bild zentriert `object-fit: contain` von selbst –
+   * seitliche Balken statt Beschnitt, wie überall.
    */
-  margin-inline: auto;
+  width: 100%;
   /* Sicherheitsnetz: Was doch einmal größer wird, ragt nicht in die Leisten. */
   overflow: hidden;
 }

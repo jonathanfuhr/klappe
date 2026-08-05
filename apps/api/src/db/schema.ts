@@ -1483,6 +1483,27 @@ export const aworkNotices = pgTable(
 );
 
 /**
+ * awork-Projekte, die nicht wieder automatisch nach Klappe geholt werden
+ * (Phase 30, Nachtrag 1.5).
+ *
+ * Entsteht beim Löschen eines Klappe-Projekts, das mit awork verknüpft war.
+ * Ohne diesen Vermerk drehte sich ein Kreisel: Löschen entfernt per Kaskade
+ * auch die Verknüpfung, der nächste Abhol-Lauf fand das awork-Projekt „neu"
+ * vor und legte es wieder an – wer aufräumen wollte, bekam alles zurück.
+ *
+ * Bewusst eine **eigene Tabelle ohne Fremdschlüssel aufs Projekt**: Jeder
+ * Vermerk, der am Projekt hängt, stürbe im selben Löschvorgang, den er
+ * überleben soll. Ein manuelles Zuordnen hebt den Vermerk wieder auf – wer
+ * das Projekt zurückholt, meint das auch so.
+ */
+export const aworkIgnoredProjects = pgTable('awork_ignored_projects', {
+  aworkProjectId: text('awork_project_id').primaryKey(),
+  /** Nur fürs Log und die Nachvollziehbarkeit – awork bleibt die Quelle. */
+  projectName: text('project_name'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Zwischenspeicher der Nutzer-Zuordnung über die Mailadresse (Phase 30).
  *
  * Beide Systeme kennen dieselben Leute unter derselben Adresse; die Zuordnung

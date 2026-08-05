@@ -12,6 +12,7 @@ import type { AworkMatchSource, AworkProjectLinkDto } from '@klappe/shared';
 import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/db.module';
 import {
+  aworkIgnoredProjects,
   aworkProjectLinks,
   aworkUsers,
   projectFieldValues,
@@ -198,6 +199,13 @@ export class AworkLinksService {
       .returning();
     // Gefunden heisst: Die Suchsperre hat sich erledigt.
     this.erfolglos.delete(projectId);
+    /*
+     * Und ein früherer „nicht mehr holen"-Vermerk ebenso: Wer dieses
+     * awork-Projekt wieder zuordnet, will es wieder haben (Nachtrag 1.5).
+     */
+    await this.db
+      .delete(aworkIgnoredProjects)
+      .where(eq(aworkIgnoredProjects.aworkProjectId, aworkProjectId));
     this.logger.log(`Projekt ${projectId} ↔ awork ${aworkProjectId} (${matchedBy}).`);
     return toLinkDto(row);
   }

@@ -83,6 +83,13 @@ export interface AworkProject {
   updatedOn: string | null;
   customFields: AworkCustomFieldValue[];
   isArchived: boolean;
+  /**
+   * Typ des Projektstatus: `not-started`, `progress`, `closed` oder `stuck`.
+   * Die beiden letzten sind die Endzustände – awork nennt sie „Abgeschlossen"
+   * und „Abgebrochen"; die eigene Suche dort blendet beide von Haus aus aus
+   * (`includeClosedAndStuck`).
+   */
+  statusType: string | null;
 }
 
 export interface AworkTaskStatus {
@@ -480,7 +487,10 @@ export class AworkClient {
 function toProject(row: Record<string, unknown>): AworkProject {
   const company = row.company as { name?: string | null } | null | undefined;
   const felder = (row.customFields as AworkCustomFieldValue[] | null) ?? [];
-  const status = row.projectStatus as { isArchived?: boolean } | null | undefined;
+  const status = row.projectStatus as
+    | { isArchived?: boolean; type?: string | null }
+    | null
+    | undefined;
   return {
     id: String(row.id),
     name: typeof row.name === 'string' ? row.name : '',
@@ -490,6 +500,7 @@ function toProject(row: Record<string, unknown>): AworkProject {
     updatedOn: typeof row.updatedOn === 'string' ? row.updatedOn : null,
     customFields: Array.isArray(felder) ? felder : [],
     isArchived: Boolean(status?.isArchived),
+    statusType: status?.type ?? null,
   };
 }
 

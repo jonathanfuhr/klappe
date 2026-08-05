@@ -23,6 +23,7 @@ import { and, asc, desc, eq, isNull, notExists, sql } from 'drizzle-orm';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { DB, type Database } from '../db/db.module';
 import {
+  aworkIgnoredProjects,
   aworkNotices,
   aworkTasks,
   commentMentions,
@@ -178,6 +179,15 @@ export class AworkSyncService {
     const nachAworkId = await this.links.alleLinks();
     const nachNummer = await this.klappeProjekteNachNummer(config.projectNumberFieldId);
     /*
+     * Was jemand in Klappe gelöscht hat, kommt nicht von selbst zurück
+     * (Nachtrag 1.5). Der Vermerk überlebt das Löschen des Projekts – siehe
+     * `awork_ignored_projects`.
+     */
+    const ignoriert = new Set(
+      (await this.db.select({ id: aworkIgnoredProjects.aworkProjectId }).from(aworkIgnoredProjects))
+        .map((zeile) => zeile.id),
+    );
+    /*
      * Welche Klappe-Projekte schon vergeben sind.
      *
      * Nötig, weil zwei awork-Projekte dieselbe Projektnummer tragen können.
@@ -192,8 +202,17 @@ export class AworkSyncService {
     let verknuepft = 0;
 
     for (const projekt of aworkProjekte) {
-      // Ein abgeschlossenes Projekt braucht kein Review mehr.
+      /*
+       * Beendete Projekte bleiben außen vor (1.5): archivierte wie schon
+       * immer, dazu „Abgeschlossen" (`closed`) und „Abgebrochen" (`stuck`).
+       * Beim ersten echten Lauf kamen 36 längst fertige Projekte mit nach
+       * Klappe – ein Review für etwas, das keiner mehr anfasst. awork selbst
+       * blendet beide Typen in seiner Suche genauso aus.
+       */
       if (projekt.isArchived) continue;
+      if (projekt.statusType === 'closed' || projekt.statusType === 'stuck') continue;
+      // Von Hand in Klappe gelöscht – das war eine Entscheidung, keine Lücke.
+      if (ignoriert.has(projekt.id)) continue;
 
       /*
        * Geprüft wird der **normalisierte** Wert, nicht der rohe (1.5).

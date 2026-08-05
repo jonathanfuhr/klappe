@@ -48,6 +48,7 @@ export class ProjectsController {
     @Query('tags') tags?: string,
     @Query('tagMatch') tagMatch?: string,
     @Query('sort') sort?: string,
+    @Query('sortDir') sortDir?: string,
     @Query('customer') customer?: string | string[],
     @Query('field') field?: string | string[],
   ): Promise<ProjectDto[]> {
@@ -56,6 +57,9 @@ export class ProjectsController {
       tagIds: parseIdList(tags),
       tagMatch: tagMatch === 'all' ? 'all' : 'any',
       sort: parseSort(sort),
+      // Alles außer einem ausdrücklichen `asc`/`desc` überlässt die Richtung
+      // dem Vorgabewert der Sortierung (1.5.1).
+      sortDir: sortDir === 'asc' || sortDir === 'desc' ? sortDir : undefined,
       customers: alsListe(customer)
         .map((eintrag) => eintrag.trim())
         .filter(Boolean),

@@ -14,6 +14,10 @@ const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'klappe_session';
 function isPublicPath(pathname: string): boolean {
   return (
     pathname === '/login' ||
+    // Die Ersteinrichtung (1.5.1): Sie gibt es nur, solange kein Konto
+    // existiert – dann kann sich hier auch niemand angemeldet haben. Ob sie
+    // noch offensteht, entscheidet die Seite selbst und der Server.
+    pathname === '/einrichtung' ||
     pathname === '/abmelden' ||
     pathname.startsWith('/f/') ||
     // Eingebettete Player laufen ohne Sitzung – eine Weiterleitung aufs Login

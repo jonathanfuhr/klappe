@@ -50,12 +50,18 @@ function TeamLogin({ target, aufGast }: { target: string; aufGast: () => void })
     microsoft: false,
     microsoftLabel: 'Mit Microsoft 365 anmelden',
     passwordPolicy: DEFAULT_PASSWORD_POLICY,
+    needsSetup: false,
   });
 
   useEffect(() => {
     void api
       .loginMethods()
-      .then(setMethods)
+      .then((geladen) => {
+        setMethods(geladen);
+        // Frische Anlage ohne jedes Konto: Hier kann sich niemand anmelden,
+        // also gleich zur Ersteinrichtung (1.5.1).
+        if (geladen.needsSetup) router.replace('/einrichtung');
+      })
       // Ohne Antwort bleibt die lokale Anmeldung stehen – besser eine
       // Möglichkeit zu viel als eine Seite ohne jede.
       .catch(() => undefined);

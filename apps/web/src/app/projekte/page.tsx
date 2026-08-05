@@ -50,6 +50,12 @@ export default function ProjectsPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagMatch, setTagMatch] = useState<'any' | 'all'>('any');
   const [sort, setSort] = useState('updated');
+  /**
+   * Richtung der Sortierung (1.5.1). `null` heißt: die Vorgabe der jeweiligen
+   * Sortierung – Datum absteigend, alles Übrige aufsteigend. Erst ein Klick im
+   * Menü legt sie ausdrücklich fest.
+   */
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
   /** Je Feld-ID die gewählten Werte – die Dimensionen der Filterleiste. */
   const [selectedFieldValues, setSelectedFieldValues] = useState<Record<string, string[]>>({});
@@ -85,6 +91,9 @@ export default function ProjectsPage() {
           tagMatch,
           // Gruppieren heißt: Die Sortierung stellt die Gruppen her.
           sort: groupBy === 'customer' ? 'customer' : groupBy ? `field:${groupBy}` : sort,
+          // Beim Gruppieren stellt die Gruppierung die Reihenfolge her; eine
+          // eigene Richtung würde die Gruppen auseinanderreißen.
+          sortDir: groupBy ? undefined : (sortDir ?? undefined),
           customers: selectedCustomers,
           fieldFilters: aktiveFeldFilter,
         }),
@@ -95,7 +104,7 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTags, tagMatch, sort, selectedCustomers, aktiveFeldFilter, groupBy]);
+  }, [selectedTags, tagMatch, sort, sortDir, selectedCustomers, aktiveFeldFilter, groupBy]);
 
   /**
    * Die Filter-Dimensionen: Kunden, Felddefinitionen samt vorkommender Werte,
@@ -265,8 +274,18 @@ export default function ProjectsPage() {
    * Beschriftungen für die Symbolknöpfe. Ein Symbol allein sagt nie, was
    * eingestellt ist – der Stand gehört deshalb in `aria-label` und `title`.
    */
+  /**
+   * Die Richtung, die gerade wirkt – die ausdrücklich gewählte, sonst die
+   * Vorgabe der Sortierung. Dieselbe Regel wie im Server (1.5.1); sie steht
+   * hier ein zweites Mal, weil das Menü den Haken setzen muss, ohne den
+   * Server zu fragen.
+   */
+  const istAbsteigend =
+    sortDir === null ? sort === 'updated' || sort === 'created' : sortDir === 'desc';
+
   const sortLabel = t('toolbar.sortCurrent', {
     name: sortOptionen.find((eintrag) => eintrag.id === sort)?.label ?? t('toolbar.sortUnknown'),
+    direction: istAbsteigend ? t('toolbar.sortDesc') : t('toolbar.sortAsc'),
   });
   const gruppenMenueLabel = groupBy
     ? t('toolbar.groupCurrent', {
@@ -416,17 +435,42 @@ export default function ProjectsPage() {
                     {t('toolbar.sortByGrouping')}
                   </span>
                 ) : (
-                  sortOptionen.map((eintrag) => (
+                  <>
+                    {sortOptionen.map((eintrag) => (
+                      <button
+                        key={eintrag.id}
+                        type="button"
+                        className="menu__item"
+                        data-active={sort === eintrag.id}
+                        onClick={() => setSort(eintrag.id)}
+                      >
+                        {eintrag.label}
+                      </button>
+                    ))}
+
+                    {/* Die Richtung als zweite Entscheidung (1.5.1): Wonach
+                        sortiert wird und in welcher Reihenfolge, sind zwei
+                        Fragen – bei einer Projektnummer will man meist die
+                        jüngste oben, bei einem Namen das A. */}
+                    <div className="menu__separator" role="separator" />
+                    <h3 className="filtermenu__title">{t('toolbar.sortDirection')}</h3>
                     <button
-                      key={eintrag.id}
                       type="button"
                       className="menu__item"
-                      data-active={sort === eintrag.id}
-                      onClick={() => setSort(eintrag.id)}
+                      data-active={istAbsteigend === false}
+                      onClick={() => setSortDir('asc')}
                     >
-                      {eintrag.label}
+                      {t('toolbar.sortAsc')}
                     </button>
-                  ))
+                    <button
+                      type="button"
+                      className="menu__item"
+                      data-active={istAbsteigend === true}
+                      onClick={() => setSortDir('desc')}
+                    >
+                      {t('toolbar.sortDesc')}
+                    </button>
+                  </>
                 )}
               </Menu>
 

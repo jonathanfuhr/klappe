@@ -884,6 +884,18 @@ export interface LoginMethodsDto {
   microsoft: boolean;
   microsoftLabel: string;
   /**
+   * Es gibt noch **kein einziges Konto** (1.5.1) – die Anlage ist frisch und
+   * wartet auf ihren ersten Admin. Die Anmeldeseite schickt dann auf die
+   * Einrichtung, statt ein Formular zu zeigen, an dem sich niemand anmelden
+   * kann.
+   *
+   * Bewusst öffentlich lesbar: Wer das erfährt, weiß nur, dass hier noch
+   * nichts steht – dasselbe verrät jeder Anmeldeversuch. Sobald das erste
+   * Konto existiert, ist der Wert dauerhaft `false`, und die Einrichtung
+   * lässt sich nicht mehr aufrufen.
+   */
+  needsSetup: boolean;
+  /**
    * Die geltenden Passwort-Regeln (Phase 24) – damit jede Seite, auf der ein
    * Passwort gesetzt wird, sie **vorher** nennen kann statt hinterher
    * abzulehnen. Auch für Nicht-Admins lesbar: Die Einstellungen selbst sind
