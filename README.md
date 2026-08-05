@@ -897,22 +897,33 @@ den Dauerbetrieb einrichtet (Homebrew und Docker, Neustart nach
 Stromausfall, kein Ruhezustand, automatische Anmeldung, Automounts, SSH),
 in [docs/mac-server.md](docs/mac-server.md).
 
-**Updates laufen über ein Skript**, weil dieser Aufbau als einziger zwei
-Hälften hat – Container *und* nativer Worker:
+**Aufsetzen und Aktualisieren laufen über ein Skript**, weil dieser Aufbau als
+einziger zwei Hälften hat – Container *und* nativer Worker:
 
 ```bash
-./deploy/mac/klappe-update.sh
+./deploy/mac/klappe-deploy.sh
 ```
 
-Es holt den Stand, zieht die Abhängigkeiten nach (`npm ci`), baut den Server,
-baut und startet die Container – dabei läuft die Datenbank-Migration im Start
-des `api`-Containers mit – und startet zuletzt den nativen Worker neu. Am Ende
+Derselbe Befehl für beides. Beim **ersten Lauf** legt er die `.env` an (mit
+frisch erzeugtem `POSTGRES_PASSWORD` und `JWT_SECRET`) und hält an, damit
+`PUBLIC_URL` und `MEDIA_DIR` geprüft werden können. Der zweite Lauf richtet
+dann den launchd-Dienst ein – dafür fragt er einmalig nach dem
+Administrator-Passwort – und startet alles. Am Ende steht, wo das erste Konto
+angelegt wird.
+
+Jeder **weitere Lauf ist ein Update**: Stand holen, Abhängigkeiten (`npm ci`),
+Server bauen, Container bauen und starten – dabei läuft die Datenbank-Migration
+im Start des `api`-Containers mit – und zuletzt den Worker neu starten. Am Ende
 steht, was läuft.
 
 Der `npm ci`-Schritt ist der wichtigste: Kommt mit einer Version eine neue
 Abhängigkeit dazu und fehlt sie, scheitert der Build, das alte `dist/` bleibt
 liegen, und der Worker läuft unbemerkt mit altem Stand weiter. Genau das ist
 schon passiert – vier Tage lang.
+
+Voraussetzung ist nur, was [docs/apple-silicon.md](docs/apple-silicon.md)
+ohnehin beschreibt: Homebrew mit `node@22` und `ffmpeg`, Docker, und das
+geklonte Repo.
 
 ---
 
