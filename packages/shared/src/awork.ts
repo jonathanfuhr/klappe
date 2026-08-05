@@ -110,6 +110,12 @@ export interface AworkSettingsDto {
   writeBackLink: boolean;
   /** Fehlende Projektnummern zwischen beiden Seiten angleichen. */
   syncProjectNumber: boolean;
+  /**
+   * Begriffe, die ein awork-Projekt vom Abholen ausschließen – zeilen- oder
+   * kommagetrennt. Verglichen wird gegen Projektname, Kunde und
+   * Projektnummer.
+   */
+  excludeTerms: string | null;
   events: AworkEventSettingDto[];
   /** Ergebnis des letzten Verbindungsversuchs – für die Anzeige. */
   lastCheckAt: string | null;
@@ -179,6 +185,8 @@ export interface AworkProjectStateDto {
 
 export const MAX_AWORK_TASK_TITLE_PREFIX = 60;
 export const MAX_AWORK_TASK_LIST_NAME = 120;
+/** Genug für eine lange Ausschlussliste, aber kein zweites Textdokument. */
+export const MAX_AWORK_EXCLUDE_TERMS = 4000;
 
 /**
  * Obergrenze für den API-Schlüssel.

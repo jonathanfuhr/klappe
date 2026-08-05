@@ -760,7 +760,12 @@ Transcoding- und Sicherungsfehler gehen nie nach awork – Betrieb und Sicherhei
 bleiben bei Mail und Push.
 
 **Gegenrichtung.** Der Worker sieht alle fünf Minuten nach, ob in awork neue
-Projekte entstanden sind. Ein Projekt **ohne Projektnummer** wird übersprungen –
+Projekte entstanden sind. Übersprungen wird, was **abgeschlossen oder
+abgebrochen** ist, was in Klappe schon einmal gelöscht wurde, und was einen der
+Begriffe aus dem Feld *Diese Projekte nicht holen* trägt – ein Begriff je
+Zeile, verglichen gegen Projektname, Kunde und Projektnummer, für Kunden oder
+Projektarten, die nie über Klappe laufen. Ein Projekt **ohne Projektnummer**
+wird ebenfalls übersprungen –
 interne Vorhaben brauchen kein Klappe. Beim Anlegen werden Name, Kunde (aus der
 Firma) und Projektnummer übernommen; wer das Projekt in awork angelegt hat, wird
 über seine Mailadresse für die Benachrichtigungen eingetragen. Hat er kein

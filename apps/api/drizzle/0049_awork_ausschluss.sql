@@ -1,0 +1,1 @@
+ALTER TABLE "app_settings" ADD COLUMN "awork_exclude_terms" text;

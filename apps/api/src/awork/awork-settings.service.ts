@@ -9,6 +9,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   type AworkEvent,
   type AworkSettingsDto,
+  MAX_AWORK_EXCLUDE_TERMS,
   MAX_AWORK_TASK_LIST_NAME,
   MAX_AWORK_TASK_TITLE_PREFIX,
   aworkEvents,
@@ -32,6 +33,7 @@ export interface UpdateAworkSettingsInput {
   autoCreateProjects?: boolean;
   writeBackLink?: boolean;
   syncProjectNumber?: boolean;
+  excludeTerms?: string | null;
   events?: Array<{ event: AworkEvent; enabled: boolean }>;
 }
 
@@ -65,6 +67,7 @@ export class AworkSettingsService {
       autoCreateProjects: row.aworkAutoCreateProjects,
       writeBackLink: row.aworkWriteBackLink,
       syncProjectNumber: row.aworkSyncProjectNumber,
+      excludeTerms: row.aworkExcludeTerms,
       events: aworkEvents().map((info) => ({
         event: info.event,
         enabled: info.alwaysOn ? true : this.ereignisAn(row, info.event),
@@ -116,6 +119,10 @@ export class AworkSettingsService {
         aworkAutoCreateProjects: input.autoCreateProjects,
         aworkWriteBackLink: input.writeBackLink,
         aworkSyncProjectNumber: input.syncProjectNumber,
+        aworkExcludeTerms:
+          input.excludeTerms === undefined
+            ? undefined
+            : input.excludeTerms?.trim().slice(0, MAX_AWORK_EXCLUDE_TERMS) || null,
         ...ereignisse,
         updatedAt: new Date(),
       })
@@ -177,6 +184,7 @@ export class AworkSettingsService {
     autoCreateProjects: boolean;
     writeBackLink: boolean;
     syncProjectNumber: boolean;
+    excludeTerms: string | null;
     pollLastRunAt: Date | null;
   }> {
     const row = await this.settings.getRow();
@@ -189,6 +197,7 @@ export class AworkSettingsService {
       autoCreateProjects: row.aworkAutoCreateProjects,
       writeBackLink: row.aworkWriteBackLink,
       syncProjectNumber: row.aworkSyncProjectNumber,
+      excludeTerms: row.aworkExcludeTerms,
       pollLastRunAt: row.aworkPollLastRunAt,
     };
   }

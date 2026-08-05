@@ -40,7 +40,12 @@ import { SubscriptionsService } from '../mail/subscriptions.service';
 import { AworkClient, AworkError, type AworkProject, type AworkTask, type AworkTaskStatus } from './awork.client';
 import { AworkLinksService } from './awork-links.service';
 import { AworkSettingsService } from './awork-settings.service';
-import { freifeldWert, normalisiereProjektnummer } from './matching';
+import {
+  ausschlussGrund,
+  freifeldWert,
+  normalisiereProjektnummer,
+  parseAusschluss,
+} from './matching';
 import {
   type AworkKommentar,
   baueAenderungsHinweis,
@@ -197,9 +202,16 @@ export class AworkSyncService {
      * ohne dass irgendwo etwas fehlschlägt.
      */
     const belegt = new Set(nachAworkId.values());
+    /*
+     * Begriffe aus den Einstellungen, die ein Projekt gar nicht erst
+     * hereinlassen (1.5.1) – etwa ein Kunde, der nie über Klappe versendet.
+     * Einmal zerlegt statt je Projekt.
+     */
+    const ausschluss = parseAusschluss(config.excludeTerms);
 
     let angelegt = 0;
     let verknuepft = 0;
+    let ausgeschlossen = 0;
 
     for (const projekt of aworkProjekte) {
       /*
@@ -213,6 +225,26 @@ export class AworkSyncService {
       if (projekt.statusType === 'closed' || projekt.statusType === 'stuck') continue;
       // Von Hand in Klappe gelöscht – das war eine Entscheidung, keine Lücke.
       if (ignoriert.has(projekt.id)) continue;
+
+      /*
+       * Ausgeschlossen per Begriff. Der Grund steht im Protokoll: Sonst sucht
+       * man beim nächsten „warum fehlt das Projekt?" in der falschen Liste.
+       * Geprüft wird gegen Name, Kunde und Projektnummer – Letztere kommt aus
+       * dem Freifeld und wird deshalb hier eingesetzt.
+       */
+      const grund = ausschlussGrund(
+        {
+          name: projekt.name,
+          companyName: projekt.companyName,
+          projectNumber: freifeldWert(projekt.customFields, config.aworkProjectNumberFieldId),
+        },
+        ausschluss,
+      );
+      if (grund) {
+        ausgeschlossen += 1;
+        this.logger.log(`awork-Projekt „${projekt.name}" übersprungen (Ausschluss „${grund}").`);
+        continue;
+      }
 
       /*
        * Geprüft wird der **normalisierte** Wert, nicht der rohe (1.5).
@@ -284,8 +316,10 @@ export class AworkSyncService {
     }
 
     await this.settings.merkePollLauf(new Date());
-    if (angelegt > 0 || verknuepft > 0) {
-      this.logger.log(`awork-Abholung: ${angelegt} angelegt, ${verknuepft} verknüpft.`);
+    if (angelegt > 0 || verknuepft > 0 || ausgeschlossen > 0) {
+      this.logger.log(
+        `awork-Abholung: ${angelegt} angelegt, ${verknuepft} verknüpft, ${ausgeschlossen} per Ausschluss übersprungen.`,
+      );
     }
     return { angelegt, verknuepft };
   }

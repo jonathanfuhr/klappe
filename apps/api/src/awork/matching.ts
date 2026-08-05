@@ -102,6 +102,57 @@ export function findeProjekt(
   return { art: 'treffer', kandidat };
 }
 
+/**
+ * Ausschluss-Begriffe (1.5.1).
+ *
+ * Manche awork-Projekte gehen Klappe nichts an – ein Kunde, der nie darüber
+ * versendet, eine Projektart, die kein Review braucht. Statt jedes einzelne
+ * Projekt von Hand wegzuräumen, steht in den Einstellungen eine Liste von
+ * Begriffen; wer einen davon im Namen, beim Kunden oder in der Projektnummer
+ * trägt, wird beim Abholen übersprungen.
+ *
+ * Eingegeben wird zeilen- oder kommagetrennt – beides, weil beides natürlich
+ * ist und niemand nachlesen soll, welches gilt.
+ */
+export function parseAusschluss(text: string | null | undefined): string[] {
+  if (!text) return [];
+  return [
+    ...new Set(
+      text
+        .split(/[\n,;]/)
+        .map((eintrag) => eintrag.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+/**
+ * Trägt dieses Projekt einen der Ausschluss-Begriffe? Gibt den **treffenden**
+ * Begriff zurück, nicht nur `true`: Im Protokoll steht dann, warum ein
+ * Projekt übersprungen wurde – sonst sucht man den Grund in der falschen Liste.
+ *
+ * Verglichen wird als Teilzeichenkette und ohne Rücksicht auf Groß- und
+ * Kleinschreibung: „beispiel" fängt auch „Beispiel GmbH & Co. KG". Das ist die
+ * Erwartung an ein Ausschlussfeld – wer genauer zielen will, schreibt mehr
+ * hin.
+ */
+export function ausschlussGrund(
+  projekt: { name?: string | null; companyName?: string | null; projectNumber?: string | null },
+  begriffe: string[],
+): string | null {
+  if (begriffe.length === 0) return null;
+
+  const felder = [projekt.name, projekt.companyName, projekt.projectNumber]
+    .filter((wert): wert is string => Boolean(wert))
+    .map((wert) => wert.toLowerCase());
+  if (felder.length === 0) return null;
+
+  for (const begriff of begriffe) {
+    if (felder.some((feld) => feld.includes(begriff))) return begriff;
+  }
+  return null;
+}
+
 /** Den Wert eines Freifelds aus einer awork-Freifeldliste ziehen. */
 export function freifeldWert(
   felder: { customFieldDefinitionId: string; textValue?: string | null }[] | null | undefined,

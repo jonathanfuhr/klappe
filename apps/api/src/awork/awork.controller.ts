@@ -25,6 +25,7 @@ import {
   type AworkProjectStateDto,
   type AworkSettingsDto,
   MAX_AWORK_API_KEY,
+  MAX_AWORK_EXCLUDE_TERMS,
   MAX_AWORK_TASK_LIST_NAME,
   MAX_AWORK_TASK_TITLE_PREFIX,
 } from '@klappe/shared';
@@ -102,6 +103,11 @@ class UpdateAworkDto {
   syncProjectNumber?: boolean;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(MAX_AWORK_EXCLUDE_TERMS)
+  excludeTerms?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AworkEventDto)
@@ -154,6 +160,8 @@ export class AworkController {
       autoCreateProjects: dto.autoCreateProjects,
       writeBackLink: dto.writeBackLink,
       syncProjectNumber: dto.syncProjectNumber,
+      // Leeres Feld heisst hier wirklich leer - die Liste soll sich raeumen lassen.
+      excludeTerms: dto.excludeTerms === undefined ? undefined : dto.excludeTerms || null,
       events: dto.events,
     });
   }

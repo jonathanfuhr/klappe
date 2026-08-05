@@ -1294,6 +1294,10 @@ export const en: Record<MessageKey, Message> = {
   'awork.writeBackLinkHint':
     'Once per project, as a comment in the awork project. The project description is left untouched.',
   'awork.syncNumber': 'Fill in missing project numbers',
+  'awork.exclude': 'Do not fetch these projects',
+  'awork.excludePlaceholder': 'Example Ltd\nInternal\nTraining',
+  'awork.excludeHint':
+    'One term per line (commas work too). If an awork project carries one of them in its name, customer or project number, it is not created – meant for customers or kinds of work that never go through Klappe. Case does not matter, and part of a word is enough: “example” also catches “Example Ltd & Co”.',
   'awork.syncNumberHint':
     'Adds the number on whichever side it is missing. Existing values are never overwritten.',
 

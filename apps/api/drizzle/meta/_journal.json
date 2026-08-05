@@ -344,6 +344,13 @@
       "when": 1785913579737,
       "tag": "0048_awork_geloeschte_projekte",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1785920354887,
+      "tag": "0049_awork_ausschluss",
+      "breakpoints": true
     }
   ]
 }

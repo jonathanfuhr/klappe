@@ -852,6 +852,7 @@ export const api = {
     autoCreateProjects?: boolean;
     writeBackLink?: boolean;
     syncProjectNumber?: boolean;
+    excludeTerms?: string;
     events?: { event: AworkEvent; enabled: boolean }[];
   }) =>
     request<AworkSettingsDto>('/v1/settings/awork', {

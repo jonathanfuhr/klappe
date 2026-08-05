@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   type AworkKandidat,
+  ausschlussGrund,
   findeProjekt,
   freifeldWert,
   kundenPassen,
   normalisiereKunde,
   normalisiereProjektnummer,
+  parseAusschluss,
 } from './matching';
 
 const projekt = (
@@ -110,6 +112,66 @@ describe('findeProjekt', () => {
       expect(normalisiereProjektnummer(platzhalter)).toBe('');
       expect(findeProjekt(platzhalter, null, kandidaten).art).toBe('ohne-nummer');
     }
+  });
+});
+
+describe('parseAusschluss', () => {
+  it('trennt an Zeilen, Kommas und Semikolons', () => {
+    expect(parseAusschluss('Beispiel GmbH\nIntern, Muster; Test')).toEqual([
+      'beispiel gmbh',
+      'intern',
+      'muster',
+      'test',
+    ]);
+  });
+
+  it('wirft Leeres und Doppeltes weg', () => {
+    expect(parseAusschluss('  Intern , ,\n\nintern  ')).toEqual(['intern']);
+  });
+
+  it('kommt mit fehlender Angabe zurecht', () => {
+    expect(parseAusschluss(null)).toEqual([]);
+    expect(parseAusschluss('   ')).toEqual([]);
+  });
+});
+
+describe('ausschlussGrund', () => {
+  const begriffe = ['beispiel gmbh', 'intern'];
+
+  it('erkennt den Kunden', () => {
+    expect(
+      ausschlussGrund({ name: 'Imagefilm', companyName: 'Beispiel GmbH' }, begriffe),
+    ).toBe('beispiel gmbh');
+  });
+
+  it('erkennt den Projektnamen, auch als Teil davon', () => {
+    // „wer genauer zielen will, schreibt mehr hin" – siehe matching.ts
+    expect(ausschlussGrund({ name: 'Interne Schulung 2026' }, begriffe)).toBe('intern');
+  });
+
+  it('erkennt die Projektnummer', () => {
+    expect(ausschlussGrund({ name: 'Film', projectNumber: 'INTERN-2026' }, begriffe)).toBe(
+      'intern',
+    );
+  });
+
+  it('achtet nicht auf Gross- und Kleinschreibung', () => {
+    expect(ausschlussGrund({ companyName: 'BEISPIEL GMBH' }, begriffe)).toBe('beispiel gmbh');
+  });
+
+  it('laesst durch, was keinen Begriff traegt', () => {
+    expect(
+      ausschlussGrund({ name: 'Imagefilm', companyName: 'Andere AG' }, begriffe),
+    ).toBeNull();
+  });
+
+  it('laesst ohne Begriffe alles durch', () => {
+    expect(ausschlussGrund({ name: 'Intern', companyName: 'Beispiel GmbH' }, [])).toBeNull();
+  });
+
+  it('kommt mit leeren Feldern zurecht', () => {
+    expect(ausschlussGrund({ name: null, companyName: null, projectNumber: null }, begriffe))
+      .toBeNull();
   });
 });
 

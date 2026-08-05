@@ -1010,6 +1010,16 @@ export const appSettings = pgTable('app_settings', {
   aworkSyncProjectNumber: boolean('awork_sync_project_number').notNull().default(true),
 
   /**
+   * Begriffe, die ein awork-Projekt vom Abholen ausschließen (1.5.1).
+   *
+   * Zeilen- oder kommagetrennt; verglichen wird gegen Projektname, Kunde und
+   * Projektnummer, als Teilzeichenkette und ohne Rücksicht auf Groß- und
+   * Kleinschreibung. Gedacht für Kunden oder Projektarten, die nie über
+   * Klappe laufen – sonst müsste man sie einzeln wieder wegräumen.
+   */
+  aworkExcludeTerms: text('awork_exclude_terms'),
+
+  /**
    * Die Ereignis-Schalter (Katalog in `@klappe/shared`, `awork.ts`). Bewusst
    * Spalten und keine dünn besetzte Tabelle wie bei den Mailarten: Dort ging
    * es darum, das Verhalten **bestehender** Anlagen nicht zu ändern – hier ist

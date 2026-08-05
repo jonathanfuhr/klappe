@@ -44,6 +44,7 @@ export function AworkPanel() {
     taskListName: '',
     taskTitlePrefix: '',
     fallbackUserId: '',
+    excludeTerms: '',
   });
   const [pruefung, setPruefung] = useState<AworkCheckDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +69,7 @@ export function AworkPanel() {
         taskListName: aktuell.taskListName,
         taskTitlePrefix: aktuell.taskTitlePrefix,
         fallbackUserId: aktuell.fallbackUserId ?? '',
+        excludeTerms: aktuell.excludeTerms ?? '',
       });
       setError(null);
 
@@ -113,6 +115,7 @@ export function AworkPanel() {
         taskListName: form.taskListName,
         taskTitlePrefix: form.taskTitlePrefix,
         fallbackUserId: form.fallbackUserId || null,
+        excludeTerms: form.excludeTerms,
       });
       setSettings(gespeichert);
       setForm((current) => ({ ...current, apiKey: '' }));
@@ -428,6 +431,35 @@ export function AworkPanel() {
           {t('awork.syncNumber')}
         </label>
         <p className="hint">{t('awork.syncNumberHint')}</p>
+
+        {/* Der Ausschluss steht hier und nicht bei den Ereignissen: Er wirkt
+            allein auf die Gegenrichtung – was gar nicht erst hereinkommt,
+            muss auch nicht gemeldet werden. */}
+        <div className="field" style={{ marginTop: 16 }}>
+          <label className="field__label" htmlFor="awork-ausschluss">
+            {t('awork.exclude')}
+          </label>
+          <textarea
+            id="awork-ausschluss"
+            className="input"
+            rows={4}
+            placeholder={t('awork.excludePlaceholder')}
+            value={form.excludeTerms}
+            onChange={(event) => setForm({ ...form, excludeTerms: event.target.value })}
+          />
+          <p className="hint">{t('awork.excludeHint')}</p>
+          <div className="toolbar" style={{ marginTop: 8 }}>
+            <div className="shell__spacer" />
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => void speichern()}
+            >
+              {t('common.save')}
+            </button>
+          </div>
+        </div>
       </fieldset>
     </>
   );

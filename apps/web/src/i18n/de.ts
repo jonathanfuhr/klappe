@@ -1298,6 +1298,10 @@ export const de = {
   'awork.writeBackLinkHint':
     'Einmal je Projekt, als Kommentar im awork-Projekt. Die Projektbeschreibung bleibt unangetastet.',
   'awork.syncNumber': 'Fehlende Projektnummern angleichen',
+  'awork.exclude': 'Diese Projekte nicht holen',
+  'awork.excludePlaceholder': 'Beispiel GmbH\nIntern\nSchulung',
+  'awork.excludeHint':
+    'Ein Begriff je Zeile (Kommas gehen auch). Trägt ein awork-Projekt einen davon im Namen, beim Kunden oder in der Projektnummer, wird es nicht angelegt – gedacht für Kunden oder Projektarten, die nie über Klappe laufen. Groß- und Kleinschreibung ist egal, und es genügt ein Teil des Wortes: „beispiel" fängt auch „Beispiel GmbH & Co. KG".',
   'awork.syncNumberHint':
     'Trägt die Nummer auf der Seite nach, auf der sie fehlt. Bestehende Werte werden nie überschrieben.',
 
