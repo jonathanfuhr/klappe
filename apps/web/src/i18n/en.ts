@@ -1246,10 +1246,19 @@ export const en: Record<MessageKey, Message> = {
   'awork.check': 'Test connection',
   'awork.lastCheck': 'Last tested: {when}',
   'awork.matchingTitle': 'Matching the projects',
+  'awork.projectTypes': 'Fetch these project types',
+  'awork.projectTypesEmpty':
+    'The project types from awork appear here once the connection has been tested.',
+  'awork.projectTypesAll': 'Nothing selected – all types are fetched.',
+  'awork.projectTypesHint':
+    'Only the ticked types come to Klappe. Projects without a type are then left out.',
+  'awork.transferTitle': 'Carry fields over',
+  'awork.transferHint':
+    'Besides name and customer, Klappe can carry over one custom field from awork – your project number, for instance. For display only; matching goes through the project key.',
   'awork.matchingHint':
-    'Both sides keep a project number as a custom field. This is where you say which field is meant on each side. The customer name serves as a cross-check: if it differs, nothing is matched silently – you are asked instead.',
-  'awork.klappeField': 'Project number in Klappe',
-  'awork.aworkField': 'Project number in awork',
+    'Matching goes through the project key that awork gives every project on its own (“UBEI”, for example). Klappe creates its own project field for it when switched on and keeps it out of the project list. The customer name serves as a cross-check: if it differs, nothing is matched silently – you are asked instead.',
+  'awork.klappeField': 'Target field in Klappe',
+  'awork.aworkField': 'Source field in awork',
   'awork.fieldNone': '— none —',
   'awork.aworkFieldEmpty':
     'The custom fields from awork appear here once the connection has been tested.',
@@ -1310,15 +1319,15 @@ export const en: Record<MessageKey, Message> = {
     other: '{count} tasks created',
   },
   'awork.projectNone': 'Not linked to an awork project yet.',
-  'awork.projectNumber': 'Project number: {number}',
-  'awork.projectNoNumber': 'No project number – matching needs one.',
+  'awork.projectKey': 'awork key: {key}',
+  'awork.projectNoKey': 'No awork key – matching needs one.',
   'awork.projectSearch': 'Find the match',
   'awork.projectChoose': 'Link manually',
   'awork.projectUnlink': 'Remove link',
   'awork.projectUnlinkConfirm':
     'Remove the link? New change requests will no longer go to awork. Existing tasks stay there.',
   'awork.projectPick': 'Choose an awork project',
-  'awork.matchedNumber': 'through the project number',
+  'awork.matchedNumber': 'through the awork key',
   'awork.matchedManual': 'linked manually',
   'awork.matchedCreated': 'taken over from awork',
 };

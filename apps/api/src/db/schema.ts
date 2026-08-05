@@ -974,13 +974,42 @@ export const appSettings = pgTable('app_settings', {
    */
   aworkApiKeyEncrypted: text('awork_api_key_encrypted'),
   /**
+   * Das Klappe-Feld, in dem der **awork-Projekt-Key** steht – die Kennung, über
+   * die zugeordnet wird (1.5.2).
+   *
+   * Vorher lief das über eine selbst gepflegte Projektnummer. Der Key ist die
+   * bessere Wahl: awork vergibt ihn von sich aus für jedes Projekt, er ist
+   * dort eindeutig, und niemand muss ihn abtippen. Das Feld legt Klappe beim
+   * Einschalten der Anbindung selbst an, falls es fehlt.
+   */
+  aworkProjectKeyFieldId: uuid('awork_project_key_field_id').references(
+    () => projectFieldDefs.id,
+    { onDelete: 'set null' },
+  ),
+
+  /**
    * Welches Klappe-Projektfeld die Projektnummer trägt (siehe
-   * `project_field_defs`). Ohne diese Angabe findet die Zuordnung nichts.
+   * `project_field_defs`).
+   *
+   * Seit 1.5.2 **nicht mehr** der Schlüssel der Zuordnung, sondern nur noch
+   * ein Wert, der von awork herüberwandert – zusammen mit dem Freifeld drüben.
+   * Wer keine Projektnummern führt, lässt beides leer.
    */
   aworkProjectNumberFieldId: uuid('awork_project_number_field_id').references(
     () => projectFieldDefs.id,
     { onDelete: 'set null' },
   ),
+
+  /**
+   * Welche awork-Projekttypen geholt werden – Kennungen, kommagetrennt
+   * (1.5.2). Leer heißt **alle**.
+   *
+   * Löst die Regel „nur Projekte mit Projektnummer" ab. Die war ein Behelf:
+   * Sie filterte nach einem Feld, das eigentlich etwas anderes bedeutet.
+   * Der Projekttyp ist die Angabe, die in awork ohnehin gepflegt wird, um
+   * Arten von Vorhaben zu unterscheiden.
+   */
+  aworkProjectTypes: text('awork_project_types'),
   /**
    * Das Gegenstück in awork: die Kennung der dortigen Freifeld-Definition.
    * Eine Zeichenkette, kein `uuid` – es ist eine fremde Kennung, und Klappe

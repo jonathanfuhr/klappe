@@ -6,15 +6,24 @@ import {
   freifeldWert,
   kundenPassen,
   normalisiereKunde,
+  normalisiereProjektKey,
   normalisiereProjektnummer,
   parseAusschluss,
+  parseProjektTypen,
+  typErlaubt,
 } from './matching';
 
 const projekt = (
   id: string,
-  projectNumber: string | null,
+  projectKey: string | null,
   companyName: string | null = null,
-): AworkKandidat => ({ id, name: `Projekt ${id}`, companyName, projectNumber });
+): AworkKandidat => ({
+  id,
+  name: `Projekt ${id}`,
+  companyName,
+  projectKey,
+  projectNumber: null,
+});
 
 describe('normalisiereProjektnummer', () => {
   it('vereinheitlicht Schreibweise und Trenner', () => {
@@ -60,23 +69,23 @@ describe('kundenPassen', () => {
 
 describe('findeProjekt', () => {
   const kandidaten = [
-    projekt('a', 'J26Q3P0153', 'Beispiel GmbH'),
-    projekt('b', 'J26Q3P0152', 'Andere AG'),
-    projekt('c', null, 'Ohne Nummer KG'),
+    projekt('a', 'UBEI', 'Beispiel GmbH'),
+    projekt('b', 'ENSS', 'Andere AG'),
+    projekt('c', null, 'Ohne Key KG'),
   ];
 
-  it('findet über die Projektnummer, Schreibweise egal', () => {
-    const ergebnis = findeProjekt('j26 q3 p0153', 'Beispiel GmbH', kandidaten);
+  it('findet über den Projekt-Key, Schreibweise egal', () => {
+    const ergebnis = findeProjekt('ubei', 'Beispiel GmbH', kandidaten);
     expect(ergebnis.art).toBe('treffer');
     if (ergebnis.art === 'treffer') expect(ergebnis.kandidat.id).toBe('a');
   });
 
   it('nimmt einen Treffer auch ohne Kundenangabe an', () => {
-    expect(findeProjekt('J26Q3P0153', null, kandidaten).art).toBe('treffer');
+    expect(findeProjekt('UBEI', null, kandidaten).art).toBe('treffer');
   });
 
   it('meldet einen abweichenden Kunden, statt still zuzuordnen', () => {
-    const ergebnis = findeProjekt('J26Q3P0153', 'Ganz Anders GmbH', kandidaten);
+    const ergebnis = findeProjekt('UBEI', 'Ganz Anders GmbH', kandidaten);
     expect(ergebnis.art).toBe('kunde-abweichend');
     if (ergebnis.art === 'kunde-abweichend') {
       expect(ergebnis.kandidat.id).toBe('a');
@@ -84,34 +93,67 @@ describe('findeProjekt', () => {
     }
   });
 
-  it('meldet Mehrdeutigkeit, wenn zwei Projekte dieselbe Nummer tragen', () => {
-    const doppelt = [...kandidaten, projekt('d', 'J26Q3P0153', 'Beispiel GmbH')];
-    const ergebnis = findeProjekt('J26Q3P0153', 'Beispiel GmbH', doppelt);
+  it('meldet Mehrdeutigkeit, wenn zwei Projekte denselben Key tragen', () => {
+    // In awork kommt das nicht vor; von Hand abgetippt schon.
+    const doppelt = [...kandidaten, projekt('d', 'UBEI', 'Beispiel GmbH')];
+    const ergebnis = findeProjekt('UBEI', 'Beispiel GmbH', doppelt);
     expect(ergebnis.art).toBe('mehrdeutig');
     if (ergebnis.art === 'mehrdeutig') expect(ergebnis.kandidaten).toHaveLength(2);
   });
 
-  it('unterscheidet „keine Nummer am Projekt" von „nichts gefunden"', () => {
-    expect(findeProjekt('', 'Beispiel GmbH', kandidaten).art).toBe('ohne-nummer');
-    expect(findeProjekt('J99X9P9999', 'Beispiel GmbH', kandidaten).art).toBe('kein-treffer');
+  it('unterscheidet „kein Key am Projekt" von „nichts gefunden"', () => {
+    expect(findeProjekt('', 'Beispiel GmbH', kandidaten).art).toBe('ohne-key');
+    expect(findeProjekt('XXXX', 'Beispiel GmbH', kandidaten).art).toBe('kein-treffer');
   });
 
-  it('ordnet Projekte ohne Nummer in awork niemandem zu', () => {
-    // Sonst würden alle nummernlosen Projekte auf beiden Seiten zusammenfallen.
-    expect(findeProjekt(null, 'Ohne Nummer KG', kandidaten).art).toBe('ohne-nummer');
+  it('ordnet Projekte ohne Key in awork niemandem zu', () => {
+    expect(findeProjekt(null, 'Ohne Key KG', kandidaten).art).toBe('ohne-key');
+  });
+});
+
+describe('normalisiereProjektKey', () => {
+  it('vereinheitlicht Schreibweise und Leerraum', () => {
+    expect(normalisiereProjektKey('ubei')).toBe('UBEI');
+    expect(normalisiereProjektKey(' UB EI ')).toBe('UBEI');
   });
 
-  it('behandelt einen blossen Strich wie eine fehlende Nummer', () => {
-    /*
-     * Aufgefallen beim ersten Lauf gegen den echten Workspace: In zwei
-     * awork-Projekten stand „-" im Feld – ausgefüllt, aber ohne Aussage.
-     * Roh betrachtet galt das als Nummer, und beide landeten als neue
-     * Projekte in Klappe.
-     */
-    for (const platzhalter of ['-', '--', '.', '/', ' - ', '___']) {
-      expect(normalisiereProjektnummer(platzhalter)).toBe('');
-      expect(findeProjekt(platzhalter, null, kandidaten).art).toBe('ohne-nummer');
-    }
+  it('behält Bindestriche – anders als bei der Projektnummer', () => {
+    // Der Key kommt aus awork und wird nicht getippt; ein Bindestrich darin
+    // wäre Teil des Keys, kein Trennzeichen.
+    expect(normalisiereProjektKey('AB-CD')).toBe('AB-CD');
+  });
+
+  it('macht aus fehlenden Werten eine leere Zeichenkette', () => {
+    expect(normalisiereProjektKey(null)).toBe('');
+    expect(normalisiereProjektKey('   ')).toBe('');
+  });
+});
+
+describe('parseProjektTypen', () => {
+  it('zerlegt die Kommaliste und wirft Doppeltes weg', () => {
+    expect(parseProjektTypen('a, b ,a')).toEqual(['a', 'b']);
+  });
+
+  it('macht aus nichts eine leere Liste', () => {
+    expect(parseProjektTypen(null)).toEqual([]);
+    expect(parseProjektTypen('  ')).toEqual([]);
+  });
+});
+
+describe('typErlaubt', () => {
+  it('lässt ohne Auswahl alles durch', () => {
+    expect(typErlaubt('a', [])).toBe(true);
+    expect(typErlaubt(null, [])).toBe(true);
+  });
+
+  it('lässt nur die gewählten Typen durch', () => {
+    expect(typErlaubt('a', ['a', 'b'])).toBe(true);
+    expect(typErlaubt('c', ['a', 'b'])).toBe(false);
+  });
+
+  it('schliesst Projekte ohne Typ aus, sobald eingeschränkt wurde', () => {
+    // Sonst käme ausgerechnet das Unsortierte durch, das niemand gewählt hat.
+    expect(typErlaubt(null, ['a'])).toBe(false);
   });
 });
 

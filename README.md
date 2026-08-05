@@ -676,27 +676,24 @@ für das Video Eingetragenen, und die Beschreibung enthält den Kommentarverlauf
 nach Timecode, mit Antworten, Erledigt-Haken und einem Vermerk, wo gezeichnet
 wurde. Alles Übrige geht als **Projekt-Kommentar** hinaus.
 
-#### Voraussetzung: die Projektnummer
+#### Wie die Projekte zueinander finden
 
-**Ohne Projektnummer läuft nichts.** Sie ist der einzige Schlüssel, über den
-sich ein Klappe-Projekt und ein awork-Projekt finden – Projektnamen weichen
-zwischen beiden Systemen regelmäßig ab und taugen dafür nicht.
+Zugeordnet wird über den **Projekt-Key**, den awork jedem Projekt von sich aus
+gibt – `UBEI`, `ENSS` und so fort. Er ist dort eindeutig, und niemand muss ihn
+pflegen.
 
-Gebraucht wird sie als **Freifeld auf beiden Seiten**:
+Klappe legt dafür beim Einschalten der Anbindung ein eigenes Projektfeld an
+(*awork-Projekt-Key*) und hält es aus der Projektliste heraus: nicht filterbar,
+nicht sortierbar, nicht auf der Kachel. Es ist eine technische Kennung; auf der
+Projektseite steht sie, in der Übersicht wäre sie nur Rauschen. Bei
+übernommenen Projekten wird der Key gleich mit eingetragen.
 
-- in Klappe unter *Einstellungen → Benutzerdefinierte Felder* (etwa
-  „Projektnummer"; Tippvorschläge dort am besten aus, sie helfen bei einer
-  einmaligen Nummer nicht),
-- in awork als Freifeld am Projekt.
+Der Kundenname dient als Gegenprobe: Weicht er ab, wird nicht stillschweigend
+zugeordnet, sondern nachgefragt.
 
-Beide müssen **denselben Wert** tragen. Schreibweise und Trenner sind egal:
-`J26Q3P0153`, `j26q3p0153` und `J26 Q3-P0153` gelten als dieselbe Nummer.
-
-Was ohne sie passiert: Ein Klappe-Projekt ohne Nummer wird nie zugeordnet, es
-gehen also keine Korrekturen hinaus (die Projektseite zeigt das an, und von
-Hand zuordnen geht weiterhin). Ein awork-Projekt ohne Nummer wird beim Abholen
-übersprungen und **nicht** in Klappe angelegt – so bleiben interne Vorhaben
-außen vor, die kein Review brauchen.
+*(Bis 1.5.1 lief die Zuordnung über eine selbst gepflegte Projektnummer. Die
+gibt es weiterhin – sie wandert als Wert von awork herüber, entscheidet aber
+nichts mehr. Siehe „Felder übernehmen" in den Einstellungen.)*
 
 #### Den API-Schlüssel erzeugen
 

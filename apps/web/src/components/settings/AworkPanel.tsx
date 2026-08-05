@@ -4,6 +4,7 @@ import type {
   AworkCheckDto,
   AworkEvent,
   AworkFieldDto,
+  AworkProjectTypeDto,
   AworkSettingsDto,
   ProjectFieldDefDto,
   UserDto,
@@ -36,6 +37,7 @@ export function AworkPanel() {
   const [settings, setSettings] = useState<AworkSettingsDto | null>(null);
   const [klappeFelder, setKlappeFelder] = useState<ProjectFieldDefDto[]>([]);
   const [aworkFelder, setAworkFelder] = useState<AworkFieldDto[]>([]);
+  const [aworkTypen, setAworkTypen] = useState<AworkProjectTypeDto[]>([]);
   const [team, setTeam] = useState<UserDto[]>([]);
   const [form, setForm] = useState({
     apiKey: '',
@@ -137,7 +139,10 @@ export function AworkPanel() {
       setPruefung(ergebnis);
       // Der Test liefert die Freifelder gleich mit – er hat den Schlüssel in
       // der Hand, auch wenn er noch nicht gespeichert ist.
-      if (ergebnis.ok) setAworkFelder(ergebnis.fields);
+      if (ergebnis.ok) {
+        setAworkFelder(ergebnis.fields);
+        setAworkTypen(ergebnis.projectTypes);
+      }
     } catch (checkError) {
       setError(checkError instanceof Error ? checkError.message : t('common.saveFailed'));
     } finally {
@@ -229,6 +234,42 @@ export function AworkPanel() {
 
         <h2 className="section__title">{t('awork.matchingTitle')}</h2>
         <p className="hint">{t('awork.matchingHint')}</p>
+
+        {/* Welche Projektarten überhaupt geholt werden (1.5.2). Ohne Auswahl
+            alle – so verhält sich eine Anlage, in der niemand etwas gewählt
+            hat, wie vorher. */}
+        <div className="field">
+          <label className="field__label">{t('awork.projectTypes')}</label>
+          {aworkTypen.length === 0 ? (
+            <p className="hint">{t('awork.projectTypesEmpty')}</p>
+          ) : (
+            <>
+              {aworkTypen.map((typ) => (
+                <label className="switch" key={typ.id}>
+                  <input
+                    type="checkbox"
+                    checked={settings.projectTypes.includes(typ.id)}
+                    onChange={(event) => {
+                      const naechste = event.target.checked
+                        ? [...settings.projectTypes, typ.id]
+                        : settings.projectTypes.filter((id) => id !== typ.id);
+                      void aendern(() => api.updateAworkSettings({ projectTypes: naechste }));
+                    }}
+                  />
+                  {typ.name}
+                </label>
+              ))}
+              <p className="hint">
+                {settings.projectTypes.length === 0
+                  ? t('awork.projectTypesAll')
+                  : t('awork.projectTypesHint')}
+              </p>
+            </>
+          )}
+        </div>
+
+        <h2 className="section__title">{t('awork.transferTitle')}</h2>
+        <p className="hint">{t('awork.transferHint')}</p>
 
         <div className="grid-two">
           <div className="field">

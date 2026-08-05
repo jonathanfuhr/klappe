@@ -1,0 +1,3 @@
+ALTER TABLE "app_settings" ADD COLUMN "awork_project_key_field_id" uuid;--> statement-breakpoint
+ALTER TABLE "app_settings" ADD COLUMN "awork_project_types" text;--> statement-breakpoint
+ALTER TABLE "app_settings" ADD CONSTRAINT "app_settings_awork_project_key_field_id_project_field_defs_id_fk" FOREIGN KEY ("awork_project_key_field_id") REFERENCES "public"."project_field_defs"("id") ON DELETE set null ON UPDATE no action;

@@ -1251,10 +1251,19 @@ export const de = {
   'awork.check': 'Verbindung prüfen',
   'awork.lastCheck': 'Zuletzt geprüft: {when}',
   'awork.matchingTitle': 'Zuordnung der Projekte',
+  'awork.projectTypes': 'Diese Projektarten holen',
+  'awork.projectTypesEmpty':
+    'Erst nach einer geprüften Verbindung stehen hier die Projektarten aus awork.',
+  'awork.projectTypesAll': 'Nichts ausgewählt – es werden alle Arten geholt.',
+  'awork.projectTypesHint':
+    'Nur die angehakten Arten kommen nach Klappe. Projekte ohne Art bleiben dann außen vor.',
+  'awork.transferTitle': 'Felder übernehmen',
+  'awork.transferHint':
+    'Neben Name und Kunde kann Klappe ein Freifeld aus awork mitnehmen – etwa eure Projektnummer. Rein zur Anzeige; zugeordnet wird über den Projekt-Key.',
   'awork.matchingHint':
-    'Beide Seiten führen eine Projektnummer als Freifeld. Hier steht, welches Feld jeweils gemeint ist. Der Kundenname dient als Gegenprobe: Weicht er ab, wird nicht stillschweigend zugeordnet, sondern nachgefragt.',
-  'awork.klappeField': 'Projektnummer in Klappe',
-  'awork.aworkField': 'Projektnummer in awork',
+    'Zugeordnet wird über den Projekt-Key, den awork jedem Projekt von sich aus gibt (etwa „UBEI"). Klappe legt dafür beim Einschalten ein eigenes Projektfeld an und hält es aus der Projektliste heraus. Der Kundenname dient als Gegenprobe: Weicht er ab, wird nicht stillschweigend zugeordnet, sondern nachgefragt.',
+  'awork.klappeField': 'Zielfeld in Klappe',
+  'awork.aworkField': 'Quellfeld in awork',
   'awork.fieldNone': '— keines —',
   'awork.aworkFieldEmpty':
     'Erst nach einer geprüften Verbindung stehen hier die Freifelder aus awork zur Auswahl.',
@@ -1314,15 +1323,15 @@ export const de = {
     other: '{count} Aufgaben angelegt',
   },
   'awork.projectNone': 'Noch keinem awork-Projekt zugeordnet.',
-  'awork.projectNumber': 'Projektnummer: {number}',
-  'awork.projectNoNumber': 'Ohne Projektnummer – die Zuordnung braucht sie.',
+  'awork.projectKey': 'awork-Key: {key}',
+  'awork.projectNoKey': 'Ohne awork-Key – die Zuordnung braucht ihn.',
   'awork.projectSearch': 'Zuordnung suchen',
   'awork.projectChoose': 'Von Hand zuordnen',
   'awork.projectUnlink': 'Zuordnung lösen',
   'awork.projectUnlinkConfirm':
     'Zuordnung lösen? Neue Korrekturen gehen dann nicht mehr nach awork. Bestehende Aufgaben bleiben dort stehen.',
   'awork.projectPick': 'awork-Projekt wählen',
-  'awork.matchedNumber': 'über die Projektnummer',
+  'awork.matchedNumber': 'über den awork-Key',
   'awork.matchedManual': 'von Hand zugeordnet',
   'awork.matchedCreated': 'aus awork übernommen',
 } satisfies Dictionary;

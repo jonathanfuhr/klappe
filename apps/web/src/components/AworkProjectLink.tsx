@@ -88,9 +88,9 @@ export function AworkProjectLink({ projectId }: { projectId: string }) {
         <span style={{ fontSize: 13 }}>
           {t('awork.projectNone')}{' '}
           <span className="faint">
-            {state.projectNumber
-              ? t('awork.projectNumber', { number: state.projectNumber })
-              : t('awork.projectNoNumber')}
+            {state.projectKey
+              ? t('awork.projectKey', { key: state.projectKey })
+              : t('awork.projectNoKey')}
           </span>
         </span>
       )}
@@ -119,7 +119,7 @@ export function AworkProjectLink({ projectId }: { projectId: string }) {
           <option value="">{t('awork.projectPick')}</option>
           {auswahl.map((projekt) => (
             <option key={projekt.id} value={projekt.id}>
-              {projekt.projectNumber ? `${projekt.projectNumber} · ` : ''}
+              {projekt.projectKey ? `${projekt.projectKey} · ` : ''}
               {projekt.name}
               {projekt.company ? ` (${projekt.company})` : ''}
             </option>
@@ -127,7 +127,7 @@ export function AworkProjectLink({ projectId }: { projectId: string }) {
         </select>
       ) : (
         <>
-          {!state.link && state.projectNumber ? (
+          {!state.link && state.projectKey ? (
             <button
               type="button"
               className="button button--ghost"

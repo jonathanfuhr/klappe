@@ -88,13 +88,19 @@ export interface AworkSettingsDto {
   /** Der API-Schlüssel steht nie im Klartext in einer Antwort. */
   hasApiKey: boolean;
   /**
-   * Welches Klappe-Projektfeld die Projektnummer trägt. Ohne diese Angabe
-   * findet die Zuordnung nichts – deshalb der erste Schritt in den
-   * Einstellungen.
+   * Das Klappe-Feld mit dem awork-Projekt-Key – der Schlüssel der Zuordnung
+   * (1.5.2). Legt Klappe beim Einschalten selbst an.
+   */
+  projectKeyFieldId: string | null;
+  /**
+   * Welches Klappe-Projektfeld die Projektnummer trägt. Seit 1.5.2 nur noch
+   * ein Wert, der von awork herüberwandert – kein Schlüssel mehr.
    */
   projectNumberFieldId: string | null;
   /** Das Gegenstück: die Freifeld-Definition in awork. */
   aworkProjectNumberFieldId: string | null;
+  /** Welche awork-Projekttypen geholt werden. Leer heißt alle. */
+  projectTypes: string[];
   /** Aufgabenliste, in die die Korrektur-Aufgaben einsortiert werden. */
   taskListName: string;
   /** Steht vor dem Videonamen im Aufgabentitel. */
@@ -147,6 +153,11 @@ export interface AworkCheckDto {
    * die Felder gleich mit.
    */
   fields: AworkFieldDto[];
+  /**
+   * Die Projekttypen, ebenfalls gleich mitgeliefert – aus demselben Grund wie
+   * die Freifelder: Beim Einrichten ist der Schlüssel noch nicht gespeichert.
+   */
+  projectTypes: AworkProjectTypeDto[];
 }
 
 /** Ein awork-Projekt, für die manuelle Zuordnung im Klappe-Projekt. */
@@ -154,7 +165,15 @@ export interface AworkProjectDto {
   id: string;
   name: string;
   company: string | null;
+  /** Die awork-Kennung – seit 1.5.2 das, wonach zugeordnet wird. */
+  projectKey: string | null;
   projectNumber: string | null;
+}
+
+/** Ein awork-Projekttyp, zur Auswahl in den Einstellungen (1.5.2). */
+export interface AworkProjectTypeDto {
+  id: string;
+  name: string;
 }
 
 /** Die Zuordnung eines einzelnen Klappe-Projekts. */
@@ -175,10 +194,10 @@ export interface AworkProjectStateDto {
   enabled: boolean;
   link: AworkProjectLinkDto | null;
   /**
-   * Die Projektnummer dieses Projekts – der Schlüssel, über den gesucht wird.
-   * `null` heißt: Feld leer oder gar nicht eingerichtet.
+   * Der awork-Projekt-Key dieses Projekts – der Schlüssel, über den gesucht
+   * wird. `null` heißt: Feld leer oder gar nicht eingerichtet.
    */
-  projectNumber: string | null;
+  projectKey: string | null;
   /** Aufgaben, die Klappe für dieses Projekt angelegt hat. */
   taskCount: number;
 }

@@ -76,6 +76,13 @@ class UpdateAworkDto {
   @MaxLength(64)
   aworkProjectNumberFieldId?: string | null;
 
+  /** Kennungen der awork-Projekttypen; leere Liste heisst alle (1.5.2). */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  projectTypes?: string[];
+
   @IsOptional()
   @IsString()
   @MaxLength(MAX_AWORK_TASK_LIST_NAME)
@@ -147,13 +154,22 @@ export class AworkController {
 
   @Roles('ADMIN')
   @Put('settings/awork')
-  update(@Body() dto: UpdateAworkDto): Promise<AworkSettingsDto> {
+  async update(@Body() dto: UpdateAworkDto): Promise<AworkSettingsDto> {
+    /*
+     * Beim Einschalten das Feld für den awork-Projekt-Key anlegen, falls es
+     * fehlt (1.5.2). Es ist der Schlüssel der Zuordnung – ihn von Hand
+     * anlegen zu lassen wäre ein Einrichtungsschritt, den man vergisst und
+     * dessen Fehlen erst auffällt, wenn nichts zusammenfindet.
+     */
+    if (dto.enabled) await this.settings.ensureProjektKeyFeld();
+
     return this.settings.update({
       enabled: dto.enabled,
       // Ein weggelassenes Feld lässt den gespeicherten Schlüssel in Ruhe.
       apiKey: dto.apiKey === undefined ? undefined : dto.apiKey || null,
       projectNumberFieldId: dto.projectNumberFieldId,
       aworkProjectNumberFieldId: dto.aworkProjectNumberFieldId,
+      projectTypes: dto.projectTypes,
       taskListName: dto.taskListName,
       taskTitlePrefix: dto.taskTitlePrefix,
       fallbackUserId: dto.fallbackUserId,
@@ -182,6 +198,7 @@ export class AworkController {
         userCount: null,
         projectCount: null,
         fields: [],
+        projectTypes: [],
       };
     }
 
@@ -195,17 +212,28 @@ export class AworkController {
        * gebraucht wird.
        */
       const felder = await this.projektFelder(key);
+      // Und die Projekttypen: Ohne sie bliebe die Auswahl, welche Arten geholt
+      // werden, ausgerechnet beim Einrichten leer (1.5.2).
+      const typen = await this.client.listProjectTypes(key);
       return {
         ok: true,
         message: `Verbindung steht: ${ergebnis.userCount} Nutzer, ${ergebnis.projectCount} Projekte gefunden.`,
         userCount: ergebnis.userCount,
         projectCount: ergebnis.projectCount,
         fields: felder,
+        projectTypes: typen,
       };
     } catch (error) {
       const meldung = error instanceof AworkError ? error.message : String(error);
       await this.settings.merkeErgebnis(meldung);
-      return { ok: false, message: meldung, userCount: null, projectCount: null, fields: [] };
+      return {
+        ok: false,
+        message: meldung,
+        userCount: null,
+        projectCount: null,
+        fields: [],
+        projectTypes: [],
+      };
     }
   }
 
@@ -246,6 +274,7 @@ export class AworkController {
       id: eintrag.id,
       name: eintrag.name,
       company: eintrag.companyName,
+      projectKey: eintrag.projectKey,
       projectNumber: eintrag.projectNumber,
     }));
   }
@@ -256,9 +285,9 @@ export class AworkController {
     @Param('id', new ParseUUIDPipe()) projectId: string,
   ): Promise<AworkProjectStateDto> {
     const enabled = await this.settings.isReady();
-    const [link, projectNumber, aufgaben] = await Promise.all([
+    const [link, projectKey, aufgaben] = await Promise.all([
       this.links.linkFor(projectId),
-      this.links.projektnummer(projectId),
+      this.links.projektKey(projectId),
       this.db
         .select({ anzahl: sql<number>`count(*)::int` })
         .from(aworkTasks)
@@ -270,7 +299,7 @@ export class AworkController {
     return {
       enabled,
       link,
-      projectNumber,
+      projectKey,
       taskCount: aufgaben[0]?.anzahl ?? 0,
     };
   }
@@ -320,13 +349,13 @@ export class AworkController {
 
     const grund = ergebnis.grund;
     throw new BadRequestException(
-      grund.art === 'ohne-nummer'
-        ? 'Dieses Projekt hat keine Projektnummer – ohne sie lässt sich das Gegenstück nicht finden.'
+      grund.art === 'ohne-key'
+        ? 'Für dieses Projekt ist kein awork-Projekt-Key hinterlegt – ohne ihn lässt sich das Gegenstück nicht finden.'
         : grund.art === 'kein-treffer'
-          ? `In awork gibt es kein Projekt mit der Nummer ${grund.nummer}.`
+          ? `In awork gibt es kein Projekt mit dem Key ${grund.key}.`
           : grund.art === 'mehrdeutig'
-            ? `In awork tragen ${grund.kandidaten.length} Projekte diese Nummer – bitte von Hand zuordnen.`
-            : `Die Projektnummer passt, aber der Kunde nicht: hier „${grund.erwartet}", in awork „${grund.gefunden}". Bitte prüfen und von Hand zuordnen.`,
+            ? `In awork tragen ${grund.kandidaten.length} Projekte diesen Key – bitte von Hand zuordnen.`
+            : `Der Projekt-Key passt, aber der Kunde nicht: hier „${grund.erwartet}", in awork „${grund.gefunden}". Bitte prüfen und von Hand zuordnen.`,
     );
   }
 

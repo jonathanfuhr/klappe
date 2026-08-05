@@ -95,22 +95,27 @@ export class AworkLinksService {
   }
 
   /**
-   * Die Projektnummer eines Klappe-Projekts – aus dem Feld, das in den
-   * Einstellungen dafür bestimmt wurde. Ohne diese Wahl gibt es keine Nummer,
-   * und ohne Nummer findet die Zuordnung nichts.
+   * Der awork-Projekt-Key eines Klappe-Projekts – aus dem Feld, das die
+   * Anbindung dafür angelegt hat (1.5.2). Ohne ihn findet die Zuordnung nichts.
    */
+  async projektKey(projectId: string): Promise<string | null> {
+    const { projectKeyFieldId } = await this.settings.syncConfig();
+    return this.feldWert(projectId, projectKeyFieldId);
+  }
+
+  /** Die Projektnummer – nur noch ein Wert, kein Schlüssel mehr. */
   async projektnummer(projectId: string): Promise<string | null> {
     const { projectNumberFieldId } = await this.settings.syncConfig();
-    if (!projectNumberFieldId) return null;
+    return this.feldWert(projectId, projectNumberFieldId);
+  }
 
+  private async feldWert(projectId: string, fieldId: string | null): Promise<string | null> {
+    if (!fieldId) return null;
     const [row] = await this.db
       .select({ value: projectFieldValues.value })
       .from(projectFieldValues)
       .where(
-        and(
-          eq(projectFieldValues.projectId, projectId),
-          eq(projectFieldValues.fieldId, projectNumberFieldId),
-        ),
+        and(eq(projectFieldValues.projectId, projectId), eq(projectFieldValues.fieldId, fieldId)),
       )
       .limit(1);
     const wert = row?.value?.trim();
@@ -144,23 +149,23 @@ export class AworkLinksService {
       .from(projects)
       .where(eq(projects.id, projectId))
       .limit(1);
-    if (!projekt) return { art: 'nicht-moeglich', grund: { art: 'ohne-nummer' } };
+    if (!projekt) return { art: 'nicht-moeglich', grund: { art: 'ohne-key' } };
 
     /*
-     * Ohne Projektnummer wird gar nichts abgefragt – die Prüfung liest nur die
-     * eigene Datenbank. Deshalb steht sie **vor** der Suchsperre: Wer die
-     * Nummer nachträgt, soll beim nächsten Kommentar zugeordnet werden und
-     * nicht erst eine Viertelstunde später.
+     * Ohne Projekt-Key wird gar nichts abgefragt – die Prüfung liest nur die
+     * eigene Datenbank. Deshalb steht sie **vor** der Suchsperre: Wer den Key
+     * nachträgt, soll beim nächsten Kommentar zugeordnet werden und nicht erst
+     * eine Viertelstunde später.
      */
-    const nummer = await this.projektnummer(projectId);
-    if (!nummer) return { art: 'nicht-moeglich', grund: { art: 'ohne-nummer' } };
+    const key = await this.projektKey(projectId);
+    if (!key) return { art: 'nicht-moeglich', grund: { art: 'ohne-key' } };
 
     if (!options.frisch) {
       const zuletzt = this.erfolglos.get(projectId);
       if (zuletzt && Date.now() - zuletzt < SUCHSPERRE_MS) return { art: 'gesperrt' };
     }
 
-    const treffer = findeProjekt(nummer, projekt.customer, await this.kandidaten());
+    const treffer = findeProjekt(key, projekt.customer, await this.kandidaten());
     if (treffer.art !== 'treffer') {
       this.logger.log(`Projekt ${projectId}: keine awork-Zuordnung (${treffer.art}).`);
       this.erfolglos.set(projectId, Date.now());
@@ -179,6 +184,7 @@ export class AworkLinksService {
       id: eintrag.id,
       name: eintrag.name,
       companyName: eintrag.companyName,
+      projectKey: eintrag.projectKey,
       projectNumber: freifeldWert(eintrag.customFields, aworkProjectNumberFieldId),
     }));
   }

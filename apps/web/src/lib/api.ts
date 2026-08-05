@@ -844,8 +844,10 @@ export const api = {
     enabled?: boolean;
     /** Leer lassen heißt „unverändert" – siehe SMTP-Passwort. */
     apiKey?: string;
+    projectKeyFieldId?: string | null;
     projectNumberFieldId?: string | null;
     aworkProjectNumberFieldId?: string | null;
+    projectTypes?: string[];
     taskListName?: string;
     taskTitlePrefix?: string;
     fallbackUserId?: string | null;

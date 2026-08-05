@@ -1,6 +1,6 @@
 {
   "name": "@klappe/shared",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "description": "Gemeinsame Typen und Timecode-Mathematik für API, Worker und Web",
   "license": "AGPL-3.0-only",

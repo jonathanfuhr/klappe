@@ -67,6 +67,11 @@ export interface AworkCustomFieldValue {
   textValue?: string | null;
 }
 
+export interface AworkProjectType {
+  id: string;
+  name: string;
+}
+
 export interface AworkCustomFieldDefinition {
   id: string;
   name: string;
@@ -77,6 +82,14 @@ export interface AworkCustomFieldDefinition {
 export interface AworkProject {
   id: string;
   name: string;
+  /**
+   * Die Kennung, die awork jedem Projekt von sich aus gibt (`UBEI`, `ENSS`).
+   * Seit 1.5.2 der Schlüssel der Zuordnung – eindeutig und ohne Zutun.
+   */
+  projectKey: string | null;
+  /** Projekttyp, über den gefiltert wird; `null` bei Projekten ohne Typ. */
+  projectTypeId: string | null;
+  projectTypeName: string | null;
   companyName: string | null;
   createdBy: string | null;
   createdOn: string | null;
@@ -343,6 +356,22 @@ export class AworkClient {
     }));
   }
 
+  /**
+   * Die Projekttypen des Workspace – zur Auswahl, welche geholt werden
+   * (1.5.2). `apiKey` wird beim Einrichten mitgegeben, weil die Anbindung
+   * dann noch aus ist.
+   */
+  async listProjectTypes(apiKey?: string): Promise<AworkProjectType[]> {
+    const rows = await this.request<{ id: string; name?: string | null; isArchived?: boolean }[]>(
+      'GET',
+      '/projecttypes',
+      { apiKey },
+    );
+    return (rows ?? [])
+      .filter((row) => !row.isArchived)
+      .map((row) => ({ id: row.id, name: row.name ?? '' }));
+  }
+
   // -------------------------------------------------------------------- Projekte
 
   async listProjects(): Promise<AworkProject[]> {
@@ -491,9 +520,13 @@ function toProject(row: Record<string, unknown>): AworkProject {
     | { isArchived?: boolean; type?: string | null }
     | null
     | undefined;
+  const typ = row.projectType as { id?: string | null; name?: string | null } | null | undefined;
   return {
     id: String(row.id),
     name: typeof row.name === 'string' ? row.name : '',
+    projectKey: typeof row.projectKey === 'string' && row.projectKey.trim() ? row.projectKey.trim() : null,
+    projectTypeId: typ?.id ?? null,
+    projectTypeName: typ?.name ?? null,
     companyName: company?.name ?? null,
     createdBy: typeof row.createdBy === 'string' ? row.createdBy : null,
     createdOn: typeof row.createdOn === 'string' ? row.createdOn : null,

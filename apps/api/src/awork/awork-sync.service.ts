@@ -43,8 +43,9 @@ import { AworkSettingsService } from './awork-settings.service';
 import {
   ausschlussGrund,
   freifeldWert,
-  normalisiereProjektnummer,
+  normalisiereProjektKey,
   parseAusschluss,
+  typErlaubt,
 } from './matching';
 import {
   type AworkKommentar,
@@ -164,10 +165,13 @@ export class AworkSyncService {
     if (!(await this.settings.isReady())) return { angelegt: 0, verknuepft: 0 };
 
     const config = await this.settings.syncConfig();
-    if (!config.projectNumberFieldId || !config.aworkProjectNumberFieldId) {
-      this.logger.warn('awork-Abholung übersprungen: Die Projektnummer-Felder sind nicht gewählt.');
-      return { angelegt: 0, verknuepft: 0 };
-    }
+    /*
+     * Ohne das Key-Feld geht nichts (1.5.2). Es entsteht beim Einschalten der
+     * Anbindung von selbst; fehlt es doch, wird es hier nachgeholt statt den
+     * Durchgang abzubrechen – der Betreiber hat es dann vermutlich gelöscht.
+     */
+    const projectKeyFieldId =
+      config.projectKeyFieldId ?? (await this.settings.ensureProjektKeyFeld());
 
     const aworkProjekte = await this.client.listProjects();
 
@@ -178,11 +182,11 @@ export class AworkSyncService {
      * 200 Abfragen über je 300 Zeilen, alle fünf Minuten.
      *
      * Beide Karten werden in der Schleife **mitgepflegt**: Ein frisch
-     * angelegtes Projekt muss dem nächsten awork-Projekt mit derselben Nummer
+     * angelegtes Projekt muss dem nächsten awork-Projekt mit demselben Key
      * sofort auffallen, sonst legte der Durchgang es ein zweites Mal an.
      */
     const nachAworkId = await this.links.alleLinks();
-    const nachNummer = await this.klappeProjekteNachNummer(config.projectNumberFieldId);
+    const nachKey = await this.klappeProjekteNachKey(projectKeyFieldId);
     /*
      * Was jemand in Klappe gelöscht hat, kommt nicht von selbst zurück
      * (Nachtrag 1.5). Der Vermerk überlebt das Löschen des Projekts – siehe
@@ -195,7 +199,8 @@ export class AworkSyncService {
     /*
      * Welche Klappe-Projekte schon vergeben sind.
      *
-     * Nötig, weil zwei awork-Projekte dieselbe Projektnummer tragen können.
+     * Nötig, weil zwei Klappe-Projekte denselben Key tragen können – in awork
+     * ist er eindeutig, von Hand abgetippt nicht.
      * Ohne diese Prüfung bekäme das zweite denselben Klappe-Treffer, und
      * `speichere` schriebe die bestehende Verknüpfung still auf das neue
      * awork-Projekt um – die Korrekturen liefen fortan ins falsche Projekt,
@@ -208,6 +213,11 @@ export class AworkSyncService {
      * Einmal zerlegt statt je Projekt.
      */
     const ausschluss = parseAusschluss(config.excludeTerms);
+    /*
+     * Welche Projekttypen geholt werden (1.5.2). Leer heißt alle – so verhält
+     * sich eine Anlage, in der niemand etwas ausgewählt hat, wie vorher.
+     */
+    const typen = config.projectTypes;
 
     let angelegt = 0;
     let verknuepft = 0;
@@ -246,18 +256,17 @@ export class AworkSyncService {
         continue;
       }
 
+      // Nur die gewählten Projektarten (1.5.2).
+      if (!typErlaubt(projekt.projectTypeId, typen)) continue;
+
       /*
-       * Geprüft wird der **normalisierte** Wert, nicht der rohe (1.5).
-       *
-       * Ein Feld mit „-", „." oder „/" darin ist ausgefüllt, trägt aber keine
-       * Nummer – jemand hat dort einen Strich hingesetzt, um das Feld
-       * loszuwerden. Roh betrachtet gilt das als vorhanden, und beim ersten
-       * Lauf sind darüber zwei Projekte in Klappe gelandet, die keines
-       * brauchten. Normalisiert bleibt nichts übrig, und genau so soll es
-       * zählen: als „keine Nummer".
+       * Der Projekt-Key ist der Schlüssel. awork vergibt ihn für jedes Projekt,
+       * er sollte also immer da sein – fehlt er doch, lässt sich nichts
+       * zuordnen, und das Projekt bleibt außen vor.
        */
-      const roh = freifeldWert(projekt.customFields, config.aworkProjectNumberFieldId);
-      const nummer = normalisiereProjektnummer(roh) ? roh : null;
+      const key = projekt.projectKey;
+      // Die Projektnummer wandert weiterhin herüber, entscheidet aber nichts.
+      const nummer = freifeldWert(projekt.customFields, config.aworkProjectNumberFieldId);
 
       try {
         const bestehend = nachAworkId.get(projekt.id) ?? null;
@@ -268,13 +277,13 @@ export class AworkSyncService {
          * Klappe kennt eine Nummer, wandert sie nach awork. Das ist der Fall,
          * für den „fehlende Projektnummern angleichen" gemacht ist.
          */
-        if (!nummer) {
-          if (bestehend) await this.schreibeNummerNachAwork(bestehend, projekt);
+        if (!key) {
+          this.logger.warn(`awork-Projekt „${projekt.name}" hat keinen Projekt-Key – übersprungen.`);
           continue;
         }
 
         if (bestehend) {
-          await this.nachpflegen(bestehend, projekt, nummer, config);
+          await this.nachpflegen(bestehend, projekt, key, nummer, config);
           continue;
         }
 
@@ -282,32 +291,32 @@ export class AworkSyncService {
         // verknüpfen statt ein zweites anlegen. Mehrere Klappe-Projekte mit
         // derselben Nummer klärt ein Mensch, nicht der Abholer – sonst hinge
         // die Zuordnung am Zufall der Sortierung.
-        const schluessel = normalisiereProjektnummer(nummer);
-        const kandidaten = (nachNummer.get(schluessel) ?? []).filter((id) => !belegt.has(id));
+        const schluessel = normalisiereProjektKey(key);
+        const kandidaten = (nachKey.get(schluessel) ?? []).filter((id) => !belegt.has(id));
         if (kandidaten.length === 1) {
           const treffer = kandidaten[0];
           await this.links.speichere(treffer, projekt.id, projekt.name, 'nummer');
           nachAworkId.set(projekt.id, treffer);
           belegt.add(treffer);
-          await this.nachpflegen(treffer, projekt, nummer, config);
+          await this.nachpflegen(treffer, projekt, key, nummer, config);
           verknuepft += 1;
           continue;
         }
         if (kandidaten.length > 1) {
           this.logger.warn(
-            `awork-Projekt „${projekt.name}": ${kandidaten.length} Klappe-Projekte tragen die Nummer ${nummer} – bitte von Hand zuordnen.`,
+            `awork-Projekt „${projekt.name}": ${kandidaten.length} Klappe-Projekte tragen den Key ${key} – bitte von Hand zuordnen.`,
           );
           continue;
         }
 
         if (!config.autoCreateProjects) continue;
 
-        const projectId = await this.legeKlappeProjektAn(projekt, nummer, config);
+        const projectId = await this.legeKlappeProjektAn(projekt, key, projectKeyFieldId);
         await this.links.speichere(projectId, projekt.id, projekt.name, 'angelegt');
         nachAworkId.set(projekt.id, projectId);
         belegt.add(projectId);
-        nachNummer.set(schluessel, [...(nachNummer.get(schluessel) ?? []), projectId]);
-        await this.nachpflegen(projectId, projekt, nummer, config);
+        nachKey.set(schluessel, [...(nachKey.get(schluessel) ?? []), projectId]);
+        await this.nachpflegen(projectId, projekt, key, nummer, config);
         angelegt += 1;
       } catch (error) {
         // Ein Projekt, das klemmt, darf den Rest des Durchgangs nicht mitreißen.
@@ -325,14 +334,14 @@ export class AworkSyncService {
   }
 
   /**
-   * Alle Klappe-Projekte nach Projektnummer, in einem Zug.
+   * Alle Klappe-Projekte nach awork-Projekt-Key, in einem Zug (1.5.2).
    *
-   * Verglichen wird über den **normalisierten** Wert, nicht über SQL:
-   * `J26 Q3-P0153` und `j26q3p0153` sind dieselbe Nummer, und diese Regel
-   * steht in `matching.ts`. Mehrere Projekte je Nummer sind möglich – wie
-   * damit umzugehen ist, entscheidet der Aufrufer.
+   * Verglichen wird über den **normalisierten** Wert, nicht über SQL – die
+   * Regel steht in `matching.ts`. Mehrere Projekte je Key sind möglich, wenn
+   * jemand ihn von Hand eingetragen hat; wie damit umzugehen ist, entscheidet
+   * der Aufrufer.
    */
-  private async klappeProjekteNachNummer(fieldId: string): Promise<Map<string, string[]>> {
+  private async klappeProjekteNachKey(fieldId: string): Promise<Map<string, string[]>> {
     const werte = await this.db
       .select({ projectId: projectFieldValues.projectId, value: projectFieldValues.value })
       .from(projectFieldValues)
@@ -340,7 +349,7 @@ export class AworkSyncService {
 
     const karte = new Map<string, string[]>();
     for (const zeile of werte) {
-      const schluessel = normalisiereProjektnummer(zeile.value);
+      const schluessel = normalisiereProjektKey(zeile.value);
       if (!schluessel) continue;
       const liste = karte.get(schluessel);
       if (liste) liste.push(zeile.projectId);
@@ -360,11 +369,12 @@ export class AworkSyncService {
    */
   private async legeKlappeProjektAn(
     projekt: { id: string; name: string; companyName: string | null; createdBy: string | null },
-    nummer: string,
-    config: { projectNumberFieldId: string | null; fallbackUserId: string | null },
+    key: string,
+    projectKeyFieldId: string,
   ): Promise<string> {
+    const { fallbackUserId } = await this.settings.syncConfig();
     const anleger = projekt.createdBy ? await this.links.klappeUserFor(projekt.createdBy) : null;
-    const eintragen = anleger ?? config.fallbackUserId;
+    const eintragen = anleger ?? fallbackUserId;
     if (!anleger) {
       this.logger.warn(
         `awork-Projekt „${projekt.name}": Anleger hat kein Klappe-Konto – ${
@@ -382,15 +392,15 @@ export class AworkSyncService {
       })
       .returning();
 
-    if (config.projectNumberFieldId) {
-      await this.db
-        .insert(projectFieldValues)
-        .values({ projectId: row.id, fieldId: config.projectNumberFieldId, value: nummer })
-        .onConflictDoNothing();
-    }
+    // Der Key kommt sofort ans Projekt – ohne ihn fände der nächste Durchgang
+    // dieselbe Zuordnung nicht wieder und legte ein zweites Projekt an.
+    await this.db
+      .insert(projectFieldValues)
+      .values({ projectId: row.id, fieldId: projectKeyFieldId, value: key })
+      .onConflictDoNothing();
 
     await this.subscriptions.subscribeProjectCreator(eintragen, row.id);
-    this.logger.log(`Projekt „${projekt.name}" aus awork übernommen (${nummer}).`);
+    this.logger.log(`Projekt „${projekt.name}" aus awork übernommen (${key}).`);
     return row.id;
   }
 
@@ -405,15 +415,30 @@ export class AworkSyncService {
   private async nachpflegen(
     projectId: string,
     projekt: { id: string; name: string },
-    nummer: string,
+    key: string,
+    nummer: string | null,
     config: {
+      projectKeyFieldId: string | null;
       projectNumberFieldId: string | null;
       aworkProjectNumberFieldId: string | null;
       syncProjectNumber: boolean;
       writeBackLink: boolean;
     },
   ): Promise<void> {
-    if (config.syncProjectNumber && config.projectNumberFieldId) {
+    // Der Key steht am Projekt, auch wenn es von Hand zugeordnet wurde (1.5.2):
+    // Sonst hinge die Zuordnung allein an der Verknüpfungstabelle.
+    if (config.projectKeyFieldId) {
+      await this.db
+        .insert(projectFieldValues)
+        .values({ projectId, fieldId: config.projectKeyFieldId, value: key })
+        .onConflictDoUpdate({
+          target: [projectFieldValues.projectId, projectFieldValues.fieldId],
+          set: { value: key, updatedAt: new Date() },
+        });
+    }
+
+    // Die Projektnummer wandert weiter herüber – nur eben als Wert (1.5.2).
+    if (nummer && config.syncProjectNumber && config.projectNumberFieldId) {
       const [vorhanden] = await this.db
         .select({ value: projectFieldValues.value })
         .from(projectFieldValues)

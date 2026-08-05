@@ -12,6 +12,44 @@
  */
 
 /**
+ * Der awork-Projekt-Key (`UBEI`, `ENSS`) – seit 1.5.2 der Schlüssel der
+ * Zuordnung.
+ *
+ * awork vergibt ihn für jedes Projekt von sich aus und hält ihn eindeutig;
+ * niemand muss ihn abtippen. Vorher lief die Zuordnung über eine selbst
+ * gepflegte Projektnummer – die gibt es weiterhin, sie wandert aber nur noch
+ * als Wert herüber und entscheidet nichts mehr.
+ *
+ * Verglichen wird großgeschrieben und ohne Leerraum: In das Klappe-Feld tippt
+ * ihn im Zweifel doch jemand von Hand ab.
+ */
+export function normalisiereProjektKey(wert: string | null | undefined): string {
+  if (!wert) return '';
+  return wert.replace(/\s/g, '').toUpperCase();
+}
+
+/**
+ * Welche awork-Projekttypen geholt werden. Leere Liste heißt **alle** – so
+ * verhält sich eine Anlage, in der nie jemand etwas ausgewählt hat, wie
+ * vorher.
+ */
+export function parseProjektTypen(text: string | null | undefined): string[] {
+  if (!text) return [];
+  return [...new Set(text.split(',').map((eintrag) => eintrag.trim()).filter(Boolean))];
+}
+
+/**
+ * Soll dieser Projekttyp geholt werden? Projekte ohne Typ zählen als
+ * ausgewählt, solange nichts eingeschränkt ist – sonst verschwänden sie
+ * stillschweigend, obwohl niemand sie ausgeschlossen hat.
+ */
+export function typErlaubt(projectTypeId: string | null, erlaubte: string[]): boolean {
+  if (erlaubte.length === 0) return true;
+  if (!projectTypeId) return false;
+  return erlaubte.includes(projectTypeId);
+}
+
+/**
  * Projektnummern werden großgeschrieben und ohne Trenner verglichen.
  * `j26q3p0153`, `J26Q3P0153` und `J26 Q3 P0153` sind dieselbe Nummer – wer sie
  * abtippt, setzt Leerzeichen und Bindestriche nach Gefühl.
@@ -51,43 +89,50 @@ export interface AworkKandidat {
   id: string;
   name: string;
   companyName: string | null;
+  /** Der awork-Projekt-Key – seit 1.5.2 der Schlüssel. */
+  projectKey: string | null;
+  /** Nur noch ein Wert, der herüberwandert; entscheidet nichts mehr. */
   projectNumber: string | null;
 }
 
 export type ProjektTreffer =
-  /** Genau ein Projekt mit dieser Nummer, Kunde passt (oder schweigt). */
+  /** Genau ein Projekt mit diesem Key, Kunde passt (oder schweigt). */
   | { art: 'treffer'; kandidat: AworkKandidat }
   /**
-   * Nummer gefunden, aber der Kunde widerspricht. Wird **nicht** stillschweigend
+   * Key gefunden, aber der Kunde widerspricht. Wird **nicht** stillschweigend
    * übernommen: Eine falsche Zuordnung schreibt Korrekturen ins Projekt eines
    * fremden Kunden.
    */
   | { art: 'kunde-abweichend'; kandidat: AworkKandidat; erwartet: string; gefunden: string }
-  /** Mehrere Projekte tragen dieselbe Nummer – das muss ein Mensch klären. */
+  /**
+   * Mehrere Projekte tragen denselben Key. In awork kommt das nicht vor – er
+   * ist dort eindeutig –, wohl aber, wenn jemand ihn in Klappe von Hand
+   * abgetippt hat. Dann klärt es ein Mensch.
+   */
   | { art: 'mehrdeutig'; kandidaten: AworkKandidat[] }
-  /** Keine Projektnummer am Klappe-Projekt. */
-  | { art: 'ohne-nummer' }
-  /** Nummer da, aber in awork gibt es dazu nichts. */
-  | { art: 'kein-treffer'; nummer: string };
+  /** Kein Projekt-Key am Klappe-Projekt. */
+  | { art: 'ohne-key' }
+  /** Key da, aber in awork gibt es dazu nichts. */
+  | { art: 'kein-treffer'; key: string };
 
 /**
- * Sucht das passende awork-Projekt.
+ * Sucht das passende awork-Projekt – über den Projekt-Key (1.5.2).
  *
  * Die Kandidatenliste ist die **vollständige** awork-Projektliste; gefiltert
  * wird hier, damit die Regel an einer Stelle steht und prüfbar bleibt.
  */
 export function findeProjekt(
-  projektnummer: string | null | undefined,
+  projektKey: string | null | undefined,
   kunde: string | null | undefined,
   kandidaten: AworkKandidat[],
 ): ProjektTreffer {
-  const nummer = normalisiereProjektnummer(projektnummer);
-  if (!nummer) return { art: 'ohne-nummer' };
+  const key = normalisiereProjektKey(projektKey);
+  if (!key) return { art: 'ohne-key' };
 
   const treffer = kandidaten.filter(
-    (kandidat) => normalisiereProjektnummer(kandidat.projectNumber) === nummer,
+    (kandidat) => normalisiereProjektKey(kandidat.projectKey) === key,
   );
-  if (treffer.length === 0) return { art: 'kein-treffer', nummer };
+  if (treffer.length === 0) return { art: 'kein-treffer', key };
   if (treffer.length > 1) return { art: 'mehrdeutig', kandidaten: treffer };
 
   const kandidat = treffer[0];

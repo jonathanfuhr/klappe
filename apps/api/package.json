@@ -1,6 +1,6 @@
 {
   "name": "@klappe/api",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "description": "Klappe API und Transcoding-Worker",
   "license": "AGPL-3.0-only",
