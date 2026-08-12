@@ -4,6 +4,7 @@
  * im Frontend.
  */
 import type { Annotation } from './annotations';
+import type { BrandProfileRefDto } from './brand-profiles';
 import type { Locale } from './i18n';
 import type { PasswordPolicy } from './password-policy';
 import type { FrameRate } from './timecode';
@@ -65,6 +66,11 @@ export interface ProjectDto {
   tags: TagRefDto[];
   /** Belegte benutzerdefinierte Felder (Phase 15) – leere fehlen. */
   fields: ProjectFieldValueDto[];
+  /**
+   * Fremder Auftritt (1.6): Läuft das Projekt unter dem Erscheinungsbild
+   * einer Agentur? `null` heißt: unser eigenes, wie überall sonst.
+   */
+  brandProfile: BrandProfileRefDto | null;
 }
 
 /**
@@ -273,6 +279,13 @@ export interface VideoDto {
   /** Für die Brotkrumen, damit dort der Projektname steht und nicht „Projekt". */
   projectName: string | null;
   projectCustomer: string | null;
+  /**
+   * Der Auftritt des Projekts (1.6). Steht auch am Video, weil ein Gast mit
+   * einer Videofreigabe das Projekt gar nicht sehen darf – und die
+   * Videoseite ausgerechnet die Fläche ist, auf der der Endkunde die meiste
+   * Zeit verbringt.
+   */
+  brandProfile: BrandProfileRefDto | null;
   name: string;
   description: string | null;
   createdAt: string;
@@ -574,6 +587,13 @@ export interface SharePreviewDto {
   isActive: boolean;
   /** Ohne eingerichteten Mailversand kann kein Code verschickt werden. */
   mailReady: boolean;
+  /**
+   * Der Auftritt des Projekts (1.6) – und zwar **hier** und nicht erst nach
+   * der Anmeldung: Das Gatter ist der erste Bildschirm, den der Endkunde
+   * sieht. Käme die Marke erst mit dem nächsten Aufruf, blitzte genau dort
+   * kurz unser Logo auf, das der Auftritt gerade verbergen soll.
+   */
+  brandProfile: BrandProfileRefDto | null;
 }
 
 /** Ordner im Kunden-Bereich eines Projekts (Phase 15). */

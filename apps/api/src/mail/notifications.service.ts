@@ -127,7 +127,7 @@ export class NotificationsService {
     const spaeter = recipients.filter((recipient) => !sofort.includes(recipient));
 
     if (minuten <= 0 || sofort.length > 0) {
-      const brand = await this.mailService.brand();
+      const brand = await this.mailService.brand(row.projectId);
       let sent = 0;
       for (const recipient of minuten <= 0 ? recipients : sofort) {
         const mail = renderCommentMail({
@@ -302,7 +302,7 @@ export class NotificationsService {
       mentioned: eintrag.mentioned,
     }));
 
-    const brand = await this.mailService.brand();
+    const brand = await this.mailService.brand(kopf.projectId);
     const sprache = await this.mailService.localeFor(empfaenger.locale);
     const url = `${this.config.publicUrl}/videos/${videoId}`;
     const unsubscribeUrl = this.mailService.unsubscribeUrl(userId);
@@ -400,7 +400,7 @@ export class NotificationsService {
     );
     if (auswahl.length === 0) return 0;
 
-    const brand = await this.mailService.brand();
+    const brand = await this.mailService.brand(row.projectId);
     const url = `${this.config.publicUrl}${row.webUrl}`;
     let sent = 0;
 
@@ -448,7 +448,7 @@ export class NotificationsService {
     // **auch** – es ist seine Datei, die nicht durchgelaufen ist.
     if (empfaenger.length === 0) return 0;
 
-    const brand = await this.mailService.brand();
+    const brand = await this.mailService.brand(row.projectId);
     const url = `${this.config.publicUrl}${row.webUrl}`;
     let sent = 0;
 
@@ -505,7 +505,7 @@ export class NotificationsService {
     await this.markiereBerichtet([projectFileId]);
 
     const url = `${this.config.publicUrl}/projekte/${row.file.projectId}`;
-    const brand = await this.mailService.brand();
+    const brand = await this.mailService.brand(row.file.projectId);
     let sent = 0;
 
     for (const recipient of recipients) {
@@ -769,6 +769,7 @@ export class NotificationsService {
       empfaenger,
       kind: input.kind,
       audience: 'TEAM',
+      projectId: input.projectId,
       bauen: input.bauen,
     });
   }
@@ -778,6 +779,13 @@ export class NotificationsService {
     empfaenger: NotificationCandidate[];
     kind: NotificationKind;
     audience: 'TEAM' | 'GUEST';
+    /**
+     * Gehört die Mail zu einem Projekt, gilt dessen Auftritt (1.6) – auch für
+     * Mails ans eigene Team. Das ist dieselbe Entscheidung wie in der
+     * Oberfläche: Wer prüft, soll sehen, was der Kunde sieht. Mails ohne
+     * Projektbezug – Sicherung, Gerätekopplung – bleiben beim Haus.
+     */
+    projectId?: string | null;
     bauen: (
       recipient: NotificationCandidate,
       brand: MailBrand,
@@ -785,7 +793,7 @@ export class NotificationsService {
     ) => RenderedMail;
   }): Promise<number> {
     if (input.empfaenger.length === 0) return 0;
-    const brand = await this.mailService.brand();
+    const brand = await this.mailService.brand(input.projectId);
     let sent = 0;
 
     for (const recipient of input.empfaenger) {
@@ -868,7 +876,7 @@ export class NotificationsService {
     if (recipients.length === 0) return 0;
 
     const gesamt = offen.reduce((summe, datei) => summe + datei.sizeBytes, 0);
-    const brand = await this.mailService.brand();
+    const brand = await this.mailService.brand(projectId);
     const url = `${this.config.publicUrl}/projekte/${projectId}`;
     let sent = 0;
 
@@ -1022,7 +1030,9 @@ export class NotificationsService {
   /** Video- und Projektname für den Kopf der Sammelmail. */
   private async loadVideoHead(videoId: string) {
     const [row] = await this.db
-      .select({ videoName: videos.name, projectName: projects.name })
+      // `projectId` seit 1.6: Die Sammelmail braucht den Auftritt des
+      // Projekts, und der hängt am Projekt, nicht am Video.
+      .select({ videoName: videos.name, projectName: projects.name, projectId: projects.id })
       .from(videos)
       .innerJoin(projects, eq(videos.projectId, projects.id))
       .where(eq(videos.id, videoId))

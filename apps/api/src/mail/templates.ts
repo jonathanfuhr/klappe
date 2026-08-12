@@ -18,6 +18,19 @@ export interface RenderedMail {
   subject: string;
   text: string;
   html: string;
+  /**
+   * Absendername, wenn der Auftritt einen eigenen mitbringt (1.6); sonst
+   * `null` und es bleibt beim Namen des Workspace.
+   *
+   * Reist bewusst **mit der gerenderten Mail** und nicht als eigener
+   * Parameter am Versand: Wer eine Mail unter fremdem Auftritt rendert, gibt
+   * dafür schon die Marke mit – der Absender folgt damit demselben Weg wie
+   * Logo und Farbe. Ein zusätzlicher Parameter am Versand wäre die
+   * dreizehnte Stelle, an der man ihn vergessen kann, und eine Mail mit
+   * Agenturlogo im Rumpf und unserem Namen im Kopf fällt niemandem auf,
+   * der sie verschickt – nur dem, der sie bekommt.
+   */
+  fromName?: string | null;
 }
 
 /**
@@ -29,12 +42,22 @@ export interface MailBrand {
   title: string;
   accent: string;
   accentContrast: string;
+  /**
+   * Vollständige Adresse des Logos (1.6) – in einer Mail muss sie absolut
+   * sein, ein Pfad wie `/v1/branding/logo` führt im Postfach ins Leere.
+   * `null` heißt: Es bleibt beim Titel als Schriftzug.
+   */
+  logoUrl?: string | null;
+  /** Absendername des Auftritts; `null` = der des Workspace. */
+  fromName?: string | null;
 }
 
 export const DEFAULT_MAIL_BRAND: MailBrand = {
   title: 'Klappe',
   accent: '#4c8dff',
   accentContrast: '#04070d',
+  logoUrl: null,
+  fromName: null,
 };
 
 /** Die festen Wendungen der Mails, je Sprache. */
@@ -309,11 +332,23 @@ function layout(input: {
     );
   }
 
+  /*
+   * Logo statt Schriftzug, wenn der Auftritt eines mitbringt (1.6).
+   *
+   * Der Titel bleibt als `alt` stehen und ist keine Förmlichkeit: Viele
+   * Postfächer laden entfernte Bilder erst auf Klick, und bis dahin ist der
+   * Alternativtext alles, was im Kopf der Mail steht. Ohne ihn begänne die
+   * Mail einer Agentur mit einer leeren Fläche.
+   */
+  const kopf = brand.logoUrl
+    ? `<img src="${escapeHtml(brand.logoUrl)}" alt="${escapeHtml(brand.title)}" height="32" style="height:32px;max-width:240px;display:block;margin-bottom:18px">`
+    : `<div style="font-weight:650;font-size:17px;margin-bottom:18px">${escapeHtml(brand.title)}</div>`;
+
   return `<!doctype html>
 <html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
 <body style="margin:0;padding:24px;background:#f4f5f7;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#16191f">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:10px;padding:28px">
-    <div style="font-weight:650;font-size:17px;margin-bottom:18px">${escapeHtml(brand.title)}</div>
+    ${kopf}
     <h1 style="font-size:19px;margin:0 0 14px">${escapeHtml(input.title)}</h1>
     ${input.body}
     ${button}
@@ -360,6 +395,8 @@ export function renderGuestCodeMail(input: {
     // Der Code steht bewusst im Betreff: Auf dem Handy ist er dann schon in
     // der Vorschau lesbar, ohne die Mail zu öffnen.
     subject: t.codeSubject(input.code, brand.title),
+    // Absender des Auftritts, sonst der des Workspace (1.6).
+    fromName: input.brand?.fromName ?? null,
     text,
     html: layout({
       brand,
@@ -426,6 +463,8 @@ export function renderCommentMail(input: CommentMailInput): RenderedMail {
   return {
     subject,
     text,
+    // Absender des Auftritts, sonst der des Workspace (1.6).
+    fromName: input.brand?.fromName ?? null,
     html: layout({
       brand: input.brand,
       locale: input.locale,
@@ -507,6 +546,8 @@ export function renderCommentDigestMail(input: CommentDigestMailInput): Rendered
   return {
     subject,
     text,
+    // Absender des Auftritts, sonst der des Workspace (1.6).
+    fromName: input.brand?.fromName ?? null,
     html: layout({
       brand: input.brand,
       locale: input.locale,
@@ -540,6 +581,8 @@ export function renderProjectFileMail(input: {
 
   return {
     subject: t.fileSubject(input.projectName),
+    // Absender des Auftritts, sonst der des Workspace (1.6).
+    fromName: input.brand?.fromName ?? null,
     text: [
       t.hallo(input.recipientName),
       '',
@@ -591,6 +634,8 @@ export function renderProjectFileDigestMail(input: {
 
   return {
     subject: t.fileDigestSubject(input.files.length, input.projectName),
+    // Absender des Auftritts, sonst der des Workspace (1.6).
+    fromName: input.brand?.fromName ?? null,
     text: [
       t.hallo(input.recipientName),
       '',
@@ -652,6 +697,8 @@ export function renderVersionReadyMail(input: {
 
   return {
     subject: t.versionSubject(input.versionLabel, input.videoName),
+    // Absender des Auftritts, sonst der des Workspace (1.6).
+    fromName: input.brand?.fromName ?? null,
     text: [
       t.hallo(input.recipientName),
       '',
@@ -698,6 +745,8 @@ export function renderVersionFailedMail(input: {
 
   return {
     subject: t.versionFailedSubject(input.videoName),
+    // Absender des Auftritts, sonst der des Workspace (1.6).
+    fromName: input.brand?.fromName ?? null,
     text: [
       t.hallo(input.recipientName),
       '',
@@ -746,6 +795,8 @@ function kurzerHinweis(input: {
 
   return {
     subject: input.subject,
+    // Absender des Auftritts, sonst der des Workspace (1.6).
+    fromName: input.brand?.fromName ?? null,
     text: [
       t.hallo(input.recipientName),
       '',
@@ -887,6 +938,8 @@ export function renderAccessGrantedMail(input: {
 
   return {
     subject: t.accessSubject(input.targetName),
+    // Absender des Auftritts, sonst der des Workspace (1.6).
+    fromName: input.brand?.fromName ?? null,
     text: [
       t.hallo(input.recipientName),
       '',
@@ -921,6 +974,8 @@ export function renderTestMail(input: {
   const t = texte(input.locale);
   return {
     subject: t.testSubject(brand.title),
+    // Absender des Auftritts, sonst der des Workspace (1.6).
+    fromName: input.brand?.fromName ?? null,
     text: [
       t.testIntro(brand.title),
       '',

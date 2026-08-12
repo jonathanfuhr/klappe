@@ -29,6 +29,7 @@ import {
 } from '../db/schema';
 import { MailService } from '../mail/mail.service';
 import { renderGuestCodeMail } from '../mail/templates';
+import { BrandProfilesService } from '../settings/brand-profiles.service';
 import type { CreateShareLinkDto, UpdateShareLinkDto } from './shares.dto';
 import { createLoginCode, createShareToken, isLoginCodeShaped } from './share-token';
 
@@ -46,6 +47,7 @@ export class SharesService {
     @Inject(DB) private readonly db: Database,
     @Inject(CONFIG) private readonly config: AppConfig,
     private readonly mailService: MailService,
+    private readonly brandProfiles: BrandProfilesService,
   ) {}
 
   // ---------- Verwaltung durch das Team ----------
@@ -210,6 +212,15 @@ export class SharesService {
       allowComments: link.allowComments,
       isActive: isLinkActive(link),
       mailReady: await this.mailService.isReady(),
+      /*
+       * Der Auftritt gehört schon in die Vorschau (1.6): Das Gatter ist der
+       * erste Bildschirm, den der Endkunde sieht. Käme die Marke erst nach
+       * der Anmeldung, blitzte genau dort unser Logo auf – das eine, das der
+       * Auftritt gerade verbergen soll.
+       */
+      brandProfile: target.projectId
+        ? await this.brandProfiles.forProject(target.projectId)
+        : null,
     };
   }
 
@@ -257,7 +268,14 @@ export class SharesService {
     await this.mailService.send(
       email,
       renderGuestCodeMail({
-        brand: await this.mailService.brand(),
+        /*
+         * Auch die Code-Mail trägt den Auftritt (1.6). Der Code geht zwar an
+         * eine Adresse und nicht an ein Projekt – der Anmeldevorgang kennt
+         * aber den Freigabe-Link und damit das Projekt. Ohne das käme
+         * ausgerechnet die allererste Mail an den Endkunden unter unserem
+         * Namen.
+         */
+        brand: await this.mailService.brand(target.projectId),
         // Ein Gast, der zum ersten Mal hereinkommt, hat noch keine eigene
         // Wahl – dann gilt die Vorgabe des Workspace (Phase 26).
         locale: await this.mailService.localeFor(await this.gastSprache(email)),
@@ -729,9 +747,14 @@ export class SharesService {
     return row?.locale ?? null;
   }
 
+  /**
+   * Gibt seit 1.6 auch die Projekt-Kennung zurück: Vorschau und Code-Mail
+   * brauchen den Auftritt des Projekts, und der hängt am Projekt – auch dann,
+   * wenn der Link auf ein einzelnes Video zeigt.
+   */
   private async describeTarget(
     link: ShareLinkRow,
-  ): Promise<{ targetName: string; projectName: string }> {
+  ): Promise<{ targetName: string; projectName: string; projectId: string | null }> {
     if (link.scope === 'PROJECT' && link.projectId) {
       const [project] = await this.db
         .select({ name: projects.name })
@@ -739,20 +762,22 @@ export class SharesService {
         .where(eq(projects.id, link.projectId))
         .limit(1);
       const name = project?.name ?? 'Projekt';
-      return { targetName: name, projectName: name };
+      return { targetName: name, projectName: name, projectId: link.projectId };
     }
 
     if (link.videoId) {
       const [row] = await this.db
-        .select({ videoName: videos.name, projectName: projects.name })
+        .select({ videoName: videos.name, projectName: projects.name, projectId: projects.id })
         .from(videos)
         .innerJoin(projects, eq(videos.projectId, projects.id))
         .where(eq(videos.id, link.videoId))
         .limit(1);
-      if (row) return { targetName: row.videoName, projectName: row.projectName };
+      if (row) {
+        return { targetName: row.videoName, projectName: row.projectName, projectId: row.projectId };
+      }
     }
 
-    return { targetName: 'Freigabe', projectName: 'Projekt' };
+    return { targetName: 'Freigabe', projectName: 'Projekt', projectId: null };
   }
 
   /**

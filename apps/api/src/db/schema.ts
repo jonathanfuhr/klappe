@@ -99,6 +99,56 @@ export const users = pgTable(
   (table) => [uniqueIndex('users_email_unique').on(table.email)],
 );
 
+/**
+ * Auftritte: fremde Erscheinungsbilder, die ein Projekt tragen kann (1.6).
+ *
+ * Geht ein Film über eine Agentur zum Endkunden, ist die Agentur der
+ * Absender – nicht das Haus, dem der Workspace gehört. Bis 1.5 stand das
+ * Erscheinungsbild in genau einer Zeile in `app_settings`; ein Projekt
+ * konnte nicht anders aussehen als der Rest.
+ *
+ * Eine eigene Tabelle statt Feldern am Projekt, weil mit denselben Agenturen
+ * häufig gearbeitet wird: Ein einmal angelegter Auftritt steht beim nächsten
+ * Projekt in der Liste, und wechselt die Agentur ihr Logo, wechselt es in
+ * allen laufenden Projekten mit. Bei Feldern am Projekt müsste man es in
+ * einem Dutzend Projekten nachziehen – und genau das vergisst man.
+ *
+ * Der Preis ist bekannt und gewollt: Eine Korrektur am Auftritt ändert auch
+ * abgeschlossene Projekte rückwirkend. Wer das nicht will, legt einen
+ * zweiten Auftritt an.
+ */
+export const brandProfiles = pgTable('brand_profiles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  /**
+   * Dient zugleich als Bezeichnung in der Auswahl **und** als angezeigter
+   * Titel im Kopf, im Browser-Tab und in den Mails. Zwei Felder dafür wären
+   * zwei Gelegenheiten, sie auseinanderlaufen zu lassen.
+   */
+  name: text('name').notNull(),
+  /** Wie beim Workspace: eine Farbe, der Rest leitet sich ab. */
+  accent: text('accent'),
+  logoKey: text('logo_key'),
+  logoMime: text('logo_mime'),
+  /** Wechselt bei jedem neuen Logo und bricht damit den Browser-Cache auf. */
+  logoUpdatedAt: timestamp('logo_updated_at', { withTimezone: true }),
+  /**
+   * Firmenname und Kürzel des Auftritts. Das Kürzel steht in Klammern hinter
+   * den Namen des eigenen Teams – in einem Projekt unter fremdem Auftritt
+   * gehört dort das der Agentur hin, sonst steht unter dem Agenturlogo ein
+   * Kommentar von „Anna Beispiel (BSP)" und die Sache ist auf.
+   */
+  companyName: text('company_name'),
+  companyShort: text('company_short'),
+  /**
+   * Absender**name** der Mails zu Projekten dieses Auftritts. Die
+   * Absenderadresse bleibt die des Workspace – sie hängt an SPF und DKIM
+   * unserer Domain und lässt sich nicht je Projekt wechseln, ohne dass die
+   * Mails im Spam landen. Leer heißt: Es bleibt beim Namen des Workspace.
+   */
+  mailFromName: text('mail_from_name'),
+  ...timestamps,
+});
+
 export const projects = pgTable(
   'projects',
   {
@@ -117,6 +167,16 @@ export const projects = pgTable(
      * dass die Warnung täglich wiederkehrt.
      */
     cleanupWarnedAt: timestamp('cleanup_warned_at', { withTimezone: true }),
+    /**
+     * Fremder Auftritt für dieses Projekt (1.6); `null` heißt: das eigene
+     * Erscheinungsbild des Workspace.
+     *
+     * Ohne `onDelete`, also `NO ACTION`: Ein Auftritt, an dem noch Projekte
+     * hängen, lässt sich gar nicht erst löschen. Gelöscht werden können
+     * Auftritte ohnehin nicht – aber die Datenbank soll das nicht bloß
+     * glauben müssen.
+     */
+    brandProfileId: uuid('brand_profile_id').references(() => brandProfiles.id),
     ...timestamps,
   },
   (table) => [index('projects_created_at_idx').on(table.createdAt)],
@@ -1566,6 +1626,10 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   createdBy: one(users, { fields: [projects.createdById], references: [users.id] }),
+  brandProfile: one(brandProfiles, {
+    fields: [projects.brandProfileId],
+    references: [brandProfiles.id],
+  }),
   videos: many(videos),
   files: many(projectFiles),
   shareLinks: many(shareLinks),

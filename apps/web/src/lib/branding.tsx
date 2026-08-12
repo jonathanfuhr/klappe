@@ -1,11 +1,12 @@
 'use client';
 
-import type { BrandingDto } from '@klappe/shared';
+import type { BrandProfileRefDto, BrandingDto } from '@klappe/shared';
 import {
   DEFAULT_BRAND_ACCENT,
   DEFAULT_BRAND_TITLE,
   DEFAULT_LOCALE,
   deriveBrandColors,
+  effectiveBranding,
 } from '@klappe/shared';
 import {
   type ReactNode,
@@ -14,6 +15,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { api } from './api';
@@ -42,26 +44,43 @@ const fallback: BrandingDto = {
 const FAVICON_ATTRIBUT = 'data-klappe-favicon';
 
 interface BrandingState {
+  /**
+   * Das Erscheinungsbild, das **hier und jetzt** gilt: der Auftritt des
+   * gezeigten Projekts, sonst das des Workspace (1.6). Wer nur anzeigt,
+   * nimmt dieses – der Rest ist Innerei.
+   */
   branding: BrandingDto;
+  /** Das des Hauses, ohne Auftritt – für die Einstellungen. */
+  workspace: BrandingDto;
   /** Nach dem Speichern in den Einstellungen aufrufen. */
   apply: (branding: BrandingDto) => void;
+  /** Auftritt überlagern; `null` nimmt die Überlagerung wieder weg. */
+  zeigeAuftritt: (profile: BrandProfileRefDto | null) => void;
   reload: () => Promise<void>;
 }
 
 const BrandingContext = createContext<BrandingState | null>(null);
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
-  const [branding, setBranding] = useState<BrandingDto>(fallback);
+  const [workspace, setWorkspace] = useState<BrandingDto>(fallback);
+  /**
+   * Der Auftritt des gerade gezeigten Projekts (1.6). Steht hier oben und
+   * nicht in der Seite, weil auch der Kopf der Anwendung, das Browser-Tab
+   * und die Farbvariablen davon abhängen – die liegen alle über der Seite.
+   */
+  const [auftritt, setAuftritt] = useState<BrandProfileRefDto | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      setBranding(await api.getBranding());
+      setWorkspace(await api.getBranding());
     } catch {
       // Ohne Antwort bleibt es beim Standard – ein fehlendes Logo ist kein
       // Grund, die Seite nicht anzuzeigen.
-      setBranding(fallback);
+      setWorkspace(fallback);
     }
   }, []);
+
+  const branding = useMemo(() => effectiveBranding(workspace, auftritt), [workspace, auftritt]);
 
   useEffect(() => {
     void reload();
@@ -114,8 +133,8 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   }, [branding.appIconUrl, branding.faviconUrl]);
 
   const value = useMemo<BrandingState>(
-    () => ({ branding, apply: setBranding, reload }),
-    [branding, reload],
+    () => ({ branding, workspace, apply: setWorkspace, zeigeAuftritt: setAuftritt, reload }),
+    [branding, workspace, reload],
   );
 
   return <BrandingContext.Provider value={value}>{children}</BrandingContext.Provider>;
@@ -125,4 +144,31 @@ export function useBranding(): BrandingState {
   const context = useContext(BrandingContext);
   if (!context) throw new Error('useBranding gehört unter den BrandingProvider.');
   return context;
+}
+
+/**
+ * Den Auftritt eines Projekts anlegen, solange die Seite steht (1.6).
+ *
+ * Aufzurufen von jeder Seite, die zu einem Projekt gehört – Projektseite,
+ * Videoseite, Gast-Gatter. Beim Verlassen wird die Überlagerung wieder
+ * abgenommen, sonst bliebe das Agenturlogo in der Projektliste stehen.
+ *
+ * Der Schlüssel enthält absichtlich mehr als die Kennung: Wird das Logo
+ * gewechselt oder die Farbe geändert, während die Seite offen ist, soll das
+ * ankommen. Die Kennung allein bliebe dieselbe, und die Seite zeigte bis zum
+ * Neuladen den alten Stand.
+ */
+export function useProjektAuftritt(profile: BrandProfileRefDto | null | undefined): void {
+  const { zeigeAuftritt } = useBranding();
+  const neueste = useRef(profile ?? null);
+  neueste.current = profile ?? null;
+
+  const schluessel = profile
+    ? `${profile.id}|${profile.name}|${profile.accent}|${profile.logoUrl ?? ''}`
+    : '';
+
+  useEffect(() => {
+    zeigeAuftritt(neueste.current);
+    return () => zeigeAuftritt(null);
+  }, [schluessel, zeigeAuftritt]);
 }

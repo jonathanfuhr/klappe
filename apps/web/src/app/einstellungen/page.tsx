@@ -7,6 +7,7 @@ import { ApiAccessPanel } from '@/components/settings/ApiAccessPanel';
 import { AuthPanel } from '@/components/settings/AuthPanel';
 import { AworkPanel } from '@/components/settings/AworkPanel';
 import { BackupPanel } from '@/components/settings/BackupPanel';
+import { BrandProfilesPanel } from '@/components/settings/BrandProfilesPanel';
 import { BrandingPanel } from '@/components/settings/BrandingPanel';
 import { FieldsPanel } from '@/components/settings/FieldsPanel';
 import { GuestsPanel } from '@/components/settings/GuestsPanel';
@@ -99,7 +100,15 @@ export default function SettingsPage() {
           {gewaehlt === 'felder' ? <FieldsPanel /> : null}
           {gewaehlt === 'projekte' ? <ProjectsPanel /> : null}
           {gewaehlt === 'ki' ? <AiPanel /> : null}
-          {gewaehlt === 'branding' ? <BrandingPanel /> : null}
+          {/* Die Auftritte stehen unter dem Erscheinungsbild des Hauses (1.6):
+              dieselbe Frage, nur je Projekt. Ein eigener Punkt in der
+              Navigation wäre für eine Liste, die man selten anfasst, zu viel. */}
+          {gewaehlt === 'branding' ? (
+            <>
+              <BrandingPanel />
+              <BrandProfilesPanel />
+            </>
+          ) : null}
           {gewaehlt === 'auth' ? <AuthPanel /> : null}
           {gewaehlt === 'api' ? <ApiAccessPanel /> : null}
           {gewaehlt === 'benachrichtigungen' ? <NotificationsPanel /> : null}

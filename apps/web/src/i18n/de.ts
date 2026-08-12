@@ -450,6 +450,32 @@ export const de = {
     'Die Einbettung sofort abschalten? Der eingebettete Player bleibt dann leer.',
   'embed.disableFailed': 'Zurückziehen fehlgeschlagen.',
 
+  // Auftritt pro Projekt (1.6)
+  'brandProfile.menuEntry': 'Auftritt …',
+  'brandProfile.dialogTitle': 'Auftritt des Projekts',
+  'brandProfile.dialogHint':
+    'Läuft das Projekt über eine Agentur, tragen Freigabeseiten, Player und E-Mails deren Logo statt unseres. Die Adresse des Links und die Absenderadresse der Mails bleiben unsere.',
+  'brandProfile.choice': 'Auftritt',
+  'brandProfile.none': 'Eigenes Erscheinungsbild',
+  'brandProfile.createNew': 'Neuen Auftritt anlegen …',
+  'brandProfile.name': 'Name der Agentur',
+  'brandProfile.nameHint': 'Steht im Kopf der Seite, im Browser-Tab und in den E-Mails.',
+  'brandProfile.logo': 'Logo',
+  'brandProfile.accent': 'Akzentfarbe',
+  'brandProfile.accentHint': 'Leer lassen, um die Farbe des Hauses zu übernehmen.',
+  'brandProfile.companyShort': 'Kürzel hinter Namen',
+  'brandProfile.companyShortHint':
+    'Steht in Klammern hinter den Namen des eigenen Teams – unter fremdem Auftritt gehört dort das der Agentur hin.',
+  'brandProfile.mailFromName': 'Absendername der E-Mails',
+  'brandProfile.mailFromNameHint':
+    'Leer lassen, um beim Absendernamen des Workspace zu bleiben. Die Absenderadresse lässt sich nicht ändern.',
+  'brandProfile.activeHint': 'Dieses Projekt läuft unter dem Auftritt „{name}".',
+  'brandProfiles.title': 'Auftritte',
+  'brandProfiles.intro':
+    'Erscheinungsbilder, die einzelne Projekte statt des eigenen tragen können. Angelegt werden sie im „…"-Menü eines Projekts. Eine Änderung hier wirkt sofort in allen Projekten, die den Auftritt tragen – auch in abgeschlossenen.',
+  'brandProfiles.empty': 'Noch kein Auftritt angelegt.',
+  'brandProfiles.usage': { one: 'in {count} Projekt', other: 'in {count} Projekten' },
+
   'projectDialog.editTitle': 'Projekt bearbeiten',
   'projectDialog.customerHint': 'Leer lassen, um den Kundeneintrag zu entfernen.',
   'projectDialog.description': 'Beschreibung',

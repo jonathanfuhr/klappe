@@ -26,7 +26,12 @@ import { useT } from '@/lib/i18n';
  * vor weißer Schrift auf gelbem Grund.
  */
 export function BrandingPanel() {
-  const { branding, apply } = useBranding();
+  /*
+   * Ausdrücklich das Erscheinungsbild des **Hauses** (1.6): `branding`
+   * liefert seit den Auftritten das gerade wirksame, und wer hier
+   * speichert, meint immer das eigene.
+   */
+  const { workspace: branding, apply } = useBranding();
   const t = useT();
   const [title, setTitle] = useState(branding.title);
   const [accent, setAccent] = useState(branding.accent);

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { BrandMark } from '@/components/BrandMark';
 import { api } from '@/lib/api';
+import { useProjektAuftritt } from '@/lib/branding';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
@@ -38,6 +39,14 @@ export default function ShareGatePage() {
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  /*
+   * Der Auftritt des Projekts (1.6) – das Gatter ist der erste Bildschirm,
+   * den der Endkunde einer Agentur sieht. Die Marke steckt deshalb schon in
+   * der Vorschau und wird nicht nachgeladen; sonst blitzte hier für einen
+   * Moment genau das Logo auf, das der Auftritt verbergen soll.
+   */
+  useProjektAuftritt(share?.brandProfile);
 
   const load = useCallback(async () => {
     try {

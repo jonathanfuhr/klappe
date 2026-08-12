@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import type { ProjectDto, TagRefDto, UserRole } from '@klappe/shared';
+import type { BrandProfileRefDto, ProjectDto, TagRefDto, UserRole } from '@klappe/shared';
 import { colorForTagName } from '@klappe/shared';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { AccessService, type AccessScope } from '../access/access.service';
@@ -19,6 +19,7 @@ import {
   videos,
 } from '../db/schema';
 import { SubscriptionsService } from '../mail/subscriptions.service';
+import { BrandProfilesService } from '../settings/brand-profiles.service';
 import { StorageService } from '../storage/storage.service';
 import type { CreateProjectDto, UpdateProjectDto } from './projects.dto';
 
@@ -63,6 +64,7 @@ export class ProjectsService {
     private readonly accessService: AccessService,
     private readonly storage: StorageService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly brandProfiles: BrandProfilesService,
   ) {}
 
   private baseQuery() {
@@ -197,7 +199,8 @@ export class ProjectsService {
               : gefiltert.orderBy(sql`${projects.updatedAt} ${richtung}`);
 
     const rows = await sortiert;
-    return rows.map((row) => this.toDto(row, scope));
+    const auftritte = await this.auftritte(rows);
+    return rows.map((row) => this.toDto(row, scope, auftritte));
   }
 
   /**
@@ -248,7 +251,7 @@ export class ProjectsService {
     this.accessService.assertCanViewProject(scope, id);
     const [row] = await this.baseQuery().where(eq(projects.id, id)).limit(1);
     if (!row) throw new NotFoundException('Projekt nicht gefunden.');
-    return this.toDto(row, scope);
+    return this.toDto(row, scope, await this.auftritte([row]));
   }
 
   /** Wirft, wenn es das Projekt nicht gibt – für Unterrouten wie Videos. */
@@ -403,7 +406,24 @@ export class ProjectsService {
     await this.db.update(projects).set({ updatedAt: new Date() }).where(eq(projects.id, id));
   }
 
-  private toDto(row: ProjectQueryRow, scope: AccessScope): ProjectDto {
+  /**
+   * Die Auftritte zu einer Menge Zeilen – eine Abfrage für die ganze Liste
+   * statt einer je Projekt. Die meisten Projekte tragen keinen; die Karte
+   * bleibt dann leer und kostet nichts.
+   */
+  private async auftritte(rows: ProjectQueryRow[]): Promise<Map<string, BrandProfileRefDto>> {
+    const mitAuftritt = rows
+      .filter((row) => row.project.brandProfileId)
+      .map((row) => row.project.id);
+    if (mitAuftritt.length === 0) return new Map();
+    return this.brandProfiles.forProjects(mitAuftritt);
+  }
+
+  private toDto(
+    row: ProjectQueryRow,
+    scope: AccessScope,
+    auftritte: Map<string, BrandProfileRefDto>,
+  ): ProjectDto {
     return {
       id: row.project.id,
       name: row.project.name,
@@ -427,6 +447,7 @@ export class ProjectsService {
       canManage: this.accessService.canManageProject(scope, row.project.id),
       tags: (row.tags ?? []).map(toTagRef),
       fields: row.fields ?? [],
+      brandProfile: auftritte.get(row.project.id) ?? null,
     };
   }
 }

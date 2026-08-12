@@ -5,6 +5,7 @@ import { AworkPollService } from './awork/awork-poll.service';
 import { AworkProcessor } from './awork/awork.processor';
 import { AworkSyncService } from './awork/awork-sync.service';
 import { I18nModule } from './i18n/i18n.module';
+import { BrandProfilesModule } from './settings/brand-profiles.module';
 import { WorkerModule } from './worker.module';
 
 /**
@@ -47,6 +48,20 @@ describe('Wurzelmodule', () => {
     expect(anbieter(WorkerModule)).toContain(AworkSyncService);
     // Der Taktgeber für die Gegenrichtung soll einmal im Haus laufen.
     expect(anbieter(WorkerModule)).toContain(AworkPollService);
+  });
+
+  /*
+   * Und dieselbe Falle noch einmal für die Auftritte (1.6): `MailService`
+   * holt sich seit dem Auftritt pro Projekt den `BrandProfilesService`, und
+   * `MailModule` läuft in **beiden** Prozessen. `BrandProfilesModule` ist
+   * `@Global()` – was dem Worker nichts nützt, weil er `AppModule` nie sieht.
+   * Ohne den Import startet der Worker gar nicht erst.
+   */
+  it.each([
+    ['AppModule', AppModule],
+    ['WorkerModule', WorkerModule],
+  ])('%s bindet das BrandProfilesModule ein', (_name, modul) => {
+    expect(importe(modul)).toContain(BrandProfilesModule);
   });
 
   it('AppModule reiht awork-Meldungen nur ein und verarbeitet sie nicht', () => {

@@ -332,7 +332,9 @@ export class GuestsService {
       await this.mailService.send(
         gast.email,
         renderAccessGrantedMail({
-          brand: await this.mailService.brand(),
+          // Geht an die Kundenseite und gehört zu einem Projekt – also unter
+          // dessen Auftritt, falls es einen trägt (1.6).
+          brand: await this.mailService.brand(projectId),
           locale: await this.mailService.localeFor(gast.locale),
           recipientName: gast.name,
           targetName,

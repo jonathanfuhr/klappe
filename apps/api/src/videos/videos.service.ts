@@ -1,5 +1,12 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { type AiKindDto, type UserRole, type VersionDto, type VideoDto, videoWebPath } from '@klappe/shared';
+import {
+  type AiKindDto,
+  type BrandProfileRefDto,
+  type UserRole,
+  type VersionDto,
+  type VideoDto,
+  videoWebPath,
+} from '@klappe/shared';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { AccessService, type AccessScope } from '../access/access.service';
@@ -8,6 +15,7 @@ import type { RequestUser } from '../auth/auth.types';
 import { DB, type Database } from '../db/db.module';
 import { comments, projects, users, videoVersions, videos } from '../db/schema';
 import { ProjectsService } from '../projects/projects.service';
+import { BrandProfilesService } from '../settings/brand-profiles.service';
 import { StorageService } from '../storage/storage.service';
 import { VersionsService } from '../versions/versions.service';
 import type { CreateVideoDto, UpdateVideoDto } from './videos.dto';
@@ -32,6 +40,7 @@ export class VideosService {
     private readonly projectsService: ProjectsService,
     private readonly versionsService: VersionsService,
     private readonly accessService: AccessService,
+    private readonly brandProfiles: BrandProfilesService,
     private readonly storage: StorageService,
     private readonly aiContent: AiContentService,
   ) {}
@@ -67,15 +76,17 @@ export class VideosService {
 
     if (rows.length === 0) return [];
 
-    const [latestByVideo, ki] = await Promise.all([
+    const [latestByVideo, ki, auftritte] = await Promise.all([
       this.loadLatestVersions(
         rows.map((row) => row.video),
         scope,
       ),
       this.loadAiKennzeichnung(rows.map((row) => row.video.id)),
+      // Alle Videos einer Liste gehören demselben Projekt; eine Abfrage genügt.
+      this.brandProfiles.forProjects([...new Set(rows.map((row) => row.video.projectId))]),
     ]);
 
-    return rows.map((row) => this.toDto(row, latestByVideo, scope, ki));
+    return rows.map((row) => this.toDto(row, latestByVideo, scope, ki, auftritte));
   }
 
   async findOneOrFail(id: string, scope: AccessScope): Promise<VideoDto> {
@@ -98,11 +109,12 @@ export class VideosService {
     if (!row) throw new NotFoundException('Video nicht gefunden.');
     this.accessService.assertCanViewVideo(scope, row.video);
 
-    const [latest, ki] = await Promise.all([
+    const [latest, ki, auftritte] = await Promise.all([
       this.loadLatestVersions([row.video], scope),
       this.loadAiKennzeichnung([row.video.id]),
+      this.brandProfiles.forProjects([row.video.projectId]),
     ]);
-    return this.toDto(row, latest, scope, ki);
+    return this.toDto(row, latest, scope, ki, auftritte);
   }
 
   async create(
@@ -191,6 +203,7 @@ export class VideosService {
     latestByVideo: Map<string, { latest: VersionDto; count: number }>,
     scope: AccessScope,
     ki: { enabled: boolean; kinds: Map<string, AiKindDto[]> },
+    auftritte: Map<string, BrandProfileRefDto>,
   ): VideoDto {
     return {
       id: row.video.id,
@@ -210,6 +223,7 @@ export class VideosService {
           : null,
       projectName: row.projectName ?? null,
       projectCustomer: row.projectCustomer ?? null,
+      brandProfile: auftritte.get(row.video.projectId) ?? null,
       versionCount: latestByVideo.get(row.video.id)?.count ?? 0,
       latestVersion: latestByVideo.get(row.video.id)?.latest ?? null,
       downloadsFinalOnly: row.video.downloadsFinalOnly,

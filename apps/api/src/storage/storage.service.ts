@@ -166,6 +166,15 @@ export class StorageService {
     return join('branding', `logo.${extension}`);
   }
 
+  /**
+   * Logo eines Auftritts (1.6). Je Auftritt ein eigener Ordner: So lässt sich
+   * beim Aufräumen alles zu einem Auftritt an einer Stelle greifen, und zwei
+   * Auftritte können dieselbe Endung tragen, ohne sich zu überschreiben.
+   */
+  keyForBrandProfileLogo(profileId: string, extension: string): string {
+    return join('branding', 'profiles', profileId, `logo.${extension}`);
+  }
+
   /** Eigenes Tab-Symbol (Phase 23) – neben dem Logo, nicht statt seiner. */
   keyForFavicon(extension: string): string {
     return join('branding', `favicon.${extension}`);

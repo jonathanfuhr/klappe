@@ -8,6 +8,7 @@ import { DB, type Database } from '../db/db.module';
 import { mailFailures } from '../db/schema';
 import type { MailFailureDto } from '@klappe/shared';
 import { LocaleService } from '../i18n/locale.service';
+import { BrandProfilesService } from '../settings/brand-profiles.service';
 import { NotificationSettingsService } from '../settings/notification-settings.service';
 import { SettingsService, type SmtpCredentials } from '../settings/settings.service';
 import { Ms365OauthService } from './ms365-oauth.service';
@@ -40,6 +41,7 @@ export class MailService {
     private readonly notificationSettings: NotificationSettingsService,
     private readonly ms365Oauth: Ms365OauthService,
     private readonly locales: LocaleService,
+    private readonly brandProfiles: BrandProfilesService,
     @Inject(CONFIG) private readonly config: AppConfig,
     @Inject(DB) private readonly db: Database,
   ) {}
@@ -80,7 +82,17 @@ export class MailService {
     const transporter = await this.getTransporter(credentials);
     try {
       await transporter.sendMail({
-        from: { name: credentials.fromName, address: credentials.fromEmail },
+        from: {
+          /*
+           * Der Absendername darf je Auftritt wechseln (1.6), die Adresse
+           * nicht: Sie hängt an SPF und DKIM unserer Domain, und eine
+           * fremde Adresse davor würde die Mail zuverlässig in den Spam
+           * befördern. Der Endkunde einer Agentur sieht also deren Namen
+           * über unserer Adresse – die auffälligere Hälfte stimmt.
+           */
+          name: mail.fromName ?? credentials.fromName,
+          address: credentials.fromEmail,
+        },
         to,
         subject: mail.subject,
         text: mail.text,
@@ -173,20 +185,48 @@ export class MailService {
   /**
    * Erscheinungsbild für die Vorlagen (Phase 10). Scheitert das Laden, bleibt
    * es beim Standard – eine Mail soll nicht wegen einer Farbe ausfallen.
+   *
+   * Mit `projectId` gilt der Auftritt des Projekts, falls es einen trägt
+   * (1.6). Ohne Angabe – Testmail, Gerätekopplung, Sicherungswarnung – bleibt
+   * es beim Erscheinungsbild des Hauses; das sind Mails ans eigene Team.
    */
-  async brand(): Promise<MailBrand> {
+  async brand(projectId?: string | null): Promise<MailBrand> {
     try {
       const row = await this.settingsService.getRow();
       const colors = deriveBrandColors(row.brandAccent);
-      return {
+      const haus: MailBrand = {
         title: normalizeBrandTitle(row.brandTitle),
         accent: colors.accent,
         accentContrast: colors.accentContrast,
+        logoUrl: row.brandLogoKey
+          ? this.absolut(`/v1/branding/logo?v=${row.brandLogoUpdatedAt?.getTime() ?? 0}`)
+          : null,
+        fromName: null,
+      };
+
+      if (!projectId) return haus;
+
+      const auftritt = await this.brandProfiles.fullForProject(projectId);
+      if (!auftritt) return haus;
+
+      return {
+        title: normalizeBrandTitle(auftritt.name),
+        accent: auftritt.accent,
+        accentContrast: auftritt.accentContrast,
+        // In der Mail muss die Adresse absolut sein; im Postfach gibt es
+        // keinen Ursprung, gegen den ein Pfad aufgelöst werden könnte.
+        logoUrl: auftritt.logoUrl ? this.absolut(auftritt.logoUrl) : null,
+        fromName: auftritt.mailFromName,
       };
     } catch (error) {
       this.logger.warn(`Erscheinungsbild nicht ladbar, nehme den Standard: ${String(error)}`);
       return DEFAULT_MAIL_BRAND;
     }
+  }
+
+  /** Aus `/v1/…` die vollständige Adresse machen, die in eine Mail gehört. */
+  private absolut(pfad: string): string {
+    return `${this.config.publicUrl.replace(/\/+$/, '')}${pfad}`;
   }
 
   /** Was zuletzt nicht ankam – für die Anzeige in den Einstellungen. */

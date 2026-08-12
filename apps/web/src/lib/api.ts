@@ -14,6 +14,8 @@ import type {
   AworkSettingsDto,
   BackupFileDto,
   BackupSettingsDto,
+  BrandProfileDto,
+  BrandProfileInput,
   BrandingDto,
   EmbedLinkDto,
   CommentDto,
@@ -727,6 +729,34 @@ export const api = {
     request<void>('/v1/settings/smtp/test', {
       method: 'POST',
       body: JSON.stringify(to ? { to } : {}),
+    }),
+
+  // ---------- Auftritte pro Projekt (1.6) ----------
+  listBrandProfiles: () => request<BrandProfileDto[]>('/v1/brand-profiles'),
+  createBrandProfile: (input: BrandProfileInput) =>
+    request<BrandProfileDto>('/v1/brand-profiles', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  updateBrandProfile: (id: string, input: BrandProfileInput) =>
+    request<BrandProfileDto>(`/v1/brand-profiles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  /** Rohe Bytes, Format im Content-Type – wie beim Logo des Workspace. */
+  uploadBrandProfileLogo: (id: string, file: File) =>
+    request<BrandProfileDto>(`/v1/brand-profiles/${id}/logo`, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    }),
+  removeBrandProfileLogo: (id: string) =>
+    request<BrandProfileDto>(`/v1/brand-profiles/${id}/logo`, { method: 'DELETE' }),
+  /** `null` nimmt den Auftritt ab – das Projekt trägt dann wieder unser CI. */
+  setProjectBrandProfile: (projectId: string, brandProfileId: string | null) =>
+    request<BrandProfileDto | null>(`/v1/projects/${projectId}/brand-profile`, {
+      method: 'PUT',
+      body: JSON.stringify({ brandProfileId }),
     }),
 
   // ---------- Verarbeitung (Phase 19) ----------

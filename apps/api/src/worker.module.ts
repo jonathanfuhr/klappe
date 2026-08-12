@@ -14,6 +14,7 @@ import { MaintenanceModule } from './maintenance/maintenance.module';
 import { MailProcessor } from './mail/mail.processor';
 import { NotificationsService } from './mail/notifications.service';
 import { QueueModule } from './queue/queue.module';
+import { BrandProfilesModule } from './settings/brand-profiles.module';
 import { TranscodeSettingsModule } from './settings/transcode-settings.module';
 import { StorageModule } from './storage/storage.module';
 import { TranscodeModule } from './transcode/transcode.module';
@@ -40,6 +41,13 @@ import { VersionsModule } from './versions/versions.module';
     AccessModule,
     EventsModule,
     TranscodeSettingsModule,
+    /*
+     * Wie bei `I18nModule` oben: Der Worker sieht `AppModule` nie, also nützt
+     * ihm das `@Global()` des Moduls nichts. Ohne diese Zeile gingen die
+     * Mails zu Projekten unter fremdem Auftritt weiter mit unserem Logo raus –
+     * und zwar unbemerkt, weil im Web alles richtig aussähe.
+     */
+    BrandProfilesModule,
     QueueModule,
     VersionsModule,
     TranscodeModule,

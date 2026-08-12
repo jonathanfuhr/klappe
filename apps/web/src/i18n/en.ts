@@ -443,6 +443,32 @@ export const en: Record<MessageKey, Message> = {
   'embed.disableConfirm': 'Turn off the embed right away? The embedded player will then stay empty.',
   'embed.disableFailed': 'Withdrawing failed.',
 
+  // Per-project appearance (1.6)
+  'brandProfile.menuEntry': 'Appearance …',
+  'brandProfile.dialogTitle': 'Project appearance',
+  'brandProfile.dialogHint':
+    'If the project runs through an agency, share pages, player and emails carry their logo instead of ours. The link address and the email sender address stay ours.',
+  'brandProfile.choice': 'Appearance',
+  'brandProfile.none': 'Our own appearance',
+  'brandProfile.createNew': 'Create a new appearance …',
+  'brandProfile.name': 'Agency name',
+  'brandProfile.nameHint': 'Shown in the page header, the browser tab and in emails.',
+  'brandProfile.logo': 'Logo',
+  'brandProfile.accent': 'Accent colour',
+  'brandProfile.accentHint': 'Leave empty to inherit our own colour.',
+  'brandProfile.companyShort': 'Suffix after names',
+  'brandProfile.companyShortHint':
+    'Shown in brackets after names from your own team – under a different appearance the agency’s belongs there.',
+  'brandProfile.mailFromName': 'Email sender name',
+  'brandProfile.mailFromNameHint':
+    'Leave empty to keep the workspace sender name. The sender address cannot be changed.',
+  'brandProfile.activeHint': 'This project runs under the “{name}” appearance.',
+  'brandProfiles.title': 'Appearances',
+  'brandProfiles.intro':
+    'Appearances that individual projects can carry instead of your own. They are created from a project’s “…” menu. A change here takes effect immediately in every project carrying the appearance – including finished ones.',
+  'brandProfiles.empty': 'No appearance created yet.',
+  'brandProfiles.usage': { one: 'in {count} project', other: 'in {count} projects' },
+
   'projectDialog.editTitle': 'Edit project',
   'projectDialog.customerHint': 'Leave empty to remove the client entry.',
   'projectDialog.description': 'Description',

@@ -246,3 +246,64 @@ describe('Sprache des Empfängers (Phase 26)', () => {
     expect(mail.text).toContain('Project: Sommer · Version: v2');
   });
 });
+
+/**
+ * Auftritt pro Projekt (1.6): Logo und Absendername in der Mail.
+ *
+ * Beides fällt bei einem Fehler nicht auf, solange man die Mail nicht selbst
+ * bekommt – der Versand meldet keinen Fehler, wenn ein Agenturprojekt unter
+ * unserem Namen hinausgeht. Deshalb hier.
+ */
+describe('Auftritt in der Mail', () => {
+  const auftritt = {
+    title: 'Beispiel Agentur GmbH',
+    accent: '#c81e5a',
+    accentContrast: '#ffffff',
+    logoUrl: 'https://klappe.example/v1/brand-profiles/a1/logo?v=7',
+    fromName: 'Beispiel Agentur',
+  };
+
+  it('setzt das Logo in den Kopf statt des Schriftzugs', () => {
+    const mail = renderCommentMail({ ...basis, brand: auftritt });
+    expect(mail.html).toContain('src="https://klappe.example/v1/brand-profiles/a1/logo?v=7"');
+  });
+
+  it('behält den Titel als Alternativtext', () => {
+    // Viele Postfächer laden entfernte Bilder erst auf Klick; bis dahin ist
+    // der Alternativtext alles, was im Kopf der Mail steht.
+    const mail = renderCommentMail({ ...basis, brand: auftritt });
+    expect(mail.html).toContain('alt="Beispiel Agentur GmbH"');
+  });
+
+  it('bleibt ohne Logo beim Schriftzug', () => {
+    const mail = renderCommentMail({
+      ...basis,
+      brand: { ...auftritt, logoUrl: null },
+    });
+    expect(mail.html).not.toContain('<img');
+    expect(mail.html).toContain('Beispiel Agentur GmbH');
+  });
+
+  it('reicht den Absendernamen an den Versand durch', () => {
+    expect(renderCommentMail({ ...basis, brand: auftritt }).fromName).toBe('Beispiel Agentur');
+    expect(renderGuestCodeMail({ code: '1', targetName: 'X', minutesValid: 15, brand: auftritt }).fromName).toBe(
+      'Beispiel Agentur',
+    );
+    expect(
+      renderProjectFileMail({
+        recipientName: 'Anna Beispiel',
+        uploaderName: 'Ein Gast',
+        projectName: 'Beispiel Imagefilm',
+        filename: 'brief.pdf',
+        sizeLabel: '2 MB',
+        url: 'https://klappe.example/projekte/1',
+        unsubscribeUrl: 'https://klappe.example/abmelden?token=x',
+        brand: auftritt,
+      }).fromName,
+    ).toBe('Beispiel Agentur');
+  });
+
+  it('meldet ohne Auftritt keinen Absendernamen – dann gilt der des Workspace', () => {
+    expect(renderCommentMail(basis).fromName).toBeNull();
+  });
+});

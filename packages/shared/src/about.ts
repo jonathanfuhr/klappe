@@ -9,7 +9,7 @@
 export const MAX_ENVIRONMENT_NOTES_LENGTH = 4000;
 
 /**
- * Welcher Stand hier läuft (1.5.1).
+ * Welcher Stand hier läuft.
  *
  * Vorher stand das nirgends: Ob ein Server den Stand von gestern oder von vor
  * zwei Wochen fuhr, war ihm nicht anzusehen – und genau das ist bei einem

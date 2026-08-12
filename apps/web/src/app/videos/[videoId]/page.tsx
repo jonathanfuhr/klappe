@@ -33,6 +33,7 @@ import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { DownloadDialog } from '@/components/DownloadDialog';
 import { EmbedDialog } from '@/components/EmbedDialog';
 import { api, mediaUrl } from '@/lib/api';
+import { useProjektAuftritt } from '@/lib/branding';
 import { useFormat } from '@/lib/format';
 import { useFallbackInterval, useLiveTopic } from '@/lib/live';
 import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
@@ -76,6 +77,13 @@ export default function ReviewPage() {
   const [comments, setComments] = useState<CommentDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  /*
+   * Der Auftritt des Projekts (1.6). Hier ist er am wichtigsten: Auf dieser
+   * Seite verbringt der Endkunde die meiste Zeit, und mit einer Videofreigabe
+   * bekommt er das Projekt selbst nie zu sehen.
+   */
+  useProjektAuftritt(video?.brandProfile);
 
   const [currentFrame, setCurrentFrame] = useState(0);
   /** Beim Kommentieren festgehaltener Frame, damit er nicht weiterläuft. */

@@ -21,6 +21,7 @@ import { ProjectFilesModule } from './project-files/project-files.module';
 import { ProjectsModule } from './projects/projects.module';
 import { QueueModule } from './queue/queue.module';
 import { RenditionsModule } from './renditions/renditions.module';
+import { BrandProfilesModule } from './settings/brand-profiles.module';
 import { SettingsModule } from './settings/settings.module';
 import { TranscodeSettingsModule } from './settings/transcode-settings.module';
 import { EmbedModule } from './embed/embed.module';
@@ -68,6 +69,7 @@ import { VideosModule } from './videos/videos.module';
     GuestsModule,
     ProjectFilesModule,
     SettingsModule,
+    BrandProfilesModule,
     TagsModule,
     AiContentModule,
     AworkModule,

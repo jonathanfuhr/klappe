@@ -21,8 +21,10 @@ import {
   DeleteProjectDialog,
   EditProjectDialog,
 } from '@/components/ProjectDialogs';
+import { BrandProfileDialog } from '@/components/BrandProfileDialog';
 import { DeleteVideoDialog, EditVideoDialog } from '@/components/VideoDialogs';
 import { api, mediaUrl } from '@/lib/api';
+import { useProjektAuftritt } from '@/lib/branding';
 import { useFormat } from '@/lib/format';
 import { useFallbackInterval, useLive } from '@/lib/live';
 import { VIDEO_ACCEPT, hatZeiger, pickFiles } from '@/lib/pick-files';
@@ -42,6 +44,7 @@ export default function ProjectPage() {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [auftrittWaehlen, setAuftrittWaehlen] = useState(false);
   const [editingVideo, setEditingVideo] = useState<VideoDto | null>(null);
   const [deletingVideo, setDeletingVideo] = useState<VideoDto | null>(null);
   // Reiter der rechten Spalte – wie am Video, nur ohne Kommentare (Phase 18).
@@ -58,6 +61,14 @@ export default function ProjectPage() {
    * Videos umbenennen/löschen bleiben dem Team vorbehalten.
    */
   const canManage = isTeam || (project?.canManage ?? false);
+
+  /*
+   * Trägt das Projekt einen fremden Auftritt, gilt er auf dieser Seite –
+   * auch fürs Team (1.6). Nur so sieht man beim Prüfen, was der Kunde sieht;
+   * dass das eigene Haus zwischendurch anders aussieht, fängt der Hinweis
+   * unter dem Titel ab.
+   */
+  useProjektAuftritt(project?.brandProfile);
 
   /** Ablagefläche sichtbar? Wird am Schreibtisch vom „+" auf- und zugeklappt. */
   const [uploaderOffen, setUploaderOffen] = useState(false);
@@ -141,6 +152,16 @@ export default function ProjectPage() {
               {project?.archivedAt ? <span className="badge">{t('projects.archived')}</span> : null}
             </h1>
             {project?.description ? <p className="page__subtitle">{project.description}</p> : null}
+            {/*
+              Nur fürs Team: Wer hier arbeitet, soll wissen, warum die Seite
+              anders aussieht als der Rest. Für Gäste stünde da eine Auskunft
+              über einen Auftritt, den sie für das Original halten sollen.
+            */}
+            {isTeam && project?.brandProfile ? (
+              <p className="page__subtitle">
+                {t('brandProfile.activeHint', { name: project.brandProfile.name })}
+              </p>
+            ) : null}
           </div>
           <div className="shell__spacer" />
           {canManage ? (
@@ -177,6 +198,9 @@ export default function ProjectPage() {
                       {project?.archivedAt
                         ? t('project.unarchiveEllipsis')
                         : t('project.archiveEllipsis')}
+                    </MenuItem>
+                    <MenuItem onSelect={() => setAuftrittWaehlen(true)}>
+                      {t('brandProfile.menuEntry')}
                     </MenuItem>
                     <MenuItem danger onSelect={() => setDeleting(true)}>
                       {t('projects.deleteEllipsis')}
@@ -341,6 +365,17 @@ export default function ProjectPage() {
           onClose={() => setEditing(false)}
           onSaved={async () => {
             setEditing(false);
+            await load();
+          }}
+        />
+      ) : null}
+
+      {auftrittWaehlen && project ? (
+        <BrandProfileDialog
+          project={project}
+          onClose={() => setAuftrittWaehlen(false)}
+          onSaved={async () => {
+            setAuftrittWaehlen(false);
             await load();
           }}
         />
