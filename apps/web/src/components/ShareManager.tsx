@@ -41,6 +41,42 @@ export function ShareManager({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  /**
+   * Rechte für den **nächsten** Link (1.7).
+   *
+   * Vorher entstand jeder Link mit denselben Vorgaben, und wer einen Link
+   * „für die Agentur" wollte, hakte hinterher an jedem Gast einzeln nach –
+   * also erst, nachdem sich jemand angemeldet hatte. Jetzt steht es vorher
+   * fest und wandert beim Einlösen in die Gast-Zeile.
+   */
+  const [neuerLink, setNeuerLink] = useState({
+    allowComments: true,
+    /*
+     * Download ab Werk erlaubt. Ein Freigabe-Link geht an einen Kunden, der
+     * mit dem Material arbeiten soll – ihn erst freizuschalten war ein
+     * Handgriff, den man jedes Mal nachholen musste.
+     */
+    allowDownload: true,
+    allowUpload: false,
+    projectAdmin: false,
+    internalVisible: false,
+    internalRelease: false,
+  });
+
+  /** Ein Schalter, der die abhängigen gleich mit aufräumt. */
+  const setzeNeu = (changes: Partial<typeof neuerLink>) => {
+    setNeuerLink((current) => {
+      const naechster = { ...current, ...changes };
+      // Ohne Projektadmin gibt es die internen Rechte nicht, und ohne Sehen
+      // kein Freigeben – sonst stünde ein Haken, der nichts bewirkt.
+      if (!naechster.projectAdmin) {
+        naechster.internalVisible = false;
+        naechster.internalRelease = false;
+      }
+      if (!naechster.internalVisible) naechster.internalRelease = false;
+      return naechster;
+    });
+  };
 
   const load = useCallback(async () => {
     try {
@@ -67,21 +103,16 @@ export function ShareManager({
     setCreating(true);
     setError(null);
     try {
+      /*
+       * Die Vorgaben stehen bewusst hier und nicht in der API: Ein Skript, das
+       * Links anlegt, soll Download und Projektadmin weiterhin ausdrücklich
+       * verlangen müssen.
+       */
       await api.createShare({
         scope,
         projectId: scope === 'PROJECT' ? projectId : undefined,
         videoId: scope === 'VIDEO' ? videoId : undefined,
-        allowComments: true,
-        /*
-         * Download ab Werk erlaubt. Ein Freigabe-Link geht an einen Kunden,
-         * der mit dem Material arbeiten soll – ihn erst freizuschalten war ein
-         * Handgriff, den man jedes Mal nachholen musste. Wer ihn nicht will,
-         * nimmt den Haken hier gleich wieder weg.
-         *
-         * Bewusst hier und nicht als Vorgabe der API: Ein Skript, das Links
-         * anlegt, soll den Download weiterhin ausdrücklich verlangen müssen.
-         */
-        allowDownload: true,
+        ...neuerLink,
       });
       await load();
     } catch (createError) {
@@ -124,6 +155,89 @@ export function ShareManager({
           videoId={scope === 'VIDEO' ? videoId : undefined}
           onAdded={load}
         />
+      ) : null}
+
+      {/* Rechte für den nächsten Link (1.7) – nur fürs Team: Ein Projektadmin
+          darf zwar weiter freigeben, aber keinen zweiten Projektadmin
+          ernennen. */}
+      {canManage ? (
+        <div className="card" style={{ padding: 12, marginTop: 12 }}>
+          <div className="field__label">{t('shareManager.newLinkRights')}</div>
+          <div className="sharepanel__rights">
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={neuerLink.allowComments}
+                onChange={(event) => setzeNeu({ allowComments: event.target.checked })}
+              />
+              {t('shares.canComment')}
+            </label>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={neuerLink.allowDownload}
+                onChange={(event) => setzeNeu({ allowDownload: event.target.checked })}
+              />
+              {t('shares.canDownload')}
+            </label>
+            {scope === 'PROJECT' ? (
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={neuerLink.allowUpload}
+                  onChange={(event) => setzeNeu({ allowUpload: event.target.checked })}
+                />
+                {t('shares.canUpload')}
+              </label>
+            ) : null}
+          </div>
+
+          {/* Nur an einer Projektfreigabe – eine Videofreigabe hat keinen
+              Projektrahmen, in dem sich das verwalten ließe. */}
+          {scope === 'PROJECT' ? (
+            <>
+              <label className="switch" style={{ marginTop: 6 }} title={t('shares.projectAdminHint')}>
+                <input
+                  type="checkbox"
+                  checked={neuerLink.projectAdmin}
+                  onChange={(event) => setzeNeu({ projectAdmin: event.target.checked })}
+                />
+                {t('shares.projectAdmin')}
+              </label>
+
+              {/* Eingerückt: Beide hängen am Projektadmin und verschwinden mit
+                  ihm – ein Haken, der nichts bewirkt, wäre schlimmer als
+                  keiner. */}
+              {neuerLink.projectAdmin ? (
+                <div style={{ marginLeft: 22 }}>
+                  <label className="switch" style={{ marginTop: 4 }}>
+                    <input
+                      type="checkbox"
+                      checked={neuerLink.internalVisible}
+                      onChange={(event) => setzeNeu({ internalVisible: event.target.checked })}
+                    />
+                    {t('shares.internalVisible')}
+                  </label>
+                  <label
+                    className="switch"
+                    style={{ marginTop: 4 }}
+                    title={
+                      neuerLink.internalVisible ? undefined : t('shares.internalReleaseNeedsVisible')
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={neuerLink.internalRelease}
+                      disabled={!neuerLink.internalVisible}
+                      onChange={(event) => setzeNeu({ internalRelease: event.target.checked })}
+                    />
+                    {t('shares.internalRelease')}
+                  </label>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="dialog__actions">

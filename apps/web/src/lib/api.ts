@@ -379,6 +379,10 @@ export const api = {
     allowDownload?: boolean;
     allowUpload?: boolean;
     allowComments?: boolean;
+    /** Rechte, die der Link mitbringt (1.7) – wandern beim Einlösen mit. */
+    projectAdmin?: boolean;
+    internalVisible?: boolean;
+    internalRelease?: boolean;
     expiresAt?: string;
   }) => request<ShareLinkDto>('/v1/shares', { method: 'POST', body: JSON.stringify(input) }),
   updateShare: (
@@ -388,6 +392,9 @@ export const api = {
       allowDownload?: boolean;
       allowUpload?: boolean;
       allowComments?: boolean;
+      projectAdmin?: boolean;
+      internalVisible?: boolean;
+      internalRelease?: boolean;
       revoked?: boolean;
     },
   ) => request<ShareLinkDto>(`/v1/shares/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
@@ -411,6 +418,9 @@ export const api = {
       allowUpload?: boolean | null;
       /** Externer Projektadmin (Phase 21) – nur an einer Projektfreigabe. */
       projectAdmin?: boolean;
+      /** Interne Fassungen sehen und freigeben (1.7) – hängen am Projektadmin. */
+      internalVisible?: boolean;
+      internalRelease?: boolean;
     },
   ) =>
     request<void>(`/v1/shares/${shareLinkId}/guests/${userId}/rechte`, {

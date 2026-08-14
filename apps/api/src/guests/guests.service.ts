@@ -546,9 +546,12 @@ export class GuestsService {
       allowUpload?: boolean | null;
       /** Externer Projektadmin (Phase 21) – kein „wie der Link", immer explizit. */
       projectAdmin?: boolean;
+      /** Interne Fassungen sehen und freigeben (1.7) – ebenfalls immer explizit. */
+      internalVisible?: boolean;
+      internalRelease?: boolean;
     },
   ): Promise<void> {
-    if (rechte.projectAdmin) {
+    if (rechte.projectAdmin || rechte.internalVisible || rechte.internalRelease) {
       const link = await this.getLinkOrFail(shareLinkId);
       // Eine einzelne Videofreigabe hat keinen Projektrahmen, in dem sich
       // „Projektadmin" verwalten ließe – Videos anlegen, weiter freigeben
@@ -560,13 +563,29 @@ export class GuestsService {
       }
     }
 
+    /*
+     * Die Abhängigkeiten der internen Rechte (1.7): Wer den Projektadmin
+     * abnimmt, verliert beides mit; wer das Sehen abnimmt, verliert das
+     * Freigeben. Sonst bliebe ein Recht in der Zeile stehen, das ohne sein
+     * Fundament nie wieder auffiele – und beim nächsten Setzen des
+     * Projektadmins stillschweigend wieder wirkte.
+     */
+    const bestehend = await this.getGrantOrFail(shareLinkId, userId);
+    const projectAdmin = rechte.projectAdmin ?? bestehend.projectAdmin;
+    const internalVisible =
+      projectAdmin && (rechte.internalVisible ?? bestehend.internalVisible);
+    const internalRelease =
+      internalVisible && (rechte.internalRelease ?? bestehend.internalRelease);
+
     const [row] = await this.db
       .update(shareLinkGrants)
       .set({
         allowComments: rechte.allowComments,
         allowDownload: rechte.allowDownload,
         allowUpload: rechte.allowUpload,
-        projectAdmin: rechte.projectAdmin,
+        projectAdmin,
+        internalVisible,
+        internalRelease,
       })
       .where(
         and(
@@ -576,6 +595,17 @@ export class GuestsService {
       )
       .returning({ userId: shareLinkGrants.userId });
     if (!row) throw new NotFoundException('Dieser Gast kommt nicht über diesen Link herein.');
+  }
+
+  /** Die Gast-Zeile, wie sie jetzt dasteht – Grundlage für Teiländerungen. */
+  private async getGrantOrFail(shareLinkId: string, userId: string) {
+    const [row] = await this.db
+      .select()
+      .from(shareLinkGrants)
+      .where(and(eq(shareLinkGrants.shareLinkId, shareLinkId), eq(shareLinkGrants.userId, userId)))
+      .limit(1);
+    if (!row) throw new NotFoundException('Dieser Gast kommt nicht über diesen Link herein.');
+    return row;
   }
 
   private async getLinkOrFail(shareLinkId: string): Promise<{ scope: 'PROJECT' | 'VIDEO' }> {
@@ -621,6 +651,8 @@ export class GuestsService {
         grantAllowDownload: shareLinkGrants.allowDownload,
         grantAllowUpload: shareLinkGrants.allowUpload,
         projectAdmin: shareLinkGrants.projectAdmin,
+        internalVisible: shareLinkGrants.internalVisible,
+        internalRelease: shareLinkGrants.internalRelease,
         linkRevokedAt: shareLinks.revokedAt,
         expiresAt: shareLinks.expiresAt,
         revokedAt: shareLinkGrants.revokedAt,
@@ -653,6 +685,12 @@ export class GuestsService {
       allowUpload: row.grantAllowUpload ?? row.allowUpload,
       // Nur an einer Projektfreigabe möglich – am Schreiben durchgesetzt.
       projectAdmin: row.scope === 'PROJECT' && row.projectAdmin,
+      // Wie im Zugriffsrahmen: Die Abhängigkeiten werden auch beim Anzeigen
+      // durchgesetzt, damit die Oberfläche nie einen Haken zeigt, der nicht
+      // wirkt.
+      internalVisible: row.scope === 'PROJECT' && row.projectAdmin && row.internalVisible,
+      internalRelease:
+        row.scope === 'PROJECT' && row.projectAdmin && row.internalVisible && row.internalRelease,
       /** Weicht diese Person vom Link ab? Für den Hinweis in der Oberfläche. */
       hasOverride:
         row.grantAllowComments !== null ||

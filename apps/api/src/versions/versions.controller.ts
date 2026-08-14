@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   Param,
@@ -101,20 +102,30 @@ export class VersionsController {
   }
 
   /**
-   * Interne Fassung freigeben (Phase 27).
+   * Interne Fassung freigeben (Phase 27, geöffnet in 1.7).
    *
    * **Jeder aus dem Team** darf das, Mitglied wie Admin – die interne Runde
-   * ist eine fachliche Entscheidung und kein Verwaltungsakt. Der externe
-   * Projektadmin darf es nicht: Er sieht interne Fassungen gar nicht erst.
+   * ist eine fachliche Entscheidung und kein Verwaltungsakt.
+   *
+   * Seit 1.7 auch der externe Projektadmin, wenn sein Link beide Rechte
+   * trägt. Die Rolle steht deshalb offen und die Entscheidung fällt in
+   * `canReleaseInternal` – die Rollenliste allein könnte „darf in *diesem*
+   * Projekt" gar nicht ausdrücken.
+   *
+   * `requireVersion` wirft für den, der die Fassung nicht sehen darf, schon
+   * ein „nicht gefunden": Ohne das Sehen-Recht kommt hier niemand an.
    */
-  @Roles('ADMIN', 'MEMBER')
+  @Roles('ADMIN', 'MEMBER', 'GUEST')
   @Post(':id/freigeben')
   async release(
     @Param('id', new ParseUUIDPipe()) id: string,
     @CurrentUser() user: RequestUser,
   ): Promise<VersionDto> {
     const scope = await this.accessService.loadScope(user);
-    await this.accessService.requireVersion(scope, id);
+    const version = await this.accessService.requireVersion(scope, id);
+    if (!this.accessService.canReleaseInternal(scope, version.projectId)) {
+      throw new ForbiddenException('Für das Freigeben interner Fassungen fehlen die Rechte.');
+    }
     const freigegeben = await this.versionsService.release(id, user, scope);
     // Jetzt darf sie auch Formate bekommen.
     await this.renditions.prebuildFor(id).catch(() => undefined);

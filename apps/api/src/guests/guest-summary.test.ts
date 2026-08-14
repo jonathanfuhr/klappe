@@ -17,6 +17,8 @@ function grant(overrides: Partial<GuestGrantRow> = {}): GuestGrantRow {
     allowDownload: false,
     allowUpload: false,
     projectAdmin: false,
+  internalVisible: false,
+  internalRelease: false,
     hasOverride: false,
     linkActive: true,
     revokedAt: null,

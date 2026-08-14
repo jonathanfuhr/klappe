@@ -366,6 +366,11 @@ export const de = {
   'shares.alreadySees': ' · sieht er schon',
   'shares.takeOverVideos': '{count} Videos übernehmen',
   'shares.less': 'Weniger',
+  // Interne Fassungen am Freigabe-Link (1.7)
+  'shareManager.newLinkRights': 'Rechte für den nächsten Link',
+  'shares.internalVisible': 'Darf interne Fassungen sehen',
+  'shares.internalRelease': 'Darf interne Fassungen freigeben',
+  'shares.internalReleaseNeedsVisible': 'Erst „Darf interne Fassungen sehen" setzen – freigeben kann nur, wer sie sieht.',
   'shares.projectAdminHint':
     'Darf im Projekt Videos anlegen, Fassungen hochladen und löschen, weiter freigeben und fremde Kommentare verwalten – für Agenturen, die eigenes Material einstellen.',
   'shares.extendTitle': 'Weitere Videos oder das ganze Projekt freigeben – ohne neuen Link.',

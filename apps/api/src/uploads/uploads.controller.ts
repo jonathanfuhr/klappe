@@ -253,11 +253,15 @@ export class UploadsController {
   ): Promise<UploadSessionDto> {
     if (dto.videoId || dto.internal !== undefined) {
       const scope = await this.accessService.loadScope(user);
+      let projectId: string | undefined;
       if (dto.videoId) {
         const video = await this.accessService.requireVideo(scope, dto.videoId);
         this.accessService.assertCanManageProject(scope, video.projectId);
+        projectId = video.projectId;
       }
-      this.assertDarfIntern(dto.internal, scope);
+      // Mit Video steht das Projekt fest und wird genau geprüft; ohne bleibt
+      // es bei der groben Absage – zugeordnet wird ohnehin erst später.
+      this.assertDarfIntern(dto.internal, scope, projectId);
     }
 
     const ergebnis = await this.uploadsService.assign(
@@ -429,14 +433,30 @@ export class UploadsController {
   }
 
   /**
-   * Interne Fassungen sind Sache des Teams (Phase 27). Ein externer
-   * Projektadmin darf Fassungen hochladen, aber keine internen: Er sähe sie
-   * hinterher selbst nicht mehr – die Datei wäre für ihn verschwunden. Lieber
-   * eine klare Absage als ein Upload ins Nichts.
+   * Wer darf eine interne Fassung hochladen? (Phase 27, geöffnet in 1.7)
+   *
+   * Der Grund für das ursprüngliche Nein war ein handfester: Ein externer
+   * Projektadmin sähe die Datei hinterher selbst nicht mehr – sie wäre für ihn
+   * verschwunden. Genau dieser Grund fällt weg, sobald sein Link ihm interne
+   * Fassungen zeigt. Wer sie sehen darf, darf sie deshalb auch hochladen.
+   *
+   * `projectId` fehlt beim Anlegen der Sitzung: Die entsteht ohne Ziel, und
+   * Projekt und Video werden erst beim Zuordnen eingetragen. Dann fällt hier
+   * nur die grobe Absage, und die genaue folgt beim Zuordnen.
    */
-  private assertDarfIntern(intern: boolean | undefined, scope: AccessScope): void {
-    if (!intern || this.accessService.canSeeInternal(scope)) return;
-    throw new ForbiddenException('Interne Fassungen kann nur das Team hochladen.');
+  private assertDarfIntern(
+    intern: boolean | undefined,
+    scope: AccessScope,
+    projectId?: string,
+  ): void {
+    if (!intern) return;
+    const erlaubt = projectId
+      ? this.accessService.canSeeInternal(scope, projectId)
+      : this.accessService.canSeeInternalAnywhere(scope);
+    if (erlaubt) return;
+    throw new ForbiddenException(
+      'Interne Fassungen kann nur hochladen, wer sie auch sehen darf.',
+    );
   }
 
   private setDiscoveryHeaders(response: Response): void {

@@ -23,6 +23,16 @@ export interface GrantedShare {
    * überhaupt möglich, an einer Videofreigabe immer `false`.
    */
   projectAdmin: boolean;
+  /**
+   * Darf interne Fassungen sehen (1.7). Hängt am `projectAdmin`: Ohne ihn
+   * bleibt das Recht wirkungslos, und die API lässt es gar nicht erst setzen.
+   */
+  internalVisible: boolean;
+  /**
+   * Darf interne Fassungen dem Kunden freigeben (1.7). Setzt `internalVisible`
+   * voraus – was man nicht sieht, kann man nicht freigeben.
+   */
+  internalRelease: boolean;
 }
 
 export interface AccessScope {
@@ -94,19 +104,72 @@ export function canDownloadVersion(
 }
 
 /**
- * Interne Fassungen (Phase 27) sieht **nur das Team**.
+ * Interne Fassungen (Phase 27) sieht das Team – und seit 1.7 der externe
+ * Projektadmin, **wenn** sein Link es ausdrücklich erlaubt.
  *
- * Auch der externe Projektadmin nicht: Er ist Kundenseite, und die interne
- * Runde ist ja genau der Schritt *vor* dem Kunden. Er darf im Projekt vieles,
- * was sonst dem Team vorbehalten ist – aber „darf verwalten“ und „gehört zum
- * Haus“ sind zwei verschiedene Fragen, und hier zählt die zweite.
+ * Bis 1.6 war das eine Frage der Person: `scope.unrestricted`, fertig. Die
+ * Begründung war, „darf verwalten“ und „gehört zum Haus“ seien zwei
+ * verschiedene Fragen, und die interne Runde sei der Schritt *vor* dem Kunden.
+ * Das stimmt weiterhin – nur ist der Projektadmin in der Praxis oft die
+ * Agentur, mit der genau diese Runde gedreht wird. Deshalb bleibt es beim
+ * Nein, das jetzt aber je Freigabe aufgehoben werden kann.
  *
- * Eine einzige Zeile, an der die ganze Regel hängt: Wer sie ändert, ändert
- * sie überall – in der Fassungsliste, an der neuesten Fassung, beim Download
- * und beim Kommentieren.
+ * Damit ist es **keine Frage der Person mehr, sondern des Projekts**: Derselbe
+ * Gast kann in einem Projekt hineinsehen und im nächsten nicht. Wer diese
+ * Funktion aufruft, muss deshalb sagen, um welches Projekt es geht – ein
+ * Aufruf ohne Projekt wäre notgedrungen zu großzügig oder zu streng.
+ *
+ * Die Zeile, an der die ganze Regel hängt: Wer sie ändert, ändert sie überall –
+ * in der Fassungsliste, an der neuesten Fassung, beim Download und beim
+ * Kommentieren.
  */
-export function canSeeInternalVersions(scope: AccessScope): boolean {
-  return scope.unrestricted;
+export function canSeeInternalVersions(scope: AccessScope, projectId: string): boolean {
+  if (scope.unrestricted) return true;
+  return scope.shares.some(
+    (share) =>
+      share.scope === 'PROJECT' &&
+      share.projectId === projectId &&
+      share.projectAdmin &&
+      share.internalVisible,
+  );
+}
+
+/**
+ * Darf **irgendwo** interne Fassungen sehen (1.7).
+ *
+ * Für den einen Fall, in dem das Projekt noch gar nicht feststeht: Eine
+ * Upload-Sitzung entsteht ohne Ziel, Projekt und Video werden erst beim
+ * Zuordnen eingetragen. Hier fällt deshalb nur die grobe Absage – die
+ * genaue Prüfung folgt beim Zuordnen, wo das Projekt bekannt ist.
+ *
+ * Dasselbe Muster wie `isProjectAdminAnywhere`, und aus demselben Grund: Ein
+ * grobes Ja hier ist ungefährlich, solange das feine Nein später kommt.
+ */
+export function canSeeInternalVersionsAnywhere(scope: AccessScope): boolean {
+  if (scope.unrestricted) return true;
+  return scope.shares.some(
+    (share) => share.scope === 'PROJECT' && share.projectAdmin && share.internalVisible,
+  );
+}
+
+/**
+ * Darf eine interne Fassung dem Kunden freigeben (1.7).
+ *
+ * Getrennt vom Sehen, weil das zwei verschiedene Traute sind: Hineinsehen
+ * heißt mitreden, freigeben heißt entscheiden, was der Endkunde zu sehen
+ * bekommt. Wer freigeben darf, muss sehen dürfen – die umgekehrte Richtung
+ * gibt es nicht.
+ */
+export function canReleaseInternalVersions(scope: AccessScope, projectId: string): boolean {
+  if (scope.unrestricted) return true;
+  return scope.shares.some(
+    (share) =>
+      share.scope === 'PROJECT' &&
+      share.projectId === projectId &&
+      share.projectAdmin &&
+      share.internalVisible &&
+      share.internalRelease,
+  );
 }
 
 /** Kommentieren darf ein Gast nur, wenn der Link es zulässt. */

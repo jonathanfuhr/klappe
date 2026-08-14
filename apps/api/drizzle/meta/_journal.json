@@ -365,6 +365,13 @@
       "when": 1786550589687,
       "tag": "0051_auftritte_pro_projekt",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1786707477167,
+      "tag": "0052_linkrechte_interne_fassungen",
+      "breakpoints": true
     }
   ]
 }

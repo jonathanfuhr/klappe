@@ -309,6 +309,13 @@ export interface VideoDto {
   /** Darf der anfragende Benutzer hier kommentieren und zeichnen? */
   canComment: boolean;
   /**
+   * Darf er eine interne Fassung dem Kunden freigeben (1.7)? Das Team immer,
+   * ein externer Projektadmin nur, wenn sein Link beide internen Rechte
+   * trägt. Steht am Video und nicht an der Fassung, weil das Recht am Projekt
+   * hängt – für alle Fassungen dieses Videos gilt dieselbe Antwort.
+   */
+  canReleaseInternal: boolean;
+  /**
    * Team oder externer Projektadmin (Phase 21) – darf Fassungen hochladen
    * und löschen.
    */
@@ -466,6 +473,17 @@ export interface ShareLinkDto {
   allowUpload: boolean;
   allowComments: boolean;
   /**
+   * Rechte, die der Link **mitbringt** (1.7): Beim Einlösen wandern sie in die
+   * Gast-Zeile, danach zählt allein die. Ein Link lässt sich damit schon beim
+   * Anlegen als „für die Agentur" ausweisen, statt an jedem Gast nachgebessert
+   * zu werden. Nur an einer Projektfreigabe; sonst immer `false`.
+   */
+  projectAdmin: boolean;
+  /** Darf interne Fassungen sehen. Setzt `projectAdmin` voraus. */
+  internalVisible: boolean;
+  /** Darf sie dem Kunden freigeben. Setzt `internalVisible` voraus. */
+  internalRelease: boolean;
+  /**
    * Direktfreigabe (Phase 18): entstanden, weil ein vorhandener Gast mit einem
    * Klick erweitert wurde. Die Adresse verschickt niemand – die Oberfläche
    * blendet sie deshalb aus.
@@ -513,6 +531,10 @@ export interface GuestAccessLinkDto {
   allowComments: boolean;
   allowDownload: boolean;
   allowUpload: boolean;
+  /** Darf interne Fassungen sehen (1.7). Hängt am Projektadmin. */
+  internalVisible: boolean;
+  /** Darf sie dem Kunden freigeben (1.7). Hängt am Sehen-Recht. */
+  internalRelease: boolean;
   /**
    * „Externer Projektadmin" (Phase 21) – nur an einer Projektfreigabe
    * möglich. Anders als die drei Rechte oben gibt es dafür kein „wie der

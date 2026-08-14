@@ -502,6 +502,27 @@ export const shareLinks = pgTable(
     /** Erlaubt dem Gast das Kommentieren. */
     allowComments: boolean('allow_comments').notNull().default(true),
     /**
+     * Rechte, die ein Link **mitbringt** (1.7).
+     *
+     * Bis 1.6 stand der Projektadmin ausschließlich an der Gast-Zeile: Man gab
+     * frei, wartete, bis sich jemand angemeldet hatte, und hakte es danach von
+     * Hand an. Wer einen Link „für die Agentur" verschicken wollte, konnte das
+     * nicht sagen – er musste hinterher nachbessern.
+     *
+     * Diese drei sind deshalb **Vorgaben**, keine Rechte für sich: Beim
+     * Einlösen wandern sie in die Gast-Zeile, und ab da zählt allein die. Wer
+     * sie später an einer einzelnen Person zurücknimmt, behält das – ein
+     * erneutes Anmelden holt die Vorgabe nicht zurück.
+     *
+     * Nur an einer Projektfreigabe sinnvoll; an einer Videofreigabe weist die
+     * API sie ab.
+     */
+    projectAdmin: boolean('project_admin').notNull().default(false),
+    /** Vorgabe: darf interne Fassungen sehen. Setzt `projectAdmin` voraus. */
+    internalVisible: boolean('internal_visible').notNull().default(false),
+    /** Vorgabe: darf sie dem Kunden freigeben. Setzt `internalVisible` voraus. */
+    internalRelease: boolean('internal_release').notNull().default(false),
+    /**
      * Einbetten auf fremden Seiten. Bewusst getrennt von allem anderen und
      * standardmäßig aus: Ein eingebetteter Player kommt ohne Code-Abfrage und
      * ohne Anmeldung aus – wer die Adresse hat, sieht das Video. Das ist eine
@@ -575,6 +596,19 @@ export const shareLinkGrants = pgTable(
      * Projektfreigabe sinnvoll, nicht an einer einzelnen Videofreigabe.
      */
     projectAdmin: boolean('project_admin').notNull().default(false),
+    /**
+     * Interne Fassungen sehen und freigeben (1.7) – wie der Projektadmin
+     * darüber eine bewusste Einzelentscheidung je Person, deshalb nicht
+     * nullbar und ab Werk aus. Beim Einlösen aus den Vorgaben des Links
+     * gefüllt.
+     *
+     * Beide hängen am `projectAdmin`: Ohne ihn bleiben sie wirkungslos, und
+     * `internalRelease` wirkt nur zusammen mit `internalVisible`. Die Prüfung
+     * steht in `access-scope.ts` und nicht bloß in der API – ein Recht, das
+     * über einen anderen Weg in die Zeile käme, soll trotzdem nicht greifen.
+     */
+    internalVisible: boolean('internal_visible').notNull().default(false),
+    internalRelease: boolean('internal_release').notNull().default(false),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

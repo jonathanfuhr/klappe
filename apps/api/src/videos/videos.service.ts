@@ -234,6 +234,7 @@ export class VideosService {
       aiContent: ki.enabled && row.video.aiContent,
       aiKinds: ki.enabled && row.video.aiContent ? (ki.kinds.get(row.video.id) ?? []) : [],
       canComment: this.accessService.canCommentOn(scope, row.video),
+      canReleaseInternal: this.accessService.canReleaseInternal(scope, row.video.projectId),
       canManage: this.accessService.canManageProject(scope, row.video.projectId),
       webUrl: videoWebPath(row.video.id),
     };
@@ -258,7 +259,22 @@ export class VideosService {
     videoRows: Array<{ id: string; projectId: string; downloadsFinalOnly: boolean }>,
     scope: AccessScope,
   ): Promise<Map<string, { latest: VersionDto; count: number }>> {
-    const nurFreigegebene = !this.accessService.canSeeInternal(scope);
+    /*
+     * Seit 1.7 haengt das Recht am Projekt, nicht an der Person – also darf es
+     * nicht mehr die ganze Abfrage entscheiden. Gefiltert wird deshalb im
+     * Ergebnis, je Video. Die Abfrage holt alles; sie laeuft ohnehin nur ueber
+     * Videos, die der Aufrufer sehen darf.
+     */
+    const internErlaubt = new Map<string, boolean>();
+    const darfIntern = (projectId: string): boolean => {
+      // Gemerkt, weil die Schleife je Fassungszeile fragt und die Antwort je
+      // Projekt feststeht.
+      const bekannt = internErlaubt.get(projectId);
+      if (bekannt !== undefined) return bekannt;
+      const antwort = this.accessService.canSeeInternal(scope, projectId);
+      internErlaubt.set(projectId, antwort);
+      return antwort;
+    };
     const rows = await this.db
       .select({
         version: videoVersions,
@@ -284,21 +300,10 @@ export class VideosService {
       .innerJoin(videos, eq(videoVersions.videoId, videos.id))
       .innerJoin(projects, eq(videos.projectId, projects.id))
       .where(
-        // Für Gäste zählt die neueste **nicht-interne** Fassung als die
-        // neueste (Phase 27) – und in `versionCount` fließen interne gar nicht
-        // erst ein. Sonst stünde da „3 Fassungen“ bei zwei sichtbaren.
-        nurFreigegebene
-          ? and(
-              inArray(
-                videoVersions.videoId,
-                videoRows.map((video) => video.id),
-              ),
-              eq(videoVersions.internal, false),
-            )
-          : inArray(
-              videoVersions.videoId,
-              videoRows.map((video) => video.id),
-            ),
+        inArray(
+          videoVersions.videoId,
+          videoRows.map((video) => video.id),
+        ),
       )
       .orderBy(desc(videoVersions.versionNumber));
 
@@ -306,13 +311,27 @@ export class VideosService {
     const result = new Map<string, { latest: VersionDto; count: number }>();
 
     for (const row of rows) {
+      const video = videoById.get(row.version.videoId);
+      if (!video) continue;
+
+      /*
+       * Für wen interne Fassungen nicht sichtbar sind, zählt die neueste
+       * **nicht-interne** als die neueste (Phase 27) – und sie fließen auch
+       * nicht in `versionCount` ein. Sonst stünde da „3 Fassungen" bei zwei
+       * sichtbaren.
+       *
+       * Bis 1.6 erledigte das die Bedingung der Abfrage, weil das Recht an der
+       * Person hing. Seit es am Projekt hängt, muss hier gefiltert werden: In
+       * einer Liste können Videos aus Projekten mit und ohne das Recht
+       * nebeneinanderstehen.
+       */
+      if (row.version.internal && !darfIntern(video.projectId)) continue;
+
       const existing = result.get(row.version.videoId);
       if (existing) {
         existing.count += 1;
         continue;
       }
-      const video = videoById.get(row.version.videoId);
-      if (!video) continue;
 
       const canDownload = this.accessService.canDownload(scope, {
         videoId: video.id,

@@ -122,7 +122,13 @@ export function SharePanel({
   const setzeRecht = async (
     shareLinkId: string,
     userId: string,
-    recht: 'allowComments' | 'allowDownload' | 'allowUpload' | 'projectAdmin',
+    recht:
+      | 'allowComments'
+      | 'allowDownload'
+      | 'allowUpload'
+      | 'projectAdmin'
+      | 'internalVisible'
+      | 'internalRelease',
     wert: boolean,
   ) => {
     try {
@@ -316,6 +322,51 @@ export function SharePanel({
                         />
                         {t('shares.projectAdmin')}
                       </label>
+                    ) : null}
+                    {/* Eingerückt unter dem Projektadmin (1.7): Beide hängen
+                        an ihm und verschwinden mit ihm. Für einen gewöhnlichen
+                        Kundenlink stehen sie gar nicht erst da – ein Haken,
+                        der nichts bewirkt, verwirrt mehr als er nützt. */}
+                    {link.scope === 'PROJECT' && link.projectAdmin ? (
+                      <div style={{ marginLeft: 22 }}>
+                        <label className="switch">
+                          <input
+                            type="checkbox"
+                            checked={link.internalVisible}
+                            disabled={!aktiv}
+                            onChange={(event) =>
+                              void setzeRecht(
+                                link.shareLinkId,
+                                guest.user.id,
+                                'internalVisible',
+                                event.target.checked,
+                              )
+                            }
+                          />
+                          {t('shares.internalVisible')}
+                        </label>
+                        <label
+                          className="switch"
+                          title={
+                            link.internalVisible ? undefined : t('shares.internalReleaseNeedsVisible')
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={link.internalRelease}
+                            disabled={!aktiv || !link.internalVisible}
+                            onChange={(event) =>
+                              void setzeRecht(
+                                link.shareLinkId,
+                                guest.user.id,
+                                'internalRelease',
+                                event.target.checked,
+                              )
+                            }
+                          />
+                          {t('shares.internalRelease')}
+                        </label>
+                      </div>
                     ) : null}
                   </div>
                 );

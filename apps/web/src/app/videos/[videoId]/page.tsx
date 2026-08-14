@@ -562,13 +562,22 @@ export default function ReviewPage() {
             <Uploader projectId={video.projectId} videoId={video.id} />
           ) : null}
 
-          {/* Interne Fassung (Phase 27): Der Hinweis richtet sich ans Team –
-              Gäste sehen die Fassung ohnehin nicht. Freigeben darf **jeder**
-              aus dem Team, das ist kein Admin-Vorrecht. */}
+          {/*
+            Interne Fassung (Phase 27, geöffnet in 1.7).
+
+            Wer den Hinweis überhaupt zu sehen bekommt, darf die Fassung auch
+            sehen – seit 1.7 ist das nicht mehr nur das Team, sondern auch ein
+            externer Projektadmin, dessen Link es erlaubt.
+
+            Freigeben darf **jeder** aus dem Team, das ist kein Admin-Vorrecht;
+            beim Projektadmin hängt es am zweiten Recht seines Links. Die
+            Antwort darauf kommt vom Server – `isTeam` allein könnte „darf in
+            *diesem* Projekt" gar nicht ausdrücken.
+          */}
           {selectedVersion?.internal ? (
             <div className="notice notice--warn">
               <strong>{t('video.internalTitle')}</strong> {t('video.internalBody')}
-              {isTeam ? (
+              {video?.canReleaseInternal ? (
                 <p style={{ marginBottom: 0, marginTop: 8 }}>
                   <button
                     type="button"

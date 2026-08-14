@@ -4,6 +4,7 @@ import {
   canComment,
   canDownloadVersion,
   canListAllProjectFiles,
+  canReleaseInternalVersions,
   canSeeInternalVersions,
   canUploadToProject,
   canViewProject,
@@ -30,6 +31,8 @@ const share = (overrides: Partial<GrantedShare> = {}): GrantedShare => ({
   allowUpload: false,
   allowComments: true,
   projectAdmin: false,
+  internalVisible: false,
+  internalRelease: false,
   ...overrides,
 });
 
@@ -245,21 +248,92 @@ describe('Externer Projektadmin (Phase 21)', () => {
   });
 });
 
-describe('Interne Fassungen (Phase 27)', () => {
-  it('sieht nur das Team', () => {
-    expect(canSeeInternalVersions(teamScope('ADMIN'))).toBe(true);
-    expect(canSeeInternalVersions(teamScope('MEMBER'))).toBe(true);
+describe('Interne Fassungen (Phase 27, geöffnet in 1.7)', () => {
+  it('sieht das Team überall', () => {
+    expect(canSeeInternalVersions(teamScope('ADMIN'), PROJEKT_A)).toBe(true);
+    expect(canSeeInternalVersions(teamScope('MEMBER'), PROJEKT_B)).toBe(true);
   });
 
-  it('ein Gast sieht sie nicht', () => {
-    expect(canSeeInternalVersions(guestScope([share()]))).toBe(false);
+  it('ein gewöhnlicher Gast sieht sie nicht', () => {
+    expect(canSeeInternalVersions(guestScope([share()]), PROJEKT_A)).toBe(false);
   });
 
-  it('auch der externe Projektadmin nicht – er ist Kundenseite', () => {
+  it('der Projektadmin allein genügt nicht – das Recht muss am Link stehen', () => {
+    // Der Grundsatz aus Phase 27 bleibt: Verwalten dürfen heißt nicht, zum
+    // Haus zu gehören. Aufgehoben wird er nur dort, wo jemand es ausdrücklich
+    // eingetragen hat.
     const scope = guestScope([share({ projectAdmin: true })]);
-    // Verwalten darf er, sehen nicht: Die interne Runde ist der Schritt *vor*
-    // dem Kunden, und er sitzt auf dessen Seite.
     expect(isProjectAdmin(scope, PROJEKT_A)).toBe(true);
-    expect(canSeeInternalVersions(scope)).toBe(false);
+    expect(canSeeInternalVersions(scope, PROJEKT_A)).toBe(false);
+  });
+
+  it('mit dem Recht am Link sieht der Projektadmin sie', () => {
+    const scope = guestScope([share({ projectAdmin: true, internalVisible: true })]);
+    expect(canSeeInternalVersions(scope, PROJEKT_A)).toBe(true);
+  });
+
+  it('ohne Projektadmin bleibt das Recht wirkungslos', () => {
+    // Sonst hinge an einem gewöhnlichen Kundenlink ein Recht, das nur für die
+    // Agentur gedacht war.
+    const scope = guestScope([share({ projectAdmin: false, internalVisible: true })]);
+    expect(canSeeInternalVersions(scope, PROJEKT_A)).toBe(false);
+  });
+
+  it('gilt nur für das Projekt, an dessen Link es steht', () => {
+    // Der wichtigste Fall überhaupt: Dieselbe Person, zwei Projekte. Bis 1.6
+    // war das eine Frage der Person und hätte hier beide Male true ergeben.
+    const scope = guestScope([
+      share({ projectAdmin: true, internalVisible: true }),
+      share({ shareLinkId: 'link-2', projectId: PROJEKT_B, projectAdmin: true }),
+    ]);
+    expect(canSeeInternalVersions(scope, PROJEKT_A)).toBe(true);
+    expect(canSeeInternalVersions(scope, PROJEKT_B)).toBe(false);
+  });
+
+  it('eine Videofreigabe trägt das Recht nie', () => {
+    const scope = guestScope([
+      {
+        ...share({ scope: 'VIDEO', videoId: VIDEO_1, projectAdmin: true, internalVisible: true }),
+        projectId: PROJEKT_A,
+      },
+    ]);
+    expect(canSeeInternalVersions(scope, PROJEKT_A)).toBe(false);
+  });
+});
+
+describe('Interne Fassungen freigeben (1.7)', () => {
+  it('das Team darf überall', () => {
+    expect(canReleaseInternalVersions(teamScope('MEMBER'), PROJEKT_A)).toBe(true);
+  });
+
+  it('sehen dürfen heißt noch nicht freigeben dürfen', () => {
+    const scope = guestScope([share({ projectAdmin: true, internalVisible: true })]);
+    expect(canSeeInternalVersions(scope, PROJEKT_A)).toBe(true);
+    expect(canReleaseInternalVersions(scope, PROJEKT_A)).toBe(false);
+  });
+
+  it('mit beiden Rechten darf er freigeben', () => {
+    const scope = guestScope([
+      share({ projectAdmin: true, internalVisible: true, internalRelease: true }),
+    ]);
+    expect(canReleaseInternalVersions(scope, PROJEKT_A)).toBe(true);
+  });
+
+  it('freigeben ohne sehen gibt es nicht', () => {
+    // Was man nicht sieht, kann man nicht freigeben. Die API lässt die
+    // Kombination gar nicht erst zu – hier steht der zweite Riegel.
+    const scope = guestScope([
+      share({ projectAdmin: true, internalVisible: false, internalRelease: true }),
+    ]);
+    expect(canReleaseInternalVersions(scope, PROJEKT_A)).toBe(false);
+  });
+
+  it('gilt nur für das Projekt, an dessen Link es steht', () => {
+    const scope = guestScope([
+      share({ projectAdmin: true, internalVisible: true, internalRelease: true }),
+      share({ shareLinkId: 'link-2', projectId: PROJEKT_B, projectAdmin: true }),
+    ]);
+    expect(canReleaseInternalVersions(scope, PROJEKT_A)).toBe(true);
+    expect(canReleaseInternalVersions(scope, PROJEKT_B)).toBe(false);
   });
 });

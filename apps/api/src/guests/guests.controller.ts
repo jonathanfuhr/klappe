@@ -76,6 +76,19 @@ class SetGuestRightsDto {
   @IsOptional()
   @IsBoolean()
   projectAdmin?: boolean;
+
+  /**
+   * Interne Fassungen sehen und freigeben (1.7). Wie der Projektadmin darüber
+   * immer ausdrücklich, nie „wie der Link": Der Link bringt sie zwar mit, aber
+   * nur als Vorgabe beim Einlösen.
+   */
+  @IsOptional()
+  @IsBoolean()
+  internalVisible?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  internalRelease?: boolean;
 }
 
 /**
@@ -191,6 +204,8 @@ export class GuestsController {
       allowDownload: dto.allowDownload,
       allowUpload: dto.allowUpload,
       projectAdmin: dto.projectAdmin,
+      internalVisible: dto.internalVisible,
+      internalRelease: dto.internalRelease,
     });
   }
 

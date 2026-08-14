@@ -80,6 +80,10 @@ export class SharesService {
     // Kunden-Ordner hängt am Projekt, nicht an einem einzelnen Video.
     const allowUpload = dto.scope === 'PROJECT' ? (dto.allowUpload ?? false) : false;
 
+    // Dieselbe Überlegung für die Rechte, die der Link mitbringt (1.7), plus
+    // ihre Abhängigkeiten untereinander.
+    const rechte = linkRechte(dto.scope, dto);
+
     const [row] = await this.db
       .insert(shareLinks)
       .values({
@@ -91,6 +95,7 @@ export class SharesService {
         allowDownload: dto.allowDownload ?? false,
         allowUpload,
         allowComments: dto.allowComments ?? true,
+        ...rechte,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
         createdById: user.id,
       })
@@ -114,6 +119,20 @@ export class SharesService {
               ? dto.allowUpload
               : false,
         allowComments: dto.allowComments,
+        /*
+         * Die Rechte des Links nur anfassen, wenn eines davon mitgeschickt
+         * wurde (1.7) – sonst würde ein Umbenennen des Links nebenbei den
+         * Projektadmin zurücksetzen.
+         */
+        ...(dto.projectAdmin === undefined &&
+        dto.internalVisible === undefined &&
+        dto.internalRelease === undefined
+          ? {}
+          : linkRechte(existing.scope, {
+              projectAdmin: dto.projectAdmin ?? existing.projectAdmin,
+              internalVisible: dto.internalVisible ?? existing.internalVisible,
+              internalRelease: dto.internalRelease ?? existing.internalRelease,
+            })),
         expiresAt: dto.expiresAt === undefined ? undefined : dto.expiresAt ? new Date(dto.expiresAt) : null,
         revokedAt: dto.revoked === undefined ? undefined : dto.revoked ? new Date() : null,
         updatedAt: new Date(),
@@ -337,11 +356,15 @@ export class SharesService {
 
     await this.db
       .insert(shareLinkGrants)
-      .values({ shareLinkId: link.id, userId: user.id })
+      .values({ shareLinkId: link.id, userId: user.id, ...vorgabenDesLinks(link) })
       .onConflictDoUpdate({
         target: [shareLinkGrants.shareLinkId, shareLinkGrants.userId],
         // Ein erneutes Anmelden hebt einen früheren Entzug nicht auf – der
         // wäre oben schon aufgefallen.
+        //
+        // Und es setzt auch die Vorgaben des Links nicht neu (1.7): Wer einer
+        // einzelnen Person ein Recht abgenommen hat, soll es ihr nicht durch
+        // die nächste Anmeldung zurückgeben.
         set: { lastSeenAt: sql`now()` },
       });
 
@@ -580,7 +603,7 @@ export class SharesService {
     await this.pruefeEntzug(link.id, user.id);
     await this.db
       .insert(shareLinkGrants)
-      .values({ shareLinkId: link.id, userId: user.id })
+      .values({ shareLinkId: link.id, userId: user.id, ...vorgabenDesLinks(link) })
       .onConflictDoUpdate({
         target: [shareLinkGrants.shareLinkId, shareLinkGrants.userId],
         set: { lastSeenAt: sql`now()` },
@@ -641,6 +664,9 @@ export class SharesService {
       allowDownload: link.allowDownload,
       allowUpload: link.allowUpload,
       allowComments: link.allowComments,
+      projectAdmin: link.projectAdmin,
+      internalVisible: link.internalVisible,
+      internalRelease: link.internalRelease,
       isDirect: link.isDirect,
       expiresAt: link.expiresAt?.toISOString() ?? null,
       revokedAt: link.revokedAt?.toISOString() ?? null,
@@ -836,4 +862,57 @@ export function isLinkActive(link: Pick<ShareLinkRow, 'revokedAt' | 'expiresAt'>
   if (link.revokedAt) return false;
   if (link.expiresAt && link.expiresAt.getTime() <= Date.now()) return false;
   return true;
+}
+
+/**
+ * Die Rechte, die ein Link **mitbringt** (1.7), für eine neue Gast-Zeile.
+ *
+ * Bis 1.6 entstand jede Zeile mit den Werkseinstellungen, und der Projektadmin
+ * wurde hinterher von Hand angehakt – ein Link „für die Agentur" ließ sich gar
+ * nicht verschicken. Jetzt wandern die Vorgaben beim Einlösen einmal hinüber;
+ * ab da zählt allein die Gast-Zeile, und eine spätere Änderung am Link ändert
+ * nichts mehr an denen, die schon drin sind.
+ *
+ * Die Abhängigkeiten werden hier noch einmal durchgesetzt, obwohl die API sie
+ * beim Schreiben schon prüft: Ein Link aus einer früheren Fassung oder aus
+ * einer von Hand geänderten Zeile soll keine Rechte durchreichen, die es so
+ * nie geben dürfte.
+ */
+function vorgabenDesLinks(link: {
+  scope: 'PROJECT' | 'VIDEO';
+  projectAdmin: boolean;
+  internalVisible: boolean;
+  internalRelease: boolean;
+}): { projectAdmin: boolean; internalVisible: boolean; internalRelease: boolean } {
+  const projectAdmin = link.scope === 'PROJECT' && link.projectAdmin;
+  const internalVisible = projectAdmin && link.internalVisible;
+  return {
+    projectAdmin,
+    internalVisible,
+    internalRelease: internalVisible && link.internalRelease,
+  };
+}
+
+/**
+ * Die Rechte eines Links auf das zurechtstutzen, was zusammen Sinn ergibt
+ * (1.7).
+ *
+ * An **einer** Stelle, weil sie an dreien gebraucht wird – beim Anlegen, beim
+ * Ändern und beim Einlösen. Drei Kopien derselben Kette wären drei
+ * Gelegenheiten, eine Abhängigkeit zu vergessen, und das Ergebnis wäre ein
+ * Recht, das niemand vergeben hat.
+ */
+function linkRechte(
+  scope: 'PROJECT' | 'VIDEO',
+  dto: { projectAdmin?: boolean; internalVisible?: boolean; internalRelease?: boolean },
+): { projectAdmin: boolean; internalVisible: boolean; internalRelease: boolean } {
+  // Ein Projektadmin-Recht an einer einzelnen Videofreigabe hat keinen
+  // Projektrahmen, in dem es gälte.
+  const projectAdmin = scope === 'PROJECT' && (dto.projectAdmin ?? false);
+  const internalVisible = projectAdmin && (dto.internalVisible ?? false);
+  return {
+    projectAdmin,
+    internalVisible,
+    internalRelease: internalVisible && (dto.internalRelease ?? false),
+  };
 }

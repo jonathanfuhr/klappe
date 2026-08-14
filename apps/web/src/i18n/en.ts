@@ -360,6 +360,11 @@ export const en: Record<MessageKey, Message> = {
   'shares.alreadySees': ' · already visible',
   'shares.takeOverVideos': 'Add {count} videos',
   'shares.less': 'Less',
+  // Internal versions on the share link (1.7)
+  'shareManager.newLinkRights': 'Rights for the next link',
+  'shares.internalVisible': 'May see internal versions',
+  'shares.internalRelease': 'May release internal versions',
+  'shares.internalReleaseNeedsVisible': 'Set “May see internal versions” first – you cannot release what you cannot see.',
   'shares.projectAdminHint':
     'May create videos in the project, upload and delete versions, share further and manage other people’s comments – for agencies that add their own material.',
   'shares.extendTitle': 'Share further videos or the whole project – without a new link.',

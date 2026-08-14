@@ -156,7 +156,7 @@ export class VersionsService {
     // Interne Fassungen (Phase 27) gibt es für Gäste nicht – auch nicht als
     // graue Zeile mit Hinweis. Hat ein Video nur interne Fassungen, sieht der
     // Gast eine leere Liste, so als wäre noch nichts hochgeladen.
-    const rows = this.accessService.canSeeInternal(scope)
+    const rows = this.accessService.canSeeInternal(scope, video.projectId)
       ? alle
       : alle.filter((row) => !row.version.internal);
 

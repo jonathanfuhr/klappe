@@ -10,7 +10,9 @@ import {
   type GrantedShare,
   canComment,
   canDownloadVersion,
+  canReleaseInternalVersions,
   canSeeInternalVersions,
+  canSeeInternalVersionsAnywhere,
   canUploadToProject,
   canViewProject,
   canViewVideo,
@@ -72,6 +74,8 @@ export class AccessService {
         grantAllowUpload: shareLinkGrants.allowUpload,
         grantAllowComments: shareLinkGrants.allowComments,
         projectAdmin: shareLinkGrants.projectAdmin,
+        internalVisible: shareLinkGrants.internalVisible,
+        internalRelease: shareLinkGrants.internalRelease,
       })
       .from(shareLinkGrants)
       .innerJoin(shareLinks, eq(shareLinkGrants.shareLinkId, shareLinks.id))
@@ -103,6 +107,16 @@ export class AccessService {
         // Nur an einer Projektfreigabe möglich – am Schreiben (`setGuestRights`)
         // durchgesetzt, hier nur noch übernommen.
         projectAdmin: row.scope === 'PROJECT' && row.projectAdmin,
+        /*
+         * Interne Fassungen (1.7). Beide hängen am Projektadmin und werden
+         * hier schon danach gefiltert – nicht erst in `access-scope.ts`.
+         * Zweimal dasselbe zu prüfen ist Absicht: Käme ein Recht je über einen
+         * anderen Weg in die Zeile, soll es an beiden Stellen abprallen.
+         */
+        internalVisible:
+          row.scope === 'PROJECT' && row.projectAdmin && row.internalVisible,
+        internalRelease:
+          row.scope === 'PROJECT' && row.projectAdmin && row.internalVisible && row.internalRelease,
       });
     }
 
@@ -277,15 +291,32 @@ export class AccessService {
     // „Nicht gefunden“ und nicht „verboten“: Für einen Gast gibt es diese
     // Fassung schlicht nicht, und die Antwort soll auch nicht verraten, dass
     // im Haus gerade an einer gearbeitet wird.
-    if (row.internal && !this.canSeeInternal(scope)) {
+    if (row.internal && !this.canSeeInternal(scope, row.projectId)) {
       throw new NotFoundException('Version nicht gefunden.');
     }
     return row;
   }
 
-  /** Interne Fassungen (Phase 27) sieht nur das Team – Gäste nie. */
-  canSeeInternal(scope: AccessScope): boolean {
-    return canSeeInternalVersions(scope);
+  /**
+   * Interne Fassungen (Phase 27) sieht das Team – und seit 1.7 der externe
+   * Projektadmin, wenn sein Link es erlaubt. Deshalb **je Projekt**: Derselbe
+   * Gast kann hier hineinsehen und im nächsten Projekt nicht.
+   */
+  canSeeInternal(scope: AccessScope, projectId: string): boolean {
+    return canSeeInternalVersions(scope, projectId);
+  }
+
+  /**
+   * Darf irgendwo interne Fassungen sehen (1.7) – für den Fall, dass das
+   * Projekt noch nicht feststeht. Siehe `canSeeInternalVersionsAnywhere`.
+   */
+  canSeeInternalAnywhere(scope: AccessScope): boolean {
+    return canSeeInternalVersionsAnywhere(scope);
+  }
+
+  /** Darf eine interne Fassung dem Kunden freigeben (1.7). */
+  canReleaseInternal(scope: AccessScope, projectId: string): boolean {
+    return canReleaseInternalVersions(scope, projectId);
   }
 
   canDownload(

@@ -40,6 +40,26 @@ export class CreateShareLinkDto {
   @IsBoolean()
   allowComments?: boolean;
 
+
+  /**
+   * Rechte, die der Link mitbringt (1.7). Sie wandern beim Einlösen in die
+   * Gast-Zeile; danach zählt allein die. Nur an einer Projektfreigabe
+   * sinnvoll – an einer Videofreigabe setzt der Dienst sie auf `false`.
+   */
+  @IsOptional()
+  @IsBoolean()
+  projectAdmin?: boolean;
+
+  /** Setzt `projectAdmin` voraus. */
+  @IsOptional()
+  @IsBoolean()
+  internalVisible?: boolean;
+
+  /** Setzt `internalVisible` voraus – was man nicht sieht, gibt man nicht frei. */
+  @IsOptional()
+  @IsBoolean()
+  internalRelease?: boolean;
+
   @IsOptional()
   @IsISO8601()
   expiresAt?: string;
@@ -62,6 +82,26 @@ export class UpdateShareLinkDto {
   @IsOptional()
   @IsBoolean()
   allowComments?: boolean;
+
+
+  /**
+   * Rechte, die der Link mitbringt (1.7). Sie wandern beim Einlösen in die
+   * Gast-Zeile; danach zählt allein die. Nur an einer Projektfreigabe
+   * sinnvoll – an einer Videofreigabe setzt der Dienst sie auf `false`.
+   */
+  @IsOptional()
+  @IsBoolean()
+  projectAdmin?: boolean;
+
+  /** Setzt `projectAdmin` voraus. */
+  @IsOptional()
+  @IsBoolean()
+  internalVisible?: boolean;
+
+  /** Setzt `internalVisible` voraus – was man nicht sieht, gibt man nicht frei. */
+  @IsOptional()
+  @IsBoolean()
+  internalRelease?: boolean;
 
   @IsOptional()
   @IsISO8601()
