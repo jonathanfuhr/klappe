@@ -86,6 +86,17 @@ export interface UploadJob {
    * niemand mehr klicken.
    */
   gespeichert: boolean;
+  /**
+   * Vorgemerkt (1.6.1): „Speichern" ist gedrückt, aber es gibt noch keine
+   * Upload-Sitzung, an die sich die Zuordnung hängen ließe.
+   *
+   * Bis dahin war „Speichern" nur an der Zeile möglich, die gerade überträgt –
+   * bei einem Stapel von acht Filmen also genau an einer. Wer die Angaben für
+   * alle acht beisammen hatte, musste trotzdem daneben sitzen und warten, bis
+   * jede Datei an der Reihe war. Jetzt merkt der Klick die Zeile vor, und die
+   * Zuordnung geht von selbst raus, sobald die Sitzung steht.
+   */
+  sollSpeichern?: boolean;
   uploadedBytes: number;
   /** Fortschritt des Transcodings in Prozent, sobald die Datei durch ist. */
   transcodeProgress: number;
@@ -109,8 +120,13 @@ interface UploadsState {
   }) => void;
   update: (id: string, changes: Partial<UploadJob>) => void;
   start: () => void;
-  /** Zuordnung eines fertig übertragenen Jobs übernehmen (Phase 15). */
+  /**
+   * Zuordnung übernehmen (Phase 15). Merkt die Zeile vor, wenn die Sitzung
+   * noch aussteht, und löst sie ein, sobald es geht (1.6.1).
+   */
   save: (id: string) => void;
+  /** Vormerkung zurücknehmen, solange nichts rausgegangen ist. */
+  unsave: (id: string) => void;
   cancel: (id: string) => void;
   remove: (id: string) => void;
   clearFinished: () => void;
@@ -365,9 +381,16 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         // Kein Datenverlust: Die Datei bleibt im Zwischenspeicher liegen, der
         // Fehler betrifft nur die Zuordnung. Deshalb zurück in den Zustand,
         // aus dem der Klick kam.
+        //
+        // Die Vormerkung fällt dabei weg (1.6.1), und zwar zwingend: Sie steht
+        // in der Warteschlange, der Effekt sieht sie bei jeder Änderung wieder,
+        // und ein dauerhafter Fehler – etwa eine schon vergebene
+        // Fassungsnummer – würde die API sonst im Takt der Fortschrittsmeldung
+        // bestürmen, ohne dass jemand etwas davon merkt.
         update(job.id, {
           state: laeuftNoch ? 'lädt' : 'bereit',
           gespeichert: false,
+          sollSpeichern: false,
           message:
             error instanceof Error ? error.message : t('upload.assignFailed'),
         });
@@ -384,23 +407,49 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
    * Nummer oder das Datum prüfen wollte, kam zu spät. Jetzt bleibt die Zeile
    * so lange offen, bis „Speichern“ gedrückt ist; ohne das entsteht weder
    * Video noch Fassung, und die Datei wartet im Zwischenspeicher.
+   *
+   * Der Klick **merkt nur vor** (1.6.1). Ob die Zuordnung sofort rausgeht oder
+   * erst in zwanzig Minuten, wenn diese Datei an der Reihe ist, entscheidet
+   * `vormerkungen` weiter unten – der Bedienende soll das nicht wissen müssen.
+   * Vorher stieg diese Stelle bei fehlender Sitzung stillschweigend aus, und
+   * ein Stapel-Upload ließ sich nur an der einen laufenden Zeile speichern.
    */
-  const save = useCallback(
-    (id: string) => {
-      const job = jobsRef.current.find((entry) => entry.id === id);
-      if (!job || uebernahmeLaeuft.current.has(job.id) || job.gespeichert) return;
-      // Seit Phase 18 geht das auch mitten in der Übertragung – sobald die
-      // Sitzung steht. Wer die Angaben schon beisammen hat, muss nicht warten,
-      // bis die letzten Gigabyte durch sind.
-      if (job.state !== 'bereit' && job.state !== 'lädt') return;
-      if (!job.uploadId) return;
-      if (!job.projectId) return;
+  const save = useCallback((id: string) => {
+    const job = jobsRef.current.find((entry) => entry.id === id);
+    if (!job || job.gespeichert) return;
+    // Erledigte oder verworfene Zeilen nimmt niemand mehr auf.
+    if (job.state === 'fertig' || job.state === 'abgebrochen' || job.state === 'verarbeitet') return;
+    update(id, { sollSpeichern: true });
+  }, [update]);
+
+  /** Die Vormerkung wieder zurücknehmen, solange nichts rausgegangen ist. */
+  const unsave = useCallback((id: string) => {
+    const job = jobsRef.current.find((entry) => entry.id === id);
+    if (!job || job.gespeichert || uebernahmeLaeuft.current.has(id)) return;
+    update(id, { sollSpeichern: false });
+  }, [update]);
+
+  /**
+   * Vorgemerktes einlösen, sobald es geht.
+   *
+   * Läuft bei jeder Änderung an der Warteschlange mit und ist deshalb billig
+   * gehalten – der interessante Fall ist der Übergang „Sitzung ist da": Der
+   * Transport meldet die Kennung schon beim ersten Block (`onSession`), lange
+   * bevor die Datei durch ist. Genau dort greift die Vormerkung.
+   */
+  useEffect(() => {
+    for (const job of jobs) {
+      if (!job.sollSpeichern || job.gespeichert) continue;
+      if (uebernahmeLaeuft.current.has(job.id)) continue;
+      // Ohne Sitzung gibt es nichts, woran die Zuordnung hängen könnte – die
+      // Zeile bleibt vorgemerkt und kommt dran, wenn ihre Übertragung beginnt.
+      if (!job.uploadId || !job.projectId) continue;
+      if (job.state !== 'lädt' && job.state !== 'bereit') continue;
       // Ein neues Video braucht wenigstens einen Namen.
-      if (!job.videoId && !job.newVideoName.trim()) return;
+      if (!job.videoId && !job.newVideoName.trim()) continue;
       void uebernehmen(job);
-    },
-    [uebernehmen],
-  );
+    }
+  }, [jobs, uebernehmen]);
 
   /**
    * Einmal beim Start: fertig übertragene, noch unzugeordnete Sitzungen vom
@@ -487,13 +536,14 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
       update,
       start,
       save,
+      unsave,
       cancel,
       remove,
       clearFinished,
       setOpen,
       completedCount,
     }),
-    [jobs, open, enqueue, update, start, save, cancel, remove, clearFinished, completedCount],
+    [jobs, open, enqueue, update, start, save, unsave, cancel, remove, clearFinished, completedCount],
   );
 
   return <UploadsContext.Provider value={value}>{children}</UploadsContext.Provider>;

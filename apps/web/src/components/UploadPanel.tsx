@@ -7,7 +7,7 @@ import {
   suggestVideoName,
   versionLabel,
 } from '@klappe/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
@@ -25,7 +25,8 @@ import { type UploadJob, useUploads } from '@/lib/uploads-context';
  * kommt aus dem Dateinamen und ist als Vorschlag gekennzeichnet.
  */
 export function UploadPanel() {
-  const { jobs, open, setOpen, update, start, save, cancel, remove, clearFinished } = useUploads();
+  const { jobs, open, setOpen, update, start, save, unsave, cancel, remove, clearFinished } =
+    useUploads();
   const { user } = useSession();
   const t = useT();
   const [projects, setProjects] = useState<ProjectDto[]>([]);
@@ -40,6 +41,13 @@ export function UploadPanel() {
   const isTeam = user?.role === 'ADMIN' || user?.role === 'MEMBER';
   const pending = jobs.filter((job) => job.state === 'wartet');
   const active = jobs.filter((job) => job.state === 'lädt' || job.state === 'verarbeitet');
+
+  /**
+   * Die Warteschlange in einer Box (1.6.1). Der Takt der Verarbeitungsabfrage
+   * darf nicht an ihr hängen – siehe die Begründung weiter unten.
+   */
+  const jobsRef = useRef<UploadJob[]>(jobs);
+  jobsRef.current = jobs;
 
   useEffect(() => {
     if (jobs.length === 0 || !isTeam) return;
@@ -108,7 +116,7 @@ export function UploadPanel() {
    * Verarbeitung dort schon im Zwischenspeicher.
    */
   const refreshTranscode = useCallback(async () => {
-    for (const job of jobs) {
+    for (const job of jobsRef.current) {
       if (job.state === 'bereit' && job.uploadId && !job.versionId) {
         try {
           const sitzung = await api.getUpload(job.uploadId);
@@ -121,6 +129,27 @@ export function UploadPanel() {
           });
         } catch {
           // Wie unten: Ein Aussetzer beim Nachfragen ändert nichts am Upload.
+        }
+        continue;
+      }
+      /*
+       * Verarbeitet, aber ohne Fassung: Dann hängt der Stand noch an der
+       * Sitzung. Ohne diesen Zweig lief die Leiste in eine Sackgasse – der
+       * Takt unten sah „verarbeitet" und fragte weiter, hier fiel die Zeile
+       * durch, und der Balken stand bis zum Neuladen der Seite.
+       */
+      if (job.state === 'verarbeitet' && !job.versionId && job.uploadId) {
+        try {
+          const sitzung = await api.getUpload(job.uploadId);
+          if (sitzung.versionId) {
+            update(job.id, { versionId: sitzung.versionId });
+          } else if (sitzung.transcodeStatus === 'READY') {
+            update(job.id, { state: 'fertig', transcodeProgress: 100 });
+          } else {
+            update(job.id, { transcodeProgress: sitzung.transcodeProgress });
+          }
+        } catch {
+          // Ein Aussetzer beim Nachfragen ändert nichts am Upload.
         }
         continue;
       }
@@ -142,18 +171,49 @@ export function UploadPanel() {
         // den Upload als gescheitert zu markieren.
       }
     }
-  }, [jobs, update]);
+  }, [update, t]);
+
+  /**
+   * Der Takt der Nachfrage (1.6.1 geradegerückt).
+   *
+   * Er hing an `jobs` – und `jobs` ändert sich während einer Übertragung alle
+   * 150 Millisekunden, weil der Fortschritt hineingeschrieben wird. Jede
+   * Änderung räumte das Intervall ab und setzte es neu, also **feuerte es
+   * nie**, solange irgendetwas hochlud. Beim Stapel-Upload heißt das: Die
+   * Verarbeitung des ersten Films läuft, seine Leiste steht, und sie steht
+   * auch dann noch, wenn das Video längst fertig ist und abspielt.
+   *
+   * Jetzt hängt der Takt nur noch an einem Ja/Nein, und die Jobs kommen über
+   * eine Box herein statt über die Abhängigkeitsliste.
+   *
+   * Eine Sekunde statt zweieinhalb: Der Worker läuft auf dem Mac-Server nativ
+   * und meldet fein auflösenden Fortschritt; bei 2,5 Sekunden sah der Balken
+   * aus, als ruckle er.
+   */
+  const laeuftVerarbeitung = jobs.some(
+    (job) =>
+      job.state === 'verarbeitet' ||
+      (job.state === 'bereit' && job.uploadId && job.transcodeProgress < 100),
+  );
 
   useEffect(() => {
-    const laeuft = jobs.some(
-      (job) =>
-        job.state === 'verarbeitet' ||
-        (job.state === 'bereit' && job.uploadId && job.transcodeProgress < 100),
-    );
-    if (!laeuft) return;
-    const timer = setInterval(() => void refreshTranscode(), 2500);
+    if (!laeuftVerarbeitung) return;
+    // Gegen Überholen: Antwortet der Server einmal langsamer als der Takt,
+    // sollen sich die Nachfragen nicht stapeln.
+    let laeuftGerade = false;
+    const nachfragen = async () => {
+      if (laeuftGerade) return;
+      laeuftGerade = true;
+      try {
+        await refreshTranscode();
+      } finally {
+        laeuftGerade = false;
+      }
+    };
+    void nachfragen();
+    const timer = setInterval(() => void nachfragen(), 1000);
     return () => clearInterval(timer);
-  }, [jobs, refreshTranscode]);
+  }, [laeuftVerarbeitung, refreshTranscode]);
 
   const summary = useMemo(() => {
     const bereit = jobs.filter((job) => job.state === 'bereit').length;
@@ -195,6 +255,7 @@ export function UploadPanel() {
               }
               onChange={(changes) => update(job.id, changes)}
               onSave={() => save(job.id)}
+              onUnsave={() => unsave(job.id)}
               onCancel={() => cancel(job.id)}
               onRemove={() => remove(job.id)}
             />
@@ -237,6 +298,7 @@ function JobRow({
   editable,
   onChange,
   onSave,
+  onUnsave,
   onCancel,
   onRemove,
 }: {
@@ -248,6 +310,7 @@ function JobRow({
   editable: boolean;
   onChange: (changes: Partial<UploadJob>) => void;
   onSave: () => void;
+  onUnsave: () => void;
   onCancel: () => void;
   onRemove: () => void;
 }) {
@@ -276,26 +339,34 @@ function JobRow({
           {formatBytes(job.uploadedBytes)} / {formatBytes(job.sizeBytes)}
         </span>
         <StateBadge job={job} />
-        {/* Speichern geht seit Phase 18 schon während der Übertragung –
-            sobald die Sitzung steht. Wer die Angaben beisammen hat, muss
-            nicht warten, bis die letzten Gigabyte durch sind. */}
-        {(job.state === 'bereit' || (job.state === 'lädt' && job.uploadId)) && !job.gespeichert ? (
+        {/*
+          Speichern geht seit Phase 18 schon während der Übertragung – und seit
+          1.6.1 auch davor, an jeder wartenden Zeile. Beim Stapel-Upload war der
+          Knopf vorher nur an der einen Zeile zu sehen, die gerade übertrug: Wer
+          für alle acht Filme die Angaben beisammen hatte, musste daneben sitzen
+          und jede Datei einzeln abpassen. Vorgemerktes geht von selbst raus,
+          sobald die Sitzung dieser Datei steht.
+        */}
+        {(job.state === 'wartet' || job.state === 'bereit' || job.state === 'lädt') &&
+        !job.gespeichert ? (
           <button
             type="button"
-            className="button button--primary"
-            onClick={onSave}
+            className={job.sollSpeichern ? 'button button--ghost' : 'button button--primary'}
+            onClick={job.sollSpeichern ? onUnsave : onSave}
             disabled={!job.projectId || (!job.videoId && !job.newVideoName.trim())}
             title={
               !job.projectId
                 ? t('upload.needProject')
                 : !job.videoId && !job.newVideoName.trim()
                   ? t('upload.needVideo')
-                  : job.state === 'lädt'
-                    ? t('upload.willBeAdded')
-                    : undefined
+                  : job.sollSpeichern
+                    ? t('upload.queuedForSaveHint')
+                    : job.uploadId
+                      ? t('upload.willBeAdded')
+                      : t('upload.saveLaterHint')
             }
           >
-            {t('common.save')}
+            {job.sollSpeichern ? t('upload.queuedForSave') : t('common.save')}
           </button>
         ) : null}
         {job.state === 'lädt' ? (
@@ -499,6 +570,13 @@ function StateBadge({ job }: { job: UploadJob }) {
     case 'abgebrochen':
       return <span className="badge">{t('upload.stateAborted')}</span>;
     default:
-      return <span className="badge">{t('upload.stateWaiting')}</span>;
+      // Vorgemerkt (1.6.1): Die Zeile wartet noch auf ihre Übertragung, ihre
+      // Angaben stehen aber schon fest und gehen von selbst raus. Ohne diesen
+      // Hinweis sähe eine vorgemerkte Zeile aus wie jede andere wartende.
+      return job.sollSpeichern ? (
+        <span className="badge badge--ready">{t('upload.stateQueuedForSave')}</span>
+      ) : (
+        <span className="badge">{t('upload.stateWaiting')}</span>
+      );
   }
 }

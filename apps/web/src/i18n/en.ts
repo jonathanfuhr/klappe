@@ -1184,6 +1184,11 @@ export const en: Record<MessageKey, Message> = {
   'upload.assignFailed': 'The assignment could not be saved.',
   'upload.resumedHint': 'Transfer from an earlier session – check the details and save',
   'upload.willBeAdded': 'Will be added as soon as the transfer is through',
+  // Queueing metadata during a batch upload (1.6.1)
+  'upload.queuedForSave': 'Queued',
+  'upload.queuedForSaveHint': 'Goes out as soon as this file’s turn comes. Click to undo.',
+  'upload.saveLaterHint': 'Queue these details – they are applied once this file starts transferring.',
+  'upload.stateQueuedForSave': 'Waiting, queued',
 
   'upload.aborted': 'Aborted.',
   'upload.failed': 'Upload failed.',

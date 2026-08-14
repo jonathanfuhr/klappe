@@ -1189,6 +1189,11 @@ export const de = {
   'upload.assignFailed': 'Die Zuordnung ließ sich nicht speichern.',
   'upload.resumedHint': 'Übertragung aus einer früheren Sitzung – Angaben prüfen und speichern',
   'upload.willBeAdded': 'Wird aufgenommen, sobald die Übertragung durch ist',
+  // Vormerken beim Stapel-Upload (1.6.1)
+  'upload.queuedForSave': 'Vorgemerkt',
+  'upload.queuedForSaveHint': 'Geht raus, sobald diese Datei an der Reihe ist. Klicken nimmt die Vormerkung zurück.',
+  'upload.saveLaterHint': 'Angaben vormerken – aufgenommen wird, sobald die Übertragung dieser Datei beginnt.',
+  'upload.stateQueuedForSave': 'Wartet, vorgemerkt',
 
   'upload.aborted': 'Abgebrochen.',
   'upload.failed': 'Upload fehlgeschlagen.',
