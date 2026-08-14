@@ -497,6 +497,39 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  /**
+   * Nachfragen, bevor eine laufende Übertragung mit der Seite verschwindet
+   * (1.6.1).
+   *
+   * Ein Upload lebt im Speicher **dieses** Tabs: Das `File`-Objekt kommt aus
+   * der Dateiauswahl und lässt sich nirgends hinretten. Wird das Dokument
+   * entladen – Neuladen, Adresse überschrieben, Tab zu –, ist die Übertragung
+   * weg, und wiederhergestellt wird beim nächsten Start nur, was **vollständig**
+   * übertragen und noch nicht zugeordnet war. Ein Upload bei 40 % ist damit
+   * verloren, und seine Bruchstücke liegen bis zum Ablauf im Zwischenspeicher.
+   *
+   * Der Wechsel zwischen Projekt und Video ist davon **nicht** betroffen: Das
+   * ist eine Navigation innerhalb der Anwendung, das Dokument bleibt stehen,
+   * und `beforeunload` schweigt. Genau das macht die Nachfrage nebenbei zur
+   * Auskunft: Wer sie beim Klick auf ein Video zu sehen bekommt, weiß, dass
+   * dort doch ein echter Seitenwechsel passiert.
+   *
+   * Nur angemeldet, solange wirklich etwas überträgt – eine Rückfrage beim
+   * Verlassen einer Seite, auf der nichts läuft, ist eine Zumutung.
+   */
+  const laeuftUebertragung = jobs.some((job) => job.state === 'lädt');
+  useEffect(() => {
+    if (!laeuftUebertragung) return;
+    const warnen = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Den Text bestimmt seit Jahren der Browser selbst; gesetzt wird er nur
+      // noch, weil ältere Fassungen ohne ihn gar nicht nachfragen.
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnen);
+    return () => window.removeEventListener('beforeunload', warnen);
+  }, [laeuftUebertragung]);
+
   const cancel = useCallback(
     (id: string) => {
       const job = jobsRef.current.find((entry) => entry.id === id);

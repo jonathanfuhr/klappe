@@ -153,7 +153,24 @@ export default function ReviewPage() {
     try {
       setDownloads(await api.listDownloads(versionId));
     } catch {
-      window.location.href = mediaUrl.original(versionId);
+      /*
+       * Ein unsichtbarer Link statt `window.location.href` (1.6.1) – dasselbe
+       * Muster wie im Download-Fenster.
+       *
+       * Der Grund ist nicht Einheitlichkeit: `location.href` ist eine echte
+       * Navigation. Antwortet der Server nicht mit einem Anhang, sondern mit
+       * irgendetwas Darstellbarem – einer Fehlerseite etwa, und dieser Zweig
+       * läuft ja gerade, *weil* die Auskunft eben gescheitert ist –, dann
+       * verlässt der Browser die Seite. Damit wären alle laufenden Uploads weg:
+       * Ihre Dateien liegen im Speicher dieses Tabs, und wiederhergestellt
+       * werden beim nächsten Start nur die vollständig übertragenen.
+       */
+      const link = document.createElement('a');
+      link.href = mediaUrl.original(versionId);
+      link.download = '';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     }
   }, []);
 
