@@ -157,18 +157,39 @@ ZONE_ID="$(printf '%s' "$ANTWORT" | feld id)" || fehler "Zone $CF_ZONE nicht gef
 ANTWORT="$(cf GET "/zones/${ZONE_ID}/dns_records?type=A&name=${CF_RECORD}")"
 if RECORD_ID="$(printf '%s' "$ANTWORT" | feld id 2>/dev/null)"; then
   BISHER="$(printf '%s' "$ANTWORT" | feld content)"
+  BISHER_TTL="$(printf '%s' "$ANTWORT" | feld ttl)"
+  BISHER_PROXY="$(printf '%s' "$ANTWORT" | feld proxied)"
 else
   RECORD_ID=""
   BISHER=""
+  BISHER_TTL=""
+  BISHER_PROXY=""
 fi
 
+# Nicht nur die Adresse zählt.
+#
+# Die orange Wolke lässt sich im Dashboard mit einem Klick einschalten, und
+# dann liefe der Verkehr wieder durch Cloudflare – also genau das, wovon der
+# ganze Aufbau wegwill. Ein Skript, das nur die Adresse vergleicht, merkte das
+# nie: Die stimmt ja weiterhin. Dasselbe für die TTL, die als „automatisch"
+# (`ttl: 1`) fünf Minuten bedeutet und damit zu lang ist für einen Anschluss,
+# dessen Adresse wechselt.
+STIMMT="ja"
+[[ "$BISHER" == "$IP" ]] || STIMMT=""
+[[ "$BISHER_TTL" == "$CF_TTL" ]] || STIMMT=""
+[[ "$BISHER_PROXY" == "False" ]] || STIMMT=""
+
 if [[ -n "$NUR_PRUEFEN" ]]; then
-  melde "Bei Cloudflare steht: ${BISHER:-kein A-Eintrag}"
-  [[ "$BISHER" == "$IP" ]] && melde "Stimmt überein." || melde "WEICHT AB – ein echter Lauf würde setzen."
+  melde "Bei Cloudflare steht: ${BISHER:-kein A-Eintrag} · TTL ${BISHER_TTL:-–} · durch Cloudflare geleitet: ${BISHER_PROXY:-–}"
+  if [[ -n "$STIMMT" ]]; then
+    melde "Alles wie gewünscht."
+  else
+    melde "WEICHT AB – ein echter Lauf würde auf $IP · TTL $CF_TTL · grau setzen."
+  fi
   exit 0
 fi
 
-if [[ "$BISHER" == "$IP" ]]; then
+if [[ -n "$STIMMT" ]]; then
   # Gleichstand: Nur den Stand auffrischen, damit die Vollprüfung wieder
   # eine halbe Stunde Ruhe gibt.
   printf '%s %s\n' "$IP" "$JETZT" > "$STAND"
@@ -184,7 +205,13 @@ print(json.dumps({"type": "A", "name": sys.argv[1], "content": sys.argv[2],
 if [[ -n "$RECORD_ID" ]]; then
   cf PATCH "/zones/${ZONE_ID}/dns_records/${RECORD_ID}" "$RUMPF" | feld id >/dev/null \
     || fehler "Cloudflare hat die Änderung abgelehnt."
-  melde "$CF_RECORD: ${BISHER:-?} → $IP"
+  # Ausdrücklich benennen, was sich geändert hat – „Eintrag aktualisiert" im
+  # Protokoll hilft niemandem, der später wissen will, warum.
+  GRUND=""
+  [[ "$BISHER" == "$IP" ]] || GRUND="Adresse ${BISHER:-?} → $IP"
+  [[ "$BISHER_TTL" == "$CF_TTL" ]] || GRUND="${GRUND:+$GRUND, }TTL ${BISHER_TTL:-?} → $CF_TTL"
+  [[ "$BISHER_PROXY" == "False" ]] || GRUND="${GRUND:+$GRUND, }von orange auf grau"
+  melde "$CF_RECORD: $GRUND"
 else
   cf POST "/zones/${ZONE_ID}/dns_records" "$RUMPF" | feld id >/dev/null \
     || fehler "Cloudflare hat den neuen Eintrag abgelehnt."
