@@ -29,13 +29,6 @@ gut()     { printf '%s    %s%s\n' "$GRUEN" "$1" "$AUS"; }
 warn()    { printf '%s    %s%s\n' "$GELB" "$1" "$AUS"; }
 fehler()  { printf '%s    %s%s\n' "$ROT" "$1" "$AUS"; }
 
-COMPOSE=(-f docker-compose.yml -f docker-compose.mac.yml)
-if [[ -n "${KLAPPE_COMPOSE_EXTRA:-}" ]]; then
-  # Absichtlich ohne Anführungszeichen: Die Variable trägt mehrere Wörter.
-  # shellcheck disable=SC2206
-  COMPOSE+=(${KLAPPE_COMPOSE_EXTRA})
-fi
-
 WORKER_LABEL='de.fuhrzwei.klappe-worker'
 WORKER_PLIST="/Library/LaunchDaemons/${WORKER_LABEL}.plist"
 WORKER_MUSTER='apps/api/dist/worker.js'
@@ -48,6 +41,25 @@ env_wert() {
   [[ -f .env ]] || return 0
   sed -n "s/^${schluessel}=//p" .env | tail -1 | sed 's/^["'\'']//;s/["'\'']$//'
 }
+
+# Welche Compose-Dateien gelten.
+#
+# Zusätzliche kommen aus der Umgebung **oder aus der `.env`** – und das zweite
+# ist der wichtige Teil: Wer den Stapel um eine Datei erweitert hat (etwa
+# `docker-compose.direkt.yml` für die Auslieferung an der eigenen Leitung
+# vorbei am Tunnel), muss daran beim nächsten Update nicht mehr denken.
+#
+# Ohne das war es eine echte Falle: Der nächste Lauf hätte den Container ohne
+# die Zusatzdatei neu gebaut, der zusätzliche Port wäre verschwunden, und die
+# Seite wäre von außen tot gewesen – während das Skript zufrieden „Fertig"
+# meldet.
+COMPOSE=(-f docker-compose.yml -f docker-compose.mac.yml)
+ZUSATZ="${KLAPPE_COMPOSE_EXTRA:-$(env_wert KLAPPE_COMPOSE_EXTRA)}"
+if [[ -n "$ZUSATZ" ]]; then
+  # Absichtlich ohne Anführungszeichen: Die Variable trägt mehrere Wörter.
+  # shellcheck disable=SC2206
+  COMPOSE+=(${ZUSATZ})
+fi
 
 # ------------------------------------------------------- 0. Erstlauf erkennen
 ERSTLAUF=""
