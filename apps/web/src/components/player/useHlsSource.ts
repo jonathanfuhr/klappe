@@ -99,6 +99,30 @@ export function useHlsSource(
           xhrSetup: (xhr) => {
             xhr.withCredentials = true;
           },
+          /*
+           * Nie mehr Pixel laden, als das Fenster zeigen kann (1.7.1).
+           *
+           * Ohne diesen Deckel wählt hls.js allein nach geschätzter Bandbreite
+           * und lädt 1080p in einen Player, der 700 Pixel breit ist. Auf dem
+           * Schirm sieht man davon nichts – bezahlt wird es trotzdem, und zwar
+           * in Wartezeit: Gemessen am 14.08.2026 kommen über den
+           * Cloudflare-Tunnel 1,7 bis 4,1 Mbit/s an, während die Stufe 6
+           * veranschlagt. Der Player lädt dann ein Segment länger, als es
+           * dauert.
+           */
+          capLevelToPlayerSize: true,
+          /*
+           * Womit hls.js startet, bevor es die Leitung kennt.
+           *
+           * Der Standard von 500 kbit/s ist für den ersten Griff zu
+           * optimistisch gedacht – er meint eine Leitung, nicht diesen Weg.
+           * 1,5 Mbit/s entspricht dem, was hier tatsächlich ankommt: Die
+           * erste Stufe ist damit 480p, und der Film läuft sofort, statt dass
+           * der Player erst an einer zu großen Stufe hängenbleibt und sich
+           * danach herunterarbeitet. Nach oben regelt er von selbst, sobald er
+           * gemessen hat.
+           */
+          abrEwmaDefaultEstimate: 1_500_000,
         });
         instanz = hls;
         instanzRef.current = hls;

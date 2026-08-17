@@ -21,9 +21,25 @@ export interface LadderRung {
   maxrateBps: number;
 }
 
-/** Kurze Kante der Stufe → Bitrate. Werte aus der Praxis für H.264. */
+/**
+ * Kurze Kante der Stufe → Bitrate. Werte aus der Praxis für H.264.
+ *
+ * **2160p ist seit 1.7.1 nicht mehr dabei.** Die Stufe war mit 16 Mbit/s
+ * angesetzt, und niemand hat sie je bekommen: Gemessen am 14.08.2026 liefert
+ * der Cloudflare-Tunnel, über den die Kunden hereinkommen, 1,7 bis 4,1
+ * Mbit/s – bei Leitungen, die an beiden Enden das Zwanzigfache könnten. Eine
+ * Stufe, die viermal über dem liegt, was durch den Weg passt, kostet
+ * Rechenzeit beim Erzeugen, Platz auf der Platte und im schlechtesten Fall
+ * eine Minute Wartezeit, wenn der Player sie doch einmal anfasst.
+ *
+ * Wer sie zurückwill, hängt sie hier wieder ein – die Leiter richtet sich im
+ * Übrigen von selbst nach der Quelle. Sinnvoll wird das, sobald die Medien
+ * nicht mehr durch den Tunnel gehen.
+ *
+ * 1080p bleibt die Obergrenze und deckt sich damit mit dem progressiven
+ * Proxy; darunter geht es für schwache Leitungen weiter.
+ */
 const RUNGS: { shortEdge: number; bitrateBps: number }[] = [
-  { shortEdge: 2160, bitrateBps: 16_000_000 },
   { shortEdge: 1080, bitrateBps: 6_000_000 },
   { shortEdge: 720, bitrateBps: 3_000_000 },
   { shortEdge: 480, bitrateBps: 1_400_000 },

@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { buildMasterPlaylist, isSafeHlsFilename, planLadder } from './hls-plan';
 
 describe('planLadder', () => {
-  it('baut für UHD alle Stufen', () => {
+  it('deckelt UHD bei 1080p – höher geht es seit 1.7.1 nicht mehr', () => {
+    // Die 2160p-Stufe ist bewusst weg: Sie war mit 16 Mbit/s angesetzt und
+    // passte nie durch den Weg, über den die Kunden hereinkommen. Siehe die
+    // Begründung an `RUNGS`.
     const leiter = planLadder(3840, 2160);
-    expect(leiter.map((stufe) => stufe.name)).toEqual(['2160p', '1080p', '720p', '480p']);
+    expect(leiter.map((stufe) => stufe.name)).toEqual(['1080p', '720p', '480p']);
   });
 
   it('skaliert nie hoch', () => {
@@ -19,9 +22,11 @@ describe('planLadder', () => {
   });
 
   it('rechnet bei Hochformat mit der kurzen Kante', () => {
+    // Quelle 2160x3840: Die kurze Kante ist 2160, die oberste Stufe der Leiter
+    // aber 1080 – heruntergerechnet wird auf 1080x1920.
     const leiter = planLadder(2160, 3840);
-    expect(leiter[0]).toMatchObject({ name: '2160p', width: 2160, height: 3840 });
-    expect(leiter[1]).toMatchObject({ name: '1080p', width: 1080, height: 1920 });
+    expect(leiter[0]).toMatchObject({ name: '1080p', width: 1080, height: 1920 });
+    expect(leiter[1]).toMatchObject({ name: '720p', width: 720, height: 1280 });
   });
 
   it('kommt mit quadratischem Material zurecht', () => {
