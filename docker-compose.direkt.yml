@@ -1,0 +1,50 @@
+# Klappe zusätzlich direkt von der eigenen Leitung ausliefern.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.mac.yml \
+#                  -f docker-compose.direkt.yml up -d caddy
+#
+# Warum: siehe den Kopf von `docker/Caddyfile.direkt`. Kurz – der Tunnel
+# schickt Telekom-Verkehr über London, und das kostet je Anfrage 300 ms bis
+# 2 s, während die Anwendung selbst in 5 bis 24 ms antwortet.
+#
+# **Diese Datei ersetzt den Tunnel nicht, sie stellt sich daneben.** Der Port
+# des Tunnels bleibt unverändert veröffentlicht; dazu kommt 443 für den
+# direkten Weg. Welcher benutzt wird, entscheidet der DNS-Eintrag – und damit
+# ist der Umstieg jederzeit in einer Minute zurückzunehmen.
+#
+# Ausdrücklich **nicht** `docker-compose.https.yml` nehmen: Die ersetzt die
+# Port-Liste (`!override`) und nimmt dabei den Port weg, über den cloudflared
+# hereinkommt. Der Tunnel wäre damit sofort tot.
+#
+# Vorbedingungen:
+#   * KLAPPE_DOMAIN in der .env – der Name, unter dem Klappe läuft
+#   * ACME_EMAIL in der .env – für Ablaufhinweise von Let's Encrypt
+#   * CF_API_TOKEN in der .env – dasselbe Token wie für die DNS-Nachführung,
+#     mit `Zone → DNS → Bearbeiten` auf genau dieser Zone. Caddy setzt damit
+#     für die Zertifikatsprüfung kurzzeitig einen TXT-Eintrag.
+#   * Portfreigabe 443 am Router auf diesen Host. Port 80 bleibt zu – die
+#     Prüfung läuft über DNS, nicht über HTTP.
+
+services:
+  caddy:
+    # Das offizielle Abbild kann keine DNS-Prüfung; siehe die Begründung in
+    # der Dockerfile.
+    build:
+      context: .
+      dockerfile: docker/caddy-cloudflare.Dockerfile
+    image: klappe/caddy-cloudflare:latest
+    environment:
+      KLAPPE_DOMAIN: ${KLAPPE_DOMAIN:?KLAPPE_DOMAIN muss gesetzt sein}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL muss gesetzt sein}
+      CF_API_TOKEN: ${CF_API_TOKEN:?CF_API_TOKEN muss gesetzt sein}
+    volumes:
+      - ./docker/Caddyfile.direkt:/etc/caddy/Caddyfile:ro
+      - ./docker/klappe-routen.caddy:/etc/caddy/klappe-routen.caddy:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      # Der Port des Tunnels bleibt – ohne ihn kommt cloudflared nicht mehr
+      # herein, und der Rückweg wäre versperrt.
+      - '${WEB_PORT:-3000}:80'
+      # Und daneben der direkte Weg.
+      - '443:443'

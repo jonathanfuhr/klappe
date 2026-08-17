@@ -1,0 +1,82 @@
+# Beide Wege gleichzeitig: durch den Tunnel und direkt von der Leitung.
+#
+# **Warum überhaupt direkt.** Gemessen am 17.08.2026: Die Anwendung antwortet
+# auf dem Server in 5 bis 24 Millisekunden. Über den Cloudflare-Tunnel dauert
+# dieselbe Anfrage 300 Millisekunden bis 2 Sekunden – acht Anfragen kosten 0,31
+# Sekunden direkt und 4,74 durch den Tunnel, und eine Seite feuert mehr als
+# acht. Der Grund steht in den Protokollen: Jede `Cf-Ray`-Kennung endet auf
+# `-LHR`. Die Telekom peert mit Cloudflare in Deutschland nicht, also werden
+# Telekom-Kunden aus London bedient – und Kunden wie Server hängen hier beide
+# an der Telekom. Steuern lässt sich das nicht; welcher Standort antwortet,
+# entscheidet BGP-Anycast.
+#
+# **Warum trotzdem beide.** Der Tunnel bleibt bestehen und dieser Eingang
+# kommt daneben. Welcher Weg tatsächlich benutzt wird, entscheidet allein der
+# DNS-Eintrag:
+#
+#   graue Wolke, A-Eintrag auf die eigene Leitung  ->  direkt
+#   orange Wolke                                   ->  wieder durch den Tunnel
+#
+# Damit ist der Umstieg ein Versuch mit Rückfahrkarte: Macht der direkte Weg
+# Ärger – Router neu, Anschluss gestört –, ist man mit einem Klick im
+# Dashboard binnen einer Minute zurück auf dem alten Stand. Deshalb darf
+# **keiner der beiden Wege** den anderen stören.
+
+{
+	email {$ACME_EMAIL}
+
+	# Kein automatisches Umleiten von HTTP auf HTTPS.
+	#
+	# Das ist hier kein Feinschliff, sondern zwingend: Der Tunnel liefert
+	# unverschlüsselt an Port 80 an. Eine Umleitung schickte Cloudflare zurück
+	# auf https://<domain> – und das läuft wieder durch den Tunnel, auf
+	# dieselbe Umleitung. Eine Schleife, die den Tunnelweg sofort tötet.
+	auto_https disable_redirects
+}
+
+# ---------------------------------------------------------------- Weg 1: Tunnel
+#
+# Unverschlüsselt auf Port 80, so wie bisher. TLS bringt Cloudflare mit;
+# zwischen Tunnel und diesem Container liegt nur das Docker-Netz.
+:80 {
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	import klappe-routen.caddy
+}
+
+# ---------------------------------------------------------------- Weg 2: direkt
+#
+# Ausdrücklich `https://` davor, damit dieser Block **nur** Port 443 belegt.
+# Ohne das Schema würde Caddy den Namen auch auf Port 80 beanspruchen und dem
+# Block darüber die Anfragen des Tunnels wegnehmen.
+https://{$KLAPPE_DOMAIN} {
+	# Zertifikat über die DNS-Prüfung.
+	#
+	# Der springende Punkt beim Umstieg: DNS-01 braucht keine eingehende
+	# Verbindung. Caddy holt das Zertifikat also, **solange der Name noch auf
+	# Cloudflare zeigt** – und wenn umgeschaltet wird, liegt es längst bereit.
+	# Mit HTTP-01 oder TLS-ALPN-01 ginge das erst danach, und bis dahin wäre
+	# die Seite unerreichbar.
+	#
+	# Nebenbei löst es die zweite Sorge: Die Verlängerung hängt nicht mehr
+	# daran, dass Port 443 von außen erreichbar ist.
+	tls {
+		dns cloudflare {$CF_API_TOKEN}
+	}
+
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	# Dieselbe Wegeverteilung wie beim Tunnel – es ist ja dieselbe Anwendung.
+	# Ein zweiter Satz Regeln wären zwei Stellen, die auseinanderlaufen können.
+	import klappe-routen.caddy
+}
