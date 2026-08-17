@@ -197,6 +197,16 @@ export class StorageService {
     await writeFile(this.resolveKey(key), data);
   }
 
+  /**
+   * Liest eine kleine Datei am Stück – für Playlists und Ähnliches.
+   *
+   * Ausdrücklich nur für Kleines: Alles, was ein Video sein könnte, geht über
+   * `createReadStream`, sonst liegt eine Fassung im Speicher.
+   */
+  async readFile(key: string): Promise<Buffer> {
+    return readFile(this.resolveKey(key));
+  }
+
   async ensureDirForKey(key: string): Promise<void> {
     await mkdir(dirname(this.resolveKey(key)), { recursive: true });
   }

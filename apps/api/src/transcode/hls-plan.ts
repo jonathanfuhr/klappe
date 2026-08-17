@@ -122,6 +122,77 @@ export function buildMasterPlaylist(rungs: LadderRung[]): string {
   return `${zeilen.join('\n')}\n`;
 }
 
+/** Die oberste Stufe, die eine Leiter überhaupt anbieten darf. */
+export const MAX_LADDER_SHORT_EDGE = RUNGS[0].shortEdge;
+
+/**
+ * Stufen aus einer **bestehenden** Master-Playlist herausnehmen, die zu groß
+ * für den Weg sind (1.7.8).
+ *
+ * Der Grund ist ein Fehler, der sich nur bei Safari zeigte. Dort läuft HLS
+ * **nativ** im `<video>`-Element – `hls.js` wird gar nicht erst geladen, und
+ * damit greift auch keine seiner Einstellungen. Der Deckel auf die
+ * Fenstergröße aus 1.7.1 wirkt in Chrome und Firefox, in Safari nicht. Safari
+ * sieht die 2160p-Stufe, hält die Leitung für schnell genug und holt sie: ein
+ * Segment von rund 12 MB. Bei knapp 2 MB/s sind das sieben Sekunden Standbild
+ * mitten im Film, und Springen in der Zeitleiste wird unmöglich.
+ *
+ * Seit 1.7.1 entstehen neue Leitern ohne 2160p – die **bestehenden** behalten
+ * sie aber, denn die Leiter wird beim Transcodieren gebaut und nicht
+ * nachträglich umgeschrieben. Neu zu verarbeiten wären Stunden Rechenzeit für
+ * Material, das längst fertig ist.
+ *
+ * Deshalb hier: Beim Ausliefern der Master-Playlist fliegt heraus, was über
+ * der Leiter liegt. Die Dateien bleiben liegen, wo sie sind – sie werden nur
+ * nicht mehr angeboten. Das wirkt sofort, für jedes vorhandene Video und für
+ * jeden Player, auch für die, die sich selbst bedienen.
+ *
+ * Lässt sich die Playlist nicht deuten, kommt sie unverändert zurück: Ein
+ * Video, das aussetzt, ist ärgerlich – eines, das gar nicht mehr läuft, ist
+ * schlimmer.
+ */
+export function filterMasterPlaylist(
+  text: string,
+  maxShortEdge: number = MAX_LADDER_SHORT_EDGE,
+): string {
+  const zeilen = text.split(/\r?\n/);
+  const ergebnis: string[] = [];
+
+  for (let i = 0; i < zeilen.length; i += 1) {
+    const zeile = zeilen[i];
+
+    if (!zeile.startsWith('#EXT-X-STREAM-INF')) {
+      ergebnis.push(zeile);
+      continue;
+    }
+
+    // Auf die Kennzeile folgt die Adresse der Stufe; beide gehören zusammen
+    // und müssen gemeinsam bleiben oder gemeinsam verschwinden.
+    const adresse = zeilen[i + 1];
+    const treffer = /RESOLUTION=(\d+)x(\d+)/.exec(zeile);
+
+    // Ohne Auflösung lässt sich nicht entscheiden – dann bleibt die Stufe.
+    if (!treffer || adresse === undefined) {
+      ergebnis.push(zeile);
+      continue;
+    }
+
+    // Wie überall in Klappe zählt die kurze Kante; im Hochformat ist das die
+    // Breite.
+    const kurzeKante = Math.min(Number(treffer[1]), Number(treffer[2]));
+    if (kurzeKante <= maxShortEdge) {
+      ergebnis.push(zeile, adresse);
+    }
+    i += 1;
+  }
+
+  // Bliebe nichts übrig, wäre die Playlist wertlos – dann lieber die
+  // ursprüngliche, mit der wenigstens etwas läuft.
+  if (!ergebnis.some((zeile) => zeile.startsWith('#EXT-X-STREAM-INF'))) return text;
+
+  return ergebnis.join('\n');
+}
+
 /**
  * Länge eines Segments in Sekunden. Kurze Segmente lassen den Player
  * schneller auf eine andere Stufe wechseln, erzeugen aber mehr Dateien;

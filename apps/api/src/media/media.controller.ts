@@ -18,7 +18,7 @@ import { contentDisposition } from '../common/normalize';
 import { AppConfig, CONFIG } from '../config/configuration';
 import { StorageService } from '../storage/storage.service';
 import { VersionsService } from '../versions/versions.service';
-import { isSafeHlsFilename } from '../transcode/hls-plan';
+import { filterMasterPlaylist, isSafeHlsFilename } from '../transcode/hls-plan';
 import { type MediaKind, createMediaToken } from './media-token';
 import { contentTypeFor } from './range';
 import { sendFile } from './send-file';
@@ -211,6 +211,24 @@ export class MediaController {
       : datei.endsWith('.ts')
         ? 'video/mp2t'
         : 'video/mp4';
+
+    /*
+     * Die Master-Playlist wird beim Ausliefern gefiltert (1.7.8).
+     *
+     * Bestehende Fassungen tragen noch eine 2160p-Stufe – die Leiter entsteht
+     * beim Transcodieren und wird nicht nachträglich umgeschrieben. Safari
+     * spielt HLS **nativ** ab, ohne `hls.js` und damit ohne dessen Deckel auf
+     * die Fenstergröße; es greift dann nach der größten Stufe und braucht für
+     * ein Segment von 12 MB sieben Sekunden. Hier fliegt sie heraus, ohne dass
+     * eine einzige Datei angefasst werden muss.
+     */
+    if (datei === 'master.m3u8' && stufe === null) {
+      const roh = await this.storage.readFile(key);
+      response.setHeader('Content-Type', typ);
+      response.setHeader('Cache-Control', 'private, max-age=0, must-revalidate');
+      response.send(filterMasterPlaylist(roh.toString('utf8')));
+      return;
+    }
 
     // Playlists dürfen nicht dauerhaft im Cache liegen, Segmente schon –
     // deren Name ändert sich mit jeder neuen Fassung.
