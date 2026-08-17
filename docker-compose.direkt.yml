@@ -37,9 +37,18 @@ services:
       KLAPPE_DOMAIN: ${KLAPPE_DOMAIN:?KLAPPE_DOMAIN muss gesetzt sein}
       ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL muss gesetzt sein}
       CF_API_TOKEN: ${CF_API_TOKEN:?CF_API_TOKEN muss gesetzt sein}
+    # Damit Vorgaben fremder Anwendungen ihre Variablen finden, ohne dass sie
+    # hier einzeln nachgetragen werden müssen. Klappes eigene stehen weiter
+    # ausdrücklich unter `environment` — die sollen fehlen dürfen und den Start
+    # abbrechen (`:?`), was mit `env_file` allein nicht ginge.
+    env_file:
+      - .env
     volumes:
       - ./docker/Caddyfile.direkt:/etc/caddy/Caddyfile:ro
       - ./docker/klappe-routen.caddy:/etc/caddy/klappe-routen.caddy:ro
+      # Vorgaben fremder Anwendungen, die diesen Proxy mitbenutzen. Siehe
+      # `docker/fremde/00-hinweis.caddy`.
+      - ./docker/fremde:/etc/caddy/fremde:ro
       - caddy-data:/data
       - caddy-config:/config
     ports:

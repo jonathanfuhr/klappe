@@ -80,3 +80,18 @@ https://{$KLAPPE_DOMAIN} {
 	# Ein zweiter Satz Regeln wären zwei Stellen, die auseinanderlaufen können.
 	import klappe-routen.caddy
 }
+
+# ------------------------------------------------------- Fremde Anwendungen
+#
+# Port 443 kann nur einer halten, und Klappe hält ihn. Wer daneben noch etwas
+# veröffentlichen will, legt seine Vorgabe in `docker/fremde/` ab statt einen
+# zweiten Proxy aufzustellen.
+#
+# Hier steht **kein** Name einer solchen Anwendung. Klappe liest nur, was im
+# Verzeichnis liegt; die Kopplung bleibt beim Betreiber. Einzelheiten in
+# `docker/fremde/00-hinweis.caddy`.
+#
+# Das Einlesen steht am Dateiende, nach Klappes eigenen Blöcken — die fremden
+# Namen sind genauer als `:80` und gehen deshalb ohnehin vor, aber die
+# Leserichtung soll der Wichtigkeit folgen.
+import /etc/caddy/fremde/*.caddy

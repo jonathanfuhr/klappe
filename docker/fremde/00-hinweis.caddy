@@ -1,0 +1,26 @@
+# Hier liegen Vorgaben **fremder** Anwendungen, die diesen Reverse Proxy
+# mitbenutzen.
+#
+# Der Grund ist der Port: 443 kann nur einer halten, und Klappe hält ihn schon.
+# Wer daneben noch etwas veröffentlichen will, braucht keinen zweiten Proxy —
+# er legt seine Vorgabe hier ab.
+#
+# Klappes Konfiguration nennt keine dieser Anwendungen. Sie liest schlicht, was
+# in diesem Verzeichnis liegt (`import /etc/caddy/fremde/*.caddy`). Damit bleibt
+# die Kopplung dort, wo sie hingehört: beim Betreiber, nicht im Code beider
+# Projekte.
+#
+# Was eine solche Datei mitbringen muss:
+#
+#   * einen **Namen** vor jedem Block (`http://{$FOO_DOMAIN}`), nicht nur `:80`.
+#     Klappes `:80`-Block fängt alles ohne eigenen Namen; bei zwei passenden
+#     Blöcken nimmt Caddy den genaueren. Ohne Namen bekäme die fremde Anwendung
+#     Klappes Antworten.
+#   * ihre eigene Weiterleitung, üblicherweise über `host.docker.internal` —
+#     ein gemeinsames Docker-Netz würde die Compose-Dateien aneinander binden.
+#   * ihre Umgebungsvariablen in Klappes `.env`. Der Caddy-Dienst liest sie
+#     über `env_file`, damit hier nichts nachgetragen werden muss.
+#
+# Diese Datei selbst enthält bewusst nur Kommentare: Sie sorgt dafür, dass das
+# Einlesemuster immer mindestens eine Datei findet, auch wenn sonst nichts
+# hierliegt.
