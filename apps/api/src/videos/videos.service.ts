@@ -16,6 +16,7 @@ import { DB, type Database } from '../db/db.module';
 import { comments, projects, users, videoVersions, videos } from '../db/schema';
 import { ProjectsService } from '../projects/projects.service';
 import { BrandProfilesService } from '../settings/brand-profiles.service';
+import { TranscodeSettingsService } from '../settings/transcode-settings.service';
 import { StorageService } from '../storage/storage.service';
 import { VersionsService } from '../versions/versions.service';
 import type { CreateVideoDto, UpdateVideoDto } from './videos.dto';
@@ -41,6 +42,7 @@ export class VideosService {
     private readonly versionsService: VersionsService,
     private readonly accessService: AccessService,
     private readonly brandProfiles: BrandProfilesService,
+    private readonly transcodeSettings: TranscodeSettingsService,
     private readonly storage: StorageService,
     private readonly aiContent: AiContentService,
   ) {}
@@ -265,6 +267,9 @@ export class VideosService {
      * Ergebnis, je Video. Die Abfrage holt alles; sie laeuft ohnehin nur ueber
      * Videos, die der Aufrufer sehen darf.
      */
+    // Ob der Player die Leiter benutzen darf, gilt fuer den Workspace (1.7.9).
+    const hlsAn = (await this.transcodeSettings.effective().catch(() => null))?.hlsMode !== 'off';
+
     const internErlaubt = new Map<string, boolean>();
     const darfIntern = (projectId: string): boolean => {
       // Gemerkt, weil die Schleife je Fassungszeile fragt und die Antwort je
@@ -342,7 +347,7 @@ export class VideosService {
 
       // Dank der Sortierung ist die erste Zeile je Video die neueste Version.
       result.set(row.version.videoId, {
-        latest: this.versionsService.toDto(row, canDownload),
+        latest: this.versionsService.toDto(row, canDownload, hlsAn),
         count: 1,
       });
     }

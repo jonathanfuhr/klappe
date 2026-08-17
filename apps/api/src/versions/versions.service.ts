@@ -19,6 +19,7 @@ import { AccessService, type AccessScope } from '../access/access.service';
 import { resolutionLabel } from '../transcode/media-plan';
 import type { RequestUser } from '../auth/auth.types';
 import { AworkNotifyService } from '../awork/awork-notify.service';
+import { TranscodeSettingsService } from '../settings/transcode-settings.service';
 import { DB, type Database } from '../db/db.module';
 import { comments, projects, users, videoVersions, videos } from '../db/schema';
 import type { VideoVersionRow } from '../db/schema';
@@ -102,7 +103,31 @@ export class VersionsService {
     private readonly events: EventsService,
     private readonly mailQueue: MailQueueService,
     private readonly awork: AworkNotifyService,
+    private readonly transcodeSettings: TranscodeSettingsService,
   ) {}
+
+  /**
+   * Darf der Player die adaptive Wiedergabe benutzen? (1.7.9)
+   *
+   * Steht der Workspace auf „HLS aus", galt das bisher nur fuer **neu**
+   * verarbeitete Fassungen – bestehende meldeten ihre Stufen weiter, und der
+   * Player nahm sie. Der Schalter hiess also „aus" und meinte „ab jetzt keine
+   * neuen mehr". Jetzt heisst er, was draufsteht.
+   *
+   * Ausgeliefert wird dann der progressive Proxy, und der ist fuers
+   * bildgenaue Arbeiten ohnehin die bessere Quelle: Er laesst sich in
+   * Byte-Bereichen anspringen, waehrend HLS immer ein ganzes Segment holen und
+   * ab dem Schluesselbild dekodieren muss. Genau daran haengt das zaehe
+   * Springen in der Zeitleiste.
+   */
+  private async hlsErlaubt(): Promise<boolean> {
+    try {
+      return (await this.transcodeSettings.effective()).hlsMode !== 'off';
+    } catch {
+      // Eine nicht ladbare Einstellung darf die Wiedergabe nicht kosten.
+      return true;
+    }
+  }
 
   /**
    * Meldet, dass sich an einer Fassung etwas getan hat (Phase 18, Zusatz).
@@ -174,8 +199,10 @@ export class VersionsService {
       ? rows.filter((row) => row.version.status === 'READY').slice(0, 1)
       : rows;
 
+    // Einmal fuer die ganze Liste – die Einstellung gilt fuer den Workspace.
+    const hlsAn = await this.hlsErlaubt();
     return sichtbar.map((row) =>
-      this.toDto(row, this.downloadAllowed(scope, video, row.version.isFinal)),
+      this.toDto(row, this.downloadAllowed(scope, video, row.version.isFinal), hlsAn),
     );
   }
 
@@ -183,7 +210,7 @@ export class VersionsService {
     const access = await this.accessService.requireVersion(scope, id);
     const [row] = await this.baseQuery().where(eq(videoVersions.id, id)).limit(1);
     if (!row) throw new NotFoundException('Version nicht gefunden.');
-    return this.toDto(row, this.accessService.canDownload(scope, access));
+    return this.toDto(row, this.accessService.canDownload(scope, access), await this.hlsErlaubt());
   }
 
   /** Darf diese Fassung heruntergeladen werden? */
@@ -654,7 +681,7 @@ export class VersionsService {
       .orderBy(asc(videoVersions.createdAt));
   }
 
-  toDto(row: VersionQueryRow, canDownload: boolean): VersionDto {
+  toDto(row: VersionQueryRow, canDownload: boolean, hlsErlaubt = true): VersionDto {
     const version = row.version;
     const frameRate =
       version.fpsNum && version.fpsDen ? { num: version.fpsNum, den: version.fpsDen } : null;
@@ -732,7 +759,11 @@ export class VersionsService {
       playbackMode: version.playbackMode,
       playbackReason: version.playbackReason,
       fileDate: fileDateFromIso(version.fileDate),
-      hlsVariants: version.hlsVariants ? version.hlsVariants.split(',').filter(Boolean) : [],
+      // Leer heisst fuer den Player: keine Leiter, nimm den Proxy.
+      hlsVariants:
+        hlsErlaubt && version.hlsVariants
+          ? version.hlsVariants.split(',').filter(Boolean)
+          : [],
       webUrl: versionWebPath(version.videoId, Number(version.versionNumber)),
       downloadFilename: buildDownloadFilename({
         date: fileDateFromIso(version.fileDate),
