@@ -71,11 +71,11 @@
 
 	handle @medien {
 		reverse_proxy api:3001 {
-			# Ohne diese Weitergabe hält die API die Verbindung für
-			# unverschlüsselt.
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Forwarded-Host {host}
-
+			# `X-Forwarded-Proto` und `-Host` stehen hier bewusst **nicht**:
+			# Caddy setzt beide von sich aus, und ausgeschrieben meldet es sie
+			# als überflüssig. Im Stapel-Caddy stehen sie noch – dort stammen
+			# sie aus einer Zeit, in der das nicht selbstverständlich war.
+			#
 			# Video verträgt kein Zwischenspeichern der Antwort: Gepuffert
 			# käme das erste Segment erst, wenn es ganz durch ist.
 			flush_interval -1
