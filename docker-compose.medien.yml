@@ -1,0 +1,52 @@
+# Der Medien-Eingang – Videodaten am Cloudflare-Tunnel vorbei.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.mac.yml \
+#                  -f docker-compose.medien.yml up -d caddy-medien
+#
+# Warum überhaupt: siehe den Kopf von `docker/Caddyfile.medien`. Kurz – der
+# Tunnel schickt Telekom-Verkehr über London, und das kostet je Anfrage 300 ms
+# bis 2 s, während die Anwendung selbst in 5 bis 24 ms antwortet.
+#
+# **Ein eigener Dienst, nicht der vorhandene Caddy.** Der Stapel-Caddy reicht
+# alles, was nicht `/v1/*` ist, an die Oberfläche weiter. Würde man ihm den
+# offenen Port geben, stünde damit die ganze Anwendung am Internet – samt
+# Anmeldung. Dieser hier kennt nur eine Handvoll Medienpfade; alles andere
+# beantwortet er mit 404. Die Trennung ist keine Regel, die man umgehen
+# könnte, sondern zwei verschiedene Container.
+#
+# Vorbedingungen:
+#   * MEDIA_DOMAIN in der .env, z. B. medien.beispiel.de
+#   * ACME_EMAIL in der .env (Ablaufhinweise von Let's Encrypt)
+#   * Ein A-Eintrag auf diesen Anschluss, **grau** (nicht durch Cloudflare
+#     geleitet) – sonst liefe der Verkehr wieder durch den Umweg, den wir
+#     gerade loswerden wollen. Nachgeführt wird er von
+#     `deploy/mac/klappe-ddns.sh`.
+#   * Portfreigabe 443 am Router auf diesen Host. Port 80 bleibt zu; das
+#     Zertifikat kommt über TLS-ALPN-01 auf 443.
+
+services:
+  caddy-medien:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      MEDIA_DOMAIN: ${MEDIA_DOMAIN:?MEDIA_DOMAIN muss gesetzt sein}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL muss gesetzt sein}
+    volumes:
+      - ./docker/Caddyfile.medien:/etc/caddy/Caddyfile:ro
+      # Eigene Ablage für Zertifikat und Zustand. Bewusst getrennt vom
+      # Stapel-Caddy: Die beiden verwalten verschiedene Namen, und ein
+      # gemeinsames Volume hieße, dass ein Neuaufsetzen des einen dem anderen
+      # das Zertifikat wegräumt.
+      - caddy-medien-data:/data
+      - caddy-medien-config:/config
+    ports:
+      # Nur 443. Port 80 wäre nur für den HTTP-Weg der Zertifikatsprüfung
+      # nötig, und den schalten wir in der Caddy-Konfiguration ausdrücklich ab.
+      - '443:443'
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  caddy-medien-data:
+  caddy-medien-config:

@@ -1,0 +1,111 @@
+# Der Medien-Eingang: ein eigener Weg für Videodaten, am Tunnel vorbei.
+#
+# **Warum es ihn gibt.** Gemessen am 17.08.2026 auf dem Mac-Server: Die
+# Anwendung antwortet dort in 5 bis 24 Millisekunden – auch ein 695 KB großes
+# HLS-Segment. Über den Cloudflare-Tunnel dauert dieselbe Anfrage 300
+# Millisekunden bis 2 Sekunden. Der Grund steht in den Protokollen: Jede
+# `Cf-Ray`-Kennung endet auf `-LHR`. Die Telekom peert mit Cloudflare in
+# Deutschland nicht, also werden Telekom-Kunden aus **London** bedient – und
+# Kunden wie Server hängen hier beide an der Telekom. Jede Anfrage läuft
+# Deutschland → London → Frankfurt → Deutschland.
+#
+# Steuern lässt sich das nicht: Welcher Standort antwortet, entscheidet
+# BGP-Anycast, nicht eine Einstellung im Dashboard.
+#
+# **Was dieser Eingang deshalb ist:** ein zweiter, sehr enger Zugang, über den
+# ausschließlich Mediendaten laufen. Die Oberfläche bleibt am Tunnel.
+#
+# **Und was er ausdrücklich nicht ist:** ein zweiter Weg in die Anwendung. Der
+# Stapel-Caddy (`Caddyfile`) reicht alles an `web` weiter, was nicht `/v1/*`
+# ist – dieser hier reicht nur eine Handvoll Pfade an `api` weiter und
+# antwortet auf alles andere mit 404. Anmeldung, Projekte, Kommentare,
+# Einstellungen sind über diesen Eingang nicht erreichbar, und `mappe` und
+# `preroll` hängen gar nicht erst an diesem Container.
+
+{
+	# Die Verwaltungsschnittstelle ist hier nichts verloren – dieser Container
+	# steht als einziger mit einem offenen Port am Internet.
+	admin off
+
+	email {$ACME_EMAIL}
+}
+
+{$MEDIA_DOMAIN} {
+	/*
+	 * Zertifikat über TLS-ALPN-01, ausdrücklich ohne den HTTP-Weg.
+	 *
+	 * Port 80 bleibt am Router zu; nur 443 wird freigegeben. Ließe man den
+	 * HTTP-Weg zu, versuchte Caddy ihn zuerst, liefe in eine Zeitgrenze und
+	 * holte das Zertifikat erst im zweiten Anlauf.
+	 *
+	 * Der Preis: Läuft Port 443 einmal nicht (Router neu, Anschluss gesperrt),
+	 * scheitert auch die Verlängerung. Wer das ausschließen will, stellt auf
+	 * DNS-01 mit dem Cloudflare-Token um – dann braucht es allerdings ein
+	 * eigenes Caddy-Abbild mit dem passenden Modul.
+	 */
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	/*
+	 * Was hier hereindarf – und sonst nichts.
+	 *
+	 * Bewusst ein Ausdruck mit ausgeschriebener Kennung statt `path /v1/*`:
+	 * Ein Platzhalter würde auch `/v1/auth/login` durchlassen, sobald jemand
+	 * die Zeile später „nur kurz" erweitert. Hier steht jeder erlaubte Pfad
+	 * einzeln, und ein neuer muss ausdrücklich dazugeschrieben werden.
+	 *
+	 * `downloads/…/datei` ist die fertige Datei – die Liste der Formate
+	 * darunter (`downloads` ohne Zusatz) ist Auskunft und bleibt draußen.
+	 */
+	@medien {
+		method GET HEAD
+		path_regexp ^/v1/(versions/[0-9a-fA-F-]{36}/(proxy|original|poster|sprite|hls/.+|downloads/[^/]+/datei)|project-files/[0-9a-fA-F-]{36}/download|projects/[0-9a-fA-F-]{36}/files\.zip)$
+	}
+
+	handle @medien {
+		reverse_proxy api:3001 {
+			# Ohne diese Weitergabe hält die API die Verbindung für
+			# unverschlüsselt.
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+
+			# Video verträgt kein Zwischenspeichern der Antwort: Gepuffert
+			# käme das erste Segment erst, wenn es ganz durch ist.
+			flush_interval -1
+		}
+	}
+
+	# Alles andere gibt es hier nicht. Bewusst 404 und nicht 403: „Verboten"
+	# verriete, dass es den Pfad gibt.
+	handle {
+		respond 404
+	}
+
+	header {
+		# Der Eingang liefert Dateien aus, sonst nichts – ein Browser soll
+		# nichts davon als Seite auslegen.
+		X-Content-Type-Options nosniff
+		-Server
+	}
+}
+
+/*
+ * Für alles, was nicht {$MEDIA_DOMAIN} heißt, steht hier **absichtlich
+ * nichts**.
+ *
+ * Wer die nackte IP aufruft, schickt keinen oder einen fremden Servernamen
+ * mit. Caddy findet dann kein passendes Zertifikat und bricht schon den
+ * TLS-Handschlag ab – der Scanner bekommt nicht einmal einen Namen zu sehen.
+ * Ein Auffangblock mit `abort` wäre schwächer: Der bräuchte selbst ein
+ * Zertifikat und verriete damit, dass hier etwas steht.
+ */
