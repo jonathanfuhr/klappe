@@ -16,14 +16,14 @@
 # ausschließlich Mediendaten laufen. Die Oberfläche bleibt am Tunnel.
 #
 # **Und was er ausdrücklich nicht ist:** ein zweiter Weg in die Anwendung. Der
-# Stapel-Caddy (`Caddyfile`) reicht alles an `web` weiter, was nicht `/v1/*`
-# ist – dieser hier reicht nur eine Handvoll Pfade an `api` weiter und
-# antwortet auf alles andere mit 404. Anmeldung, Projekte, Kommentare,
+# Stapel-Caddy reicht alles an die Oberfläche weiter, was nicht unter `/v1`
+# liegt – dieser hier reicht nur eine Handvoll Pfade an die API weiter und
+# antwortet auf alles andere mit 404. Anmeldung, Projekte, Kommentare und
 # Einstellungen sind über diesen Eingang nicht erreichbar, und `mappe` und
 # `preroll` hängen gar nicht erst an diesem Container.
 
 {
-	# Die Verwaltungsschnittstelle ist hier nichts verloren – dieser Container
+	# Die Verwaltungsschnittstelle hat hier nichts verloren – dieser Container
 	# steht als einziger mit einem offenen Port am Internet.
 	admin off
 
@@ -31,18 +31,16 @@
 }
 
 {$MEDIA_DOMAIN} {
-	/*
-	 * Zertifikat über TLS-ALPN-01, ausdrücklich ohne den HTTP-Weg.
-	 *
-	 * Port 80 bleibt am Router zu; nur 443 wird freigegeben. Ließe man den
-	 * HTTP-Weg zu, versuchte Caddy ihn zuerst, liefe in eine Zeitgrenze und
-	 * holte das Zertifikat erst im zweiten Anlauf.
-	 *
-	 * Der Preis: Läuft Port 443 einmal nicht (Router neu, Anschluss gesperrt),
-	 * scheitert auch die Verlängerung. Wer das ausschließen will, stellt auf
-	 * DNS-01 mit dem Cloudflare-Token um – dann braucht es allerdings ein
-	 * eigenes Caddy-Abbild mit dem passenden Modul.
-	 */
+	# Zertifikat über TLS-ALPN-01, ausdrücklich ohne den HTTP-Weg.
+	#
+	# Port 80 bleibt am Router zu; nur 443 wird freigegeben. Ließe man den
+	# HTTP-Weg zu, versuchte Caddy ihn zuerst, liefe in eine Zeitgrenze und
+	# holte das Zertifikat erst im zweiten Anlauf.
+	#
+	# Der Preis: Läuft Port 443 einmal nicht (Router neu, Anschluss gesperrt),
+	# scheitert auch die Verlängerung. Wer das ausschließen will, stellt auf
+	# DNS-01 mit dem Cloudflare-Token um – dann braucht es allerdings ein
+	# eigenes Caddy-Abbild mit dem passenden Modul.
 	tls {
 		issuer acme {
 			disable_http_challenge
@@ -56,17 +54,16 @@
 		format json
 	}
 
-	/*
-	 * Was hier hereindarf – und sonst nichts.
-	 *
-	 * Bewusst ein Ausdruck mit ausgeschriebener Kennung statt `path /v1/*`:
-	 * Ein Platzhalter würde auch `/v1/auth/login` durchlassen, sobald jemand
-	 * die Zeile später „nur kurz" erweitert. Hier steht jeder erlaubte Pfad
-	 * einzeln, und ein neuer muss ausdrücklich dazugeschrieben werden.
-	 *
-	 * `downloads/…/datei` ist die fertige Datei – die Liste der Formate
-	 * darunter (`downloads` ohne Zusatz) ist Auskunft und bleibt draußen.
-	 */
+	# Was hier hereindarf – und sonst nichts.
+	#
+	# Bewusst ein Ausdruck mit ausgeschriebener Kennung statt eines
+	# Platzhalters über den ganzen API-Zweig: Ein Platzhalter würde auch die
+	# Anmeldung durchlassen, sobald jemand die Zeile später „nur kurz"
+	# erweitert. Hier steht jeder erlaubte Pfad einzeln, und ein neuer muss
+	# ausdrücklich dazugeschrieben werden.
+	#
+	# `downloads/…/datei` ist die fertige Datei – die Liste der Formate
+	# darunter (`downloads` ohne Zusatz) ist Auskunft und bleibt draußen.
 	@medien {
 		method GET HEAD
 		path_regexp ^/v1/(versions/[0-9a-fA-F-]{36}/(proxy|original|poster|sprite|hls/.+|downloads/[^/]+/datei)|project-files/[0-9a-fA-F-]{36}/download|projects/[0-9a-fA-F-]{36}/files\.zip)$
@@ -99,13 +96,11 @@
 	}
 }
 
-/*
- * Für alles, was nicht {$MEDIA_DOMAIN} heißt, steht hier **absichtlich
- * nichts**.
- *
- * Wer die nackte IP aufruft, schickt keinen oder einen fremden Servernamen
- * mit. Caddy findet dann kein passendes Zertifikat und bricht schon den
- * TLS-Handschlag ab – der Scanner bekommt nicht einmal einen Namen zu sehen.
- * Ein Auffangblock mit `abort` wäre schwächer: Der bräuchte selbst ein
- * Zertifikat und verriete damit, dass hier etwas steht.
- */
+# Für alles, was nicht auf den Medien-Namen lautet, steht hier **absichtlich
+# nichts**.
+#
+# Wer die nackte IP aufruft, schickt keinen oder einen fremden Servernamen mit.
+# Caddy findet dann kein passendes Zertifikat und bricht schon den
+# TLS-Handschlag ab – der Scanner bekommt nicht einmal einen Namen zu sehen.
+# Ein Auffangblock mit `abort` wäre schwächer: Der bräuchte selbst ein
+# Zertifikat und verriete damit, dass hier etwas steht.
