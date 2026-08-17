@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Führt den A-Eintrag bei Cloudflare nach (klappe-ddns.sh).
+
+  Bewusst ein LaunchAgent im Benutzerordner und kein LaunchDaemon:
+
+  - Er läuft damit als der Benutzer, dem auch die Token-Datei gehört. Ein
+    Daemon liefe als root und käme an ~/.config/klappe-ddns/env entweder gar
+    nicht heran oder nur, indem man das Token systemweit lesbar macht.
+  - Auf diesem Mac ist ohnehin dauerhaft eine Sitzung angemeldet – Docker
+    Desktop ist eine Anwendung mit Oberfläche und braucht sie. Der Agent läuft
+    also genauso durch wie ein Daemon.
+
+  Und ausdrücklich stehen hier **keine** Zugangsdaten. Diese Datei ist
+  systemweit lesbar; dieselbe Falle steht schon als Warnung im Worker-Dienst.
+
+  Einrichten:
+
+    cp deploy/mac/de.fuhrzwei.klappe-ddns.plist ~/Library/LaunchAgents/
+    # Pfad unten auf das eigene Verzeichnis anpassen
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/de.fuhrzwei.klappe-ddns.plist
+
+  Nachsehen, ob er tut:
+
+    tail -20 ~/Library/Logs/klappe-ddns.log
+    ./deploy/mac/klappe-ddns.sh --pruefen
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.fuhrzwei.klappe-ddns</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <!-- Auf das eigene Verzeichnis anpassen. -->
+    <string>/Users/DEIN-BENUTZER/docker/klappe/deploy/mac/klappe-ddns.sh</string>
+  </array>
+
+  <!--
+    Jede Minute. Öfter bringt nichts: Der Eintrag hat eine TTL von 60
+    Sekunden, schneller als die kommt eine Änderung ohnehin nicht in der Welt
+    an. Seltener kostet im Ernstfall genau die Differenz an Ausfall.
+
+    Im Normalfall macht ein Lauf nichts als eine Abfrage der eigenen Adresse –
+    die Cloudflare-API wird nur angefasst, wenn sich etwas geändert hat oder
+    die halbstündliche Vollprüfung fällig ist.
+  -->
+  <key>StartInterval</key>
+  <integer>60</integer>
+
+  <!-- Nach einem Neustart sofort, nicht erst nach der ersten Minute. -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!--
+    Kein KeepAlive: Das Skript läuft kurz und beendet sich. launchd würde es
+    sonst als abgestürzt ansehen und in einer Schleife neu starten.
+  -->
+  <key>StandardErrorPath</key>
+  <string>/Users/DEIN-BENUTZER/Library/Logs/klappe-ddns.err.log</string>
+</dict>
+</plist>
