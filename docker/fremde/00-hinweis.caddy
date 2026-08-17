@@ -24,3 +24,16 @@
 # Diese Datei selbst enthält bewusst nur Kommentare: Sie sorgt dafür, dass das
 # Einlesemuster immer mindestens eine Datei findet, auch wenn sonst nichts
 # hierliegt.
+#
+# ## Zwei Dinge, die beim Einrichten Zeit gekostet haben
+#
+# **Kopieren, nicht verlinken.** Ein Symlink hierher zeigt aus dem Bind-Mount
+# heraus; im Container gibt es das Ziel nicht. Wer die Vorgabe im fremden Repo
+# ändert, muss die Kopie hier erneuern.
+#
+# **Nach einem `git pull` ist der Mount der Caddyfile tot.** Docker Desktop
+# bindet die Datei an ihre Inode, und git schreibt beim Aktualisieren eine neue.
+# Der laufende Caddy arbeitet danach aus dem Speicher weiter — er antwortet also
+# normal —, kann aber nicht mehr neu laden: `caddy reload` bricht ab mit „open
+# /etc/caddy/Caddyfile: no such file or directory". Ein `docker compose up -d
+# caddy` bindet neu; ein `reload` allein hilft nicht.
