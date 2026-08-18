@@ -5,6 +5,7 @@ import { AworkPollService } from './awork/awork-poll.service';
 import { AworkProcessor } from './awork/awork.processor';
 import { AworkSyncService } from './awork/awork-sync.service';
 import { I18nModule } from './i18n/i18n.module';
+import { LebenszeichenService } from './lebenszeichen.service';
 import { BrandProfilesModule } from './settings/brand-profiles.module';
 import { WorkerModule } from './worker.module';
 
@@ -62,6 +63,22 @@ describe('Wurzelmodule', () => {
     ['WorkerModule', WorkerModule],
   ])('%s bindet das BrandProfilesModule ein', (_name, modul) => {
     expect(importe(modul)).toContain(BrandProfilesModule);
+  });
+
+  /*
+   * Der Aufpasser gehoert in den Worker und nur dorthin (1.7.10).
+   *
+   * Anlass war ein Ausfall, der einen Tag lang niemandem auffiel: Der
+   * Worker-Prozess lebte, hatte aber keine Verbindung mehr zu Redis und
+   * Datenbank. `launchctl` meldete zufrieden `state = running` – und genau
+   * deshalb reicht "der Prozess lebt" als Auskunft nicht.
+   *
+   * Im API-Prozess hat er nichts verloren: Dort faellt ein Ausfall ohnehin
+   * auf, weil niemand mehr eine Antwort bekommt.
+   */
+  it('nur das WorkerModule hat den Lebenszeichen-Dienst', () => {
+    expect(anbieter(WorkerModule)).toContain(LebenszeichenService);
+    expect(anbieter(AppModule)).not.toContain(LebenszeichenService);
   });
 
   it('AppModule reiht awork-Meldungen nur ein und verarbeitet sie nicht', () => {

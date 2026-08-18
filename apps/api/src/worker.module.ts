@@ -5,6 +5,7 @@ import { AworkPollService } from './awork/awork-poll.service';
 import { AworkProcessor } from './awork/awork.processor';
 import { AworkSyncService } from './awork/awork-sync.service';
 import { EventsModule } from './events/events.module';
+import { LebenszeichenService } from './lebenszeichen.service';
 import { AppConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
 import { I18nModule } from './i18n/i18n.module';
@@ -62,6 +63,13 @@ import { VersionsModule } from './versions/versions.module';
     AworkModule,
   ],
   providers: [
+    /*
+     * Beweist im Takt, dass der Worker nicht nur laeuft, sondern arbeitet –
+     * und beendet ihn, wenn nicht. Steht bewusst nur hier: Im API-Prozess
+     * uebernimmt das die Health-Route, und ein Prozess, der Anfragen
+     * beantwortet, faellt auch ohne Aufpasser auf.
+     */
+    LebenszeichenService,
     NotificationsService,
     MailProcessor,
     AworkSyncService,
