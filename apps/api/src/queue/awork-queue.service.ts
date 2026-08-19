@@ -2,6 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { AWORK_JOB, AWORK_QUEUE, type AworkJobData } from './queue.constants';
+import { aworkJobKennung } from './job-kennung';
 
 /**
  * Das Einreihen der awork-Meldungen (Phase 30).
@@ -9,7 +10,7 @@ import { AWORK_JOB, AWORK_QUEUE, type AworkJobData } from './queue.constants';
  * Zwei Dinge macht dieser Dienst, und beide sind wichtiger, als sie aussehen:
  *
  * **Er sammelt.** Ein Auftrag bekommt eine feste Kennung – etwa
- * `korrekturen:<Fassung>` – und wartet die Ruhezeit ab. Kommt in dieser Zeit
+ * `korrekturen-<Fassung>` – und wartet die Ruhezeit ab. Kommt in dieser Zeit
  * ein weiterer Kommentar, findet BullMQ die Kennung schon vor und legt nichts
  * Neues an; der wartende Auftrag nimmt die Änderung beim Ausführen von selbst
  * mit, weil die Beschreibung ohnehin frisch aus der Datenbank entsteht. Aus
@@ -49,29 +50,32 @@ export class AworkQueueService {
    * dieselbe Einstellung, damit awork und Postfach im selben Takt laufen.
    */
   async korrekturen(versionId: string, delayMs: number): Promise<void> {
-    await this.enqueue({ kind: 'korrekturen', versionId }, `korrekturen:${versionId}`, delayMs);
+    await this.enqueue({ kind: 'korrekturen', versionId }, aworkJobKennung('korrekturen', versionId), delayMs);
   }
 
   async kundenmaterial(projectId: string, delayMs: number): Promise<void> {
-    await this.enqueue({ kind: 'kundenmaterial', projectId }, `kundenmaterial:${projectId}`, delayMs);
+    await this.enqueue({ kind: 'kundenmaterial', projectId }, aworkJobKennung('kundenmaterial', projectId), delayMs);
   }
 
   async erstbesuch(userId: string, shareLinkId: string): Promise<void> {
     await this.enqueue(
       { kind: 'erstbesuch', userId, shareLinkId },
-      `erstbesuch:${userId}:${shareLinkId}`,
+      aworkJobKennung('erstbesuch', userId, shareLinkId),
     );
   }
 
   async fassungVerfuegbar(versionId: string): Promise<void> {
-    await this.enqueue({ kind: 'fassung-verfuegbar', versionId }, `fassung:${versionId}`);
+    await this.enqueue({ kind: 'fassung-verfuegbar', versionId }, aworkJobKennung('fassung', versionId));
   }
 
   async endfassung(versionId: string): Promise<void> {
-    await this.enqueue({ kind: 'endfassung', versionId }, `endfassung:${versionId}`);
+    await this.enqueue({ kind: 'endfassung', versionId }, aworkJobKennung('endfassung', versionId));
   }
 
   async projekteAbholen(): Promise<void> {
-    await this.enqueue({ kind: 'projekte-abholen' }, 'projekte-abholen');
+    await this.enqueue(
+      { kind: 'projekte-abholen' },
+      aworkJobKennung('projekte-abholen'),
+    );
   }
 }
