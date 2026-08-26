@@ -532,6 +532,14 @@ export const de = {
   'bell.empty': 'Nichts Neues. Hier landen Kommentare zu Filmen, die du verfolgst, und Erwähnungen.',
   'bell.mentioned': 'erwähnt',
   'bell.reply': ' · Antwort',
+  // Bündelung nach Projekt (1.7.14)
+  'bell.groupSummary': {
+    one: '{count} Kommentar in {videos} Film',
+    other: '{count} Kommentare in {videos} Filmen',
+  },
+  'bell.markGroupRead': 'Projekt gelesen',
+  'bell.showMore': { one: '{count} weiterer', other: '{count} weitere' },
+  'bell.showLess': 'Weniger zeigen',
   'notifications.title': 'Benachrichtigungen',
   'notifications.hintVideo':
     'Wer hier steht, bekommt Post zu jedem Kommentar an diesem Video – über alle Fassungen hinweg.',

@@ -664,6 +664,12 @@ export interface NotificationDto {
   /** `null`, solange ungelesen. */
   readAt: string | null;
   authorName: string;
+  /**
+   * Nach **dieser** Kennung wird in der Zentrale gruppiert, nicht nach dem
+   * Namen (1.7.14): Zwei Projekte dürfen gleich heißen, und dann fielen ihre
+   * Benachrichtigungen sonst in einen Topf.
+   */
+  projectId: string;
   projectName: string;
   videoId: string;
   videoName: string;

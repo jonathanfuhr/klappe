@@ -3231,6 +3231,71 @@ a.badge:hover {
 }
 
 /*
+ * Bündelung nach Projekt (1.7.14).
+ *
+ * Der Kopf trägt die Auskunft – Projektname, Zahl der Ungelesenen, Zeit –,
+ * darunter stehen die jüngsten Einträge. Er klebt beim Rollen oben fest:
+ * Wer in einer langen Gruppe scrollt, soll noch sehen, wessen Kommentare da
+ * eigentlich stehen.
+ */
+.bell__gruppe {
+  border-bottom: 1px solid var(--klappe-border);
+}
+
+.bell__gruppe:last-child {
+  border-bottom: 0;
+}
+
+.bell__gruppe-kopf {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px 3px;
+  /* Nicht durchsichtig – sonst scheinen beim Rollen die Einträge durch. */
+  background: var(--klappe-surface);
+}
+
+.bell__gruppe-name {
+  font-size: 13px;
+  /* Ein langer Projektname darf die Zeit nicht hinausschieben. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Eine Erwähnung hebt die ganze Gruppe hervor – sie steht ohnehin oben. */
+.bell__gruppe[data-mention='true'] .bell__gruppe-kopf {
+  box-shadow: inset 3px 0 0 var(--klappe-accent);
+}
+
+.bell__gruppe-zeile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 8px;
+  font-size: 12px;
+}
+
+.bell__gruppe-gelesen,
+.bell__mehr {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.bell__mehr {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 7px 12px;
+  text-align: left;
+  color: var(--klappe-text-muted);
+}
+
+/*
  * Eintrag und ×: Die Hülle trägt seit Phase 29 nur noch die Auszeichnung –
  * der Knopf steckt darin. Vorher war die Zeile selbst der Knopf, und ein
  * zweiter darin wäre ein Knopf im Knopf gewesen.
@@ -3239,6 +3304,11 @@ a.badge:hover {
   display: flex;
   align-items: flex-start;
   border-bottom: 1px solid var(--klappe-border);
+}
+
+/* Die Gruppe zieht schon einen Strich – ein zweiter darunter wäre doppelt. */
+.bell__gruppe .bell__item:last-child {
+  border-bottom: 0;
 }
 
 .bell__hin {

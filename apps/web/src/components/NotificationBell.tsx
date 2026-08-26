@@ -5,6 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { api } from '@/lib/api';
+import {
+  type Projektgruppe,
+  SICHTBAR_JE_GRUPPE,
+  gruppiereNachProjekt,
+} from '@/lib/benachrichtigungen-gruppieren';
 import { useFormat } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { useFallbackInterval, useLive } from '@/lib/live';
@@ -40,6 +45,23 @@ export function NotificationBell() {
   const [entries, setEntries] = useState<NotificationDto[] | null>(null);
   const [busy, setBusy] = useState(false);
   const huelle = useRef<HTMLDivElement>(null);
+
+  /**
+   * Welche Projektgruppen ganz aufgeklappt sind (1.7.14).
+   *
+   * Ab Werk keine: Der Kopf jeder Gruppe sagt schon, worum es geht, und
+   * darunter stehen die drei jüngsten Einträge. Wer mehr will, klappt auf.
+   * Beim Schließen des Glöckchens bleibt der Zustand stehen – wer gerade eine
+   * Gruppe durchgeht, will sie nach dem Sprung ins Video wiederfinden.
+   */
+  const [aufgeklappt, setAufgeklappt] = useState<Set<string>>(new Set());
+
+  const umschalten = (projectId: string) =>
+    setAufgeklappt((current) => {
+      const naechster = new Set(current);
+      if (!naechster.delete(projectId)) naechster.add(projectId);
+      return naechster;
+    });
 
   /**
    * Push (Phase 29). `null` heisst: Dieser Browser kann es nicht – dann steht
@@ -189,6 +211,38 @@ export function NotificationBell() {
     }
   };
 
+  /**
+   * Ein ganzes Projekt als gelesen abhaken (1.7.14).
+   *
+   * Der eigentliche Zeitgewinn an der Bündelung: Nach einer Abnahmerunde
+   * stehen zwanzig Kommentare zu einem Film da, und die einzeln wegzuklicken
+   * war die Zumutung, um die es hier geht. `markNotificationsRead` nimmt schon
+   * immer eine Liste von Kennungen – es brauchte dafür also nichts Neues auf
+   * der Serverseite.
+   */
+  const gruppeGelesen = async (gruppe: Projektgruppe) => {
+    const offene = gruppe.eintraege.filter((eintrag) => eintrag.readAt === null);
+    if (offene.length === 0) return;
+    const jetzt = new Date().toISOString();
+
+    // Erst in der Liste, dann melden – wie beim Wegräumen einer Zeile soll der
+    // Klick sofort wirken und nicht auf den Server warten.
+    const kennungen = new Set(offene.map((eintrag) => eintrag.id));
+    setEntries(
+      (current) =>
+        current?.map((eintrag) =>
+          kennungen.has(eintrag.id) ? { ...eintrag, readAt: jetzt } : eintrag,
+        ) ?? null,
+    );
+
+    try {
+      const { unread: anzahl } = await api.markNotificationsRead([...kennungen]);
+      setUnread(anzahl);
+    } catch {
+      void zaehlen();
+    }
+  };
+
   const hingehen = async (entry: NotificationDto) => {
     setOpen(false);
     if (!entry.readAt) {
@@ -248,43 +302,121 @@ export function NotificationBell() {
               <p className="bell__leer">{t('bell.empty')}</p>
             ) : null}
 
-            {/* Der Eintrag war bis Phase 29 selbst ein Knopf. Das × darin
-                wäre ein Knopf im Knopf gewesen – ungültiges HTML, und kein
-                Browser trennt die beiden Klickflächen zuverlässig. Jetzt
-                trägt eine Hülle die Auszeichnung, darin springt der linke
-                Teil ins Video und der rechte räumt die Zeile weg. */}
-            {(entries ?? []).map((entry) => (
-              <div
-                key={entry.id}
-                className="bell__item"
-                data-unread={entry.readAt === null}
-                data-mention={entry.mentioned}
-              >
-                <button type="button" className="bell__hin" onClick={() => void hingehen(entry)}>
-                  <span className="bell__zeile">
-                    <strong>{entry.authorName}</strong>
-                    {entry.mentioned ? <span className="badge">{t('bell.mentioned')}</span> : null}
-                    <span className="shell__spacer" />
-                    <span className="faint">{formatRelative(entry.createdAt)}</span>
-                  </span>
-                  <span className="bell__wo">
-                    {entry.projectName} · {entry.videoName} · {entry.versionLabel}
-                    {entry.timecode ? ` · ${entry.timecode}` : ''}
-                    {entry.isReply ? t('bell.reply') : ''}
-                  </span>
-                  <span className="bell__text">{entry.excerpt}</span>
-                </button>
-                <button
-                  type="button"
-                  className="iconbutton bell__weg"
-                  onClick={() => void entfernen(entry.id)}
-                  aria-label={t('bell.remove')}
-                  title={t('bell.remove')}
+            {/*
+              Nach Projekt gebündelt (1.7.14).
+
+              Vorher stand hier jeder einzelne Kommentar für sich. Bei einer
+              Abnahmerunde sind das zwanzig Zeilen zu **einem** Film, und wer
+              daneben an zwei anderen Projekten sitzt, findet nichts mehr
+              wieder – die Liste sagte dann nur noch „viel", nicht mehr „was".
+
+              Jetzt trägt der Kopf die Auskunft, und darunter stehen die drei
+              jüngsten Einträge. Der Rest kommt auf Klick.
+            */}
+            {gruppiereNachProjekt(entries ?? []).map((gruppe) => {
+              const offen = aufgeklappt.has(gruppe.projectId);
+              const sichtbar = offen
+                ? gruppe.eintraege
+                : gruppe.eintraege.slice(0, SICHTBAR_JE_GRUPPE);
+              const verborgen = gruppe.eintraege.length - sichtbar.length;
+
+              return (
+                <div
+                  key={gruppe.projectId}
+                  className="bell__gruppe"
+                  data-unread={gruppe.ungelesen > 0}
+                  data-mention={gruppe.erwaehnung}
                 >
-                  ✕
-                </button>
-              </div>
-            ))}
+                  <div className="bell__gruppe-kopf">
+                    <strong className="bell__gruppe-name">{gruppe.projectName}</strong>
+                    {gruppe.ungelesen > 0 ? (
+                      <span className="badge">{gruppe.ungelesen}</span>
+                    ) : null}
+                    {gruppe.erwaehnung ? (
+                      <span className="badge">{t('bell.mentioned')}</span>
+                    ) : null}
+                    <span className="shell__spacer" />
+                    <span className="faint">{formatRelative(gruppe.neuestesAm)}</span>
+                  </div>
+
+                  <div className="bell__gruppe-zeile">
+                    <span className="faint">
+                      {t('bell.groupSummary', {
+                        count: gruppe.eintraege.length,
+                        videos: gruppe.videoAnzahl,
+                      })}
+                    </span>
+                    {/* Erst anbieten, wenn wirklich etwas offen ist – sonst
+                        wäre es ein Knopf, der nichts tut. */}
+                    {gruppe.ungelesen > 0 ? (
+                      <button
+                        type="button"
+                        className="button button--ghost bell__gruppe-gelesen"
+                        onClick={() => void gruppeGelesen(gruppe)}
+                      >
+                        {t('bell.markGroupRead')}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {/* Der Eintrag war bis Phase 29 selbst ein Knopf. Das × darin
+                      wäre ein Knopf im Knopf gewesen – ungültiges HTML, und kein
+                      Browser trennt die beiden Klickflächen zuverlässig. Jetzt
+                      trägt eine Hülle die Auszeichnung, darin springt der linke
+                      Teil ins Video und der rechte räumt die Zeile weg. */}
+                  {sichtbar.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="bell__item"
+                      data-unread={entry.readAt === null}
+                      data-mention={entry.mentioned}
+                    >
+                      <button
+                        type="button"
+                        className="bell__hin"
+                        onClick={() => void hingehen(entry)}
+                      >
+                        <span className="bell__zeile">
+                          <strong>{entry.authorName}</strong>
+                          {entry.mentioned ? (
+                            <span className="badge">{t('bell.mentioned')}</span>
+                          ) : null}
+                          <span className="shell__spacer" />
+                          <span className="faint">{formatRelative(entry.createdAt)}</span>
+                        </span>
+                        {/* Der Projektname steht schon im Kopf der Gruppe und
+                            wäre hier nur Wiederholung. */}
+                        <span className="bell__wo">
+                          {entry.videoName} · {entry.versionLabel}
+                          {entry.timecode ? ` · ${entry.timecode}` : ''}
+                          {entry.isReply ? t('bell.reply') : ''}
+                        </span>
+                        <span className="bell__text">{entry.excerpt}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="iconbutton bell__weg"
+                        onClick={() => void entfernen(entry.id)}
+                        aria-label={t('bell.remove')}
+                        title={t('bell.remove')}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
+                  {verborgen > 0 || offen ? (
+                    <button
+                      type="button"
+                      className="button button--ghost bell__mehr"
+                      onClick={() => umschalten(gruppe.projectId)}
+                    >
+                      {offen ? t('bell.showLess') : t('bell.showMore', { count: verborgen })}
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
 
           {/* Ganz unten und zurückhaltend – nicht beworben, aber auffindbar.

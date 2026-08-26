@@ -525,6 +525,14 @@ export const en: Record<MessageKey, Message> = {
   'bell.empty': 'Nothing new. Comments on films you follow and mentions land here.',
   'bell.mentioned': 'mentioned',
   'bell.reply': ' · reply',
+  // Grouping by project (1.7.14)
+  'bell.groupSummary': {
+    one: '{count} comment in {videos} video',
+    other: '{count} comments in {videos} videos',
+  },
+  'bell.markGroupRead': 'Mark project read',
+  'bell.showMore': { one: '{count} more', other: '{count} more' },
+  'bell.showLess': 'Show less',
   'notifications.title': 'Notifications',
   'notifications.hintVideo':
     'Whoever is listed here gets mail about every comment on this video – across all versions.',
